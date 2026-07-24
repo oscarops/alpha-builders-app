@@ -15,36 +15,117 @@ st.subheader("Registro Diario y Control de Rendimiento por Trabajador")
 if "registros" not in st.session_state:
     st.session_state.registros = []
 
-# --- BASE DE DATOS DE TRABAJADORES ACTIVOS (28 TRABAJADORES) ---
+# --- BASE DE DATOS REAL DE TRABAJADORES ACTIVOS (28 TRABAJADORES) ---
 TRABAJADORES = [
-    {"nombre": "Trabajador 1", "cargo": "Maestro Mayor"},
-    {"nombre": "Trabajador 2", "cargo": "Albañil / Operario"},
-    {"nombre": "Trabajador 3", "cargo": "Albañil / Operario"},
-    {"nombre": "Trabajador 4", "cargo": "Albañil / Operario"},
-    {"nombre": "Trabajador 5", "cargo": "Albañil / Operario"},
-    {"nombre": "Trabajador 6", "cargo": "Albañil / Operario"},
-    {"nombre": "Trabajador 7", "cargo": "Albañil / Operario"},
-    {"nombre": "Trabajador 8", "cargo": "Albañil / Operario"},
-    {"nombre": "Trabajador 9", "cargo": "Albañil / Operario"},
-    {"nombre": "Trabajador 10", "cargo": "Albañil / Operario"},
-    {"nombre": "Trabajador 11", "cargo": "Peón / Ayudante"},
-    {"nombre": "Trabajador 12", "cargo": "Peón / Ayudante"},
-    {"nombre": "Trabajador 13", "cargo": "Peón / Ayudante"},
-    {"nombre": "Trabajador 14", "cargo": "Peón / Ayudante"},
-    {"nombre": "Trabajador 15", "cargo": "Peón / Ayudante"},
-    {"nombre": "Trabajador 16", "cargo": "Peón / Ayudante"},
-    {"nombre": "Trabajador 17", "cargo": "Peón / Ayudante"},
-    {"nombre": "Trabajador 18", "cargo": "Peón / Ayudante"},
-    {"nombre": "Trabajador 19", "cargo": "Peón / Ayudante"},
-    {"nombre": "Trabajador 20", "cargo": "Peón / Ayudante"},
-    {"nombre": "Trabajador 21", "cargo": "Fierrero"},
-    {"nombre": "Trabajador 22", "cargo": "Fierrero"},
-    {"nombre": "Trabajador 23", "cargo": "Encofrador"},
-    {"nombre": "Trabajador 24", "cargo": "Encofrador"},
-    {"nombre": "Trabajador 25", "cargo": "Enlucidor / Espec."},
-    {"nombre": "Trabajador 26", "cargo": "Enlucidor / Espec."},
-    {"nombre": "Trabajador 27", "cargo": "Electricista"},
-    {"nombre": "Trabajador 28", "cargo": "Plomero"},
+    {
+        "nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER",
+        "cargo": "BODEGA",
+    },
+    {
+        "nombre": "AGUALONGO PILAMUNGA LUIS LENIN",
+        "cargo": "GYPSERO/ALBAÑIL",
+    },
+    {
+        "nombre": "ALTAMIRANO GUALAN WILLIAM PATRICIO",
+        "cargo": "GYPSERO",
+    },
+    {
+        "nombre": "BUNSHI CAYANCELA SANTIAGO EFRAIN",
+        "cargo": "ALBAÑIL",
+    },
+    {
+        "nombre": "CAYAMBE SANDOVAL LUIS ANTONIO",
+        "cargo": "ALBAÑIL",
+    },
+    {
+        "nombre": "CUASCOTA INLAGO JOSE LIZARDO",
+        "cargo": "ALBAÑIL",
+    },
+    {
+        "nombre": "CUERO BAMONTES DEIBINZON ESTALIN",
+        "cargo": "AYUDANTE",
+    },
+    {
+        "nombre": "GUANOLUISA VACA LUIS FERNANDO",
+        "cargo": "ALBAÑIL",
+    },
+    {
+        "nombre": "LLUGLLUNA FARINANGO SEGUNDO MANUEL",
+        "cargo": "ALBAÑIL",
+    },
+    {
+        "nombre": "MORALES OTUNA VERONICA JAQUELINE",
+        "cargo": "AYUDANTE",
+    },
+    {
+        "nombre": "OCHOA MORAN MIGUEL BERNARDO",
+        "cargo": "GYPSERO",
+    },
+    {
+        "nombre": "PAGUAY RAMOS DILAN ANDRES",
+        "cargo": "GYPSERO",
+    },
+    {
+        "nombre": "ROMERO ANDRANGO LUIS ENRIQUE",
+        "cargo": "GYPSERO",
+    },
+    {
+        "nombre": "SANGUCHO FONSECA EDGAR XAVIER",
+        "cargo": "ALBAÑIL",
+    },
+    {
+        "nombre": "TARAPUES MONARCO CARLOS ANDRES",
+        "cargo": "GYPSERO",
+    },
+    {
+        "nombre": "TONATO TACO LUIS EUCLIDES",
+        "cargo": "ALBAÑIL",
+    },
+    {
+        "nombre": "TOSCANO ALTAMIRANO JEREMMY WENDLEY",
+        "cargo": "AYUDANTE",
+    },
+    {
+        "nombre": "TRONCOSO COBEÑA CRISTOPHER GEOVANNY",
+        "cargo": "AYUDANTE",
+    },
+    {
+        "nombre": "TUTASI CASILLAS JORGE GEOVANI",
+        "cargo": "FIERRERO",
+    },
+    {
+        "nombre": "CHAVEZ GUITARRA JOSE GREGORIO",
+        "cargo": "GYPSERO",
+    },
+    {
+        "nombre": "CORDOVA FLORES ERICK DARIO",
+        "cargo": "GYPSERO / AYUDANTE",
+    },
+    {
+        "nombre": "CABRERA CAMPO ANNDY JEREMIAS",
+        "cargo": "GYPSERO / OPERADOR",
+    },
+    {"nombre": "CHELA OCHOA RAUL", "cargo": "GYPSERO/ALBAÑIL"},
+    {
+        "nombre": "SEMBLANTES TIPANLUISA JAVIER PATRICIO",
+        "cargo": "GYPSERO/ALBAÑIL",
+    },
+    {
+        "nombre": "FUEREZ COYAGO JOSE SANTOS",
+        "cargo": "HERRAMIENTAS",
+    },
+    {
+        "nombre": "ALTAMIRANO CORDOVA HECTOR LUIS",
+        "cargo": "PINTOR",
+    },
+    {
+        "nombre": "ACOSTA AGUILAR JORGE PATRICIO",
+        "cargo": "SOLDADOR",
+    },
+    {
+        "nombre": "TARAPUES CASTRO JOAO ALEXANDER",
+        "cargo": "SOLDADOR",
+    },
 ]
 
 # Unidades por defecto para cada rubro
@@ -72,7 +153,9 @@ col1, col2 = st.columns(2)
 with col1:
     # 1. Selección de Trabajador
     nombres = [t["nombre"] for t in TRABAJADORES]
-    trabajador_sel = st.selectbox("👷 Seleccionar Trabajador (28 Activos):", nombres)
+    trabajador_sel = st.selectbox(
+        "👷 Seleccionar Trabajador (28 Activos):", nombres
+    )
 
     # Mostrar cargo correspondiente al lado
     cargo_actual = next(
