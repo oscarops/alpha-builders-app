@@ -18,7 +18,7 @@ tab_checklist, tab_rendimiento = st.tabs(
 )
 
 # ==========================================
-# MÓDULO 1: CHECKLIST DIARIO RESIDENTE
+# MÓDULO 1: CHECKLIST DIARIO RESIDENTE CON FOTOS
 # ==========================================
 with tab_checklist:
     st.markdown("### Datos Generales del Control")
@@ -66,28 +66,33 @@ with tab_checklist:
         respuestas_manana = []
 
         for idx, act in enumerate(actividades_manana, 1):
-            c1, c2, c3 = st.columns([1, 4, 5])
-            with c1:
-                st.write(f"**N° {idx}**")
-            with c2:
-                st.write(act)
-            with c3:
-                col_sel, col_obs = st.columns([2, 3])
-                with col_sel:
-                    estado = st.radio(
-                        "Estado",
-                        ["✓ Cumple", "✗ No Cumple", "N/A"],
-                        key=f"m_{idx}",
-                        label_visibility="collapsed",
-                        horizontal=True,
-                    )
-                with col_obs:
-                    obs = st.text_input(
-                        "Observación",
-                        key=f"obs_m_{idx}",
-                        placeholder="Observaciones...",
-                        label_visibility="collapsed",
-                    )
+            st.markdown(f"**N° {idx}. {act}**")
+            col_sel, col_obs, col_foto = st.columns([2, 3, 3])
+
+            with col_sel:
+                estado = st.radio(
+                    "Estado",
+                    ["✓ Cumple", "✗ No Cumple", "N/A"],
+                    key=f"m_{idx}",
+                    horizontal=True,
+                )
+
+            with col_obs:
+                obs = st.text_input(
+                    "Observación",
+                    key=f"obs_m_{idx}",
+                    placeholder="Escriba observaciones si existen...",
+                )
+
+            with col_foto:
+                foto = st.file_uploader(
+                    "📷 Adjuntar Foto (Opcional)",
+                    type=["jpg", "jpeg", "png"],
+                    key=f"foto_m_{idx}",
+                )
+
+            st.markdown("<hr style='margin: 8px 0; opacity: 0.3;'>", unsafe_allow_html=True)
+
             respuestas_manana.append(
                 {
                     "Jornada": "Mañana",
@@ -95,6 +100,8 @@ with tab_checklist:
                     "Actividad": act,
                     "Estado": estado,
                     "Observaciones": obs,
+                    "Foto_Objeto": foto,
+                    "Foto_Adjunta": "Sí 📷" if foto is not None else "No",
                 }
             )
 
@@ -103,28 +110,33 @@ with tab_checklist:
         respuestas_tarde = []
 
         for idx, act in enumerate(actividades_tarde, 1):
-            c1, c2, c3 = st.columns([1, 4, 5])
-            with c1:
-                st.write(f"**N° {idx}**")
-            with c2:
-                st.write(act)
-            with c3:
-                col_sel, col_obs = st.columns([2, 3])
-                with col_sel:
-                    estado = st.radio(
-                        "Estado",
-                        ["✓ Cumple", "✗ No Cumple", "N/A"],
-                        key=f"t_{idx}",
-                        label_visibility="collapsed",
-                        horizontal=True,
-                    )
-                with col_obs:
-                    obs = st.text_input(
-                        "Observación",
-                        key=f"obs_t_{idx}",
-                        placeholder="Observaciones...",
-                        label_visibility="collapsed",
-                    )
+            st.markdown(f"**N° {idx}. {act}**")
+            col_sel, col_obs, col_foto = st.columns([2, 3, 3])
+
+            with col_sel:
+                estado = st.radio(
+                    "Estado",
+                    ["✓ Cumple", "✗ No Cumple", "N/A"],
+                    key=f"t_{idx}",
+                    horizontal=True,
+                )
+
+            with col_obs:
+                obs = st.text_input(
+                    "Observación",
+                    key=f"obs_t_{idx}",
+                    placeholder="Escriba observaciones si existen...",
+                )
+
+            with col_foto:
+                foto = st.file_uploader(
+                    "📷 Adjuntar Foto (Opcional)",
+                    type=["jpg", "jpeg", "png"],
+                    key=f"foto_t_{idx}",
+                )
+
+            st.markdown("<hr style='margin: 8px 0; opacity: 0.3;'>", unsafe_allow_html=True)
+
             respuestas_tarde.append(
                 {
                     "Jornada": "Tarde",
@@ -132,6 +144,8 @@ with tab_checklist:
                     "Actividad": act,
                     "Estado": estado,
                     "Observaciones": obs,
+                    "Foto_Objeto": foto,
+                    "Foto_Adjunta": "Sí 📷" if foto is not None else "No",
                 }
             )
 
@@ -150,10 +164,33 @@ with tab_checklist:
                 f"✅ Checklist guardado exitosamente por **{residente}** el {fecha.strftime('%d/%m/%Y')}."
             )
             st.markdown("#### Resumen del Checklist Diario")
-            st.dataframe(df_chk, use_container_width=True)
+            st.dataframe(
+                df_chk.drop(columns=["Foto_Objeto"]), use_container_width=True
+            )
 
-            # Preparar CSV para descarga
-            csv_chk = df_chk.to_csv(index=False).encode("utf-8")
+            # Galería de Fotos Adjuntas
+            st.markdown("#### 🖼️ Evidencia Fotográfica Capturada")
+            fotos_encontradas = False
+            cols_galeria = st.columns(3)
+            col_index = 0
+
+            for item in todos_datos:
+                if item["Foto_Objeto"] is not None:
+                    fotos_encontradas = True
+                    with cols_galeria[col_index % 3]:
+                        st.image(
+                            item["Foto_Objeto"],
+                            caption=f"[{item['Jornada']}] N° {item['N°']}: {item['Actividad']}",
+                            use_column_width=True,
+                        )
+                    col_index += 1
+
+            if not fotos_encontradas:
+                st.info("No se adjuntaron fotografías en este registro.")
+
+            # Preparar CSV para descarga (excluyendo el objeto de la foto)
+            df_descarga = df_chk.drop(columns=["Foto_Objeto"])
+            csv_chk = df_descarga.to_csv(index=False).encode("utf-8")
             st.download_button(
                 label="📥 Descargar Checklist en CSV",
                 data=csv_chk,
