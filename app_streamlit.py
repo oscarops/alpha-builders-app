@@ -126,36 +126,6 @@ st.markdown(
         fill: #ffffff !important;
     }
 
-    /* CORRECCIÓN: CAJAS DE CONTRASEÑA CON OJO TRANSPARENTE SIN FONDO */
-    [data-testid="stSidebar"] div[data-baseweb="input"] {
-        background-color: #ffffff !important;
-        border: 1px solid #b8bec8 !important;
-        border-radius: 10px !important;
-    }
-
-    [data-testid="stSidebar"] div[data-baseweb="input"] input {
-        background-color: transparent !important;
-        color: #121318 !important;
-        font-weight: 600 !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] {
-        background-color: transparent !important;
-        border: none !important;
-        padding-right: 6px !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] button {
-        background-color: transparent !important;
-        border: none !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] svg,
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] path {
-        fill: #121318 !important;
-        color: #121318 !important;
-    }
-
     /* Uploader de Fotos en Sidebar */
     [data-testid="stSidebar"] [data-testid="stFileUploader"] {
         background-color: #1c1e26 !important;
@@ -175,54 +145,19 @@ st.markdown(
         border-radius: 8px !important;
     }
 
-    /* 3. MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL */
-    .executive-card-studio {
-        background: linear-gradient(135deg, #f0f3f8 0%, #e2e7ef 100%);
-        border: 1px solid #c5cddb;
-        border-radius: 22px;
-        padding: 28px;
-        box-shadow: 0 12px 35px rgba(0,0,0,0.06);
-        margin-bottom: 25px;
-        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .executive-card-studio:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 18px 45px rgba(0,0,0,0.12);
-        border-color: #121318;
-    }
-
-    .kpi-card-studio {
-        background: linear-gradient(135deg, #eaedf4 0%, #d8deeb 100%);
-        border: 1px solid #b8c2d4;
-        border-radius: 20px;
-        padding: 22px;
-        text-align: center;
-        box-shadow: 0 8px 22px rgba(0,0,0,0.05);
-        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .kpi-card-studio:hover {
-        background: linear-gradient(135deg, #e0e6f2, #ccd4e4);
-        border-color: #121318;
-        transform: translateY(-5px) scale(1.01);
-        box-shadow: 0 16px 35px rgba(0,0,0,0.12);
-    }
-    .kpi-val-studio {
-        font-size: 2.8rem;
-        font-weight: 900;
+    /* 3. BORDES NARANJA RESALTADOS PARA LOS INPUTS DE LOGIN */
+    .stApp .stTextInput input {
+        background-color: #ffffff !important;
         color: #121318 !important;
-        letter-spacing: -0.03em;
-    }
-    .kpi-lbl-studio {
-        font-size: 0.75rem;
-        color: #4a5060 !important;
-        text-transform: uppercase;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        margin-top: 4px;
+        border: 2px solid #ff8c00 !important;
+        border-radius: 12px !important;
+        padding: 10px 14px !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        box-shadow: 0 0 8px rgba(255, 140, 0, 0.2);
     }
 
-    /* FORMULARIOS E INPUTS EN ÁREA PRINCIPAL */
-    .stApp .stTextInput input, .stApp .stSelectbox > div > div, .stApp .stNumberInput input, .stApp .stDateInput input {
+    .stApp .stSelectbox > div > div, .stApp .stNumberInput input, .stApp .stDateInput input {
         background-color: #ffffff !important;
         color: #121318 !important;
         border: 1px solid #b8bec8 !important;
@@ -235,6 +170,7 @@ st.markdown(
     .stTextInput input:disabled {
         background-color: #e2e5ec !important;
         color: #5a5f6e !important;
+        border: 1px solid #b8bec8 !important;
     }
 
     /* PESTAÑAS (SEGMENT CONTROL) */
@@ -475,7 +411,7 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO (CON LOGO alpha.473f0c2dc3c48a682723-2.webp)
+# 4. MÓDULO DE LOGIN & REGISTRO (LOGO PEQUEÑO Y ESTÁTICO)
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -483,15 +419,23 @@ if not st.session_state.autenticado:
     with col_l2:
         logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
         if os.path.exists(logo_filename):
-            st.image(logo_filename, use_column_width=True)
-        elif os.path.exists("images.png"):
-            st.image("images.png", use_column_width=True)
-        else:
+            with open(logo_filename, "rb") as image_file:
+                encoded_logo = base64.b64encode(image_file.read()).decode("utf-8")
             st.markdown(
-                """
-                <div class="executive-card-studio" style="text-align: center; margin-top: 40px;">
-                    <h1 class="brand-title" style="font-size: 2.6rem; font-weight: 900; margin: 0; color: #121318;">ALPHA BUILDERS</h1>
-                    <p style="color: #5a5f6e; font-size: 1.05rem; font-weight: 600; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
+                f"""
+                <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
+                    <img src="data:image/webp;base64,{encoded_logo}" style="width: 200px; max-width: 100%; pointer-events: none;">
+                </div>
+            """,
+                unsafe_allow_html=True,
+            )
+        elif os.path.exists("images.png"):
+            with open("images.png", "rb") as image_file:
+                encoded_logo = base64.b64encode(image_file.read()).decode("utf-8")
+            st.markdown(
+                f"""
+                <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
+                    <img src="data:image/png;base64,{encoded_logo}" style="width: 200px; max-width: 100%; pointer-events: none;">
                 </div>
             """,
                 unsafe_allow_html=True,
@@ -620,7 +564,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON PERFIL Y CONFIGURACIÓN
+# 5. BARRA LATERAL CON LOGO ESTÁTICO Y PERFIL
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -630,9 +574,27 @@ es_admin = user_email in st.session_state.admin_emails
 with st.sidebar:
     logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
     if os.path.exists(logo_filename):
-        st.image(logo_filename, use_column_width=True)
+        with open(logo_filename, "rb") as image_file:
+            encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
+        st.markdown(
+            f"""
+            <div style="text-align: center; margin-bottom: 10px;">
+                <img src="data:image/webp;base64,{encoded_sidebar_logo}" style="width: 150px; max-width: 100%; pointer-events: none;">
+            </div>
+        """,
+            unsafe_allow_html=True,
+        )
     elif os.path.exists("images.png"):
-        st.image("images.png", use_column_width=True)
+        with open("images.png", "rb") as image_file:
+            encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
+        st.markdown(
+            f"""
+            <div style="text-align: center; margin-bottom: 10px;">
+                <img src="data:image/png;base64,{encoded_sidebar_logo}" style="width: 150px; max-width: 100%; pointer-events: none;">
+            </div>
+        """,
+            unsafe_allow_html=True,
+        )
 
     st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
@@ -709,7 +671,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v29.0 Clean Eye")
+    st.caption("Alpha Builders Portal v30.0")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
