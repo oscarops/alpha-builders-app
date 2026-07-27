@@ -226,7 +226,7 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* TARJETA PRINCIPAL (COMPLETA, SIN CORTES) */
+    /* TARJETA PRINCIPAL */
     .executive-card-studio {
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
         border: 1px solid #b8c4d8;
@@ -235,8 +235,6 @@ st.markdown(
         padding: 22px 28px;
         box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         margin-bottom: 20px;
-        width: 100%;
-        box-sizing: border-box;
     }
 
     .brand-title {
@@ -888,9 +886,15 @@ with tab_chk:
             st.markdown("---")
             with st.container():
                 st.markdown("#### Configuración de la Nueva Jornada")
-                edificio_val = st.selectbox("Edificio / Proyecto:", EDIFICIOS_ALPHA, key="sel_edificio")
-                st.text_input("Responsable:", value=user_nombre_completo, disabled=True, help="Cargado de su inicio de sesión.")
-                fecha_val = st.date_input("Fecha de Inspección:", datetime.date.today(), key="sel_fecha")
+                
+                # DISTRIBUCIÓN EQUILIBRADA EN 3 COLUMNAS PARA EVITAR ESPACIO VACÍO A LA DERECHA
+                cfg_c1, cfg_c2, cfg_c3 = st.columns(3)
+                with cfg_c1:
+                    edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="sel_edificio")
+                with cfg_c2:
+                    st.text_input("Responsable:", value=user_nombre_completo, disabled=True)
+                with cfg_c3:
+                    fecha_val = st.date_input("Fecha:", datetime.date.today(), key="sel_fecha")
 
                 st.markdown("---")
 
@@ -964,29 +968,31 @@ with tab_chk:
                     btn_guardar_chk = st.form_submit_button("Guardar Jornada de Inspección", type="primary")
 
                 if btn_guardar_chk:
-                    all_chk_data = resp_manana + resp_tarde
-                    
-                    sin_responder = [item["Actividad"] for item in all_chk_data if item["Estado"] is None]
-                    if sin_responder:
-                        st.error(f"⚠️ Seleccione el estado de todas las actividades ({len(sin_responder)} pendientes).")
+                    if edificio_val == "-- Seleccione --" or not edificio_val:
+                        st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
                     else:
-                        df_chk_save = pd.DataFrame(all_chk_data)
+                        all_chk_data = resp_manana + resp_tarde
+                        sin_responder = [item["Actividad"] for item in all_chk_data if item["Estado"] is None]
+                        if sin_responder:
+                            st.error(f"⚠️ Seleccione el estado de todas las actividades ({len(sin_responder)} pendientes).")
+                        else:
+                            df_chk_save = pd.DataFrame(all_chk_data)
 
-                        if user_email not in st.session_state.db_checklists:
-                            st.session_state.db_checklists[user_email] = []
+                            if user_email not in st.session_state.db_checklists:
+                                st.session_state.db_checklists[user_email] = []
 
-                        st.session_state.db_checklists[user_email].append({
-                            "Fecha": fecha_val.strftime("%Y-%m-%d"),
-                            "Edificio": edificio_val,
-                            "Responsable": user_nombre_completo,
-                            "Cargo": user_cargo,
-                            "Datos": df_chk_save.to_dict(orient="records")
-                        })
+                            st.session_state.db_checklists[user_email].append({
+                                "Fecha": fecha_val.strftime("%Y-%m-%d"),
+                                "Edificio": edificio_val,
+                                "Responsable": user_nombre_completo,
+                                "Cargo": user_cargo,
+                                "Datos": df_chk_save.to_dict(orient="records")
+                            })
 
-                        save_persistent_db()
-                        st.success(f"Jornada guardada para **{edificio_val}**.")
-                        st.session_state.creando_jornada = False
-                        st.rerun()
+                            save_persistent_db()
+                            st.success(f"Jornada guardada para **{edificio_val}**.")
+                            st.session_state.creando_jornada = False
+                            st.rerun()
 
     with col_der_historial:
         st.markdown("### Historial de Jornadas")
@@ -1041,7 +1047,7 @@ with tab_chk:
                             with st.expander(f"📌 {j['Edificio']} — {j['Fecha']}"):
                                 with st.form(f"form_edit_jornada_{orig_idx}"):
                                     st.markdown("#### Editar Detalles")
-                                    nuevo_nombre_edificio = st.text_input("Nombre / Edificio:", value=j['Edificio'])
+                                    nuevo_nombre_edificio = st.selectbox("Nombre / Edificio:", EDIFICIOS_ALPHA, index=EDIFICIOS_ALPHA.index(j['Edificio']) if j['Edificio'] in EDIFICIOS_ALPHA else 0, key=f"ed_sel_{orig_idx}")
                                     try:
                                         f_obj = datetime.datetime.strptime(j['Fecha'], "%Y-%m-%d").date()
                                     except:
@@ -1049,7 +1055,7 @@ with tab_chk:
                                     nueva_fecha_obj = st.date_input("Fecha:", value=f_obj, key=f"f_ed_{orig_idx}")
 
                                     if st.form_submit_button("Actualizar Cambios"):
-                                        st.session_state.db_checklists[user_email][orig_idx]['Edificio'] = nuevo_nombre_edificio.strip()
+                                        st.session_state.db_checklists[user_email][orig_idx]['Edificio'] = nuevo_nombre_edificio
                                         st.session_state.db_checklists[user_email][orig_idx]['Fecha'] = nueva_fecha_obj.strftime("%Y-%m-%d")
                                         save_persistent_db()
                                         st.success("¡Actualizado con éxito!")
