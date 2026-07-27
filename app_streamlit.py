@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (FULL WIDTH AL OCULTAR SIDEBAR)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -89,18 +89,26 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): ANCHO COMPACTO */
+    /* 2. BARRA LATERAL (SIDEBAR): ANCHO COMPACTO Y ESTRUCTURA FLEXIBLE */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
         padding-top: 0px !important;
         padding-left: 10px !important;
         padding-right: 10px !important;
+        padding-bottom: 15px !important;
         width: 255px !important;
+    }
+
+    [data-testid="stSidebar"] > div:first-child {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100vh !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
         gap: 0.25rem !important;
+        flex-grow: 1 !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -215,13 +223,19 @@ st.markdown(
         font-size: 0.8rem !important;
     }
 
+    /* CONTENEDOR PARA EL BOTÓN DE CERRAR SESIÓN EN EL PIE */
+    .sidebar-footer-container {
+        margin-top: auto !important;
+        padding-top: 10px !important;
+    }
+
     /* 3. TARJETA PRINCIPAL CON BORDE NEGRO Y LETRA DISTINTIVA */
     .executive-card-studio {
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
         border: 1px solid #b8c4d8;
         border-left: 7px solid #121318;
         border-radius: 22px;
-        padding: 24px 30px;
+        padding: 26px 30px;
         box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         margin-bottom: 25px;
         transition: all 0.3s ease;
@@ -659,7 +673,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON DOS NOMBRES Y DOS APELLIDOS EN LÍNEAS SEPARADAS
+# 5. BARRA LATERAL (LOGO alpha.473f + BOTÓN CERRAR SESIÓN EN EL PIE)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -668,19 +682,23 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    if os.path.exists("images.png"):
-        with open("images.png", "rb") as image_file:
+    # LOGO SUPERIOR: alpha.473f0c2dc3c48a682723-2.webp CON RESPALDO A images.png
+    logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
+    if not os.path.exists(logo_filename):
+        logo_filename = "images.png"
+
+    if os.path.exists(logo_filename):
+        ext = "webp" if logo_filename.endswith(".webp") else "png"
+        with open(logo_filename, "rb") as image_file:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
             <div style="text-align: center; margin-bottom: 2px; padding: 0 2px;">
-                <img src="data:image/png;base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none;">
+                <img src="data:image/{ext};base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none;">
             </div>
         """,
             unsafe_allow_html=True,
         )
-
-    st.markdown("<h4 style='text-align: center; font-weight: 800; margin-bottom: 2px; margin-top: 0px; color: #ffffff; font-size: 0.88rem;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
 
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     if not b64_foto:
@@ -750,6 +768,8 @@ with st.sidebar:
             st.success("Configuración actualizada correctamente.")
             st.rerun()
 
+    # ESPACIADOR FLEXIBLE PARA EMPUJAR EL BOTÓN AL PIE DEL SIDEBAR
+    st.markdown("<div class='sidebar-footer-container'></div>", unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
