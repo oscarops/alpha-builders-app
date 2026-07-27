@@ -6,16 +6,19 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y TEMA SILICON VALLEY / MONOCHROME GLASS
+# 1. CONFIGURACIÓN Y ESTILOS STUDIO APPLE SLATE
 # ==========================================
 st.set_page_config(
-    page_title="Alpha Builders | Portal Ejecutivo de Control de Obra",
-    page_icon="🏗️",
+    page_title="Alpha Builders | Cazadores de Inversiones",
+    page_icon="🏢",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS de Alta Gama para Interfaz Silicon Valley / Dark Slate (Gris, Blanco, Negro y Cristal)
+# LOGO OFICIAL ALPHA BUILDERS EN BASE64
+LOGO_ALPHA_B64 = "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
+st.image(base64.b64decode(LOGO_ALPHA_B64), use_column_width=False, width=320)
+
 st.markdown(
     """
     <style>
@@ -23,187 +26,168 @@ st.markdown(
 
     * {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        transition: all 0.25s ease;
     }
 
-    /* Fondo Canvas Principal */
+    /* Fondo Lienzo Principal Studio Light Slate */
     .stApp {
-        background: radial-gradient(circle at 50% -20%, #1a1d29 0%, #0b0c10 60%, #050608 100%) !important;
-        color: #f5f5f7 !important;
+        background: #f4f5f8 !important;
+        color: #1a1c23 !important;
     }
 
-    /* Regla Universal de Legibilidad */
+    /* Texto Universal de Alta Legibilidad */
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
-        color: #f5f5f7 !important;
+        color: #1a1c23 !important;
     }
 
     .stCaption, caption, small, [data-testid="stCaptionContainer"] {
-        color: #9a9a9f !important;
+        color: #6c707a !important;
     }
 
-    /* SIDEBAR ESTILO SILICON VALLEY EXECUTIVE */
+    /* SIDEBAR CORREGIDO (BLANCO PURO) */
     [data-testid="stSidebar"] {
-        background: rgba(18, 20, 29, 0.95) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-        backdrop-filter: blur(20px) !important;
-        padding-top: 20px !important;
+        background-color: #ffffff !important;
+        border-right: 1px solid #e1e3e8 !important;
+        padding-top: 15px !important;
     }
 
-    /* Contenedor de Perfil en Sidebar */
-    .sidebar-profile-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 20px;
-        padding: 20px;
+    /* Tarjeta de Perfil en Sidebar */
+    .sidebar-profile-box {
+        background: #f8f9fa;
+        border: 1px solid #e1e3e8;
+        border-radius: 18px;
+        padding: 18px;
         text-align: center;
         margin-bottom: 20px;
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
     }
 
     .sidebar-user-name {
         font-size: 1.15rem;
         font-weight: 800;
-        color: #ffffff !important;
-        letter-spacing: -0.02em;
+        color: #1a1c23 !important;
         margin-top: 10px;
         margin-bottom: 2px;
     }
 
     .sidebar-user-email {
-        font-size: 0.82rem;
-        color: #8a8a93 !important;
-        margin-bottom: 8px;
+        font-size: 0.85rem;
+        color: #0071e3 !important;
+        font-weight: 600;
+        margin-bottom: 6px;
     }
 
     .sidebar-user-cargo {
         display: inline-block;
-        background: rgba(255, 255, 255, 0.12);
+        background: #1a1c23;
         color: #ffffff !important;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         font-weight: 700;
-        padding: 5px 14px;
+        padding: 4px 12px;
         border-radius: 20px;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
     }
 
-    /* TARJETAS EJECUTIVAS GLASSMORPHISM */
-    .executive-card {
-        background: rgba(255, 255, 255, 0.025);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 24px;
-        padding: 32px;
-        backdrop-filter: blur(30px);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    /* TARJETAS PRINCIPALES Y BANNER */
+    .executive-card-light {
+        background: #ffffff;
+        border: 1px solid #e1e3e8;
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.04);
         margin-bottom: 25px;
     }
-    .executive-card:hover {
-        border-color: rgba(255, 255, 255, 0.22);
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-        transform: translateY(-2px);
-    }
 
-    /* KPIS DASHBOARD CON DEGRADADO MONOCROMÁTICO */
-    .kpi-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 22px;
-        padding: 24px;
+    /* TARJETAS KPIS ELEVADAS CON SOMBRA Y HOVER */
+    .kpi-card-studio {
+        background: #ffffff;
+        border: 1px solid #e1e3e8;
+        border-radius: 18px;
+        padding: 22px;
         text-align: center;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
-    .kpi-card:hover {
-        background: rgba(255, 255, 255, 0.06);
-        border-color: #ffffff;
+    .kpi-card-studio:hover {
+        border-color: #1a1c23;
         transform: translateY(-3px);
-        box-shadow: 0 15px 35px rgba(255, 255, 255, 0.12);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
     }
-    .kpi-value {
-        font-size: 2.8rem;
+    .kpi-val-studio {
+        font-size: 2.7rem;
         font-weight: 900;
-        color: #ffffff !important;
-        letter-spacing: -0.04em;
+        color: #1a1c23 !important;
+        letter-spacing: -0.03em;
     }
-    .kpi-label {
-        font-size: 0.78rem;
-        color: #8a8a93 !important;
+    .kpi-lbl-studio {
+        font-size: 0.75rem;
+        color: #6c707a !important;
         text-transform: uppercase;
         font-weight: 700;
-        letter-spacing: 0.1em;
-        margin-top: 6px;
+        letter-spacing: 0.08em;
+        margin-top: 4px;
     }
 
-    /* INPUTS Y SELECTBOXES MONOCHROME GLASS */
+    /* INPUTS Y SELECCIONES CLARAS */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        border-radius: 14px !important;
+        background-color: #ffffff !important;
+        color: #1a1c23 !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 12px !important;
         padding: 12px 16px !important;
         font-size: 0.95rem !important;
-        backdrop-filter: blur(12px) !important;
+        font-weight: 500 !important;
     }
 
     .stTextInput input:focus, .stSelectbox > div > div:focus, .stNumberInput input:focus {
-        border-color: #ffffff !important;
-        box-shadow: 0 0 18px rgba(255, 255, 255, 0.25) !important;
-        background-color: rgba(255, 255, 255, 0.09) !important;
+        border-color: #0071e3 !important;
+        box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15) !important;
     }
 
     .stTextInput input:disabled {
-        background-color: rgba(255, 255, 255, 0.02) !important;
-        color: #6a6a70 !important;
-        border-color: rgba(255, 255, 255, 0.05) !important;
+        background-color: #f0f2f5 !important;
+        color: #6c707a !important;
+        border-color: #e1e3e8 !important;
     }
 
-    /* PESTAÑAS SEGMENT CONTROL SILICON VALLEY */
+    /* PESTAÑAS (SEGMENT CONTROL APPLE STUDIO) */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-        background-color: rgba(255, 255, 255, 0.03) !important;
-        padding: 8px;
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        gap: 10px;
+        background-color: #e5e7eb !important;
+        padding: 6px;
+        border-radius: 16px;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 14px;
-        padding: 12px 28px;
+        border-radius: 12px;
+        padding: 10px 24px;
         background-color: transparent !important;
-        color: #8a8a93 !important;
+        color: #4b5563 !important;
         font-weight: 600;
         border: none !important;
     }
     .stTabs [aria-selected="true"] {
         background-color: #ffffff !important;
-        color: #000000 !important;
+        color: #1a1c23 !important;
         font-weight: 800;
-        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
     }
 
-    /* BOTONES MONOCROMÁTICOS ELEVADOS */
+    /* BOTONES MONOCROMÁTICOS ELEGANTES */
     .stButton > button {
-        background: linear-gradient(180deg, #ffffff 0%, #e0e0e2 100%) !important;
-        color: #000000 !important;
+        background-color: #1a1c23 !important;
+        color: #ffffff !important;
         border-radius: 980px !important;
         border: none !important;
         font-weight: 700 !important;
-        padding: 12px 30px !important;
-        box-shadow: 0 6px 18px rgba(255, 255, 255, 0.15) !important;
+        padding: 11px 26px !important;
+        box-shadow: 0 4px 12px rgba(26, 28, 35, 0.2) !important;
     }
     .stButton > button * {
-        color: #000000 !important;
+        color: #ffffff !important;
     }
     .stButton > button:hover {
-        background: #ffffff !important;
-        box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3) !important;
+        background-color: #0071e3 !important;
+        box-shadow: 0 6px 18px rgba(0, 113, 227, 0.3) !important;
         transform: translateY(-2px);
-    }
-
-    /* EXPANDERS / CONTENEDORES DESPLEGABLES */
-    .streamlit-expanderHeader {
-        background-color: rgba(255, 255, 255, 0.03) !important;
-        border-radius: 14px !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        font-weight: 600 !important;
     }
 
     #MainMenu {visibility: hidden;}
@@ -214,10 +198,10 @@ st.markdown(
 )
 
 # ==========================================
-# 2. FUNCIONES DE APOYO Y ALMACENAMIENTO PERSISTENTE BASE64
+# 2. FUNCIONES DE APOYO Y ALMACENAMIENTO PERSISTENTE (BASE64)
 # ==========================================
 def image_to_base64(image_file):
-    """Convierte una imagen subida en string base64 para guardarla de forma permanente en la sesión"""
+    """Guarda la imagen de perfil en formato Base64 para que no se borre al actualizar controles"""
     if image_file is not None:
         try:
             img = Image.open(image_file)
@@ -229,7 +213,7 @@ def image_to_base64(image_file):
     return None
 
 def base64_to_image(b64_str):
-    """Decodifica el string base64 guardado para reconstruir la imagen de perfil"""
+    """Reconstruye la imagen almacenada desde Base64"""
     if b64_str:
         try:
             img_data = base64.b64decode(b64_str)
@@ -251,7 +235,6 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
 
-# Almacenamiento persistente de fotos de perfil en Base64 {email: b64_string}
 if "db_fotos_perfil_b64" not in st.session_state:
     st.session_state.db_fotos_perfil_b64 = {}
 
@@ -274,7 +257,7 @@ if "db_checklists" not in st.session_state:
 if "db_rendimientos" not in st.session_state:
     st.session_state.db_rendimientos = {}
 
-# NÓMINA OFICIAL COMPLETA DE LOS 12 EDIFICIOS DE ALPHA BUILDERS
+# NÓMINA OFICIAL DE EDIFICIOS
 EDIFICIOS_ALPHA = [
     "Tesla",
     "Lafuente",
@@ -325,7 +308,6 @@ TRABAJADORES_NO_MINA = [
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
 RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
 
-# ACTIVIDADES OFICIALES DEL CHECKLIST
 ACTIVIDADES_MANANA = [
     "Verificación de asistencia del personal",
     "Distribución de cuadrillas por frente de trabajo",
@@ -353,33 +335,33 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO (CON VALIDACIÓN DE CONTRASEÑA)
+# 4. MÓDULO DE LOGIN & REGISTRO
 # ==========================================
 if not st.session_state.autenticado:
-    st.markdown(
-        """
-        <div class="executive-card" style="text-align: center; max-width: 640px; margin: 60px auto 20px auto;">
-            <h1 style="font-size: 2.8rem; letter-spacing: -0.04em; font-weight: 900;">Alpha Builders</h1>
-            <p style="color: #8a8a93; font-size: 1.05rem;">Portal Ejecutivo de Control de Obra y Calidad</p>
-        </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
 
-    col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+    with col_l2:
+        st.markdown(
+            f"""
+            <div class="executive-card-light" style="text-align: center; margin-top: 40px;">
+                <img src="data:image/png;base64,{LOGO_ALPHA_B64}" style="max-width: 280px; width: 100%; margin-bottom: 15px;">
+                <p style="color: #6c707a; font-size: 1.05rem; font-weight: 500;">Portal Corporativo de Control de Obra y Calidad</p>
+            </div>
+        """,
+            unsafe_allow_html=True,
+        )
 
-    with col_c2:
         tab_login, tab_register, tab_reset = st.tabs(["Iniciar Sesión", "Registrarse", "¿Olvidaste tu Contraseña?"])
 
         # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
-            st.caption("Ingrese sus credenciales para acceder al sistema.")
+            st.caption("Ingrese sus credenciales corporativas registradas.")
 
             login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
             login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
 
-            if st.button("Entrar", type="primary", use_container_width=True):
+            if st.button("Entrar al Portal", type="primary", use_container_width=True):
                 if login_email and login_pass:
                     mail_clean = login_email.strip().lower()
                     u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
@@ -398,16 +380,16 @@ if not st.session_state.autenticado:
                                 st.session_state.db_rendimientos[mail_clean] = []
                             st.rerun()
                         else:
-                            st.error("Contraseña incorrecta. Por favor intente nuevamente.")
+                            st.error("Contraseña incorrecta. Intente nuevamente.")
                     else:
-                        st.error("El usuario no existe. Regístrese en la pestaña adyacente.")
+                        st.error("El usuario no existe. Complete el registro.")
                 else:
-                    st.error("Por favor ingrese su correo y contraseña.")
+                    st.error("Ingrese su correo y contraseña.")
 
-        # --- REGISTRARSE (CON REPETIR CONTRASEÑA) ---
+        # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
-            st.caption("Complete todos los campos para registrar su cuenta.")
+            st.caption("Complete la información para habilitar su acceso.")
 
             col_n, col_a = st.columns(2)
             with col_n:
@@ -425,10 +407,10 @@ if not st.session_state.autenticado:
 
             reg_cargo = st.selectbox("Cargo / Rol en Obra:", ["Residente", "Asistente", "Ayudante"])
 
-            if st.button("Registrarte", type="primary", use_container_width=True):
+            if st.button("Completar Registro", type="primary", use_container_width=True):
                 if reg_nombres and reg_apellidos and reg_email and reg_pass and reg_pass_repeat:
                     if reg_pass != reg_pass_repeat:
-                        st.error("Las contraseñas no coinciden. Por favor verifique.")
+                        st.error("Las contraseñas no coinciden.")
                     else:
                         mail_clean = reg_email.strip().lower()
                         exists = any(u["Correo"] == mail_clean for u in st.session_state.db_usuarios)
@@ -464,7 +446,7 @@ if not st.session_state.autenticado:
         # --- RECUPERACIÓN DE CONTRASEÑA ---
         with tab_reset:
             st.markdown("### Recuperación de Contraseña")
-            st.caption("Restablezca su contraseña de acceso.")
+            st.caption("Restablezca su acceso de forma segura.")
 
             reset_email = st.text_input("Ingrese su correo registrado:", placeholder="ejemplo@correo.com", key="rst_email")
             
@@ -486,9 +468,9 @@ if not st.session_state.autenticado:
                             u_match["Password"] = new_pass
                             st.success(f"Contraseña actualizada con éxito para {mail_clean}.")
                         else:
-                            st.error("El correo ingresado no se encuentra registrado.")
+                            st.error("El correo ingresado no está registrado.")
                 else:
-                    st.error("Por favor complete todos los campos.")
+                    st.error("Complete todos los campos.")
 
     st.stop()
 
@@ -501,9 +483,11 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    st.markdown("<h3 style='margin-bottom: 15px; font-weight: 800;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
+    # Logo en Sidebar
+    st.markdown(f'<img src="data:image/png;base64,{LOGO_ALPHA_B64}" style="width:100%; max-width:210px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">', unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; font-weight: 800;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
 
-    # Reconstrucción de la foto guardada en base64 (Evita que se borre)
+    # Carga persistente de imagen en Base64
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     img_obj = base64_to_image(b64_foto)
 
@@ -512,7 +496,7 @@ with st.sidebar:
 
     st.markdown(
         f"""
-        <div class="sidebar-profile-card">
+        <div class="sidebar-profile-box">
             <div class="sidebar-user-name">{user_nombre_completo}</div>
             <div class="sidebar-user-email">{user_email}</div>
             <div class="sidebar-user-cargo">{user_cargo}</div>
@@ -522,11 +506,11 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #ffffff; font-weight: 800; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2);'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #1a1c23; font-weight: 800; background: #e5e7eb; padding: 8px; border-radius: 12px; border: 1px solid #d1d5db;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # Módulo de Configuración de Cuenta en Sidebar (Con Confirmación de Clave)
+    # Módulo de Configuración de Cuenta Limpio en Sidebar
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
         st.caption("Ajustes personales y de seguridad:")
         
@@ -573,16 +557,21 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v12.0\nSilicon Valley Monochrome Glass Edition")
+    st.caption("Alpha Builders Portal v13.0\nCazadores de Inversiones Edition")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
 # ==========================================
 st.markdown(
     f"""
-    <div class="executive-card">
-        <h1 style="font-size: 2.5rem; letter-spacing: -0.04em; font-weight: 900;">Alpha Builders</h1>
-        <p style="color: #8a8a93;">Panel de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
+    <div class="executive-card-light">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div>
+                <h1 style="font-size: 2.3rem; letter-spacing: -0.03em; font-weight: 900; margin: 0;">Alpha Builders</h1>
+                <p style="color: #6c707a; margin-top: 4px; font-size: 1.05rem;">Portal de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
+            </div>
+            <img src="data:image/png;base64,{LOGO_ALPHA_B64}" style="max-width: 240px; width: 100%; margin-top: 10px;">
+        </div>
     </div>
 """,
     unsafe_allow_html=True,
@@ -594,17 +583,17 @@ usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 k1, k2, k3 = st.columns(3)
 with k1:
     st.markdown(
-        '<div class="kpi-card"><div class="kpi-value">28</div><div class="kpi-label">Obreros Activos</div></div>',
+        '<div class="kpi-card-studio"><div class="kpi-val-studio">28</div><div class="kpi-lbl-studio">Obreros Activos</div></div>',
         unsafe_allow_html=True,
     )
 with k2:
     st.markdown(
-        f'<div class="kpi-card"><div class="kpi-value">{usr_chks}</div><div class="kpi-label">Checklists Guardados</div></div>',
+        f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_chks}</div><div class="kpi-lbl-studio">Checklists Guardados</div></div>',
         unsafe_allow_html=True,
     )
 with k3:
     st.markdown(
-        f'<div class="kpi-card"><div class="kpi-value">{usr_rnds}</div><div class="kpi-label">Reportes de Rendimiento</div></div>',
+        f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_rnds}</div><div class="kpi-lbl-studio">Reportes de Rendimiento</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -620,11 +609,11 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (CREAR JORNADA Y CASILLAS VACÍAS)
+# 7. MÓDULO 1: CHECKLIST DIARIO (CON CASILLAS OBLIGATORIAS SINE SELECCIONAR Y SELECCIÓN DE 12 EDIFICIOS)
 # ==========================================
 with tab_chk:
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión diaria de frentes de trabajo con inspección manual obligatoria.")
+    st.caption("Supervisión diaria de frentes de trabajo con verificación manual obligatoria.")
 
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
@@ -642,10 +631,10 @@ with tab_chk:
             col_m1, col_m2, col_m3 = st.columns(3)
 
             with col_m1:
-                # SELECCIÓN ENTRE LOS 12 EDIFICIOS OFICIALES
+                # SELECCIÓN ENTRE LOS 12 EDIFICIOS
                 edificio_val = st.selectbox("Edificio / Proyecto:", EDIFICIOS_ALPHA, key="sel_edificio")
             with col_m2:
-                # CAMPO RESPONSABLE BLOQUEADO AUTOMÁTICO
+                # RESPONSABLE AUTOMÁTICO BLOQUEADO
                 st.text_input("Responsable:", value=user_nombre_completo, disabled=True, help="Obtenido automáticamente de la sesión activa.")
             with col_m3:
                 fecha_val = st.date_input("Fecha de Inspección:", datetime.date.today(), key="sel_fecha")
@@ -661,7 +650,7 @@ with tab_chk:
                     c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
                     with c_sel:
-                        # INDEX=NONE: NADA QUEDA SELECCIONADO POR DEFECTO
+                        # INDEX=NONE: OBLIGA A SELECCIONAR MANUALMENTE
                         est = st.radio(
                             "Estado",
                             ["✓ Cumple", "✗ No Cumple", "N/A"],
@@ -674,7 +663,7 @@ with tab_chk:
                     with c_foto:
                         ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 8px 0; border-color: #e1e3e8;'>", unsafe_allow_html=True)
                     resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
 
                 st.markdown("#### Jornada de la Tarde")
@@ -685,7 +674,7 @@ with tab_chk:
                     c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
                     with c_sel:
-                        # INDEX=NONE: NADA QUEDA SELECCIONADO POR DEFECTO
+                        # INDEX=NONE: OBLIGA A SELECCIONAR MANUALMENTE
                         est = st.radio(
                             "Estado",
                             ["✓ Cumple", "✗ No Cumple", "N/A"],
@@ -698,7 +687,7 @@ with tab_chk:
                     with c_foto:
                         ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 8px 0; border-color: #e1e3e8;'>", unsafe_allow_html=True)
                     resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
 
                 btn_guardar_chk = st.form_submit_button("Guardar Jornada de Inspección", type="primary")
@@ -706,10 +695,10 @@ with tab_chk:
             if btn_guardar_chk:
                 all_chk_data = resp_manana + resp_tarde
                 
-                # Validar que no existan ítems sin responder
+                # Validar que no queden campos vacíos
                 sin_responder = [item["Actividad"] for item in all_chk_data if item["Estado"] is None]
                 if sin_responder:
-                    st.error(f"⚠️ Atención: Existen {len(sin_responder)} actividades sin responder. Seleccione el estado para todas.")
+                    st.error(f"⚠️ Por favor seleccione el estado de todas las actividades ({len(sin_responder)} pendientes).")
                 else:
                     df_chk_save = pd.DataFrame(all_chk_data)
 
@@ -721,7 +710,7 @@ with tab_chk:
                         "Datos": df_chk_save
                     })
 
-                    st.success(f"Jornada guardada exitosamente para **{edificio_val}**.")
+                    st.success(f"Jornada guardada exitosamente para el edificio **{edificio_val}**.")
                     st.session_state.creando_jornada = False
                     st.rerun()
 
@@ -746,7 +735,7 @@ with tab_chk:
                     key=f"dl_{idx_j}"
                 )
     else:
-        st.info("Aún no ha creado jornadas de inspección. Presione el botón superior 'Crear Nueva Jornada' para iniciar.")
+        st.info("Aún no ha creado jornadas de inspección. Presione 'Crear Nueva Jornada' para comenzar.")
 
 # ==========================================
 # 8. MÓDULO 2: CONTROL DE RENDIMIENTO
