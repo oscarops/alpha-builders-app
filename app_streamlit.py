@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (NEGRO, BLANCO Y GRIS METÁLICO)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (CORREGIDOS)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -53,7 +53,7 @@ st.markdown(
         padding-top: 15px !important;
     }
 
-    /* Textos dentro del Sidebar en Blanco Puro */
+    /* Textos generales dentro del Sidebar en Blanco Puro */
     [data-testid="stSidebar"] label, 
     [data-testid="stSidebar"] p, 
     [data-testid="stSidebar"] span, 
@@ -87,21 +87,24 @@ st.markdown(
         font-size: 0.82rem;
         color: #72b2ff !important;
         font-weight: 600;
-        margin-bottom: 6px;
+        margin-bottom: 8px;
     }
 
+    /* CORRECCIÓN: Etiqueta del Cargo con Fondo Oscuro Grafito y Texto Blanco Brillante */
     .sidebar-user-cargo {
         display: inline-block;
-        background: #ffffff;
-        color: #121318 !important;
-        font-size: 0.72rem;
-        font-weight: 800;
-        padding: 4px 12px;
-        border-radius: 20px;
-        text-transform: uppercase;
+        background: #323646 !important;
+        color: #ffffff !important;
+        border: 1px solid #484e5e !important;
+        font-size: 0.75rem !important;
+        font-weight: 800 !important;
+        padding: 5px 14px !important;
+        border-radius: 20px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.05em !important;
     }
 
-    /* 3. MÓDULOS Y TARJETAS: GRIS METÁLICO CON EFECTOS Y ELEVACIÓN */
+    /* 3. MÓDULO Y TARJETAS: GRIS METÁLICO */
     .executive-card-studio {
         background: #eef0f4;
         border: 1px solid #d0d4dc;
@@ -109,15 +112,8 @@ st.markdown(
         padding: 26px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.06);
         margin-bottom: 20px;
-        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .executive-card-studio:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 15px 35px rgba(0,0,0,0.12);
-        border-color: #121318;
     }
 
-    /* TARJETAS KPIS GRIS GRAFITO */
     .kpi-card-studio {
         background: #e2e5ec;
         border: 1px solid #c2c7d2;
@@ -125,13 +121,12 @@ st.markdown(
         padding: 20px;
         text-align: center;
         box-shadow: 0 6px 18px rgba(0,0,0,0.05);
-        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        transition: all 0.25s ease;
     }
     .kpi-card-studio:hover {
         background: #d4d8e2;
         border-color: #121318;
-        transform: translateY(-4px) scale(1.02);
-        box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+        transform: translateY(-3px);
     }
     .kpi-val-studio {
         font-size: 2.7rem;
@@ -148,7 +143,7 @@ st.markdown(
         margin-top: 4px;
     }
 
-    /* RECUADROS DE ENTRADA Y FORMULARIOS (TEXTO NEGRO SOBRE BLANCO) */
+    /* FORMULARIOS E INPUTS */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
         background-color: #ffffff !important;
         color: #121318 !important;
@@ -157,11 +152,6 @@ st.markdown(
         padding: 10px 14px !important;
         font-size: 0.95rem !important;
         font-weight: 600 !important;
-    }
-
-    .stTextInput input:focus, .stSelectbox > div > div:focus, .stNumberInput input:focus {
-        border-color: #121318 !important;
-        box-shadow: 0 0 0 3px rgba(18, 19, 24, 0.15) !important;
     }
 
     .stTextInput input:disabled {
@@ -173,7 +163,7 @@ st.markdown(
         right: 10px !important;
     }
 
-    /* PESTAÑAS SEGMENT CONTROL */
+    /* CORRECCIÓN ABSOLUTA PESTAÑAS ACTIVAS E INACTIVAS */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background-color: #e2e5ec !important;
@@ -181,22 +171,34 @@ st.markdown(
         border-radius: 16px;
         border: 1px solid #c2c7d2;
     }
+
+    /* Pestaña Inactiva */
     .stTabs [data-baseweb="tab"] {
-        border-radius: 12px;
-        padding: 10px 24px;
+        border-radius: 12px !important;
+        padding: 10px 24px !important;
         background-color: transparent !important;
-        color: #4a5060 !important;
-        font-weight: 700;
         border: none !important;
     }
-    .stTabs [aria-selected="true"] {
-        background-color: #121318 !important;
-        color: #ffffff !important;
-        font-weight: 900;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.25) !important;
+    .stTabs [data-baseweb="tab"] p, 
+    .stTabs [data-baseweb="tab"] span {
+        color: #4a5060 !important;
+        font-weight: 700 !important;
     }
 
-    /* BOTONES PRIMARIOS EN NEGRO CON EFECTO HOVER GRIS */
+    /* Pestaña Activa (Fondo Negro - Texto Blanco Puro Forzado) */
+    .stTabs [aria-selected="true"] {
+        background-color: #121318 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+    }
+    .stTabs [aria-selected="true"] p, 
+    .stTabs [aria-selected="true"] span,
+    .stTabs [aria-selected="true"] div {
+        color: #ffffff !important;
+        font-weight: 900 !important;
+    }
+
+    /* BOTONES PRIMARIOS NEGROS */
     .stButton > button {
         background-color: #121318 !important;
         color: #ffffff !important;
@@ -205,18 +207,16 @@ st.markdown(
         font-weight: 800 !important;
         padding: 11px 26px !important;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
-        transition: all 0.25s ease !important;
     }
-    .stButton > button * {
+    .stButton > button p, .stButton > button span {
         color: #ffffff !important;
     }
     .stButton > button:hover {
         background-color: #2c303d !important;
-        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3) !important;
         transform: translateY(-2px);
     }
 
-    /* EXPANDERS / CONTENEDORES DESPLEGABLES */
+    /* EXPANDERS */
     .streamlit-expanderHeader {
         background-color: #e8eaee !important;
         border-radius: 12px !important;
@@ -533,7 +533,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (SIDEBAR NEGRO ABSOLUTO)
+# 5. BARRA LATERAL (SIDEBAR NEGRO ABSOLUTO CON TEXTO BLANCO CORREGIDO)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -613,10 +613,10 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v19.0 Balanced")
+    st.caption("Alpha Builders Portal v20.0 Final")
 
 # ==========================================
-# 6. DASHBOARD PRINCIPAL EN TARJETAS GRIS METÁLICO SOBRE FONDO BLANCO
+# 6. DASHBOARD PRINCIPAL
 # ==========================================
 st.markdown(
     f"""
