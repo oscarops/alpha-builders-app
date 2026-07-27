@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN Y ESTILOS TRÍCROMAS (CORREGIDOS)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (CORREGIDOS)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -26,13 +26,12 @@ st.markdown(
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    /* 1. FONDO PRINCIPAL: BLANCO PURO IMPOLUTO */
+    /* 1. FONDO PRINCIPAL: BLANCO PURO */
     .stApp {
         background-color: #ffffff !important;
         color: #121318 !important;
     }
 
-    /* Regla Universal de Legibilidad en Lienzo Blanco */
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
         color: #121318 !important;
         font-weight: 500;
@@ -53,7 +52,6 @@ st.markdown(
         padding-top: 15px !important;
     }
 
-    /* Textos generales dentro del Sidebar */
     [data-testid="stSidebar"] label, 
     [data-testid="stSidebar"] p, 
     [data-testid="stSidebar"] span, 
@@ -90,7 +88,6 @@ st.markdown(
         margin-bottom: 8px;
     }
 
-    /* Etiqueta del Cargo */
     .sidebar-user-cargo {
         display: inline-block;
         background: #323646 !important;
@@ -104,34 +101,60 @@ st.markdown(
         letter-spacing: 0.05em !important;
     }
 
-    /* CORRECCIÓN: CABECERA DEL EXPANDER / CONFIGURACIÓN DE CUENTA */
-    [data-testid="stSidebar"] .streamlit-expanderHeader {
+    /* EXPANDER / CONFIGURACIÓN DE CUENTA (CABECERA Y TEXTO) */
+    [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
         border-radius: 12px !important;
-        color: #ffffff !important;
+        overflow: hidden !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary {
+        background-color: #282c36 !important;
+        border-bottom: 1px solid #323646 !important;
         padding: 12px 16px !important;
     }
 
-    [data-testid="stSidebar"] .streamlit-expanderHeader * {
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
         color: #ffffff !important;
-        font-weight: 700 !important;
+        font-weight: 800 !important;
+        fill: #ffffff !important;
     }
 
-    [data-testid="stSidebar"] .streamlit-expanderContent {
-        background-color: #121318 !important;
-        border: 1px solid #323646 !important;
-        border-top: none !important;
-        border-radius: 0 0 12px 12px !important;
-        padding: 15px !important;
+    /* ENTRADAS DE TEXTO Y CONTRASEÑA DENTRO DEL SIDEBAR */
+    [data-testid="stSidebar"] div[data-baseweb="input"] {
+        background-color: #ffffff !important;
+        border: 1px solid #b8bec8 !important;
+        border-radius: 12px !important;
+        padding: 2px 6px !important;
     }
 
-    /* CORRECCIÓN: UPLOADER DE FOTO DE PERFIL EN SIDEBAR */
+    [data-testid="stSidebar"] div[data-baseweb="input"] input {
+        background-color: transparent !important;
+        color: #121318 !important;
+        font-weight: 600 !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] {
+        background-color: transparent !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] button {
+        background-color: transparent !important;
+        border: none !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] svg {
+        fill: #121318 !important;
+        color: #121318 !important;
+    }
+
+    /* Uploader de Archivos en Sidebar */
     [data-testid="stSidebar"] [data-testid="stFileUploader"] {
         background-color: #1c1e26 !important;
         border: 1px dashed #484e5e !important;
         border-radius: 12px !important;
-        padding: 12px !important;
+        padding: 10px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stFileUploader"] * {
@@ -143,10 +166,9 @@ st.markdown(
         color: #ffffff !important;
         border: 1px solid #484e5e !important;
         border-radius: 8px !important;
-        padding: 6px 14px !important;
     }
 
-    /* 3. MÓDULO Y TARJETAS: GRIS METÁLICO */
+    /* MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL */
     .executive-card-studio {
         background: #eef0f4;
         border: 1px solid #d0d4dc;
@@ -210,7 +232,6 @@ st.markdown(
         border: 1px solid #c2c7d2;
     }
 
-    /* Pestaña Inactiva */
     .stTabs [data-baseweb="tab"] {
         border-radius: 12px !important;
         padding: 10px 24px !important;
@@ -223,7 +244,6 @@ st.markdown(
         font-weight: 700 !important;
     }
 
-    /* Pestaña Activa (Fondo Negro - Texto Blanco Puro Forzado) */
     .stTabs [aria-selected="true"] {
         background-color: #121318 !important;
         border-radius: 12px !important;
@@ -254,6 +274,13 @@ st.markdown(
         transform: translateY(-2px);
     }
 
+    .streamlit-expanderHeader {
+        background-color: #e8eaee !important;
+        border-radius: 12px !important;
+        border: 1px solid #c2c7d2 !important;
+        font-weight: 700 !important;
+    }
+
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
@@ -262,9 +289,20 @@ st.markdown(
 )
 
 # ==========================================
-# 2. PERSISTENCIA EN DISCO (LOCAL_DB.JSON)
+# 2. PERSISTENCIA EN DISCO (LOCAL_DB.JSON Y RESPALDO DE FOTO)
 # ==========================================
 DB_FILE = "local_db.json"
+
+def get_default_profile_b64():
+    """Busca una imagen de perfil subida a la carpeta del repositorio (perfil.jpg / perfil.png)"""
+    for filename in ["perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png", "avatar.jpg"]:
+        if os.path.exists(filename):
+            try:
+                with open(filename, "rb") as f:
+                    return base64.b64encode(f.read()).decode("utf-8")
+            except Exception:
+                pass
+    return None
 
 def load_persistent_db():
     if os.path.exists(DB_FILE):
@@ -433,7 +471,7 @@ if not st.session_state.autenticado:
         st.markdown(
             """
             <div class="executive-card-studio" style="text-align: center; margin-top: 40px;">
-                <h1 style="font-size: 2.5rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #121318;">ALPHA BUILDERS</h1>
+                <h1 style="font-size: 2.6rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #121318;">ALPHA BUILDERS</h1>
                 <p style="color: #5a5f6e; font-size: 1.05rem; font-weight: 600; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
             </div>
         """,
@@ -442,7 +480,6 @@ if not st.session_state.autenticado:
 
         tab_login, tab_register, tab_reset = st.tabs(["Iniciar Sesión", "Registrarse", "¿Olvidaste tu Contraseña?"])
 
-        # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
             st.caption("Ingrese sus credenciales registradas.")
@@ -475,7 +512,6 @@ if not st.session_state.autenticado:
                 else:
                     st.error("Ingrese su correo y contraseña.")
 
-        # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
             st.caption("Complete la información para habilitar su acceso.")
@@ -533,7 +569,6 @@ if not st.session_state.autenticado:
                 else:
                     st.error("Por favor complete todos los campos requeridos.")
 
-        # --- RECUPERACIÓN DE CONTRASEÑA ---
         with tab_reset:
             st.markdown("### Recuperación de Contraseña")
             st.caption("Restablezca su acceso de forma segura.")
@@ -566,7 +601,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON PERFIL Y CONFIGURACIÓN
+# 5. BARRA LATERAL CON PERFIL Y LECTURA DE RESPALDO DE FOTO
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -576,7 +611,13 @@ es_admin = user_email in st.session_state.admin_emails
 with st.sidebar:
     st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
+    # 1. Intentar cargar desde el estado guardado
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
+    
+    # 2. Si no hay foto en sesión, intentar cargar la foto fija del repo (perfil.jpg / perfil.png)
+    if not b64_foto:
+        b64_foto = get_default_profile_b64()
+
     img_obj = base64_to_image(b64_foto)
 
     if img_obj is not None:
@@ -646,7 +687,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v21.0")
+    st.caption("Alpha Builders Portal v23.0 Persistent")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
