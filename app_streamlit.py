@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS CORREGIDOS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -101,12 +101,11 @@ st.markdown(
         letter-spacing: 0.05em !important;
     }
 
-    /* EXPANDER / CONFIGURACIÓN DE CUENTA (CABECERA Y CONTENIDO) */
+    /* EXPANDER DE CONFIGURACIÓN */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
         border-radius: 12px !important;
-        overflow: hidden !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
@@ -121,44 +120,37 @@ st.markdown(
         fill: #ffffff !important;
     }
 
-    /* CORRECCIÓN DEFINTIVA: INPUTS Y BOTÓN OJO DE VER CONTRASEÑA EN NEGRO */
-    [data-testid="stSidebar"] .stTextInput div[data-baseweb="input"] {
+    /* CORRECCIÓN DE CAJAS DE TEXTO E ICONO DEL OJO VISIBLE */
+    [data-testid="stSidebar"] div[data-baseweb="input"] {
         background-color: #ffffff !important;
         border: 1px solid #b8bec8 !important;
         border-radius: 10px !important;
-        padding: 0px 4px !important;
     }
 
-    [data-testid="stSidebar"] .stTextInput input {
+    [data-testid="stSidebar"] div[data-baseweb="input"] input {
         background-color: #ffffff !important;
         color: #121318 !important;
         font-weight: 600 !important;
-        padding: 8px 10px !important;
-        border: none !important;
     }
 
-    /* Forzar fondo blanco e icono NEGRO para el botón del ojo */
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] {
-        background-color: #ffffff !important;
-        border: none !important;
-        padding-right: 8px !important;
-    }
-
+    /* FORZAR VISIBILIDAD DEL ICONO DEL OJO EN NEGRO */
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] button {
-        background-color: #ffffff !important;
+        background-color: transparent !important;
         border: none !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] svg,
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] path,
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] span {
-        fill: #000000 !important;
-        color: #000000 !important;
-        stroke: #000000 !important;
-        opacity: 1 !important;
+    [data-testid="stSidebar"] button[title="Show password"] svg,
+    [data-testid="stSidebar"] button[title="Hide password"] svg {
+        fill: #121318 !important;
+        color: #121318 !important;
+        stroke: #121318 !important;
+        visibility: visible !important;
+        display: block !important;
     }
 
-    /* File Uploader en Sidebar */
+    /* Uploader de Fotos en Sidebar */
     [data-testid="stSidebar"] [data-testid="stFileUploader"] {
         background-color: #1c1e26 !important;
         border: 1px dashed #484e5e !important;
@@ -177,7 +169,7 @@ st.markdown(
         border-radius: 8px !important;
     }
 
-    /* MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL */
+    /* 3. MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL */
     .executive-card-studio {
         background: #eef0f4;
         border: 1px solid #d0d4dc;
@@ -214,6 +206,22 @@ st.markdown(
         font-weight: 800;
         letter-spacing: 0.08em;
         margin-top: 4px;
+    }
+
+    /* FORMULARIOS E INPUTS EN ÁREA PRINCIPAL */
+    .stApp .stTextInput input, .stApp .stSelectbox > div > div, .stApp .stNumberInput input, .stApp .stDateInput input {
+        background-color: #ffffff !important;
+        color: #121318 !important;
+        border: 1px solid #b8bec8 !important;
+        border-radius: 12px !important;
+        padding: 10px 14px !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+    }
+
+    .stTextInput input:disabled {
+        background-color: #e2e5ec !important;
+        color: #5a5f6e !important;
     }
 
     /* PESTAÑAS (SEGMENT CONTROL) */
@@ -267,6 +275,13 @@ st.markdown(
         transform: translateY(-2px);
     }
 
+    .streamlit-expanderHeader {
+        background-color: #e8eaee !important;
+        border-radius: 12px !important;
+        border: 1px solid #c2c7d2 !important;
+        font-weight: 700 !important;
+    }
+
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
@@ -275,12 +290,11 @@ st.markdown(
 )
 
 # ==========================================
-# 2. PERSISTENCIA EN DISCO (LOCAL_DB.JSON Y CARGA DE IMÁGENES REPO)
+# 2. PERSISTENCIA EN DISCO (LOCAL_DB.JSON Y REPO)
 # ==========================================
 DB_FILE = "local_db.json"
 
 def get_repo_image_b64(filenames):
-    """Busca imágenes locales subidas al repositorio sin sobrecargar el código Python"""
     for filename in filenames:
         if os.path.exists(filename):
             try:
@@ -454,9 +468,9 @@ if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
 
     with col_l2:
-        # Cargar logo.png si existe en la carpeta sin sobrecargar código
-        if os.path.exists("logo.png"):
-            st.image("logo.png", use_column_width=True)
+        # Cargar logo images.png subida al repositorio
+        if os.path.exists("images.png"):
+            st.image("images.png", use_container_width=True)
         else:
             st.markdown(
                 """
@@ -591,7 +605,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON PERFIL Y LECTURA DE LOGO/FOTO REPO
+# 5. BARRA LATERAL CON LOGO E IMAGEN DE PERFIL
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -599,9 +613,9 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    # 1. Cargar Logo si se encuentra en la carpeta del repositorio
-    if os.path.exists("logo.png"):
-        st.image("logo.png", use_column_width=True)
+    # 1. Cargar Logo Oficial images.png
+    if os.path.exists("images.png"):
+        st.image("images.png", use_container_width=True)
 
     st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
@@ -613,7 +627,7 @@ with st.sidebar:
     img_obj = base64_to_image(b64_foto)
 
     if img_obj is not None:
-        st.image(img_obj, use_column_width=True)
+        st.image(img_obj, use_container_width=True)
 
     st.markdown(
         f"""
@@ -679,7 +693,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v25.0")
+    st.caption("Alpha Builders Portal v26.0 HQ Logo")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
@@ -872,7 +886,7 @@ with tab_chk:
                             img_evidencia = base64_to_image(row["Foto_B64"])
                             if img_evidencia:
                                 with st.popover("📷 Ver Foto"):
-                                    st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_column_width=True)
+                                    st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_container_width=True)
                         else:
                             st.caption("Sin foto")
 
