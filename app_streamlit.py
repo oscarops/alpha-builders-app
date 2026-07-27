@@ -3,104 +3,116 @@ import pandas as pd
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y TEMA VISUAL
+# 1. CONFIGURACIÓN DE PÁGINA Y TEMA TIPO APPLE
 # ==========================================
 st.set_page_config(
-    page_title="Alpha Builders | Portal de Obra y Calidad",
+    page_title="Alpha Builders | Portal de Obra",
     page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS Avanzados para Interfaz Profesional de Ingeniería
+# Estilos CSS Minimalistas (Estilo Apple: Blanco, Negro, Gris Grafito)
 st.markdown(
     """
     <style>
     /* Estructura Global */
     .stApp {
-        background-color: #f8fafc;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background-color: #0a0a0c;
+        color: #f5f5f7;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
     
-    /* Encabezado Corporativo Main Banner */
-    .main-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
-        padding: 28px 32px;
-        border-radius: 16px;
-        color: white;
-        margin-bottom: 25px;
-        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+    /* Header Minimalista Tipo Apple */
+    .apple-header {
+        background-color: #161617;
+        border: 1px solid #2d2d2d;
+        padding: 30px 36px;
+        border-radius: 20px;
+        color: #f5f5f7;
+        margin-bottom: 28px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
     }
-    .main-header h1 {
+    .apple-header h1 {
         color: #ffffff !important;
-        font-weight: 800;
+        font-weight: 700;
         margin: 0;
         font-size: 2.2rem;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.03em;
     }
-    .main-header p {
-        color: #94a3b8;
+    .apple-header p {
+        color: #86868b;
         margin-top: 6px;
         margin-bottom: 0;
-        font-size: 1rem;
+        font-size: 1.05rem;
     }
 
-    /* Tarjetas Dashboard KPI */
-    .kpi-card {
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 14px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        text-align: center;
-        transition: transform 0.2s ease;
+    /* Tarjetas Minimalistas (Cards) */
+    .apple-card {
+        background-color: #161617;
+        border: 1px solid #2d2d2d;
+        padding: 24px;
+        border-radius: 18px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        margin-bottom: 20px;
     }
-    .kpi-card:hover {
+
+    /* Métricas Dashboard (KPIs) */
+    .kpi-card-apple {
+        background-color: #161617;
+        border: 1px solid #2d2d2d;
+        padding: 22px;
+        border-radius: 18px;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    .kpi-card-apple:hover {
+        border-color: #515154;
         transform: translateY(-2px);
     }
-    .kpi-value {
-        font-size: 1.8rem;
-        font-weight: 800;
-        color: #0f172a;
+    .kpi-value-apple {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #ffffff;
+        letter-spacing: -0.02em;
     }
-    .kpi-label {
-        font-size: 0.825rem;
-        color: #64748b;
+    .kpi-label-apple {
+        font-size: 0.8rem;
+        color: #86868b;
         text-transform: uppercase;
         font-weight: 600;
-        letter-spacing: 0.05em;
-        margin-top: 4px;
+        letter-spacing: 0.08em;
+        margin-top: 6px;
     }
 
-    /* Pestañas Principales Estilo Nav Pill */
+    /* Pestañas Principales (Apple Tab Bar) */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: #f1f5f9;
+        gap: 8px;
+        background-color: #161617;
         padding: 6px;
-        border-radius: 14px;
+        border-radius: 16px;
+        border: 1px solid #2d2d2d;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 10px;
-        padding: 10px 20px;
+        border-radius: 12px;
+        padding: 10px 22px;
         background-color: transparent;
-        color: #475569;
-        font-weight: 600;
+        color: #86868b;
+        font-weight: 500;
         border: none !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #ffffff !important;
-        color: #1e3a8a !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        background-color: #f5f5f7 !important;
+        color: #000000 !important;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
     }
 
-    /* Tarjetas de Formularios y Módulos */
-    .module-card {
-        background-color: #ffffff;
-        padding: 24px;
-        border-radius: 14px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-        margin-bottom: 20px;
+    /* Botones y Radio Buttons */
+    .stButton > button {
+        border-radius: 12px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
     }
 
     /* Ocultar elementos innecesarios */
@@ -114,20 +126,20 @@ st.markdown(
 # ==========================================
 # 2. BASE DE DATOS Y ESTADOS DE SESIÓN
 # ==========================================
-# Autenticación de Usuario
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
     st.session_state.usuario_nombre = ""
+    st.session_state.usuario_cargo = ""
 
-# Almacenamiento seguro por perfil de usuario
+# Almacenamiento aislado por usuario
 if "db_checklists" not in st.session_state:
-    st.session_state.db_checklists = {}  # {email: [lista_checklists]}
+    st.session_state.db_checklists = {}
 
 if "db_rendimientos" not in st.session_state:
-    st.session_state.db_rendimientos = {}  # {email: [lista_rendimientos]}
+    st.session_state.db_rendimientos = {}
 
-# Nómina Real de Trabajadores (28 Trabajadores del Archivo Excel)
+# Nómina de Trabajadores
 TRABAJADORES_NO_MINA = [
     {"nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER", "cargo": "BODEGA"},
     {"nombre": "AGUALONGO PILAMUNGA LUIS LENIN", "cargo": "GYPSERO/ALBAÑIL"},
@@ -152,30 +164,16 @@ TRABAJADORES_NO_MINA = [
     {"nombre": "CORDOVA FLORES ERICK DARIO", "cargo": "GYPSERO / AYUDANTE"},
     {"nombre": "CABRERA CAMPO ANNDY JEREMIAS", "cargo": "GYPSERO / OPERADOR"},
     {"nombre": "CHELA OCHOA RAUL", "cargo": "GYPSERO/ALBAÑIL"},
-    {
-        "nombre": "SEMBLANTES TIPANLUISA JAVIER PATRICIO",
-        "cargo": "GYPSERO/ALBAÑIL",
-    },
+    {"nombre": "SEMBLANTES TIPANLUISA JAVIER PATRICIO", "cargo": "GYPSERO/ALBAÑIL"},
     {"nombre": "FUEREZ COYAGO JOSE SANTOS", "cargo": "HERRAMIENTAS"},
     {"nombre": "ALTAMIRANO CORDOVA HECTOR LUIS", "cargo": "PINTOR"},
     {"nombre": "ACOSTA AGUILAR JORGE PATRICIO", "cargo": "SOLDADOR"},
     {"nombre": "TARAPUES CASTRO JOAO ALEXANDER", "cargo": "SOLDADOR"},
 ]
 
-UNIDADES_RUBRO = {
-    "Enlucidos": "m2",
-    "Fijos": "m2",
-    "Fajas": "m",
-    "Dinteles": "m",
-}
-RENDIMIENTOS_TEORICOS = {
-    "Enlucidos": 0.75,
-    "Fijos": 0.50,
-    "Fajas": 0.30,
-    "Dinteles": 0.40,
-}
+UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
+RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
 
-# Actividades del Checklist según el Excel del Residente
 ACTIVIDADES_MANANA = [
     "Verificación de asistencia del personal",
     "Distribución de cuadrillas por frente de trabajo",
@@ -203,107 +201,113 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 3. MÓDULO DE AUTENTICACIÓN (LOGIN SEGURO)
+# 3. MÓDULO DE ACCESO / LOGIN & REGISTRO TIPO FACEBOOK / APPLE
 # ==========================================
 if not st.session_state.autenticado:
     st.markdown(
         """
-        <div class="main-header">
-            <h1>🏗️ ALPHA BUILDERS</h1>
-            <p>Portal Corporativo para Gestión de Obra y Control de Calidad</p>
+        <div class="apple-header" style="text-align: center;">
+            <h1>ALPHA BUILDERS</h1>
+            <p>Portal de Control de Obra y Calidad</p>
         </div>
     """,
         unsafe_allow_html=True,
     )
 
-    col_center1, col_center2, col_center3 = st.columns([1, 2, 1])
+    col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
 
-    with col_center2:
-        st.markdown("### 🔐 Acceso de Usuarios")
+    with col_c2:
+        tab_login, tab_register = st.tabs(["Iniciar Sesión", "Registrarse"])
 
-        tab_login1, tab_login2 = st.tabs(
-            ["Ingreso Directo / Correo", "Google / Microsoft"]
-        )
+        # --- PESTAÑA 1: INICIAR SESIÓN ---
+        with tab_login:
+            st.markdown("### Iniciar Sesión")
+            st.caption("Ingrese sus credenciales registradas para acceder.")
+            
+            login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
+            login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
 
-        with tab_login1:
-            email_input = st.text_input(
-                "Correo Electrónico (Gmail, Outlook, etc.):",
-                placeholder="ejemplo@alphabuilders.com",
-            )
-            pass_input = st.text_input("Contraseña:", type="password")
-            nombre_input = st.text_input(
-                "Nombre Completo:", placeholder="Ing. Residente"
-            )
-
-            if st.button(
-                "Iniciar Sesión", type="primary", use_container_width=True
-            ):
-                if email_input and pass_input:
+            if st.button("Entrar", type="primary", use_container_width=True):
+                if login_email and login_pass:
                     st.session_state.autenticado = True
-                    st.session_state.usuario_email = (
-                        email_input.strip().lower()
-                    )
-                    st.session_state.usuario_nombre = (
-                        nombre_input.strip() or email_input.split("@")[0].title()
-                    )
-
-                    # Inicializar carpetas de datos del usuario
-                    if (
-                        st.session_state.usuario_email
-                        not in st.session_state.db_checklists
-                    ):
-                        st.session_state.db_checklists[
-                            st.session_state.usuario_email
-                        ] = []
-                    if (
-                        st.session_state.usuario_email
-                        not in st.session_state.db_rendimientos
-                    ):
-                        st.session_state.db_rendimientos[
-                            st.session_state.usuario_email
-                        ] = []
-
+                    st.session_state.usuario_email = login_email.strip().lower()
+                    st.session_state.usuario_nombre = login_email.split("@")[0].title()
+                    st.session_state.usuario_cargo = "Residente"
+                    
+                    if st.session_state.usuario_email not in st.session_state.db_checklists:
+                        st.session_state.db_checklists[st.session_state.usuario_email] = []
+                    if st.session_state.usuario_email not in st.session_state.db_rendimientos:
+                        st.session_state.db_rendimientos[st.session_state.usuario_email] = []
                     st.rerun()
                 else:
-                    st.error("Por favor ingrese correo y contraseña.")
+                    st.error("Ingrese correo y contraseña.")
 
-        with tab_login2:
-            st.caption(
-                "Inicie sesión rápidamente usando su cuenta de correo configurada."
-            )
-            col_g, col_m = st.columns(2)
+            st.markdown("---")
+            st.caption("O accede instantáneamente con tu cuenta corporativa:")
+            col_g, col_o = st.columns(2)
             with col_g:
-                if st.button("🌐 Continuar con Google", use_container_width=True):
+                if st.button("🌐 Con Google", use_container_width=True):
                     st.session_state.autenticado = True
                     st.session_state.usuario_email = "usuario.google@gmail.com"
                     st.session_state.usuario_nombre = "Usuario Google"
+                    st.session_state.usuario_cargo = "Residente"
                     st.rerun()
-            with col_m:
-                if st.button(
-                    "🏢 Continuar con Microsoft", use_container_width=True
-                ):
+            with col_o:
+                if st.button("🏢 Con Outlook", use_container_width=True):
                     st.session_state.autenticado = True
                     st.session_state.usuario_email = "usuario.outlook@outlook.com"
                     st.session_state.usuario_nombre = "Usuario Outlook"
+                    st.session_state.usuario_cargo = "Residente"
                     st.rerun()
 
-        st.caption(
-            "🔒 **Seguridad Garantizada:** Cada usuario gestiona su propia base de datos de manera aislada e independiente."
-        )
+        # --- PESTAÑA 2: REGISTRARSE ---
+        with tab_register:
+            st.markdown("### Crear una Cuenta Nueva")
+            st.caption("Es rápido y fácil.")
+
+            col_n, col_a = st.columns(2)
+            with col_n:
+                reg_nombres = st.text_input("Nombres:", placeholder="Ej. Juan Carlos")
+            with col_a:
+                reg_apellidos = st.text_input("Apellidos:", placeholder="Ej. Pérez Gómez")
+
+            reg_email = st.text_input("Correo electrónico:", placeholder="ejemplo@correo.com", key="reg_email")
+            reg_pass = st.text_input("Nueva contraseña:", type="password", key="reg_pass")
+            
+            # Selector de Cargo con las 3 opciones solicitadas
+            reg_cargo = st.selectbox("Cargo / Rol en Obra:", ["Residente", "Asistente", "Ayudante"])
+
+            if st.button("Registrarte", type="primary", use_container_width=True):
+                if reg_nombres and reg_apellidos and reg_email and reg_pass:
+                    st.session_state.autenticado = True
+                    st.session_state.usuario_email = reg_email.strip().lower()
+                    st.session_state.usuario_nombre = f"{reg_nombres.strip()} {reg_apellidos.strip()}"
+                    st.session_state.usuario_cargo = reg_cargo
+                    
+                    if st.session_state.usuario_email not in st.session_state.db_checklists:
+                        st.session_state.db_checklists[st.session_state.usuario_email] = []
+                    if st.session_state.usuario_email not in st.session_state.db_rendimientos:
+                        st.session_state.db_rendimientos[st.session_state.usuario_email] = []
+
+                    st.success("¡Registro exitoso!")
+                    st.rerun()
+                else:
+                    st.error("Por favor complete todos los campos requeridos para el registro.")
 
     st.stop()
 
 # ==========================================
-# 4. BARRA LATERAL Y SESIÓN ACTIVA
+# 4. BARRA LATERAL CON PERFIL
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre = st.session_state.usuario_nombre
+user_cargo = st.session_state.usuario_cargo
 
 with st.sidebar:
-    st.markdown("### 👤 Perfil de Sesión")
-    st.markdown(f"**Nombre:** `{user_nombre}`")
+    st.markdown("### 👤 Perfil de Usuario")
+    st.markdown(f"**Usuario:** `{user_nombre}`")
     st.markdown(f"**Correo:** `{user_email}`")
-    st.markdown("**Estado:** `Residente Activo 🟢`")
+    st.markdown(f"**Cargo:** `{user_cargo}`")
 
     st.markdown("---")
     if st.button("🚪 Cerrar Sesión", use_container_width=True):
@@ -311,73 +315,65 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders v3.0 Pro\nSistema Continuo de Control de Obra")
+    st.caption("Alpha Builders Pro v3.5\nDiseño Minimalista Estilo Apple")
 
 # ==========================================
-# 5. DASHBOARD PRINCIPAL
+# 5. PANEL PRINCIPAL / DASHBOARD
 # ==========================================
 st.markdown(
     f"""
-    <div class="main-header">
-        <h1>🏗️ ALPHA BUILDERS | Portal de Obra</h1>
-        <p>Bienvenido, <b>{user_nombre}</b>. Panel de control continuo para calidad y rendimiento de personal.</p>
+    <div class="apple-header">
+        <h1>ALPHA BUILDERS</h1>
+        <p>Panel de Control | Usuario: <b>{user_nombre}</b> ({user_cargo})</p>
     </div>
 """,
     unsafe_allow_html=True,
 )
 
-# Métricas rápidas (KPIs) de la sesión del usuario
 usr_chks = len(st.session_state.db_checklists.get(user_email, []))
 usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 
-kpi1, kpi2, kpi3 = st.columns(3)
-with kpi1:
+k1, k2, k3 = st.columns(3)
+with k1:
     st.markdown(
-        f'<div class="kpi-card"><div class="kpi-value">28</div><div class="kpi-label">Obreros Registrados</div></div>',
+        '<div class="kpi-card-apple"><div class="kpi-value-apple">28</div><div class="kpi-label-apple">Obreros Activos</div></div>',
         unsafe_allow_html=True,
     )
-with kpi2:
+with k2:
     st.markdown(
-        f'<div class="kpi-card"><div class="kpi-value">{usr_chks}</div><div class="kpi-label">Checklists Guardados</div></div>',
+        f'<div class="kpi-card-apple"><div class="kpi-value-apple">{usr_chks}</div><div class="kpi-label-apple">Checklists Realizados</div></div>',
         unsafe_allow_html=True,
     )
-with kpi3:
+with k3:
     st.markdown(
-        f'<div class="kpi-card"><div class="kpi-value">{usr_rnds}</div><div class="kpi-label">Registros de Avance</div></div>',
+        f'<div class="kpi-card-apple"><div class="kpi-value-apple">{usr_rnds}</div><div class="kpi-label-apple">Reportes de Rendimiento</div></div>',
         unsafe_allow_html=True,
     )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Pestañas principales
 tab_chk, tab_rend = st.tabs(
-    ["📋 Checklist Diario Residente", "📊 Control de Rendimiento por Trabajador"]
+    ["📋 Checklist Diario", "📊 Control de Rendimiento por Trabajador"]
 )
 
 # ==========================================
-# 6. MÓDULO 1: CHECKLIST DIARIO CON FOTOS
+# 6. MÓDULO 1: CHECKLIST DIARIO
 # ==========================================
 with tab_chk:
-    st.markdown("### 📋 Check List Diario – Residente de Obra")
-    st.caption(
-        "Supervisión y control de calidad diaria en campo para jornadas de mañana y tarde."
-    )
+    st.markdown("### 📋 Check List Diario – Control de Obra")
+    st.caption("Supervisión diaria de calidad y avance en el frente de trabajo.")
 
-    col_meta1, col_meta2, col_meta3 = st.columns(3)
-    with col_meta1:
-        proyecto_val = st.text_input(
-            "🏢 Proyecto:", value="Alpha Builders - Obra Principal"
-        )
-    with col_meta2:
-        residente_val = st.text_input(
-            "👷 Residente de Obra:", value=user_nombre
-        )
-    with col_meta3:
+    col_m1, col_m2, col_m3 = st.columns(3)
+    with col_m1:
+        proyecto_val = st.text_input("🏢 Proyecto:", value="Alpha Builders - Obra Central")
+    with col_m2:
+        residente_val = st.text_input("👷 Responsable:", value=user_nombre)
+    with col_m3:
         fecha_val = st.date_input("📅 Fecha:", datetime.date.today())
 
     st.markdown("---")
 
-    with st.form("form_checklist_profesional"):
+    with st.form("form_checklist_apple"):
         st.markdown("#### 🌅 Jornada de la Mañana")
         resp_manana = []
 
@@ -386,41 +382,14 @@ with tab_chk:
             c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
             with c_sel:
-                est = st.radio(
-                    "Estado",
-                    ["✓ Cumple", "✗ No Cumple", "N/A"],
-                    key=f"m_st_{idx}",
-                    horizontal=True,
-                )
+                est = st.radio("Estado", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"m_st_{idx}", horizontal=True)
             with c_obs:
-                ob = st.text_input(
-                    "Observación",
-                    key=f"m_ob_{idx}",
-                    placeholder="Detalles u observaciones...",
-                    label_visibility="collapsed",
-                )
+                ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
             with c_foto:
-                ft = st.file_uploader(
-                    "📷 Foto (Opcional)",
-                    type=["jpg", "jpeg", "png"],
-                    key=f"m_ft_{idx}",
-                )
+                ft = st.file_uploader("📷 Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
 
-            st.markdown(
-                "<hr style='margin: 8px 0; opacity: 0.2;'>",
-                unsafe_allow_html=True,
-            )
-            resp_manana.append(
-                {
-                    "Jornada": "Mañana",
-                    "N°": idx,
-                    "Actividad": act,
-                    "Estado": est,
-                    "Observaciones": ob,
-                    "Foto_Objeto": ft,
-                    "Foto_Adjunta": "Sí 📷" if ft is not None else "No",
-                }
-            )
+            st.markdown("<hr style='margin: 8px 0; border-color: #2d2d2d;'>", unsafe_allow_html=True)
+            resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí 📷" if ft is not None else "No"})
 
         st.markdown("#### 🌆 Jornada de la Tarde")
         resp_tarde = []
@@ -430,69 +399,32 @@ with tab_chk:
             c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
             with c_sel:
-                est = st.radio(
-                    "Estado",
-                    ["✓ Cumple", "✗ No Cumple", "N/A"],
-                    key=f"t_st_{idx}",
-                    horizontal=True,
-                )
+                est = st.radio("Estado", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"t_st_{idx}", horizontal=True)
             with c_obs:
-                ob = st.text_input(
-                    "Observación",
-                    key=f"t_ob_{idx}",
-                    placeholder="Detalles u observaciones...",
-                    label_visibility="collapsed",
-                )
+                ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
             with c_foto:
-                ft = st.file_uploader(
-                    "📷 Foto (Opcional)",
-                    type=["jpg", "jpeg", "png"],
-                    key=f"t_ft_{idx}",
-                )
+                ft = st.file_uploader("📷 Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
 
-            st.markdown(
-                "<hr style='margin: 8px 0; opacity: 0.2;'>",
-                unsafe_allow_html=True,
-            )
-            resp_tarde.append(
-                {
-                    "Jornada": "Tarde",
-                    "N°": idx,
-                    "Actividad": act,
-                    "Estado": est,
-                    "Observaciones": ob,
-                    "Foto_Objeto": ft,
-                    "Foto_Adjunta": "Sí 📷" if ft is not None else "No",
-                }
-            )
+            st.markdown("<hr style='margin: 8px 0; border-color: #2d2d2d;'>", unsafe_allow_html=True)
+            resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí 📷" if ft is not None else "No"})
 
-        btn_guardar_chk = st.form_submit_button(
-            "💾 Guardar Checklist Diario", type="primary"
-        )
+        btn_guardar_chk = st.form_submit_button("💾 Guardar Checklist Diario", type="primary")
 
     if btn_guardar_chk:
         all_chk_data = resp_manana + resp_tarde
         df_chk_save = pd.DataFrame(all_chk_data)
 
-        # Guardar en la cuenta del usuario
-        registro_completo = {
+        st.session_state.db_checklists[user_email].append({
             "Fecha": fecha_val.strftime("%Y-%m-%d"),
             "Proyecto": proyecto_val,
-            "Residente": residente_val,
-            "Datos": df_chk_save,
-        }
-        st.session_state.db_checklists[user_email].append(registro_completo)
+            "Responsable": residente_val,
+            "Cargo": user_cargo,
+            "Datos": df_chk_save
+        })
 
-        st.success(
-            f"✅ Checklist guardado exitosamente para la cuenta **{user_email}**."
-        )
+        st.success(f"✅ Checklist guardado correctamente para el usuario **{user_email}**.")
+        st.dataframe(df_chk_save.drop(columns=["Foto_Objeto"]), use_container_width=True)
 
-        st.markdown("#### Resumen del Registro Actual")
-        st.dataframe(
-            df_chk_save.drop(columns=["Foto_Objeto"]), use_container_width=True
-        )
-
-        # Galería visual de fotos adjuntas
         st.markdown("#### 🖼️ Evidencia Fotográfica Capturada")
         has_images = False
         cols_gal = st.columns(3)
@@ -502,59 +434,37 @@ with tab_chk:
             if row_item["Foto_Objeto"] is not None:
                 has_images = True
                 with cols_gal[g_idx % 3]:
-                    st.image(
-                        row_item["Foto_Objeto"],
-                        caption=f"[{row_item['Jornada']}] N° {row_item['N°']}: {row_item['Actividad']}",
-                        use_column_width=True,
-                    )
+                    st.image(row_item["Foto_Objeto"], caption=f"[{row_item['Jornada']}] N° {row_item['N°']}: {row_item['Actividad']}", use_column_width=True)
                 g_idx += 1
 
         if not has_images:
-            st.info("No se adjuntaron fotografías en este registro.")
+            st.info("No se adjuntaron fotografías en esta inspección.")
 
-        # Descarga de CSV
-        csv_chk = (
-            df_chk_save.drop(columns=["Foto_Objeto"])
-            .to_csv(index=False)
-            .encode("utf-8")
-        )
-        st.download_button(
-            label="📥 Descargar Checklist Diario en CSV",
-            data=csv_chk,
-            file_name=f"Checklist_{fecha_val.strftime('%Y%m%d')}_{user_email}.csv",
-            mime="text/csv",
-        )
+        csv_chk = df_chk_save.drop(columns=["Foto_Objeto"]).to_csv(index=False).encode("utf-8")
+        st.download_button(label="📥 Descargar Checklist Diario (CSV)", data=csv_chk, file_name=f"Checklist_{fecha_val.strftime('%Y%m%d')}_{user_email}.csv", mime="text/csv")
 
 # ==========================================
 # 7. MÓDULO 2: CONTROL DE RENDIMIENTO
 # ==========================================
 with tab_rend:
     st.markdown("### 📊 Control de Rendimiento por Trabajador")
-    st.caption("Seleccione al operario, asigne el rubro y registre sus horas ejecutadas y avance de obra.")
+    st.caption("Seleccione al operario, indique el rubro y registre sus horas ejecutadas.")
 
     col1, col2 = st.columns(2)
-
     with col1:
         nombres_obreros = [t["nombre"] for t in TRABAJADORES_NO_MINA]
-        trabajador_sel = st.selectbox(
-            "👷 Seleccionar Trabajador (28 Activos):", nombres_obreros
-        )
-
-        cargo_actual = next(
-            t["cargo"]
-            for t in TRABAJADORES_NO_MINA
-            if t["nombre"] == trabajador_sel
-        )
-        st.info(f"**Cargo Asignado:** {cargo_actual}")
+        trabajador_sel = st.selectbox("👷 Seleccionar Trabajador (28 Activos):", nombres_obreros)
+        cargo_actual = next(t["cargo"] for t in TRABAJADORES_NO_MINA if t["nombre"] == trabajador_sel)
+        st.info(f"**Cargo en obra:** {cargo_actual}")
 
     with col2:
         rubros_opciones = ["Enlucidos", "Fijos", "Fajas", "Dinteles"]
         rubro_sel = st.selectbox("🧱 Seleccionar Rubro:", rubros_opciones)
         unidad_medida = UNIDADES_RUBRO[rubro_sel]
-        st.caption(f"Unidad de medida para {rubro_sel}: **{unidad_medida}**")
+        st.caption(f"Unidad de medida: **{unidad_medida}**")
 
     st.markdown("---")
-    st.markdown("#### 🕒 Intervalos de Horario Trabajados")
+    st.markdown("#### 🕒 Horarios Trabajados (Intervalos)")
 
     col_h1, col_h2, col_h3 = st.columns(3)
     with col_h1:
@@ -564,38 +474,28 @@ with tab_rend:
     with col_h3:
         h3 = st.checkbox("14:00 - 16:00 (2 Horas HH)")
 
-    horas_acumuladas = (
-        (3.0 if h1 else 0.0) + (3.0 if h2 else 0.0) + (2.0 if h3 else 0.0)
-    )
-    st.markdown(
-        f"⏱️ **Horas-Hombre (HH) Calculadas:** `{horas_acumuladas} HH`"
-    )
+    horas_acumuladas = (3.0 if h1 else 0.0) + (3.0 if h2 else 0.0) + (2.0 if h3 else 0.0)
+    st.markdown(f"⏱️ **Total Horas-Hombre:** `{horas_acumuladas} HH`")
 
-    st.markdown("#### 📐 Avance Físico de Obra")
-    avance_cant = st.number_input(
-        f"Cantidad Ejecutada en {unidad_medida}:",
-        min_value=0.0,
-        step=0.1,
-        format="%.2f",
-    )
+    st.markdown("#### 📐 Avance Ejecutado")
+    avance_cant = st.number_input(f"Cantidad ejecutada ({unidad_medida}):", min_value=0.0, step=0.1, format="%.2f")
 
-    if st.button("💾 Registrar Rendimiento de Trabajador", type="primary"):
+    if st.button("💾 Registrar Rendimiento", type="primary"):
         if horas_acumuladas == 0:
             st.warning("⚠️ Seleccione al menos un intervalo de horario.")
         elif avance_cant <= 0:
-            st.warning("⚠️ Ingrese una cantidad ejecutada mayor a 0.")
+            st.warning("⚠️ Ingrese un avance mayor a 0.")
         else:
             rend_real = round(horas_acumuladas / avance_cant, 3)
             rend_teorico = RENDIMIENTOS_TEORICOS.get(rubro_sel, 1.0)
-            estado_diag = (
-                "EFICIENTE ✅" if rend_real <= rend_teorico else "EXCESO DE HH ⚠️"
-            )
+            estado_diag = "EFICIENTE ✅" if rend_real <= rend_teorico else "EXCESO DE HH ⚠️"
 
             nuevo_registro = {
                 "Usuario_Registro": user_email,
+                "Cargo_Registrador": user_cargo,
                 "Fecha": datetime.date.today().strftime("%Y-%m-%d"),
                 "Trabajador": trabajador_sel,
-                "Cargo": cargo_actual,
+                "Cargo_Obrero": cargo_actual,
                 "Rubro": rubro_sel,
                 "Horas Trabajadas (HH)": horas_acumuladas,
                 "Avance": avance_cant,
@@ -606,27 +506,17 @@ with tab_rend:
             }
 
             st.session_state.db_rendimientos[user_email].append(nuevo_registro)
-            st.success(
-                f"¡Registro de rendimiento guardado correctamente para **{trabajador_sel}**!"
-            )
+            st.success(f"¡Rendimiento registrado correctamente para **{trabajador_sel}**!")
 
     st.markdown("---")
-    st.markdown("### 📜 Historial de Registros de Rendimiento")
+    st.markdown("### 📜 Registros de Rendimiento Guardados")
 
     mis_rendimientos = st.session_state.db_rendimientos.get(user_email, [])
-
     if len(mis_rendimientos) > 0:
         df_mis_r = pd.DataFrame(mis_rendimientos)
         st.dataframe(df_mis_r, use_container_width=True)
 
         csv_r = df_mis_r.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="📥 Descargar Reporte de Rendimientos en CSV",
-            data=csv_r,
-            file_name=f"Rendimientos_{user_email}.csv",
-            mime="text/csv",
-        )
+        st.download_button(label="📥 Descargar Rendimientos (CSV)", data=csv_r, file_name=f"Rendimientos_{user_email}.csv", mime="text/csv")
     else:
-        st.info(
-            "Aún no tiene registros de rendimiento guardados en su cuenta."
-        )
+        st.info("Aún no existen registros en su historial.")
