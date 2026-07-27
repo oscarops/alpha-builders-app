@@ -498,8 +498,8 @@ def export_checklist_to_excel_file(jornada_dict):
             item.get("Observaciones", "")
         ])
 
-        # Altura de celda generosa para albergar la imagen en alta definición
-        ws.row_dimensions[row_idx].height = 140
+        # Fila amplia para albergar la imagen a gran escala
+        ws.row_dimensions[row_idx].height = 160
 
         for c_i in range(1, 7):
             cell_txt = ws.cell(row=row_idx, column=c_i)
@@ -513,21 +513,24 @@ def export_checklist_to_excel_file(jornada_dict):
                 img_data = base64.b64decode(foto_b64)
                 img_pil = Image.open(io.BytesIO(img_data))
                 
-                # ALTA RESOLUCIÓN Y TAMAÑO ADAPTADO AL ANCHO Y LARGO DE LA CELDA
-                img_pil.thumbnail((220, 130))
+                # ALTA RESOLUCIÓN CON LANZOS
+                img_pil = img_pil.resize((400, 300), Image.Resampling.LANCZOS)
                 img_stream = io.BytesIO()
-                img_pil.save(img_stream, format="PNG")
+                img_pil.save(img_stream, format="PNG", quality=95)
                 img_stream.seek(0)
 
                 img_xlsx = OpenpyxlImage(img_stream)
-                img_xlsx.width = 180
-                img_xlsx.height = 110
+                
+                # OCUPAR AGRESIVAMENTE TODO EL ANCHO Y ALTO DE LA CELDA
+                # Ancho columna F = 48 (aprox 336 px), Alto fila = 160 (aprox 213 px)
+                img_xlsx.width = 320
+                img_xlsx.height = 150
 
-                # CENTRADO EXACTO EN LA MITAD DE LA CELDA F (Ancho columna F = 42, Alto fila = 140)
-                col_w_px = 294
-                row_h_px = 186
-                img_xlsx.left = (col_w_px - img_xlsx.width) / 2
-                img_xlsx.top = (row_h_px - img_xlsx.height) / 2
+                # CENTRADO EXACTO EN LA CELDA
+                col_w_px = 336
+                row_h_px = 213
+                img_xlsx.left = max(2, (col_w_px - img_xlsx.width) / 2)
+                img_xlsx.top = max(2, (row_h_px - img_xlsx.height) / 2)
 
                 ws.add_image(img_xlsx, f"F{row_idx}")
             except Exception:
@@ -540,7 +543,7 @@ def export_checklist_to_excel_file(jornada_dict):
     ws.column_dimensions['C'].width = 52
     ws.column_dimensions['D'].width = 18
     ws.column_dimensions['E'].width = 35
-    ws.column_dimensions['F'].width = 42  # Ancho amplio para que la imagen ocupe y luzca perfecta
+    ws.column_dimensions['F'].width = 48  # Columna F muy amplia para que la imagen ocupe todo el espacio
 
     output = io.BytesIO()
     wb.save(output)
@@ -955,7 +958,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (VERTICAL COMPLETO + CALENDARIO AL MISMO NIVEL)
+# 7. MÓDULO 1: CHECKLIST DIARIO (VERTICAL COMPLETO + TÍTULO Y CALENDARIO AL MISMO NIVEL)
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -1081,12 +1084,12 @@ with tab_chk:
 
     st.markdown("---")
 
-    # TÍTULO E HISTORIAL AL MISMO NIVEL HORIZONTAL DEL CALENDARIO
-    col_t_hist, col_t_cal = st.columns([2, 1], gap="large")
+    # TÍTULO E HISTORIAL AL MISMO NIVEL HORIZONTAL EXACTO DEL CALENDARIO
+    col_t_hist, col_t_cal = st.columns([3, 1], gap="large")
     with col_t_hist:
         st.markdown("### Historial de Jornadas e Inspecciones Creadas")
     with col_t_cal:
-        fecha_busqueda = st.date_input("Filtrar por fecha:", datetime.date.today(), key="calendario_directo")
+        fecha_busqueda = st.date_input("Filtrar por fecha:", datetime.date.today(), key="calendario_directo", label_visibility="collapsed")
 
     if user_email not in st.session_state.db_checklists:
         st.session_state.db_checklists[user_email] = []
@@ -1097,95 +1100,91 @@ with tab_chk:
         fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
         jornadas_en_fecha = [j for j in mis_jornadas if j['Fecha'] == fecha_busqueda_str]
 
-        col_hist_lista, col_hist_info_cal = st.columns([2, 1], gap="large")
+        st.info(f"**{len(jornadas_en_fecha)}** jornada(s) encontrada(s) para la fecha seleccionada ({fecha_busqueda_str}).")
 
-        with col_hist_info_cal:
-            st.info(f"**{len(jornadas_en_fecha)}** jornada(s) encontrada(s) para el **{fecha_busqueda_str}**.")
+        jornadas_a_mostrar = jornadas_en_fecha if len(jornadas_en_fecha) > 0 else mis_jornadas
+        
+        meses_nombres = {
+            "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
+            "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
+            "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
+        }
 
-        with col_hist_lista:
-            jornadas_a_mostrar = jornadas_en_fecha if len(jornadas_en_fecha) > 0 else mis_jornadas
+        jornadas_con_index = []
+        for orig_idx, j_item in enumerate(mis_jornadas):
+            if j_item in jornadas_a_mostrar:
+                jornadas_con_index.append((orig_idx, j_item))
+
+        jornadas_con_index.sort(key=lambda x: x[1]['Fecha'], reverse=True)
+
+        grupos_meses = {}
+        for orig_idx, j in jornadas_con_index:
+            f_str = j['Fecha']
+            try:
+                partes = f_str.split("-")
+                anio = partes[0]
+                mes_num = partes[1]
+                nombre_mes = f"{meses_nombres.get(mes_num, 'Mes')} {anio}"
+            except:
+                nombre_mes = "Otros"
             
-            meses_nombres = {
-                "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
-                "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
-                "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
-            }
+            if nombre_mes not in grupos_meses:
+                grupos_meses[nombre_mes] = []
+            grupos_meses[nombre_mes].append((orig_idx, j))
 
-            jornadas_con_index = []
-            for orig_idx, j_item in enumerate(mis_jornadas):
-                if j_item in jornadas_a_mostrar:
-                    jornadas_con_index.append((orig_idx, j_item))
+        for mes_anio, lista_j in grupos_meses.items():
+            with st.expander(f"📅 {mes_anio} ({len(lista_j)} inspecciones)", expanded=True):
+                for idx_rel, (orig_idx, j) in enumerate(lista_j):
+                    col_j_info, col_j_del = st.columns([8, 1])
+                    
+                    with col_j_del:
+                        if st.button("🗑️", key=f"quick_del_{orig_idx}", help="Borrar jornada instantáneamente"):
+                            st.session_state.db_checklists[user_email].pop(orig_idx)
+                            save_persistent_db()
+                            st.success("¡Jornada eliminada!")
+                            st.rerun()
 
-            jornadas_con_index.sort(key=lambda x: x[1]['Fecha'], reverse=True)
+                    with col_j_info:
+                        with st.expander(f"📌 {j['Edificio']} — {j['Fecha']}"):
+                            with st.form(f"form_edit_jornada_{orig_idx}"):
+                                st.markdown("#### Editar Detalles")
+                                nuevo_nombre_edificio = st.selectbox("Nombre / Edificio:", EDIFICIOS_ALPHA, index=EDIFICIOS_ALPHA.index(j['Edificio']) if j['Edificio'] in EDIFICIOS_ALPHA else 0, key=f"ed_sel_{orig_idx}")
+                                try:
+                                    f_obj = datetime.datetime.strptime(j['Fecha'], "%Y-%m-%d").date()
+                                except:
+                                    f_obj = datetime.date.today()
+                                nueva_fecha_obj = st.date_input("Fecha:", value=f_obj, key=f"f_ed_{orig_idx}")
 
-            grupos_meses = {}
-            for orig_idx, j in jornadas_con_index:
-                f_str = j['Fecha']
-                try:
-                    partes = f_str.split("-")
-                    anio = partes[0]
-                    mes_num = partes[1]
-                    nombre_mes = f"{meses_nombres.get(mes_num, 'Mes')} {anio}"
-                except:
-                    nombre_mes = "Otros"
-                
-                if nombre_mes not in grupos_meses:
-                    grupos_meses[nombre_mes] = []
-                grupos_meses[nombre_mes].append((orig_idx, j))
+                                if st.form_submit_button("Actualizar Cambios"):
+                                    st.session_state.db_checklists[user_email][orig_idx]['Edificio'] = nuevo_nombre_edificio
+                                    st.session_state.db_checklists[user_email][orig_idx]['Fecha'] = nueva_fecha_obj.strftime("%Y-%m-%d")
+                                    save_persistent_db()
+                                    st.success("¡Actualizado con éxito!")
+                                    st.rerun()
 
-            for mes_anio, lista_j in grupos_meses.items():
-                with st.expander(f"📅 {mes_anio} ({len(lista_j)} inspecciones)", expanded=True):
-                    for idx_rel, (orig_idx, j) in enumerate(lista_j):
-                        col_j_info, col_j_del = st.columns([8, 1])
-                        
-                        with col_j_del:
-                            if st.button("🗑️", key=f"quick_del_{orig_idx}", help="Borrar jornada instantáneamente"):
-                                st.session_state.db_checklists[user_email].pop(orig_idx)
-                                save_persistent_db()
-                                st.success("¡Jornada eliminada!")
-                                st.rerun()
+                            st.markdown("#### Actividades Registradas y Evidencias:")
+                            df_data = pd.DataFrame(j["Datos"])
+                            for _, row in df_data.iterrows():
+                                st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: `{row['Estado']}`")
+                                if row['Observaciones']:
+                                    st.caption(f"Obs: {row['Observaciones']}")
+                                
+                                if row.get("Foto_B64") is not None:
+                                    img_evidencia = base64_to_image(row["Foto_B64"])
+                                    if img_evidencia:
+                                        with st.popover(f"📷 Vista previa de la imagen"):
+                                            st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_column_width=True)
 
-                        with col_j_info:
-                            with st.expander(f"📌 {j['Edificio']} — {j['Fecha']}"):
-                                with st.form(f"form_edit_jornada_{orig_idx}"):
-                                    st.markdown("#### Editar Detalles")
-                                    nuevo_nombre_edificio = st.selectbox("Nombre / Edificio:", EDIFICIOS_ALPHA, index=EDIFICIOS_ALPHA.index(j['Edificio']) if j['Edificio'] in EDIFICIOS_ALPHA else 0, key=f"ed_sel_{orig_idx}")
-                                    try:
-                                        f_obj = datetime.datetime.strptime(j['Fecha'], "%Y-%m-%d").date()
-                                    except:
-                                        f_obj = datetime.date.today()
-                                    nueva_fecha_obj = st.date_input("Fecha:", value=f_obj, key=f"f_ed_{orig_idx}")
+                                st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
-                                    if st.form_submit_button("Actualizar Cambios"):
-                                        st.session_state.db_checklists[user_email][orig_idx]['Edificio'] = nuevo_nombre_edificio
-                                        st.session_state.db_checklists[user_email][orig_idx]['Fecha'] = nueva_fecha_obj.strftime("%Y-%m-%d")
-                                        save_persistent_db()
-                                        st.success("¡Actualizado con éxito!")
-                                        st.rerun()
-
-                                st.markdown("#### Actividades Registradas y Evidencias:")
-                                df_data = pd.DataFrame(j["Datos"])
-                                for _, row in df_data.iterrows():
-                                    st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: `{row['Estado']}`")
-                                    if row['Observaciones']:
-                                        st.caption(f"Obs: {row['Observaciones']}")
-                                    
-                                    if row.get("Foto_B64") is not None:
-                                        img_evidencia = base64_to_image(row["Foto_B64"])
-                                        if img_evidencia:
-                                            with st.popover(f"📷 Vista previa de la imagen"):
-                                                st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_column_width=True)
-
-                                    st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
-
-                                excel_bytes = export_checklist_to_excel_file(j)
-                                st.download_button(
-                                    label=f"📥 Descargar Excel con Imágenes - {j['Edificio']} ({j['Fecha']})",
-                                    data=excel_bytes,
-                                    file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.xlsx",
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                    key=f"dl_xlsx_{orig_idx}"
-                                )
+                            excel_bytes = export_checklist_to_excel_file(j)
+                            st.download_button(
+                                label=f"📥 Descargar Excel con Imágenes - {j['Edificio']} ({j['Fecha']})",
+                                data=excel_bytes,
+                                file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key=f"dl_xlsx_{orig_idx}"
+                            )
     else:
         st.info("Aún no hay inspecciones guardadas en el historial.")
 
