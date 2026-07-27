@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (ACOPLAMIENTO Y BOTÓN FLOTANTE)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,7 +31,7 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* CONTENEDOR PRINCIPAL FLUIDO Y ADAPTABLE A PANTALLA COMPLETA */
+    /* CONTENEDOR PRINCIPAL FLUIDO Y ADAPTABLE AL 100% DE PANTALLA COMPLETA */
     .block-container {
         padding-top: 0.8rem !important;
         padding-bottom: 1.2rem !important;
@@ -53,12 +53,22 @@ st.markdown(
         color: #5a5f6e !important;
     }
 
-    /* BOTÓN PARA COLAPSAR SIDEBAR SIEMPRE VISIBLE */
-    [data-testid="stSidebarCollapseButton"], 
+    /* BOTÓN PARA COLAPSAR / EXPANDIR SIDEBAR */
+    [data-testid="stSidebarCollapseButton"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 999999 !important;
+    }
+
+    /* CUANDO EL SIDEBAR ESTÁ OCULTO, EL BOTÓN SE POSICIONA EN LA ESQUINA SUPERIOR IZQUIERDA */
     [data-testid="collapsedControl"] {
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
+        position: fixed !important;
+        top: 15px !important;
+        left: 15px !important;
         z-index: 999999 !important;
     }
 
@@ -67,10 +77,18 @@ st.markdown(
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
         border-radius: 50% !important;
-        width: 32px !important;
-        height: 32px !important;
+        width: 36px !important;
+        height: 36px !important;
         color: #ffffff !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        transition: all 0.2s ease !important;
+    }
+
+    [data-testid="stSidebarCollapseButton"] button:hover, 
+    [data-testid="collapsedControl"] button:hover {
+        background-color: #ff8c00 !important;
+        border-color: #ff8c00 !important;
+        transform: scale(1.08);
     }
 
     [data-testid="stSidebarCollapseButton"] svg, 
@@ -222,7 +240,7 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* 3. TARJETA PRINCIPAL CON ESTILO ORIGINAL DE GROSOR DE FUENTE */
+    /* 3. TARJETA PRINCIPAL */
     .executive-card-studio {
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
         border: 1px solid #b8c4d8;
@@ -273,7 +291,7 @@ st.markdown(
         font-weight: 800;
     }
 
-    /* CORRECCIÓN DE PESTAÑAS (TABS) */
+    /* PESTAÑAS (TABS) */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background-color: #e2e5ec !important;
@@ -365,7 +383,7 @@ def load_persistent_db():
                 "Apellidos": "Narváez Ojeda",
                 "Correo": "oscarsebitas2013@gmail.com",
                 "Password": "Al678554",
-                "Cargo": "Residente",
+                "Cargo": "Asistente",
                 "Fecha_Registro": "2026-07-26",
                 "Estado": "Activo",
             }
@@ -648,7 +666,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (CONFIGURACIÓN SIN ELEMENTO FANTASMA)
+# 5. BARRA LATERAL
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
