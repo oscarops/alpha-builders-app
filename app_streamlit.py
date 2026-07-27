@@ -221,7 +221,7 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* ESTILO FONDO BLANCO Y LETRAS NEGRAS PARA EL CONTENEDOR DE CONFIGURACIÓN */
+    /* CONTENEDOR BLANCO DE CONFIGURACIÓN CON LETRAS NEGRAS Y VISIBILIDAD DE UPLOAD */
     .config-white-card {
         background-color: #ffffff !important;
         border-radius: 10px;
@@ -249,6 +249,19 @@ st.markdown(
     }
 
     .config-white-card input {
+        color: #121318 !important;
+    }
+
+    /* VISIBILIDAD DE LETRAS DE UPLOAD EN TARJETA BLANCA */
+    .config-white-card [data-testid="stFileUploader"] span,
+    .config-white-card [data-testid="stFileUploader"] small,
+    .config-white-card [data-testid="stFileUploader"] div {
+        color: #121318 !important;
+    }
+
+    /* OJOS DE CONTRASEÑA EN COLOR OSCURO VISIBLE */
+    .config-white-card button[aria-label*="password"] svg {
+        fill: #121318 !important;
         color: #121318 !important;
     }
 
@@ -452,6 +465,9 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_nombres = ""
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
+
+if "expander_abierto" not in st.session_state:
+    st.session_state.expander_abierto = False
 
 EDIFICIOS_ALPHA = [
     "Tesla",
@@ -670,7 +686,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (CONFIGURACIÓN CON FONDO BLANCO Y LETRAS NEGRAS)
+# 5. BARRA LATERAL (CONFIGURACIÓN CON FONDO BLANCO SIN TEXTO DE TÍTULO)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -724,7 +740,6 @@ with st.sidebar:
 
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
         st.markdown('<div class="config-white-card">', unsafe_allow_html=True)
-        st.caption("Ajustes personales y fotografía:")
         
         edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
         edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
