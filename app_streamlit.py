@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS CON EFECTOS AVANZADOS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (EFECTOS AVANZADOS)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,7 +31,7 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* 1. FONDO PRINCIPAL: BLANCO PURO CON TRANSICIONES SUAVES */
+    /* 1. FONDO PRINCIPAL: BLANCO PURO */
     .stApp {
         background-color: #ffffff !important;
         color: #121318 !important;
@@ -146,42 +146,47 @@ st.markdown(
         border-radius: 8px !important;
     }
 
-    /* 3. TARJETAS Y KPIS CON EFECTOS DE RELIEVE 3D Y HOVER AVANZADO */
+    /* 3. EFECTOS VISUALES AVANZADOS EN TARJETAS PRINCIPALES Y KPIS */
     .executive-card-studio {
-        background: linear-gradient(135deg, #f0f3f8 0%, #e2e7ef 100%);
-        border: 1px solid #c5cddb;
-        border-radius: 22px;
-        padding: 28px;
-        box-shadow: 0 12px 35px rgba(0,0,0,0.06);
+        background: linear-gradient(145deg, #f3f6fc 0%, #e5ebf5 100%);
+        border: 1px solid #b8c4d8;
+        border-radius: 24px;
+        padding: 30px;
+        box-shadow: 0 14px 40px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.8);
         margin-bottom: 25px;
-        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
     }
     .executive-card-studio:hover {
         transform: translateY(-4px);
-        box-shadow: 0 20px 45px rgba(0,0,0,0.12);
+        box-shadow: 0 22px 55px rgba(0,0,0,0.14), 0 0 0 2px rgba(18, 19, 24, 0.1);
         border-color: #121318;
     }
 
     .kpi-card-studio {
-        background: linear-gradient(135deg, #eaedf4 0%, #d8deeb 100%);
-        border: 1px solid #b8c2d4;
+        background: linear-gradient(145deg, #eceff6 0%, #dbe2ef 100%);
+        border: 1px solid #aebacf;
         border-radius: 20px;
-        padding: 22px;
+        padding: 24px;
         text-align: center;
-        box-shadow: 0 8px 22px rgba(0,0,0,0.05);
-        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
+        transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
     }
     .kpi-card-studio:hover {
-        background: linear-gradient(135deg, #e0e6f2, #ccd4e4);
+        background: linear-gradient(145deg, #e3eaf7, #d0dbeee);
         border-color: #121318;
-        transform: translateY(-6px) scale(1.01);
-        box-shadow: 0 16px 35px rgba(0,0,0,0.12);
+        transform: translateY(-6px) scale(1.02);
+        box-shadow: 0 18px 40px rgba(0,0,0,0.15), 0 0 0 2px rgba(18, 19, 24, 0.15);
     }
     .kpi-val-studio {
         font-size: 2.8rem;
         font-weight: 900;
         color: #121318 !important;
         letter-spacing: -0.03em;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .kpi-lbl-studio {
         font-size: 0.75rem;
@@ -189,7 +194,7 @@ st.markdown(
         text-transform: uppercase;
         font-weight: 800;
         letter-spacing: 0.08em;
-        margin-top: 4px;
+        margin-top: 6px;
     }
 
     /* BORDES NARANJA EN INPUTS DE LOGIN */
@@ -227,7 +232,7 @@ st.markdown(
         border: 1px solid #b8bec8 !important;
     }
 
-    /* PESTAÑAS (SEGMENT CONTROL) CON EFECTO ELEVADO */
+    /* PESTAÑAS (SEGMENT CONTROL) */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background-color: #e2e5ec !important;
@@ -264,7 +269,7 @@ st.markdown(
         font-weight: 900 !important;
     }
 
-    /* BOTONES PRIMARIOS NEGROS CON EFECTO DE PULSO Y ELEVACIÓN */
+    /* BOTONES PRIMARIOS NEGROS CON EFECTO ELEVADO */
     .stButton > button {
         background-color: #121318 !important;
         color: #ffffff !important;
@@ -488,7 +493,7 @@ if not st.session_state.autenticado:
             st.markdown(
                 f"""
                 <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
-                    <img src="data:image/png;base64,{encoded_logo}" style="width: 200px; max-width: 100%; pointer-events: none;">
+                    <img src="data:image/png;base64,{encoded_logo}" style="width: 360px; max-width: 100%; pointer-events: none;">
                 </div>
             """,
                 unsafe_allow_html=True,
@@ -617,7 +622,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON images.png FIJO Y PERFIL
+# 5. BARRA LATERAL CON images.png AL ANCHO EXACTO
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -630,8 +635,8 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; margin-bottom: 10px;">
-                <img src="data:image/png;base64,{encoded_sidebar_logo}" style="width: 150px; max-width: 100%; pointer-events: none;">
+            <div style="text-align: center; margin-bottom: 12px; padding: 0 4px;">
+                <img src="data:image/png;base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none;">
             </div>
         """,
             unsafe_allow_html=True,
@@ -712,10 +717,10 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v32.0 Pro Effects")
+    st.caption("Alpha Builders Portal v34.0 Perfect Effects")
 
 # ==========================================
-# 6. DASHBOARD PRINCIPAL CON TARJETAS Y KPIS RESTAURADAS
+# 6. DASHBOARD PRINCIPAL CON TARJETAS RESTAURADAS Y MEJORADAS
 # ==========================================
 st.markdown(
     f"""
