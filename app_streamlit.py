@@ -6,19 +6,16 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN Y ESTILOS STUDIO APPLE SLATE
+# 1. CONFIGURACIÓN DE PÁGINA Y TEMA STUDIO APPLE LIGHT SLATE
 # ==========================================
 st.set_page_config(
-    page_title="Alpha Builders | Cazadores de Inversiones",
-    page_icon="🏢",
+    page_title="Alpha Builders | Portal Ejecutivo de Control de Obra",
+    page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# LOGO OFICIAL ALPHA BUILDERS EN BASE64
-LOGO_ALPHA_B64 = "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
-st.image(base64.b64decode(LOGO_ALPHA_B64), use_column_width=False, width=320)
-
+# Estilos CSS Limpios y Profesionales (Blanco, Gris Slate, Negro Carbón)
 st.markdown(
     """
     <style>
@@ -26,7 +23,7 @@ st.markdown(
 
     * {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
-        transition: all 0.25s ease;
+        transition: all 0.2s ease;
     }
 
     /* Fondo Lienzo Principal Studio Light Slate */
@@ -48,7 +45,7 @@ st.markdown(
     [data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 1px solid #e1e3e8 !important;
-        padding-top: 15px !important;
+        padding-top: 20px !important;
     }
 
     /* Tarjeta de Perfil en Sidebar */
@@ -257,7 +254,7 @@ if "db_checklists" not in st.session_state:
 if "db_rendimientos" not in st.session_state:
     st.session_state.db_rendimientos = {}
 
-# NÓMINA OFICIAL DE EDIFICIOS
+# NÓMINA OFICIAL DE LOS 12 EDIFICIOS
 EDIFICIOS_ALPHA = [
     "Tesla",
     "Lafuente",
@@ -342,10 +339,10 @@ if not st.session_state.autenticado:
 
     with col_l2:
         st.markdown(
-            f"""
+            """
             <div class="executive-card-light" style="text-align: center; margin-top: 40px;">
-                <img src="data:image/png;base64,{LOGO_ALPHA_B64}" style="max-width: 280px; width: 100%; margin-bottom: 15px;">
-                <p style="color: #6c707a; font-size: 1.05rem; font-weight: 500;">Portal Corporativo de Control de Obra y Calidad</p>
+                <h1 style="font-size: 2.6rem; letter-spacing: -0.04em; font-weight: 900; margin: 0;">ALPHA BUILDERS</h1>
+                <p style="color: #6c707a; font-size: 1.05rem; font-weight: 500; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
             </div>
         """,
             unsafe_allow_html=True,
@@ -356,7 +353,7 @@ if not st.session_state.autenticado:
         # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
-            st.caption("Ingrese sus credenciales corporativas registradas.")
+            st.caption("Ingrese sus credenciales registradas.")
 
             login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
             login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
@@ -483,9 +480,7 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    # Logo en Sidebar
-    st.markdown(f'<img src="data:image/png;base64,{LOGO_ALPHA_B64}" style="width:100%; max-width:210px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">', unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; font-weight: 800;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; font-weight: 900; margin-bottom: 15px;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
     # Carga persistente de imagen en Base64
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
@@ -557,7 +552,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v13.0\nCazadores de Inversiones Edition")
+    st.caption("Alpha Builders Portal v14.0\nPro Edition")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
@@ -565,13 +560,8 @@ with st.sidebar:
 st.markdown(
     f"""
     <div class="executive-card-light">
-        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-            <div>
-                <h1 style="font-size: 2.3rem; letter-spacing: -0.03em; font-weight: 900; margin: 0;">Alpha Builders</h1>
-                <p style="color: #6c707a; margin-top: 4px; font-size: 1.05rem;">Portal de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
-            </div>
-            <img src="data:image/png;base64,{LOGO_ALPHA_B64}" style="max-width: 240px; width: 100%; margin-top: 10px;">
-        </div>
+        <h1 style="font-size: 2.3rem; letter-spacing: -0.03em; font-weight: 900; margin: 0;">Alpha Builders</h1>
+        <p style="color: #6c707a; margin-top: 4px; font-size: 1.05rem;">Panel de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
     </div>
 """,
     unsafe_allow_html=True,
@@ -609,7 +599,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (CON CASILLAS OBLIGATORIAS SINE SELECCIONAR Y SELECCIÓN DE 12 EDIFICIOS)
+# 7. MÓDULO 1: CHECKLIST DIARIO (CON CASILLAS OBLIGATORIAS SIN SELECCIONAR Y SELECCIÓN DE 12 EDIFICIOS)
 # ==========================================
 with tab_chk:
     st.markdown("### Check List Diario – Control de Obra")
