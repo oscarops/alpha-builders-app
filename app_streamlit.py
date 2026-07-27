@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (DEFINITIVOS)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -126,21 +126,32 @@ st.markdown(
         fill: #ffffff !important;
     }
 
-    /* CORRECCIÓN DEFINITIVA OJO DE CONTRASEÑA EN SIDEBAR */
-    [data-testid="stSidebar"] .stTextInput input[type="password"] {
+    /* CORRECCIÓN: CAJAS DE CONTRASEÑA CON OJO TRANSPARENTE SIN FONDO */
+    [data-testid="stSidebar"] div[data-baseweb="input"] {
         background-color: #ffffff !important;
+        border: 1px solid #b8bec8 !important;
+        border-radius: 10px !important;
+    }
+
+    [data-testid="stSidebar"] div[data-baseweb="input"] input {
+        background-color: transparent !important;
         color: #121318 !important;
-        border-radius: 10px 0 0 10px !important;
+        font-weight: 600 !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] {
-        background-color: #ffffff !important;
-        border: 1px solid #b8bec8;
-        border-left: none;
-        border-radius: 0 10px 10px 0 !important;
+        background-color: transparent !important;
+        border: none !important;
+        padding-right: 6px !important;
     }
 
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] button svg {
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] button {
+        background-color: transparent !important;
+        border: none !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] svg,
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] path {
         fill: #121318 !important;
         color: #121318 !important;
     }
@@ -164,7 +175,7 @@ st.markdown(
         border-radius: 8px !important;
     }
 
-    /* 3. MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL CON EFECTOS DE BORDE Y HOVER */
+    /* 3. MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL */
     .executive-card-studio {
         background: linear-gradient(135deg, #f0f3f8 0%, #e2e7ef 100%);
         border: 1px solid #c5cddb;
@@ -464,14 +475,17 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO
+# 4. MÓDULO DE LOGIN & REGISTRO (CON LOGO alpha.473f0c2dc3c48a682723-2.webp)
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
 
     with col_l2:
-        if os.path.exists("images.png"):
-            st.image("images.png", use_container_width=True)
+        logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
+        if os.path.exists(logo_filename):
+            st.image(logo_filename, use_column_width=True)
+        elif os.path.exists("images.png"):
+            st.image("images.png", use_column_width=True)
         else:
             st.markdown(
                 """
@@ -614,7 +628,10 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    if os.path.exists("images.png"):
+    logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
+    if os.path.exists(logo_filename):
+        st.image(logo_filename, use_column_width=True)
+    elif os.path.exists("images.png"):
         st.image("images.png", use_column_width=True)
 
     st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
@@ -692,10 +709,10 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v28.0 Final Pro")
+    st.caption("Alpha Builders Portal v29.0 Clean Eye")
 
 # ==========================================
-# 6. DASHBOARD PRINCIPAL (TÍTULO MODIFICADO Y SIN USUARIO ACTIVO)
+# 6. DASHBOARD PRINCIPAL
 # ==========================================
 st.markdown(
     f"""
