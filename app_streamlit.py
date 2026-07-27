@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (ACOPLAMIENTO Y BOTÓN FLOTANTE)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (ANCHO 100% FLUIDO)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,10 +31,12 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* CONTENEDOR PRINCIPAL FLUIDO Y ADAPTABLE AL 100% DE PANTALLA COMPLETA */
-    .block-container {
-        padding-top: 0.8rem !important;
-        padding-bottom: 1.2rem !important;
+    /* CONTENEDOR PRINCIPAL QUE SE ACOPLA AL 100% DE LA PANTALLA AL OCULTAR EL SIDEBAR */
+    [data-testid="stMainBlockContainer"], .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1.5rem !important;
+        padding-left: 3rem !important;
+        padding-right: 3rem !important;
         max-width: 100% !important;
         width: 100% !important;
     }
@@ -61,7 +63,7 @@ st.markdown(
         z-index: 999999 !important;
     }
 
-    /* CUANDO EL SIDEBAR ESTÁ OCULTO, EL BOTÓN SE POSICIONA EN LA ESQUINA SUPERIOR IZQUIERDA */
+    /* CUANDO EL SIDEBAR ESTÁ OCULTO, EL BOTÓN SE FIJA EN LA ESQUINA SUPERIOR IZQUIERDA */
     [data-testid="collapsedControl"] {
         display: block !important;
         visibility: visible !important;
