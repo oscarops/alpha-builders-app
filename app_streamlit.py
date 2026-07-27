@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS CON EFECTOS AVANZADOS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,10 +31,11 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* 1. FONDO PRINCIPAL: BLANCO PURO */
+    /* 1. FONDO PRINCIPAL: BLANCO PURO CON TRANSICIONES SUAVES */
     .stApp {
         background-color: #ffffff !important;
         color: #121318 !important;
+        transition: all 0.3s ease;
     }
 
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
@@ -145,12 +146,58 @@ st.markdown(
         border-radius: 8px !important;
     }
 
-    /* 3. CORRECCIÓN DEFINITIVA DE BORDES NARANJA EN INPUTS (SIN SUPERPOSICIÓN) */
+    /* 3. TARJETAS Y KPIS CON EFECTOS DE RELIEVE 3D Y HOVER AVANZADO */
+    .executive-card-studio {
+        background: linear-gradient(135deg, #f0f3f8 0%, #e2e7ef 100%);
+        border: 1px solid #c5cddb;
+        border-radius: 22px;
+        padding: 28px;
+        box-shadow: 0 12px 35px rgba(0,0,0,0.06);
+        margin-bottom: 25px;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .executive-card-studio:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 45px rgba(0,0,0,0.12);
+        border-color: #121318;
+    }
+
+    .kpi-card-studio {
+        background: linear-gradient(135deg, #eaedf4 0%, #d8deeb 100%);
+        border: 1px solid #b8c2d4;
+        border-radius: 20px;
+        padding: 22px;
+        text-align: center;
+        box-shadow: 0 8px 22px rgba(0,0,0,0.05);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .kpi-card-studio:hover {
+        background: linear-gradient(135deg, #e0e6f2, #ccd4e4);
+        border-color: #121318;
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 0 16px 35px rgba(0,0,0,0.12);
+    }
+    .kpi-val-studio {
+        font-size: 2.8rem;
+        font-weight: 900;
+        color: #121318 !important;
+        letter-spacing: -0.03em;
+    }
+    .kpi-lbl-studio {
+        font-size: 0.75rem;
+        color: #4a5060 !important;
+        text-transform: uppercase;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        margin-top: 4px;
+    }
+
+    /* BORDES NARANJA EN INPUTS DE LOGIN */
     .stApp div[data-baseweb="input"] {
         background-color: #ffffff !important;
         border: 2px solid #ff8c00 !important;
         border-radius: 12px !important;
-        box-shadow: 0 0 8px rgba(255, 140, 0, 0.25);
+        box-shadow: 0 0 10px rgba(255, 140, 0, 0.2);
         overflow: hidden !important;
     }
 
@@ -180,7 +227,7 @@ st.markdown(
         border: 1px solid #b8bec8 !important;
     }
 
-    /* PESTAÑAS (SEGMENT CONTROL) */
+    /* PESTAÑAS (SEGMENT CONTROL) CON EFECTO ELEVADO */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background-color: #e2e5ec !important;
@@ -194,6 +241,10 @@ st.markdown(
         padding: 10px 24px !important;
         background-color: transparent !important;
         border: none !important;
+        transition: all 0.2s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: rgba(0,0,0,0.04);
     }
     .stTabs [data-baseweb="tab"] p, 
     .stTabs [data-baseweb="tab"] span {
@@ -204,7 +255,7 @@ st.markdown(
     .stTabs [aria-selected="true"] {
         background-color: #121318 !important;
         border-radius: 12px !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.3) !important;
     }
     .stTabs [aria-selected="true"] p, 
     .stTabs [aria-selected="true"] span,
@@ -213,7 +264,7 @@ st.markdown(
         font-weight: 900 !important;
     }
 
-    /* BOTONES PRIMARIOS NEGROS */
+    /* BOTONES PRIMARIOS NEGROS CON EFECTO DE PULSO Y ELEVACIÓN */
     .stButton > button {
         background-color: #121318 !important;
         color: #ffffff !important;
@@ -221,14 +272,16 @@ st.markdown(
         border: none !important;
         font-weight: 800 !important;
         padding: 11px 26px !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
     .stButton > button p, .stButton > button span {
         color: #ffffff !important;
     }
     .stButton > button:hover {
         background-color: #2c303d !important;
-        transform: translateY(-2px);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35) !important;
     }
 
     .streamlit-expanderHeader {
@@ -236,6 +289,11 @@ st.markdown(
         border-radius: 12px !important;
         border: 1px solid #c2c7d2 !important;
         font-weight: 700 !important;
+        transition: all 0.2s ease;
+    }
+    .streamlit-expanderHeader:hover {
+        background-color: #dfe2e8 !important;
+        border-color: #121318 !important;
     }
 
     #MainMenu {visibility: hidden;}
@@ -654,10 +712,10 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v31.0")
+    st.caption("Alpha Builders Portal v32.0 Pro Effects")
 
 # ==========================================
-# 6. DASHBOARD PRINCIPAL
+# 6. DASHBOARD PRINCIPAL CON TARJETAS Y KPIS RESTAURADAS
 # ==========================================
 st.markdown(
     f"""
