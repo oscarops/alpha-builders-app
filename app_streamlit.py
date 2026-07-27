@@ -145,16 +145,23 @@ st.markdown(
         border-radius: 8px !important;
     }
 
-    /* 3. BORDES NARANJA RESALTADOS PARA LOS INPUTS DE LOGIN */
-    .stApp .stTextInput input {
+    /* 3. CORRECCIÓN DEFINITIVA DE BORDES NARANJA EN INPUTS (SIN SUPERPOSICIÓN) */
+    .stApp div[data-baseweb="input"] {
         background-color: #ffffff !important;
-        color: #121318 !important;
         border: 2px solid #ff8c00 !important;
         border-radius: 12px !important;
+        box-shadow: 0 0 8px rgba(255, 140, 0, 0.25);
+        overflow: hidden !important;
+    }
+
+    .stApp div[data-baseweb="input"] input {
+        background-color: transparent !important;
+        color: #121318 !important;
+        border: none !important;
+        box-shadow: none !important;
         padding: 10px 14px !important;
         font-size: 0.95rem !important;
         font-weight: 600 !important;
-        box-shadow: 0 0 8px rgba(255, 140, 0, 0.2);
     }
 
     .stApp .stSelectbox > div > div, .stApp .stNumberInput input, .stApp .stDateInput input {
@@ -411,25 +418,13 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO (LOGO PEQUEÑO Y ESTÁTICO)
+# 4. MÓDULO DE LOGIN & REGISTRO (CON images.png)
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
 
     with col_l2:
-        logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
-        if os.path.exists(logo_filename):
-            with open(logo_filename, "rb") as image_file:
-                encoded_logo = base64.b64encode(image_file.read()).decode("utf-8")
-            st.markdown(
-                f"""
-                <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
-                    <img src="data:image/webp;base64,{encoded_logo}" style="width: 200px; max-width: 100%; pointer-events: none;">
-                </div>
-            """,
-                unsafe_allow_html=True,
-            )
-        elif os.path.exists("images.png"):
+        if os.path.exists("images.png"):
             with open("images.png", "rb") as image_file:
                 encoded_logo = base64.b64encode(image_file.read()).decode("utf-8")
             st.markdown(
@@ -564,7 +559,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON LOGO ESTÁTICO Y PERFIL
+# 5. BARRA LATERAL CON images.png FIJO Y PERFIL
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -572,19 +567,7 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
-    if os.path.exists(logo_filename):
-        with open(logo_filename, "rb") as image_file:
-            encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
-        st.markdown(
-            f"""
-            <div style="text-align: center; margin-bottom: 10px;">
-                <img src="data:image/webp;base64,{encoded_sidebar_logo}" style="width: 150px; max-width: 100%; pointer-events: none;">
-            </div>
-        """,
-            unsafe_allow_html=True,
-        )
-    elif os.path.exists("images.png"):
+    if os.path.exists("images.png"):
         with open("images.png", "rb") as image_file:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
@@ -671,7 +654,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v30.0")
+    st.caption("Alpha Builders Portal v31.0")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
