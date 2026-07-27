@@ -109,7 +109,7 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.5rem !important;
+        gap: 0.4rem !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -122,7 +122,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL OPTIMIZADA EN ALTURA PARA EVITAR EL SCROLL */
+    /* FOTO DE PERFIL MÁS GRANDE */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: block !important;
@@ -134,12 +134,12 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] img {
-        border-radius: 12px !important;
+        border-radius: 14px !important;
         width: 100% !important;
-        max-height: 135px !important;
+        max-height: 185px !important;
         object-fit: cover !important;
         border: 1px solid #323646 !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
         margin: 0 !important;
         display: block !important;
     }
@@ -669,7 +669,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (TARJETAS SEPARADAS Y SIN SCROLL)
+# 5. BARRA LATERAL (LOGO MÁS PEQUEÑO Y FOTO MÁS GRANDE CON SEPARACIÓN)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -678,7 +678,7 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    # LOGO EN RECUADRO CON FONDO BLANCO
+    # LOGO EN RECUADRO MÁS PEQUEÑO Y CON MARGEN INFERIOR PRONUNCIADO
     logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
     if not os.path.exists(logo_filename):
         logo_filename = "images.png"
@@ -689,7 +689,7 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; background-color: #ffffff; border-radius: 10px; padding: 6px; margin-top: 2px; margin-bottom: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+            <div style="text-align: center; background-color: #ffffff; border-radius: 10px; padding: 4px; margin-top: 2px; margin-bottom: 22px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); width: 70%; margin-left: auto; margin-right: auto;">
                 <img src="data:image/{ext};base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none; display: block; margin: 0 auto;">
             </div>
         """,
