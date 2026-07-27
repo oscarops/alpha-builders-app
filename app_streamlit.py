@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (SIDEBAR PERFECCIONADO)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (SIDEBAR FIJO Y FOTO RECTANGULAR)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -86,13 +86,20 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): ESTILOS Y ESPACIADOS */
+    /* 2. BARRA LATERAL (SIDEBAR): DESHABILITAR MODIFICACIÓN MANUAL (FIJA) */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
         padding-top: 0px !important;
         padding-left: 14px !important;
         padding-right: 14px !important;
+    }
+
+    /* Ocultar / Inhabilitar manija de arrastre del Sidebar */
+    [data-testid="stSidebarResizer"],
+    [data-testid="stSidebar"] > div:nth-child(2) {
+        display: none !important;
+        pointer-events: none !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
@@ -109,34 +116,29 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL MÁS GRANDE QUE OCUPA TODO EL ANCHO DISPONIBLE Y QUEDA CENTRADA */
+    /* FOTO DE PERFIL RECTANGULAR DEL MISMO ANCHO DE LA TARJETA */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        margin: 8px 0 !important;
+        display: block !important;
+        margin: 6px 0 !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] > div {
         width: 100% !important;
-        display: flex !important;
-        justify-content: center !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] img {
-        border-radius: 50% !important;
-        width: 180px !important;
-        height: 180px !important;
-        max-width: 85% !important;
+        border-radius: 14px !important;
+        width: 100% !important;
+        height: auto !important;
         object-fit: cover !important;
-        border: 4px solid #ff8c00 !important;
-        box-shadow: 0 0 22px rgba(255, 140, 0, 0.5);
-        margin: 0 auto !important;
+        border: 1px solid #323646 !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+        margin: 0 !important;
         display: block !important;
     }
 
-    /* TARJETA DE PERFIL ESPACIADA */
+    /* TARJETA DE PERFIL CON ANCHO IDENTICO A LA FOTO */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
@@ -145,6 +147,7 @@ st.markdown(
         text-align: center;
         margin-bottom: 6px;
         margin-top: 4px;
+        width: 100% !important;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
 
@@ -645,7 +648,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL OPTIMIZADA
+# 5. BARRA LATERAL OPTIMIZADA CON FOTO RECTANGULAR
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -674,7 +677,7 @@ with st.sidebar:
     img_obj = base64_to_image(b64_foto)
 
     if img_obj is not None:
-        st.image(img_obj)
+        st.image(img_obj, use_container_width=True)
 
     st.markdown(
         f"""
