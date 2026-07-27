@@ -226,7 +226,7 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* TARJETA PRINCIPAL (SIN EFECTO HOVER DE DIFUMINADO) */
+    /* TARJETA PRINCIPAL (COMPLETA, SIN CORTES) */
     .executive-card-studio {
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
         border: 1px solid #b8c4d8;
@@ -235,6 +235,8 @@ st.markdown(
         padding: 22px 28px;
         box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         margin-bottom: 20px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .brand-title {
@@ -248,7 +250,7 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* TARJETAS DE MÉTRICAS CON EFECTO HOVER DE DIFUMINADO / ELEVACIÓN */
+    /* TARJETAS DE MÉTRICAS */
     .kpi-card-studio {
         background: linear-gradient(145deg, #eceff6 0%, #dbe2ef 100%);
         border: 1px solid #aebacf;
@@ -776,15 +778,7 @@ total_obreros = len(st.session_state.db_trabajadores)
 
 k1, k2, k3 = st.columns(3)
 with k1:
-    with st.popover(
-        f"""
-        <div style="text-align: center; width: 100%;">
-            <div style="font-size: 2.5rem; font-weight: 900; color: #121318; line-height: 1.1;">{total_obreros}</div>
-            <div style="font-size: 0.72rem; color: #4a5060; text-transform: uppercase; font-weight: 800; margin-top: 4px;">OBREROS ACTIVOS (GESTIONAR)</div>
-        </div>
-        """,
-        use_container_width=True
-    ):
+    with st.popover(f"👷 {total_obreros} Activos", use_container_width=True):
         st.markdown(f"### Plantilla de Obreros ({total_obreros} Activos)")
         st.caption("Agregue trabajadores individualmente o cárguelos de forma masiva desde una tabla de Excel o CSV.")
 
