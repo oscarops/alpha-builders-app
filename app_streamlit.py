@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Imágenes Ilustrativas para la Interfaz Interactiva
+# Imágenes Ilustrativas para la Interfaz
 IMG_HEADER_BANNER = "https://images.unsplash.com/photo-1541888946425-d0fbb186a5b3?auto=format&fit=crop&w=1200&q=80"
 IMG_CHECKLIST_CARD = "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80"
 IMG_RENDIMIENTO_CARD = "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=600&q=80"
@@ -28,7 +28,7 @@ st.markdown(
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
 
-    /* Legibilidad de textos y etiquetas en negro puro */
+    /* Legibilidad de textos y etiquetas */
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
         color: #1d1d1f !important;
     }
@@ -47,7 +47,7 @@ st.markdown(
         color: #1d1d1f !important;
     }
 
-    /* Entradas de texto e inputs legibles */
+    /* Entradas de texto e inputs */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
         background-color: #ffffff !important;
         color: #1d1d1f !important;
@@ -69,7 +69,7 @@ st.markdown(
         opacity: 1 !important;
     }
 
-    /* Tarjetas Contenedoras Ilustradas */
+    /* Tarjetas Contenedoras */
     .apple-card-banner {
         background-color: #ffffff;
         border: 1px solid #e5e5e7;
@@ -158,7 +158,7 @@ st.markdown(
 )
 
 # ==========================================
-# 2. BASE DE DATOS DE USUARIOS CON VALIDACIÓN DE CLAVE
+# 2. BASE DE DATOS Y ESTADOS DE SESIÓN
 # ==========================================
 if "admin_emails" not in st.session_state:
     st.session_state.admin_emails = ["oscarsebitas2013@gmail.com"]
@@ -180,7 +180,7 @@ if "db_usuarios" not in st.session_state:
             "Nombres": "Oscar Sebastián",
             "Apellidos": "Narváez Ojeda",
             "Correo": "oscarsebitas2013@gmail.com",
-            "Password": "admin",
+            "Password": "Al678554",  # Actualizada con tu contraseña
             "Cargo": "Residente",
             "Fecha_Registro": "2026-07-26",
             "Estado": "Activo",
@@ -254,7 +254,7 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 3. MÓDULO DE ACCESO / LOGIN & REGISTRO
+# 3. MÓDULO DE ACCESO / LOGIN, REGISTRO Y RECUPERACIÓN DE CLAVE
 # ==========================================
 if not st.session_state.autenticado:
     st.image(IMG_HEADER_BANNER, use_column_width=True)
@@ -271,9 +271,9 @@ if not st.session_state.autenticado:
     col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
 
     with col_c2:
-        tab_login, tab_register = st.tabs(["Iniciar Sesión", "Registrarse"])
+        tab_login, tab_register, tab_reset = st.tabs(["Iniciar Sesión", "Registrarse", "¿Olvidaste tu Contraseña?"])
 
-        # --- INICIAR SESIÓN CON VALIDACIÓN DE CONTRASEÑA ---
+        # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
             st.caption("Ingrese sus credenciales registradas.")
@@ -287,7 +287,6 @@ if not st.session_state.autenticado:
                     u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
 
                     if u_match:
-                        # Validar contraseña exacta
                         if u_match["Password"] == login_pass:
                             st.session_state.autenticado = True
                             st.session_state.usuario_email = mail_clean
@@ -346,7 +345,6 @@ if not st.session_state.autenticado:
                 if reg_nombres and reg_apellidos and reg_email and reg_pass:
                     mail_clean = reg_email.strip().lower()
                     
-                    # Verificar si ya existe
                     exists = any(u["Correo"] == mail_clean for u in st.session_state.db_usuarios)
                     if exists:
                         st.warning("Este correo ya se encuentra registrado. Inicie sesión.")
@@ -376,6 +374,27 @@ if not st.session_state.autenticado:
                         st.rerun()
                 else:
                     st.error("Por favor complete todos los campos requeridos.")
+
+        # --- RECUPERACIÓN DE CONTRASEÑA ---
+        with tab_reset:
+            st.markdown("### Recuperación de Contraseña")
+            st.caption("Restablezca su acceso de forma segura.")
+
+            reset_email = st.text_input("Ingrese su correo registrado:", placeholder="ejemplo@correo.com", key="rst_email")
+            new_pass = st.text_input("Nueva contraseña deseada:", type="password", key="rst_pass")
+
+            if st.button("Restablecer Contraseña", type="primary", use_container_width=True):
+                if reset_email and new_pass:
+                    mail_clean = reset_email.strip().lower()
+                    u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
+
+                    if u_match:
+                        u_match["Password"] = new_pass
+                        st.success(f"Contraseña actualizada con éxito para {mail_clean}. Ya puede iniciar sesión.")
+                    else:
+                        st.error("El correo ingresado no se encuentra registrado.")
+                else:
+                    st.error("Por favor complete todos los campos.")
 
     st.stop()
 
@@ -442,7 +461,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v7.0\nEstilo Apple Light Pro")
+    st.caption("Alpha Builders Portal v8.0\nEstilo Apple Light Pro")
 
 # ==========================================
 # 5. DASHBOARD PRINCIPAL CON BANNER E IMÁGENES
