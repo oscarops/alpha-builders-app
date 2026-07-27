@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (FLUIDO Y ADAPTABLE)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (DEFINITIVOS)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,7 +31,6 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* AJUSTE SUPERIOR DE LA PÁGINA */
     .block-container {
         padding-top: 1.2rem !important;
         padding-bottom: 2rem !important;
@@ -53,34 +52,51 @@ st.markdown(
         color: #5a5f6e !important;
     }
 
-    /* REHABILITAR Y ESTILIZAR EL BOTÓN NATIVO NATIVO DE COLAPSAR/MOSTRAR CON SÍMBOLO NATIVO */
-    [data-testid="stSidebarCollapseButton"] {
+    /* BOTÓN PARA DESPLAZAR/OCULTAR SIDEBAR SIEMPRE VISIBLE Y RESALTADO */
+    [data-testid="stSidebarCollapseButton"], 
+    [data-testid="collapsedControl"] {
         display: block !important;
-        color: #ffffff !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 999999 !important;
     }
 
-    [data-testid="stSidebarCollapseButton"] button {
-        background-color: transparent !important;
-        border: none !important;
+    [data-testid="stSidebarCollapseButton"] button, 
+    [data-testid="collapsedControl"] button {
+        background-color: #1c1e26 !important;
+        border: 1px solid #323646 !important;
+        border-radius: 50% !important;
+        width: 38px !important;
+        height: 38px !important;
         color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        transition: all 0.2s ease !important;
     }
 
-    [data-testid="stSidebarCollapseButton"] svg {
+    [data-testid="stSidebarCollapseButton"] button:hover, 
+    [data-testid="collapsedControl"] button:hover {
+        background-color: #ff8c00 !important;
+        border-color: #ff8c00 !important;
+        transform: scale(1.08);
+    }
+
+    [data-testid="stSidebarCollapseButton"] svg, 
+    [data-testid="collapsedControl"] svg {
         fill: #ffffff !important;
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): FLUIDO, SIN ANCHO FIJO RÍGIDO */
+    /* 2. BARRA LATERAL (SIDEBAR): ESTILOS Y ESPACIADOS */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
         padding-top: 0px !important;
-        padding-left: 12px !important;
-        padding-right: 12px !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.4rem !important;
+        gap: 0.5rem !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -93,13 +109,19 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL CENTRADA CON EXACTITUD */
+    /* CORRECCIÓN DE CENTRADO ABSOLUTO PARA LA FOTO DE PERFIL */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        margin: 4px 0 !important;
+        margin: 6px 0 !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stImage"] > div {
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] img {
@@ -110,34 +132,35 @@ st.markdown(
         border: 4px solid #ff8c00 !important;
         box-shadow: 0 0 20px rgba(255, 140, 0, 0.45);
         margin: 0 auto !important;
+        display: block !important;
     }
 
-    /* Tarjeta de Perfil en Sidebar Con Espaciado Corregido (No Pegado) */
+    /* TARJETA DE PERFIL ESPACIADA Y AIREADA (NO PEGADA) */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
         border-radius: 14px;
-        padding: 12px 14px !important;
+        padding: 14px 12px !important;
         text-align: center;
-        margin-bottom: 8px;
-        margin-top: 4px;
+        margin-bottom: 10px;
+        margin-top: 6px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
 
     .sidebar-user-name {
-        font-size: 0.98rem;
+        font-size: 1.02rem;
         font-weight: 800;
         color: #ffffff !important;
-        margin-top: 4px;
-        margin-bottom: 4px !important;
-        line-height: 1.25;
+        margin-top: 2px;
+        margin-bottom: 6px !important;
+        line-height: 1.3;
     }
 
     .sidebar-user-email {
-        font-size: 0.76rem;
+        font-size: 0.78rem;
         color: #72b2ff !important;
         font-weight: 600;
-        margin-bottom: 8px !important;
+        margin-bottom: 10px !important;
         word-break: break-all;
     }
 
@@ -146,35 +169,36 @@ st.markdown(
         background: #323646 !important;
         color: #ffffff !important;
         border: 1px solid #484e5e !important;
-        font-size: 0.68rem !important;
+        font-size: 0.7rem !important;
         font-weight: 800 !important;
-        padding: 4px 10px !important;
+        padding: 5px 12px !important;
         border-radius: 20px !important;
         text-transform: uppercase !important;
+        letter-spacing: 0.04em !important;
     }
 
     [data-testid="stSidebar"] hr {
-        margin: 6px 0 !important;
+        margin: 10px 0 !important;
         border-color: #282a36 !important;
     }
 
-    /* EXPANDER DE CONFIGURACIÓN COMPACTO */
+    /* EXPANDER DE CONFIGURACIÓN */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
-        border-radius: 10px !important;
-        margin-bottom: 2px !important;
+        border-radius: 12px !important;
+        margin-bottom: 6px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
         background-color: #282c36 !important;
-        padding: 6px 10px !important;
+        padding: 8px 12px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
         color: #ffffff !important;
         font-weight: 700 !important;
-        font-size: 0.82rem !important;
+        font-size: 0.85rem !important;
     }
 
     /* 3. TARJETA PRINCIPAL CON BORDE NEGRO Y LETRA DISTINTIVA */
@@ -474,13 +498,13 @@ ACTIVIDADES_TARDE = [
     "Revisión de observaciones pendientes",
     "Verificación de trabajos corregidos",
     "Verificación del orden y limpieza de los frentes de trabajo",
-    "Confirmación de materiales para el siguiente día",
+    "Confirmación de materials para el siguiente día",
     "Revisión del cumplimiento de la meta diaria",
     "Cierre de actividades en campo",
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO (LOGOTIPO CON images.png)
+# 4. MÓDULO DE LOGIN & REGISTRO (CON images.png)
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -621,7 +645,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON MÁXIMA FLUIDEZ
+# 5. BARRA LATERAL CON MÁXIMA ELEGANCIA Y CENTRADO
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -634,14 +658,14 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; margin-bottom: 4px; padding: 0 2px;">
+            <div style="text-align: center; margin-bottom: 6px; padding: 0 2px;">
                 <img src="data:image/png;base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none;">
             </div>
         """,
             unsafe_allow_html=True,
         )
 
-    st.markdown("<h4 style='text-align: center; font-weight: 800; margin-bottom: 4px; margin-top: 0px; color: #ffffff; font-size: 0.9rem;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; font-weight: 800; margin-bottom: 6px; margin-top: 0px; color: #ffffff; font-size: 0.95rem;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
 
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     if not b64_foto:
@@ -664,7 +688,7 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 4px; font-size: 0.7rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 3px; border-radius: 8px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 8px; font-size: 0.72rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 4px; border-radius: 10px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -715,7 +739,7 @@ with st.sidebar:
         st.session_state.autenticado = False
         st.rerun()
 
-    st.caption("Alpha Builders v40.0 Fluid Layout")
+    st.caption("Alpha Builders v41.0")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL QUE SE ADAPTA AL ANCHO TOTAL
