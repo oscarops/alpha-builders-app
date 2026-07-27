@@ -89,14 +89,14 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): FIJA, SIN SCROLL Y CON CONEXIÓN HARMONIOSA */
+    /* 2. BARRA LATERAL (SIDEBAR): ANCHO FIJO Y FLUJO LIMPIO SIN SOLAPAMIENTO */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
         padding-top: 0px !important;
-        padding-left: 10px !important;
-        padding-right: 10px !important;
-        padding-bottom: 5px !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+        padding-bottom: 15px !important;
         width: 250px !important;
         min-width: 250px !important;
         max-width: 250px !important;
@@ -109,7 +109,7 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.35rem !important;
+        gap: 0.6rem !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -122,11 +122,27 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL AJUSTADA AL 100% DEL ANCHO */
+    /* TARJETA DEL LOGO EN FONDO BLANCO A MÁS ANCHO Y CON MARGEN SEPARADO */
+    .sidebar-logo-card {
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 8px 10px;
+        margin-top: 4px;
+        margin-bottom: 10px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        width: 100% !important;
+        box-sizing: border-box;
+        text-align: center;
+        display: block;
+    }
+
+    /* FOTO DE PERFIL DEL MISMO ANCHO EXACTO Y SIN COMPRIMIR */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: block !important;
-        margin: 2px 0 6px 0 !important;
+        margin: 0 0 10px 0 !important;
+        position: relative !important;
+        clear: both !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] > div {
@@ -136,7 +152,8 @@ st.markdown(
     [data-testid="stSidebar"] [data-testid="stImage"] img {
         border-radius: 12px !important;
         width: 100% !important;
-        max-height: 165px !important;
+        height: auto !important;
+        max-width: 100% !important;
         object-fit: cover !important;
         border: 1px solid #323646 !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -144,17 +161,18 @@ st.markdown(
         display: block !important;
     }
 
-    /* TARJETA DE PERFIL BIEN DEFINIDA Y SEPARADA */
+    /* TARJETA DE INFORMACIÓN DE PERFIL */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
         border-radius: 12px;
         padding: 10px 8px !important;
         text-align: center;
-        margin-top: 4px;
-        margin-bottom: 6px;
+        margin-top: 2px;
+        margin-bottom: 8px;
         width: 100% !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        box-sizing: border-box;
     }
 
     .sidebar-user-nombres {
@@ -195,7 +213,7 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] hr {
-        margin: 4px 0 !important;
+        margin: 6px 0 !important;
         border-color: #282a36 !important;
     }
 
@@ -205,7 +223,7 @@ st.markdown(
         border: 1px solid #323646 !important;
         border-radius: 10px !important;
         margin-top: 2px !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 6px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
@@ -220,7 +238,7 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] .stButton > button {
-        padding: 5px 12px !important;
+        padding: 6px 12px !important;
         font-size: 0.78rem !important;
         margin-top: 2px !important;
     }
@@ -669,7 +687,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (LOGO AL MISMO ANCHO QUE LA IMAGEN Y SEPARADOS)
+# 5. BARRA LATERAL (LOGO Y FOTO AL MISMO ANCHO CON SEPARACIÓN)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -689,7 +707,7 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; background-color: #ffffff; border-radius: 12px; padding: 8px 10px; margin-top: 4px; margin-bottom: 18px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3); width: 100% !important; box-sizing: border-box;">
+            <div class="sidebar-logo-card">
                 <img src="data:image/{ext};base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none; display: block; margin: 0 auto;">
             </div>
         """,
