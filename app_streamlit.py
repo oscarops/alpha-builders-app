@@ -226,7 +226,7 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* TARJETA PRINCIPAL */
+    /* TARJETA PRINCIPAL (SIN EFECTO HOVER DE DIFUMINADO) */
     .executive-card-studio {
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
         border: 1px solid #b8c4d8;
@@ -235,13 +235,6 @@ st.markdown(
         padding: 22px 28px;
         box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         margin-bottom: 20px;
-        transition: all 0.3s ease;
-    }
-    .executive-card-studio:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 18px 45px rgba(0,0,0,0.12);
-        border-color: #121318;
-        border-left-color: #121318;
     }
 
     .brand-title {
@@ -255,6 +248,7 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
+    /* TARJETAS DE MÉTRICAS CON EFECTO HOVER DE DIFUMINADO / ELEVACIÓN */
     .kpi-card-studio {
         background: linear-gradient(145deg, #eceff6 0%, #dbe2ef 100%);
         border: 1px solid #aebacf;
@@ -262,6 +256,12 @@ st.markdown(
         padding: 18px;
         text-align: center;
         box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+        transition: all 0.3s ease;
+    }
+    .kpi-card-studio:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 14px 35px rgba(0,0,0,0.12);
+        filter: brightness(1.02);
     }
 
     .kpi-val-studio {
@@ -776,7 +776,15 @@ total_obreros = len(st.session_state.db_trabajadores)
 
 k1, k2, k3 = st.columns(3)
 with k1:
-    with st.popover(f"{total_obreros}", use_container_width=True):
+    with st.popover(
+        f"""
+        <div style="text-align: center; width: 100%;">
+            <div style="font-size: 2.5rem; font-weight: 900; color: #121318; line-height: 1.1;">{total_obreros}</div>
+            <div style="font-size: 0.72rem; color: #4a5060; text-transform: uppercase; font-weight: 800; margin-top: 4px;">OBREROS ACTIVOS (GESTIONAR)</div>
+        </div>
+        """,
+        use_container_width=True
+    ):
         st.markdown(f"### Plantilla de Obreros ({total_obreros} Activos)")
         st.caption("Agregue trabajadores individualmente o cárguelos de forma masiva desde una tabla de Excel o CSV.")
 
@@ -839,7 +847,6 @@ with k1:
                 st.success(f"Obrero {obrero_a_borrar} eliminado.")
                 st.rerun()
 
-    # RENDERIZAR ETIQUETA INFERIOR EXACTAMENTE IGUAL A LAS OTRAS TARJETAS
     st.markdown(
         f'<div class="kpi-card-studio" style="margin-top: -62px; pointer-events: none;"><div class="kpi-val-studio">{total_obreros}</div><div class="kpi-lbl-studio">Obreros Activos (Gestionar)</div></div>',
         unsafe_allow_html=True,
@@ -873,7 +880,6 @@ with tab_chk:
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
 
-    # DIVISIÓN EN 2 COLUMNAS PARA APROVECHAR EL ESPACIO
     col_izq_chk, col_der_historial = st.columns([1, 1], gap="large")
 
     with col_izq_chk:
@@ -998,7 +1004,6 @@ with tab_chk:
         mis_jornadas = st.session_state.db_checklists[user_email]
 
         if len(mis_jornadas) > 0:
-            # Agrupar jornadas por Mes (Ej. "Julio 2026")
             meses_nombres = {
                 "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
                 "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
@@ -1009,12 +1014,11 @@ with tab_chk:
             for orig_idx, j_item in enumerate(mis_jornadas):
                 jornadas_con_index.append((orig_idx, j_item))
 
-            # Ordenar de más reciente a más antigua
             jornadas_con_index.sort(key=lambda x: x[1]['Fecha'], reverse=True)
 
             grupos_meses = {}
             for orig_idx, j in jornadas_con_index:
-                f_str = j['Fecha'] # YYYY-MM-DD
+                f_str = j['Fecha']
                 try:
                     partes = f_str.split("-")
                     anio = partes[0]
