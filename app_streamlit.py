@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN Y ESTILOS OFICIALES APPLE LIGHT
+# 1. CONFIGURACIÓN Y ESTILOS APPLE LIGHT
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Oficial de Obra",
@@ -12,7 +12,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# CSS Oficial Estilo Apple Light con Alto Contraste de Texto
 st.markdown(
     """
     <style>
@@ -23,7 +22,7 @@ st.markdown(
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
 
-    /* Legibilidad de textos y etiquetas en negro puro */
+    /* Legibilidad de textos y etiquetas */
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
         color: #1d1d1f !important;
     }
@@ -36,9 +35,20 @@ st.markdown(
     [data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 1px solid #d2d2d7 !important;
+        padding-top: 20px !important;
     }
     [data-testid="stSidebar"] * {
         color: #1d1d1f !important;
+    }
+
+    /* Tarjeta de Avatar en Sidebar */
+    .sidebar-profile-card {
+        text-align: center;
+        padding: 15px 10px;
+        background-color: #f5f5f7;
+        border-radius: 16px;
+        border: 1px solid #e5e5e7;
+        margin-bottom: 20px;
     }
 
     /* Entradas de texto e inputs legibles */
@@ -152,23 +162,21 @@ st.markdown(
 )
 
 # ==========================================
-# 2. ESTADOS DE SESIÓN Y GESTIÓN DINÁMICA DE ADMINS
+# 2. ESTADOS DE SESIÓN Y GESTIÓN DE ROLES
 # ==========================================
-# Lista de administradores dinámica en la sesión
 if "admin_emails" not in st.session_state:
     st.session_state.admin_emails = ["oscarsebitas2013@gmail.com"]
 
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
-    st.session_state.usuario_nombre = ""
+    st.session_state.usuario_nombres = ""
+    st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
 
-# Almacenamiento de fotos de perfil {email: foto_bytes}
 if "db_fotos_perfil" not in st.session_state:
     st.session_state.db_fotos_perfil = {}
 
-# Base de datos global de usuarios
 if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = [
         {
@@ -281,13 +289,15 @@ if not st.session_state.autenticado:
 
                     u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == st.session_state.usuario_email), None)
                     if u_match:
-                        st.session_state.usuario_nombre = f"{u_match['Nombres']} {u_match['Apellidos']}".strip()
+                        st.session_state.usuario_nombres = u_match["Nombres"]
+                        st.session_state.usuario_apellidos = u_match["Apellidos"]
                         st.session_state.usuario_cargo = u_match["Cargo"]
                     else:
-                        st.session_state.usuario_nombre = login_email.split("@")[0].title()
+                        st.session_state.usuario_nombres = login_email.split("@")[0].title()
+                        st.session_state.usuario_apellidos = ""
                         st.session_state.usuario_cargo = "Residente"
                         st.session_state.db_usuarios.append({
-                            "Nombres": st.session_state.usuario_nombre,
+                            "Nombres": st.session_state.usuario_nombres,
                             "Apellidos": "",
                             "Correo": st.session_state.usuario_email,
                             "Cargo": st.session_state.usuario_cargo,
@@ -310,14 +320,16 @@ if not st.session_state.autenticado:
                 if st.button("Google Workspace", use_container_width=True):
                     st.session_state.autenticado = True
                     st.session_state.usuario_email = "oscarsebitas2013@gmail.com"
-                    st.session_state.usuario_nombre = "Oscar Sebastián Narváez Ojeda"
+                    st.session_state.usuario_nombres = "Oscar Sebastián"
+                    st.session_state.usuario_apellidos = "Narváez Ojeda"
                     st.session_state.usuario_cargo = "Residente"
                     st.rerun()
             with col_o:
                 if st.button("Microsoft Outlook", use_container_width=True):
                     st.session_state.autenticado = True
                     st.session_state.usuario_email = "usuario.outlook@outlook.com"
-                    st.session_state.usuario_nombre = "Usuario Outlook"
+                    st.session_state.usuario_nombres = "Usuario"
+                    st.session_state.usuario_apellidos = "Outlook"
                     st.session_state.usuario_cargo = "Asistente"
                     st.rerun()
 
@@ -340,7 +352,8 @@ if not st.session_state.autenticado:
                 if reg_nombres and reg_apellidos and reg_email and reg_pass:
                     st.session_state.autenticado = True
                     st.session_state.usuario_email = reg_email.strip().lower()
-                    st.session_state.usuario_nombre = f"{reg_nombres.strip()} {reg_apellidos.strip()}"
+                    st.session_state.usuario_nombres = reg_nombres.strip()
+                    st.session_state.usuario_apellidos = reg_apellidos.strip()
                     st.session_state.usuario_cargo = reg_cargo
 
                     st.session_state.db_usuarios.append({
@@ -365,28 +378,21 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 4. BARRA LATERAL (PERFIL Y FOTO)
+# 4. BARRA LATERAL (LIMPIA Y ORDENADA)
 # ==========================================
 user_email = st.session_state.usuario_email
-user_nombre = st.session_state.usuario_nombre
+user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
 user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    st.markdown("### Perfil de Usuario")
+    st.markdown("<h3 style='margin-bottom: 15px;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
-    # Módulo para subir/mostrar Foto de Perfil
     foto_perfil = st.session_state.db_fotos_perfil.get(user_email, None)
     if foto_perfil is not None:
-        st.image(foto_perfil, width=110)
-    else:
-        st.markdown(f"**Usuario:** `{user_nombre}`")
+        st.image(foto_perfil, use_column_width=True)
 
-    uploader_foto = st.file_uploader("Cambiar Foto de Perfil", type=["jpg", "jpeg", "png"], key="user_avatar")
-    if uploader_foto is not None:
-        st.session_state.db_fotos_perfil[user_email] = uploader_foto
-        st.rerun()
-
+    st.markdown(f"**Usuario:** {user_nombre_completo}")
     st.markdown(f"**Correo:** `{user_email}`")
     st.markdown(f"**Cargo:** `{user_cargo}`")
     
@@ -399,7 +405,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v5.0\nEstilo Apple Light")
+    st.caption("Alpha Builders Portal v6.0\nEstilo Apple Light Canvas")
 
 # ==========================================
 # 5. DASHBOARD PRINCIPAL
@@ -408,7 +414,7 @@ st.markdown(
     f"""
     <div class="apple-card-light">
         <h1 style="font-size: 2.2rem; letter-spacing: -0.03em;">Alpha Builders</h1>
-        <p style="color: #6e6e73;">Panel de Control | Usuario: <b>{user_nombre}</b> ({user_cargo})</p>
+        <p style="color: #6e6e73;">Panel de Control | Usuario: <b>{user_nombre_completo}</b> ({user_cargo})</p>
     </div>
 """,
     unsafe_allow_html=True,
@@ -436,14 +442,15 @@ with k3:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Pestañas dinámicas según permisos de Administrador
-pestanas = ["Checklist Diario", "Control de Rendimiento por Trabajador"]
+# Pestañas principales incluyendo Configuración de Cuenta
+pestanas = ["Checklist Diario", "Control de Rendimiento", "Configuración de Cuenta"]
 if es_admin:
     pestanas.append("Panel Admin")
 
 tabs_app = st.tabs(pestanas)
 tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
+tab_config = tabs_app[2]
 
 # ==========================================
 # 6. MÓDULO 1: CHECKLIST DIARIO
@@ -456,7 +463,7 @@ with tab_chk:
     with col_m1:
         proyecto_val = st.text_input("Proyecto:", value="Alpha Builders - Obra Central")
     with col_m2:
-        residente_val = st.text_input("Responsable:", value=user_nombre)
+        residente_val = st.text_input("Responsable:", value=user_nombre_completo)
     with col_m3:
         fecha_val = st.date_input("Fecha:", datetime.date.today())
 
@@ -611,15 +618,63 @@ with tab_rend:
         st.info("Aún no existen registros en su historial.")
 
 # ==========================================
-# 8. MÓDULO ADMINISTRADOR Y GESTIÓN DE ROLES
+# 8. MÓDULO: CONFIGURACIÓN DE CUENTA (ESTILO FACEBOOK SETTINGS)
+# ==========================================
+with tab_config:
+    st.markdown("### Configuración de Cuenta y Perfil")
+    st.caption("Actualice sus datos personales, foto de perfil y configuraciones de acceso.")
+
+    col_cfg1, col_cfg2 = st.columns([1, 2])
+
+    with col_cfg1:
+        st.markdown("#### Foto de Perfil")
+        foto_actual = st.session_state.db_fotos_perfil.get(user_email, None)
+        if foto_actual is not None:
+            st.image(foto_actual, caption="Vista previa actual", width=180)
+        else:
+            st.info("No se ha configurado foto de perfil.")
+
+        nueva_foto = st.file_uploader("Subir nueva fotografía (JPG, PNG)", type=["jpg", "jpeg", "png"], key="upload_config")
+        if nueva_foto is not None:
+            st.session_state.db_fotos_perfil[user_email] = nueva_foto
+            st.success("Fotografía cargada correctamente.")
+
+    with col_cfg2:
+        st.markdown("#### Datos Personales")
+        edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres)
+        edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos)
+        
+        cargos_lista = ["Residente", "Asistente", "Ayudante"]
+        idx_c = cargos_lista.index(user_cargo) if user_cargo in cargos_lista else 0
+        edit_cargo = st.selectbox("Cargo / Rol en Obra:", cargos_lista, index=idx_c)
+
+        st.text_input("Correo electrónico:", value=user_email, disabled=True, help="El correo electrónico no se puede modificar.")
+
+        if st.button("Guardar Cambios de Perfil", type="primary"):
+            st.session_state.usuario_nombres = edit_nombres.strip()
+            st.session_state.usuario_apellidos = edit_apellidos.strip()
+            st.session_state.usuario_cargo = edit_cargo
+
+            # Actualizar en la base de datos global de usuarios
+            for u in st.session_state.db_usuarios:
+                if u["Correo"] == user_email:
+                    u["Nombres"] = edit_nombres.strip()
+                    u["Apellidos"] = edit_apellidos.strip()
+                    u["Cargo"] = edit_cargo
+
+            st.success("Información de perfil actualizada exitosamente.")
+            st.rerun()
+
+# ==========================================
+# 9. MÓDULO ADMINISTRADOR Y GESTIÓN DE ROLES
 # ==========================================
 if es_admin:
-    tab_admin = tabs_app[2]
+    tab_admin = tabs_app[3]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
         st.caption("Módulo exclusivo para monitoreo de usuarios y gestión de permisos.")
 
-        # --- SECCIÓN: AÑADIR / REMOVER ADMINISTRADORES ---
+        # --- GESTIÓN DE ADMINS ---
         st.markdown("#### Gestión de Administradores de la Plataforma")
         col_adm1, col_adm2 = st.columns([2, 1])
 
@@ -642,7 +697,7 @@ if es_admin:
 
         st.markdown("---")
 
-        # --- SECCIÓN: MONITOR DE USUARIOS REGISTRADOS ---
+        # --- MONITOR DE USUARIOS ---
         st.markdown("#### Usuarios Activos en la Plataforma")
         df_users = pd.DataFrame(st.session_state.db_usuarios)
         st.dataframe(df_users, use_container_width=True)
