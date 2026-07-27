@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (ESPACIADO OPTIMIZADO)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,7 +31,7 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* AJUSTE SUPERIOR DE PÁGINA QUE SE ADAPTA AL 100% DE PANTALLA COMPLETA AL OCULTAR SIDEBAR */
+    /* AJUSTE SUPERIOR DE PÁGINA */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1.5rem !important;
@@ -55,7 +55,7 @@ st.markdown(
         color: #5a5f6e !important;
     }
 
-    /* BOTÓN PARA COLAPSAR SIDEBAR SIEMPRE VISIBLE Y RESALTADO */
+    /* BOTÓN PARA COLAPSAR SIDEBAR SIEMPRE VISIBLE */
     [data-testid="stSidebarCollapseButton"], 
     [data-testid="collapsedControl"] {
         display: block !important;
@@ -89,13 +89,13 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): ANCHO COMPACTO Y ESTRUCTURA FLEXIBLE */
+    /* 2. BARRA LATERAL (SIDEBAR): CON ESPACIO CLARO ENTRE CADA TARJETA */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
         padding-top: 0px !important;
-        padding-left: 10px !important;
-        padding-right: 10px !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
         padding-bottom: 15px !important;
         width: 255px !important;
     }
@@ -106,8 +106,9 @@ st.markdown(
         height: 100vh !important;
     }
 
+    /* AUMENTAR EL ESPACIO VERTICAL ENTRE ELEMENTOS */
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.25rem !important;
+        gap: 0.8rem !important;
         flex-grow: 1 !important;
     }
 
@@ -121,11 +122,11 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL RECTANGULAR DEL MISMO ANCHO QUE LA TARJETA DE NOMBRE */
+    /* FOTO DE PERFIL RECTANGULAR CON MARGEN ESPACIADO */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: block !important;
-        margin: 4px 0 !important;
+        margin: 8px 0 12px 0 !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] > div {
@@ -144,15 +145,15 @@ st.markdown(
         display: block !important;
     }
 
-    /* TARJETA DE PERFIL CON DOS NOMBRES ARRIBA Y DOS APELLIDOS ABAJO */
+    /* TARJETA DE PERFIL CON MÁS ESPACIO */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
         border-radius: 12px;
-        padding: 10px 8px !important;
+        padding: 12px 10px !important;
         text-align: center;
-        margin-bottom: 4px;
-        margin-top: 2px;
+        margin-top: 6px;
+        margin-bottom: 10px;
         width: 100% !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
@@ -163,7 +164,7 @@ st.markdown(
         color: #ffffff !important;
         margin-top: 2px;
         margin-bottom: 2px !important;
-        line-height: 1.2;
+        line-height: 1.25;
     }
 
     .sidebar-user-apellidos {
@@ -171,11 +172,11 @@ st.markdown(
         font-weight: 700;
         color: #e0e4ed !important;
         margin-bottom: 6px !important;
-        line-height: 1.2;
+        line-height: 1.25;
     }
 
     .sidebar-user-email {
-        font-size: 0.7rem;
+        font-size: 0.72rem;
         color: #72b2ff !important;
         font-weight: 600;
         margin-bottom: 8px !important;
@@ -187,15 +188,15 @@ st.markdown(
         background: #323646 !important;
         color: #ffffff !important;
         border: 1px solid #484e5e !important;
-        font-size: 0.62rem !important;
+        font-size: 0.65rem !important;
         font-weight: 800 !important;
-        padding: 3px 8px !important;
+        padding: 4px 10px !important;
         border-radius: 16px !important;
         text-transform: uppercase !important;
     }
 
     [data-testid="stSidebar"] hr {
-        margin: 6px 0 !important;
+        margin: 10px 0 !important;
         border-color: #282a36 !important;
     }
 
@@ -204,12 +205,12 @@ st.markdown(
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
         border-radius: 10px !important;
-        margin-bottom: 2px !important;
+        margin-bottom: 8px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
         background-color: #282c36 !important;
-        padding: 6px 8px !important;
+        padding: 8px 10px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
@@ -219,11 +220,11 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] .stButton > button {
-        padding: 6px 14px !important;
-        font-size: 0.8rem !important;
+        padding: 8px 14px !important;
+        font-size: 0.82rem !important;
     }
 
-    /* CONTENEDOR PARA EL BOTÓN DE CERRAR SESIÓN EN EL PIE */
+    /* CONTENEDOR PARA EL BOTÓN EN EL PIE */
     .sidebar-footer-container {
         margin-top: auto !important;
         padding-top: 10px !important;
@@ -532,7 +533,7 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO (CON images.png)
+# 4. MÓDULO DE LOGIN & REGISTRO
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -673,7 +674,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (LOGO alpha.473f + BOTÓN CERRAR SESIÓN EN EL PIE)
+# 5. BARRA LATERAL (LOGO CON FONDO BLANCO Y ESPACIOS SEPARADOS)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -682,7 +683,7 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    # LOGO SUPERIOR: alpha.473f0c2dc3c48a682723-2.webp CON RESPALDO A images.png
+    # LOGO EN RECUADRO CON FONDO BLANCO PARA VISIBILIDAD MÁXIMA
     logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
     if not os.path.exists(logo_filename):
         logo_filename = "images.png"
@@ -693,8 +694,8 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; margin-bottom: 2px; padding: 0 2px;">
-                <img src="data:image/{ext};base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none;">
+            <div style="text-align: center; background-color: #ffffff; border-radius: 12px; padding: 10px; margin-top: 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                <img src="data:image/{ext};base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none; display: block; margin: 0 auto;">
             </div>
         """,
             unsafe_allow_html=True,
@@ -722,7 +723,7 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 6px; font-size: 0.68rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 3px; border-radius: 8px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 8px; font-size: 0.68rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 4px; border-radius: 8px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -768,7 +769,7 @@ with st.sidebar:
             st.success("Configuración actualizada correctamente.")
             st.rerun()
 
-    # ESPACIADOR FLEXIBLE PARA EMPUJAR EL BOTÓN AL PIE DEL SIDEBAR
+    # ESPACIADOR PARA ANCLAR EL BOTÓN AL PIE DEL SIDEBAR
     st.markdown("<div class='sidebar-footer-container'></div>", unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
     if st.button("Cerrar Sesión", use_container_width=True):
