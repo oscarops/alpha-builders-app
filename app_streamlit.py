@@ -8,16 +8,16 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN Y ESTILOS TITAN GRAY & CHARCOAL
+# 1. CONFIGURACIÓN Y ESTILOS OFICIALES ALPHA BUILDERS HQ (ESTILO ALPHABUILDERSHQ.COM)
 # ==========================================
 st.set_page_config(
-    page_title="Alpha Builders | Portal Ejecutivo",
-    page_icon="🏗️",
+    page_title="Alpha Builders | Cazadores de Inversiones",
+    page_icon="🏢",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS Titan Charcoal & Studio Slate
+# Estilos CSS Oficiales de Alpha Builders HQ (Gris Antracita #38404a, Blanco Puro #ffffff, Negro #1d2127)
 st.markdown(
     """
     <style>
@@ -27,41 +27,42 @@ st.markdown(
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    /* Fondo Lienzo Principal Titan Charcoal */
+    /* Fondo Principal Gris Antracita Oficial */
     .stApp {
-        background: #111318 !important;
-        color: #f0f2f6 !important;
+        background: linear-gradient(180deg, #323842 0%, #252a32 100%) !important;
+        color: #ffffff !important;
     }
 
-    /* Textos Universales */
+    /* Textos Universales en Blanco Puro Garantizado */
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
-        color: #f0f2f6 !important;
+        color: #ffffff !important;
+        font-weight: 500;
     }
 
     .stCaption, caption, small, [data-testid="stCaptionContainer"] {
-        color: #9ba1b0 !important;
+        color: #c2c7d0 !important;
     }
 
     [data-testid="stSidebarCollapseButton"] {
         display: none !important;
     }
 
-    /* SIDEBAR TITAN DARK */
+    /* BARRA LATERAL ESTILO ALPHABUILDERS HQ */
     [data-testid="stSidebar"] {
-        background-color: #181a20 !important;
-        border-right: 1px solid #2d313e !important;
+        background-color: #21252d !important;
+        border-right: 1px solid #3c424e !important;
         padding-top: 15px !important;
     }
 
     /* Tarjeta de Perfil en Sidebar */
     .sidebar-profile-box {
-        background: #21242d;
-        border: 1px solid #2d313e;
-        border-radius: 16px;
+        background: #2b303b;
+        border: 1px solid #434a57;
+        border-radius: 14px;
         padding: 16px;
         text-align: center;
         margin-bottom: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
     }
 
     .sidebar-user-name {
@@ -73,28 +74,29 @@ st.markdown(
     }
 
     .sidebar-user-email {
-        font-size: 0.82rem;
-        color: #4da6ff !important;
+        font-size: 0.85rem;
+        color: #6bb2ff !important;
         font-weight: 600;
         margin-bottom: 6px;
     }
 
     .sidebar-user-cargo {
         display: inline-block;
-        background: #ffffff;
-        color: #111318 !important;
+        background: #17191f;
+        color: #ffffff !important;
         font-size: 0.72rem;
-        font-weight: 800;
-        padding: 4px 12px;
+        font-weight: 700;
+        padding: 4px 14px;
         border-radius: 20px;
         text-transform: uppercase;
+        border: 1px solid #3c424e;
     }
 
     /* TARJETAS PRINCIPALES */
     .executive-card-studio {
-        background: #181a20;
-        border: 1px solid #2d313e;
-        border-radius: 20px;
+        background: #282d36;
+        border: 1px solid #3f4654;
+        border-radius: 18px;
         padding: 26px;
         box-shadow: 0 8px 25px rgba(0,0,0,0.3);
         margin-bottom: 20px;
@@ -102,15 +104,15 @@ st.markdown(
 
     /* TARJETAS KPIS ELEVADAS */
     .kpi-card-studio {
-        background: #181a20;
-        border: 1px solid #2d313e;
-        border-radius: 18px;
+        background: #282d36;
+        border: 1px solid #3f4654;
+        border-radius: 16px;
         padding: 20px;
         text-align: center;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     .kpi-card-studio:hover {
-        border-color: #4da6ff;
+        border-color: #ffffff;
         transform: translateY(-2px);
     }
     .kpi-val-studio {
@@ -121,72 +123,87 @@ st.markdown(
     }
     .kpi-lbl-studio {
         font-size: 0.75rem;
-        color: #9ba1b0 !important;
+        color: #c2c7d0 !important;
         text-transform: uppercase;
         font-weight: 700;
         letter-spacing: 0.08em;
         margin-top: 4px;
     }
 
-    /* INPUTS DE TEXTO ESPECÍFICOS Y LIMPIOS */
+    /* RECUADROS DE ENTRADA Y FORMULARIOS (TEXTO NEGRO SOBRE BLANCO PARA LECTURA PERFECTA) */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
-        background-color: #21242d !important;
-        color: #ffffff !important;
-        border: 1px solid #363b4a !important;
-        border-radius: 12px !important;
+        background-color: #ffffff !important;
+        color: #111318 !important;
+        border: 1px solid #c2c7d0 !important;
+        border-radius: 10px !important;
         padding: 10px 14px !important;
         font-size: 0.95rem !important;
+        font-weight: 600 !important;
+    }
+
+    .stTextInput input:focus, .stSelectbox > div > div:focus, .stNumberInput input:focus {
+        border-color: #6bb2ff !important;
+        box-shadow: 0 0 0 3px rgba(107, 178, 255, 0.25) !important;
+    }
+
+    ::placeholder {
+        color: #6c707a !important;
+        opacity: 1 !important;
     }
 
     .stTextInput input:disabled {
-        background-color: #181a20 !important;
-        color: #6c707a !important;
+        background-color: #e5e7eb !important;
+        color: #4b5563 !important;
     }
 
-    [data-testid="stTextInputIconButton"] {
-        right: 10px !important;
-    }
-
-    /* PESTAÑAS (SEGMENT CONTROL) */
+    /* PESTAÑAS TIPO MENÚ ALPHABUILDERS HQ (BOTÓN NEGRO CON TEXTO BLANCO) */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #21242d !important;
-        padding: 5px;
-        border-radius: 14px;
-        border: 1px solid #2d313e;
+        gap: 10px;
+        background-color: transparent !important;
+        padding: 5px 0;
+        border-bottom: 2px solid #3f4654;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 10px;
-        padding: 10px 22px;
+        border-radius: 8px;
+        padding: 10px 24px;
         background-color: transparent !important;
-        color: #9ba1b0 !important;
+        color: #c2c7d0 !important;
         font-weight: 600;
         border: none !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #ffffff !important;
-        color: #111318 !important;
+        background-color: #17191f !important;
+        color: #ffffff !important;
         font-weight: 800;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+        border: 1px solid #434a57 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
     }
 
-    /* BOTONES PRIMARIOS */
+    /* BOTONES ESTILO MENÚ OFICIAL (NEGROS CON BORDE SUTIL) */
     .stButton > button {
-        background-color: #ffffff !important;
-        color: #111318 !important;
-        border-radius: 980px !important;
-        border: none !important;
-        font-weight: 800 !important;
+        background-color: #17191f !important;
+        color: #ffffff !important;
+        border-radius: 8px !important;
+        border: 1px solid #434a57 !important;
+        font-weight: 700 !important;
         padding: 10px 24px !important;
-        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
     }
     .stButton > button * {
-        color: #111318 !important;
+        color: #ffffff !important;
     }
     .stButton > button:hover {
-        background-color: #4da6ff !important;
+        background-color: #000000 !important;
+        border-color: #ffffff !important;
+        transform: translateY(-1px);
+    }
+
+    /* EXPANDERS / CONTENEDORES DESPLEGABLES */
+    .streamlit-expanderHeader {
+        background-color: #282d36 !important;
+        border-radius: 10px !important;
+        border: 1px solid #3f4654 !important;
         color: #ffffff !important;
-        box-shadow: 0 6px 16px rgba(77, 166, 255, 0.3) !important;
     }
 
     #MainMenu {visibility: hidden;}
@@ -197,7 +214,7 @@ st.markdown(
 )
 
 # ==========================================
-# 2. PERSISTENCIA EN DISCO (JSON PERSISTENTE QUE NUNCA SE BORRA)
+# 2. PERSISTENCIA EN DISCO (LOCAL_DB.JSON)
 # ==========================================
 DB_FILE = "local_db.json"
 
@@ -237,10 +254,10 @@ def save_persistent_db():
     try:
         with open(DB_FILE, "w", encoding="utf-8") as f:
             json.dump(data_to_save, f, ensure_ascii=False, indent=2)
-    except Exception as e:
+    except Exception:
         pass
 
-# Carga inicial a la memoria de la sesión
+# Carga inicial de datos
 if "db_loaded" not in st.session_state:
     p_data = load_persistent_db()
     st.session_state.admin_emails = p_data.get("admin_emails", ["oscarsebitas2013@gmail.com"])
@@ -275,7 +292,7 @@ def export_dataframe_to_excel_csv(df):
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 # ==========================================
-# 3. BASE DE DATOS Y ESTADOS DE SESIÓN
+# 3. BASE DE DATOS Y LISTAS DE EDIFICIOS/TRABAJADORES
 # ==========================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -284,6 +301,7 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
 
+# NÓMINA OFICIAL DE LOS 12 EDIFICIOS DE ALPHA BUILDERS
 EDIFICIOS_ALPHA = [
     "Tesla",
     "Lafuente",
@@ -299,6 +317,7 @@ EDIFICIOS_ALPHA = [
     "Smart",
 ]
 
+# NÓMINA DE TRABAJADORES OPERATIVOS
 TRABAJADORES_NO_MINA = [
     {"nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER", "cargo": "BODEGA"},
     {"nombre": "AGUALONGO PILAMUNGA LUIS LENIN", "cargo": "GYPSERO/ALBAÑIL"},
@@ -369,8 +388,8 @@ if not st.session_state.autenticado:
         st.markdown(
             """
             <div class="executive-card-studio" style="text-align: center; margin-top: 40px;">
-                <h1 style="font-size: 2.6rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #ffffff;">ALPHA BUILDERS</h1>
-                <p style="color: #9ba1b0; font-size: 1.05rem; font-weight: 500; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
+                <h1 style="font-size: 2.8rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #ffffff;">ALPHA BUILDERS</h1>
+                <p style="color: #c2c7d0; font-size: 1.05rem; font-weight: 500; margin-top: 6px;">Portal Corporativo | Cazadores de Inversiones</p>
             </div>
         """,
             unsafe_allow_html=True,
@@ -378,6 +397,7 @@ if not st.session_state.autenticado:
 
         tab_login, tab_register, tab_reset = st.tabs(["Iniciar Sesión", "Registrarse", "¿Olvidaste tu Contraseña?"])
 
+        # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
             st.caption("Ingrese sus credenciales registradas.")
@@ -404,12 +424,13 @@ if not st.session_state.autenticado:
                                 st.session_state.db_rendimientos[mail_clean] = []
                             st.rerun()
                         else:
-                            st.error("Contraseña incorrecta.")
+                            st.error("Contraseña incorrecta. Intente nuevamente.")
                     else:
                         st.error("El usuario no existe. Complete el registro.")
                 else:
                     st.error("Ingrese su correo y contraseña.")
 
+        # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
             st.caption("Complete la información para habilitar su acceso.")
@@ -467,6 +488,7 @@ if not st.session_state.autenticado:
                 else:
                     st.error("Por favor complete todos los campos requeridos.")
 
+        # --- RECUPERACIÓN DE CONTRASEÑA ---
         with tab_reset:
             st.markdown("### Recuperación de Contraseña")
             st.caption("Restablezca su acceso de forma segura.")
@@ -499,7 +521,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON FOTO PERSISTENTE
+# 5. BARRA LATERAL CON PERSISTENCIA DE FOTO
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -527,12 +549,12 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #ffffff; font-weight: 800; background: #282c37; padding: 6px; border-radius: 12px; border: 1px solid #363b4a;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #ffffff; font-weight: 800; background: #17191f; padding: 6px; border-radius: 12px; border: 1px solid #3f4654;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
-        st.caption("Ajustes personales y foto:")
+        st.caption("Ajustes personales y fotografía:")
         
         edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
         edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
@@ -570,7 +592,7 @@ with st.sidebar:
                         u["Password"] = edit_pass.strip()
 
             save_persistent_db()
-            st.success("Configuración guardada en disco.")
+            st.success("Configuración actualizada correctamente.")
             st.rerun()
 
     st.markdown("---")
@@ -579,7 +601,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v17.0 Titan Persistent")
+    st.caption("Alpha Builders Portal v18.0 HQ Edition")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
@@ -587,8 +609,8 @@ with st.sidebar:
 st.markdown(
     f"""
     <div class="executive-card-studio">
-        <h1 style="font-size: 2.3rem; letter-spacing: -0.03em; font-weight: 900; margin: 0; color: #ffffff;">Alpha Builders</h1>
-        <p style="color: #9ba1b0; margin-top: 4px; font-size: 1.05rem;">Panel de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
+        <h1 style="font-size: 2.5rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #ffffff;">Alpha Builders</h1>
+        <p style="color: #c2c7d0; margin-top: 4px; font-size: 1.05rem;">Portal Corporativo de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
     </div>
 """,
     unsafe_allow_html=True,
@@ -625,7 +647,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (CON FOTOS INTERACTIVAS EN VISTA PREVIA)
+# 7. MÓDULO 1: CHECKLIST DIARIO (POPOVER DE VISTA PREVIA FLOTANTE)
 # ==========================================
 with tab_chk:
     st.markdown("### Check List Diario – Control de Obra")
@@ -648,7 +670,7 @@ with tab_chk:
             with col_m1:
                 edificio_val = st.selectbox("Edificio / Proyecto:", EDIFICIOS_ALPHA, key="sel_edificio")
             with col_m2:
-                st.text_input("Responsable:", value=user_nombre_completo, disabled=True, help="Obtenido automáticamente de la sesión activa.")
+                st.text_input("Responsable:", value=user_nombre_completo, disabled=True, help="Cargado de su inicio de sesión.")
             with col_m3:
                 fecha_val = st.date_input("Fecha de Inspección:", datetime.date.today(), key="sel_fecha")
 
@@ -675,7 +697,7 @@ with tab_chk:
                     with c_foto:
                         ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: #2d313e;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 8px 0; border-color: #3f4654;'>", unsafe_allow_html=True)
                     
                     ft_b64 = image_to_base64(ft) if ft is not None else None
                     resp_manana.append({
@@ -708,7 +730,7 @@ with tab_chk:
                     with c_foto:
                         ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: #2d313e;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 8px 0; border-color: #3f4654;'>", unsafe_allow_html=True)
                     
                     ft_b64 = image_to_base64(ft) if ft is not None else None
                     resp_tarde.append({
@@ -748,7 +770,7 @@ with tab_chk:
                     st.session_state.creando_jornada = False
                     st.rerun()
 
-    # HISTORIAL DE JORNADAS CON BOTÓN VISTA PREVIA FLOTANTE
+    # HISTORIAL DE JORNADAS
     st.markdown("---")
     st.markdown("### Historial de Jornadas e Inspecciones Creadas")
 
@@ -768,7 +790,7 @@ with tab_chk:
                     with col_det2:
                         st.markdown(f"**Estado:** `{row['Estado']}`")
                     with col_det3:
-                        # VISTA PREVIA LIMPIA POR CLIC
+                        # POPOVER DE VISTA PREVIA DE FOTO
                         if row.get("Foto_B64") is not None:
                             img_evidencia = base64_to_image(row["Foto_B64"])
                             if img_evidencia:
@@ -777,7 +799,7 @@ with tab_chk:
                         else:
                             st.caption("Sin foto")
 
-                    st.markdown("<hr style='margin: 4px 0; border-color: #2d313e;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 4px 0; border-color: #3f4654;'>", unsafe_allow_html=True)
 
                 csv_bytes = export_dataframe_to_excel_csv(df_data)
                 st.download_button(
