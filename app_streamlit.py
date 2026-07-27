@@ -3,16 +3,16 @@ import pandas as pd
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y TEMA APPLE LIGHT
+# 1. CONFIGURACIÓN Y ESTILOS OFICIALES APPLE LIGHT
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Oficial de Obra",
-    page_icon="🏗️",
+    page_icon="🏢",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS Oficiales de Apple (Apple Light Canvas) con Contraste de Texto Garantizado
+# CSS Oficial Estilo Apple Light con Alto Contraste de Texto
 st.markdown(
     """
     <style>
@@ -23,7 +23,7 @@ st.markdown(
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
 
-    /* FORZAR LEGIBILIDAD DE TEXTOS Y LABELS EN NEGRO SOBRE FONDO CLARO */
+    /* Legibilidad de textos y etiquetas en negro puro */
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
         color: #1d1d1f !important;
     }
@@ -32,7 +32,7 @@ st.markdown(
         color: #6e6e73 !important;
     }
 
-    /* CORRECCIÓN DE LA BARRA LATERAL (SIDEBAR APPLE LIGHT) */
+    /* Sidebar Estilo Apple Light */
     [data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 1px solid #d2d2d7 !important;
@@ -41,7 +41,7 @@ st.markdown(
         color: #1d1d1f !important;
     }
 
-    /* RECUADROS DE ENTRADA CORREGIDOS (INPUTS CLAROS Y LEGIBLES) */
+    /* Entradas de texto e inputs legibles */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
         background-color: #ffffff !important;
         color: #1d1d1f !important;
@@ -53,7 +53,6 @@ st.markdown(
         box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
     }
 
-    /* FOCO EN INPUTS - AZUL APPLE */
     .stTextInput input:focus, .stSelectbox > div > div:focus, .stNumberInput input:focus {
         border-color: #0071e3 !important;
         box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15) !important;
@@ -64,7 +63,7 @@ st.markdown(
         opacity: 1 !important;
     }
 
-    /* TARJETAS CONTENEDORAS APPLE LIGHT */
+    /* Tarjetas Contenedoras */
     .apple-card-light {
         background-color: #ffffff;
         border: 1px solid #e5e5e7;
@@ -74,7 +73,7 @@ st.markdown(
         margin-bottom: 25px;
     }
 
-    /* TARJETAS KPIS APPLE */
+    /* Tarjetas KPIs */
     .kpi-card-light {
         background-color: #ffffff;
         border: 1px solid #e5e5e7;
@@ -103,7 +102,7 @@ st.markdown(
         margin-top: 6px;
     }
 
-    /* PESTAÑA TIPO SEGMENT CONTROL APPLE */
+    /* Pestañas (Segment Control) */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: #e8e8ed !important;
@@ -125,11 +124,11 @@ st.markdown(
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
     }
 
-    /* BOTONES ACCENTO AZUL APPLE */
+    /* Botones Accento Azul Apple */
     .stButton > button {
         background-color: #0071e3 !important;
         color: #ffffff !important;
-        border-radius: 980px !important; /* Estilo píldora Apple */
+        border-radius: 980px !important;
         border: none !important;
         font-weight: 600 !important;
         padding: 10px 22px !important;
@@ -145,7 +144,6 @@ st.markdown(
         transform: translateY(-1px);
     }
 
-    /* OCULTAR ELEMENTOS PREDETERMINADOS */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
@@ -154,10 +152,11 @@ st.markdown(
 )
 
 # ==========================================
-# 2. ESTADOS DE SESIÓN Y BASE DE DATOS
+# 2. ESTADOS DE SESIÓN Y GESTIÓN DINÁMICA DE ADMINS
 # ==========================================
-# Definición de correos administradores (Tu cuenta)
-ADMIN_EMAILS = ["oscarsebitas2013@gmail.com", "admin@alphabuilders.com"]
+# Lista de administradores dinámica en la sesión
+if "admin_emails" not in st.session_state:
+    st.session_state.admin_emails = ["oscarsebitas2013@gmail.com"]
 
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -165,7 +164,11 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_nombre = ""
     st.session_state.usuario_cargo = ""
 
-# Base de datos global de usuarios registrados en el sistema
+# Almacenamiento de fotos de perfil {email: foto_bytes}
+if "db_fotos_perfil" not in st.session_state:
+    st.session_state.db_fotos_perfil = {}
+
+# Base de datos global de usuarios
 if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = [
         {
@@ -174,7 +177,7 @@ if "db_usuarios" not in st.session_state:
             "Correo": "oscarsebitas2013@gmail.com",
             "Cargo": "Residente",
             "Fecha_Registro": "2026-07-26",
-            "Estado": "Activo 🟢",
+            "Estado": "Activo",
         }
     ]
 
@@ -245,14 +248,14 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 3. MÓDULO DE ACCESO / LOGIN & REGISTRO
+# 3. MÓDULO DE LOGIN & REGISTRO
 # ==========================================
 if not st.session_state.autenticado:
     st.markdown(
         """
         <div class="apple-card-light" style="text-align: center; max-width: 620px; margin: 40px auto 20px auto;">
-            <h1 style="font-size: 2.6rem; letter-spacing: -0.03em;">Alpha Builders</h1>
-            <p style="color: #6e6e73;">Portal Oficial de Control de Obra y Calidad</p>
+            <h1 style="font-size: 2.6rem; letter-spacing: -0.03em; font-weight: 700;">Alpha Builders</h1>
+            <p style="color: #6e6e73; font-size: 1.05rem;">Portal Oficial de Control de Obra y Calidad</p>
         </div>
     """,
         unsafe_allow_html=True,
@@ -266,7 +269,7 @@ if not st.session_state.autenticado:
         # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
-            st.caption("Ingrese sus credenciales de acceso.")
+            st.caption("Ingrese sus credenciales de acceso registradas.")
 
             login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
             login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
@@ -276,22 +279,20 @@ if not st.session_state.autenticado:
                     st.session_state.autenticado = True
                     st.session_state.usuario_email = login_email.strip().lower()
 
-                    # Buscar el cargo y nombre si ya está registrado
                     u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == st.session_state.usuario_email), None)
                     if u_match:
-                        st.session_state.usuario_nombre = f"{u_match['Nombres']} {u_match['Apellidos']}"
+                        st.session_state.usuario_nombre = f"{u_match['Nombres']} {u_match['Apellidos']}".strip()
                         st.session_state.usuario_cargo = u_match["Cargo"]
                     else:
                         st.session_state.usuario_nombre = login_email.split("@")[0].title()
                         st.session_state.usuario_cargo = "Residente"
-                        # Agregar a usuarios activos
                         st.session_state.db_usuarios.append({
                             "Nombres": st.session_state.usuario_nombre,
                             "Apellidos": "",
                             "Correo": st.session_state.usuario_email,
                             "Cargo": st.session_state.usuario_cargo,
                             "Fecha_Registro": datetime.date.today().strftime("%Y-%m-%d"),
-                            "Estado": "Activo 🟢"
+                            "Estado": "Activo"
                         })
 
                     if st.session_state.usuario_email not in st.session_state.db_checklists:
@@ -303,17 +304,17 @@ if not st.session_state.autenticado:
                     st.error("Por favor ingrese correo y contraseña.")
 
             st.markdown("---")
-            st.caption("O ingrese con su proveedor corporativo:")
+            st.caption("Acceso corporativo directo:")
             col_g, col_o = st.columns(2)
             with col_g:
-                if st.button("🌐 Con Google", use_container_width=True):
+                if st.button("Google Workspace", use_container_width=True):
                     st.session_state.autenticado = True
                     st.session_state.usuario_email = "oscarsebitas2013@gmail.com"
                     st.session_state.usuario_nombre = "Oscar Sebastián Narváez Ojeda"
-                    st.session_state.usuario_cargo = "Residente (Admin)"
+                    st.session_state.usuario_cargo = "Residente"
                     st.rerun()
             with col_o:
-                if st.button("🏢 Con Outlook", use_container_width=True):
+                if st.button("Microsoft Outlook", use_container_width=True):
                     st.session_state.autenticado = True
                     st.session_state.usuario_email = "usuario.outlook@outlook.com"
                     st.session_state.usuario_nombre = "Usuario Outlook"
@@ -323,7 +324,7 @@ if not st.session_state.autenticado:
         # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
-            st.caption("Complete la información para habilitar su perfil.")
+            st.caption("Complete el formulario para habilitar su perfil de acceso.")
 
             col_n, col_a = st.columns(2)
             with col_n:
@@ -342,14 +343,13 @@ if not st.session_state.autenticado:
                     st.session_state.usuario_nombre = f"{reg_nombres.strip()} {reg_apellidos.strip()}"
                     st.session_state.usuario_cargo = reg_cargo
 
-                    # Registrar en base de datos global de usuarios
                     st.session_state.db_usuarios.append({
                         "Nombres": reg_nombres.strip(),
                         "Apellidos": reg_apellidos.strip(),
                         "Correo": st.session_state.usuario_email,
                         "Cargo": reg_cargo,
                         "Fecha_Registro": datetime.date.today().strftime("%Y-%m-%d"),
-                        "Estado": "Activo 🟢"
+                        "Estado": "Activo"
                     })
 
                     if st.session_state.usuario_email not in st.session_state.db_checklists:
@@ -360,33 +360,46 @@ if not st.session_state.autenticado:
                     st.success("¡Registro completado!")
                     st.rerun()
                 else:
-                    st.error("Por favor complete todos los campos de registro.")
+                    st.error("Por favor complete todos los campos requeridos.")
 
     st.stop()
 
 # ==========================================
-# 4. BARRA LATERAL CON PERFIL E INFORMACIÓN
+# 4. BARRA LATERAL (PERFIL Y FOTO)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre = st.session_state.usuario_nombre
 user_cargo = st.session_state.usuario_cargo
-es_admin = user_email in ADMIN_EMAILS
+es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    st.markdown("### 👤 Perfil de Sesión")
-    st.markdown(f"**Usuario:** {user_nombre}")
+    st.markdown("### Perfil de Usuario")
+
+    # Módulo para subir/mostrar Foto de Perfil
+    foto_perfil = st.session_state.db_fotos_perfil.get(user_email, None)
+    if foto_perfil is not None:
+        st.image(foto_perfil, width=110)
+    else:
+        st.markdown(f"**Usuario:** `{user_nombre}`")
+
+    uploader_foto = st.file_uploader("Cambiar Foto de Perfil", type=["jpg", "jpeg", "png"], key="user_avatar")
+    if uploader_foto is not None:
+        st.session_state.db_fotos_perfil[user_email] = uploader_foto
+        st.rerun()
+
     st.markdown(f"**Correo:** `{user_email}`")
     st.markdown(f"**Cargo:** `{user_cargo}`")
+    
     if es_admin:
-        st.success("Acceso Administrador 👑")
+        st.info("Rol: Administrador General")
 
     st.markdown("---")
-    if st.button("🚪 Cerrar Sesión", use_container_width=True):
+    if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Official Portal\nEstilo Apple Light Canvas")
+    st.caption("Alpha Builders Portal v5.0\nEstilo Apple Light")
 
 # ==========================================
 # 5. DASHBOARD PRINCIPAL
@@ -423,10 +436,10 @@ with k3:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Pestañas dinámicas (Incluye pestaña Admin si es Administrador)
-pestanas = ["📋 Checklist Diario", "📊 Control de Rendimiento por Trabajador"]
+# Pestañas dinámicas según permisos de Administrador
+pestanas = ["Checklist Diario", "Control de Rendimiento por Trabajador"]
 if es_admin:
-    pestanas.append("👑 Panel Admin (Usuarios Activos)")
+    pestanas.append("Panel Admin")
 
 tabs_app = st.tabs(pestanas)
 tab_chk = tabs_app[0]
@@ -436,21 +449,21 @@ tab_rend = tabs_app[1]
 # 6. MÓDULO 1: CHECKLIST DIARIO
 # ==========================================
 with tab_chk:
-    st.markdown("### 📋 Check List Diario – Control de Obra")
+    st.markdown("### Check List Diario – Control de Obra")
     st.caption("Supervisión diaria de calidad y avance en el frente de trabajo.")
 
     col_m1, col_m2, col_m3 = st.columns(3)
     with col_m1:
-        proyecto_val = st.text_input("🏢 Proyecto:", value="Alpha Builders - Obra Central")
+        proyecto_val = st.text_input("Proyecto:", value="Alpha Builders - Obra Central")
     with col_m2:
-        residente_val = st.text_input("👷 Responsable:", value=user_nombre)
+        residente_val = st.text_input("Responsable:", value=user_nombre)
     with col_m3:
-        fecha_val = st.date_input("📅 Fecha:", datetime.date.today())
+        fecha_val = st.date_input("Fecha:", datetime.date.today())
 
     st.markdown("---")
 
     with st.form("form_checklist_official"):
-        st.markdown("#### 🌅 Jornada de la Mañana")
+        st.markdown("#### Jornada de la Mañana")
         resp_manana = []
 
         for idx, act in enumerate(ACTIVIDADES_MANANA, 1):
@@ -462,12 +475,12 @@ with tab_chk:
             with c_obs:
                 ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
             with c_foto:
-                ft = st.file_uploader("📷 Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
+                ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
 
             st.markdown("<hr style='margin: 8px 0; border-color: #e5e5e7;'>", unsafe_allow_html=True)
-            resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí 📷" if ft is not None else "No"})
+            resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
 
-        st.markdown("#### 🌆 Jornada de la Tarde")
+        st.markdown("#### Jornada de la Tarde")
         resp_tarde = []
 
         for idx, act in enumerate(ACTIVIDADES_TARDE, 1):
@@ -479,12 +492,12 @@ with tab_chk:
             with c_obs:
                 ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
             with c_foto:
-                ft = st.file_uploader("📷 Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
+                ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
 
             st.markdown("<hr style='margin: 8px 0; border-color: #e5e5e7;'>", unsafe_allow_html=True)
-            resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí 📷" if ft is not None else "No"})
+            resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
 
-        btn_guardar_chk = st.form_submit_button("💾 Guardar Checklist Diario", type="primary")
+        btn_guardar_chk = st.form_submit_button("Guardar Checklist Diario", type="primary")
 
     if btn_guardar_chk:
         all_chk_data = resp_manana + resp_tarde
@@ -498,10 +511,10 @@ with tab_chk:
             "Datos": df_chk_save
         })
 
-        st.success(f"✅ Checklist guardado correctamente para el usuario **{user_email}**.")
+        st.success(f"Checklist guardado correctamente para la cuenta {user_email}.")
         st.dataframe(df_chk_save.drop(columns=["Foto_Objeto"]), use_container_width=True)
 
-        st.markdown("#### 🖼️ Evidencia Fotográfica Capturada")
+        st.markdown("#### Evidencia Fotográfica Capturada")
         has_images = False
         cols_gal = st.columns(3)
         g_idx = 0
@@ -517,30 +530,30 @@ with tab_chk:
             st.info("No se adjuntaron fotografías en esta inspección.")
 
         csv_chk = df_chk_save.drop(columns=["Foto_Objeto"]).to_csv(index=False).encode("utf-8")
-        st.download_button(label="📥 Descargar Checklist Diario (CSV)", data=csv_chk, file_name=f"Checklist_{fecha_val.strftime('%Y%m%d')}_{user_email}.csv", mime="text/csv")
+        st.download_button(label="Descargar Checklist Diario (CSV)", data=csv_chk, file_name=f"Checklist_{fecha_val.strftime('%Y%m%d')}_{user_email}.csv", mime="text/csv")
 
 # ==========================================
 # 7. MÓDULO 2: CONTROL DE RENDIMIENTO
 # ==========================================
 with tab_rend:
-    st.markdown("### 📊 Control de Rendimiento por Trabajador")
+    st.markdown("### Control de Rendimiento por Trabajador")
     st.caption("Seleccione al operario, indique el rubro y registre sus horas ejecutadas.")
 
     col1, col2 = st.columns(2)
     with col1:
         nombres_obreros = [t["nombre"] for t in TRABAJADORES_NO_MINA]
-        trabajador_sel = st.selectbox("👷 Seleccionar Trabajador (28 Activos):", nombres_obreros)
+        trabajador_sel = st.selectbox("Seleccionar Trabajador (28 Activos):", nombres_obreros)
         cargo_actual = next(t["cargo"] for t in TRABAJADORES_NO_MINA if t["nombre"] == trabajador_sel)
         st.info(f"**Cargo en obra:** {cargo_actual}")
 
     with col2:
         rubros_opciones = ["Enlucidos", "Fijos", "Fajas", "Dinteles"]
-        rubro_sel = st.selectbox("🧱 Seleccionar Rubro:", rubros_opciones)
+        rubro_sel = st.selectbox("Seleccionar Rubro:", rubros_opciones)
         unidad_medida = UNIDADES_RUBRO[rubro_sel]
         st.caption(f"Unidad de medida: **{unidad_medida}**")
 
     st.markdown("---")
-    st.markdown("#### 🕒 Horarios Trabajados (Intervalos)")
+    st.markdown("#### Horarios Trabajados (Intervalos)")
 
     col_h1, col_h2, col_h3 = st.columns(3)
     with col_h1:
@@ -551,20 +564,20 @@ with tab_rend:
         h3 = st.checkbox("14:00 - 16:00 (2 Horas HH)")
 
     horas_acumuladas = (3.0 if h1 else 0.0) + (3.0 if h2 else 0.0) + (2.0 if h3 else 0.0)
-    st.markdown(f"⏱️ **Total Horas-Hombre:** `{horas_acumuladas} HH`")
+    st.markdown(f"**Total Horas-Hombre:** `{horas_acumuladas} HH`")
 
-    st.markdown("#### 📐 Avance Ejecutado")
+    st.markdown("#### Avance Ejecutado")
     avance_cant = st.number_input(f"Cantidad ejecutada ({unidad_medida}):", min_value=0.0, step=0.1, format="%.2f")
 
-    if st.button("💾 Registrar Rendimiento", type="primary"):
+    if st.button("Registrar Rendimiento", type="primary"):
         if horas_acumuladas == 0:
-            st.warning("⚠️ Seleccione al menos un intervalo de horario.")
+            st.warning("Seleccione al menos un intervalo de horario.")
         elif avance_cant <= 0:
-            st.warning("⚠️ Ingrese un avance mayor a 0.")
+            st.warning("Ingrese un avance mayor a 0.")
         else:
             rend_real = round(horas_acumuladas / avance_cant, 3)
             rend_teorico = RENDIMIENTOS_TEORICOS.get(rubro_sel, 1.0)
-            estado_diag = "EFICIENTE ✅" if rend_real <= rend_teorico else "EXCESO DE HH ⚠️"
+            estado_diag = "EFICIENTE" if rend_real <= rend_teorico else "EXCESO DE HH"
 
             nuevo_registro = {
                 "Usuario_Registro": user_email,
@@ -582,10 +595,10 @@ with tab_rend:
             }
 
             st.session_state.db_rendimientos[user_email].append(nuevo_registro)
-            st.success(f"¡Rendimiento registrado correctamente para **{trabajador_sel}**!")
+            st.success(f"Rendimiento registrado correctamente para {trabajador_sel}.")
 
     st.markdown("---")
-    st.markdown("### 📜 Registros de Rendimiento Guardados")
+    st.markdown("### Registros de Rendimiento Guardados")
 
     mis_rendimientos = st.session_state.db_rendimientos.get(user_email, [])
     if len(mis_rendimientos) > 0:
@@ -593,42 +606,58 @@ with tab_rend:
         st.dataframe(df_mis_r, use_container_width=True)
 
         csv_r = df_mis_r.to_csv(index=False).encode("utf-8")
-        st.download_button(label="📥 Descargar Rendimientos (CSV)", data=csv_r, file_name=f"Rendimientos_{user_email}.csv", mime="text/csv")
+        st.download_button(label="Descargar Rendimientos (CSV)", data=csv_r, file_name=f"Rendimientos_{user_email}.csv", mime="text/csv")
     else:
         st.info("Aún no existen registros en su historial.")
 
 # ==========================================
-# 8. MÓDULO EXCLUSIVO ADMIN: GESTIÓN DE USUARIOS
+# 8. MÓDULO ADMINISTRADOR Y GESTIÓN DE ROLES
 # ==========================================
 if es_admin:
     tab_admin = tabs_app[2]
     with tab_admin:
-        st.markdown("### 👑 Panel de Control Administrador")
-        st.caption("Módulo exclusivo para monitoreo de usuarios registrados, cargos y actividad global en la plataforma.")
+        st.markdown("### Panel de Control Administrador")
+        st.caption("Módulo exclusivo para monitoreo de usuarios y gestión de permisos.")
 
+        # --- SECCIÓN: AÑADIR / REMOVER ADMINISTRADORES ---
+        st.markdown("#### Gestión de Administradores de la Plataforma")
+        col_adm1, col_adm2 = st.columns([2, 1])
+
+        with col_adm1:
+            nuevo_admin_mail = st.text_input("Ingrese correo para conceder permisos de Administrador:", placeholder="usuario@correo.com")
+            if st.button("Otorgar Acceso Administrador"):
+                if nuevo_admin_mail:
+                    mail_clean = nuevo_admin_mail.strip().lower()
+                    if mail_clean not in st.session_state.admin_emails:
+                        st.session_state.admin_emails.append(mail_clean)
+                        st.success(f"Se otorgaron permisos de administrador a: {mail_clean}")
+                        st.rerun()
+                    else:
+                        st.warning("El correo ingresado ya es administrador.")
+
+        with col_adm2:
+            st.markdown("**Administradores Actuales:**")
+            for adm in st.session_state.admin_emails:
+                st.write(f"- `{adm}`")
+
+        st.markdown("---")
+
+        # --- SECCIÓN: MONITOR DE USUARIOS REGISTRADOS ---
+        st.markdown("#### Usuarios Activos en la Plataforma")
         df_users = pd.DataFrame(st.session_state.db_usuarios)
-
-        col_a1, col_a2 = st.columns(2)
-        with col_a1:
-            st.markdown(f"**Total de Usuarios Registrados:** `{len(df_users)}`")
-        with col_a2:
-            st.markdown("**Nivel de Acceso:** `Administrador General (Pro)`")
-
-        st.markdown("#### Lista de Usuarios Activos")
         st.dataframe(df_users, use_container_width=True)
 
-        # Resumen consolidado de actividad por usuario
-        st.markdown("#### Resumen Global de Registros por Usuario")
+        st.markdown("#### Resumen Global de Actividad por Usuario")
         resumen_actividad = []
         for u in st.session_state.db_usuarios:
             e = u["Correo"]
             num_c = len(st.session_state.db_checklists.get(e, []))
             num_r = len(st.session_state.db_rendimientos.get(e, []))
             resumen_actividad.append({
-                "Usuario": u["Nombres"] if u["Nombres"] else e,
+                "Usuario": f"{u['Nombres']} {u['Apellidos']}".strip() or e,
                 "Correo": e,
                 "Cargo": u["Cargo"],
-                "Checklists Generados": num_c,
+                "Checklists Guardados": num_c,
                 "Rendimientos Registrados": num_r,
                 "Estado": u["Estado"]
             })
@@ -638,7 +667,7 @@ if es_admin:
 
         csv_admin = df_act.to_csv(index=False).encode("utf-8")
         st.download_button(
-            label="📥 Descargar Reporte de Usuarios Activos (CSV)",
+            label="Descargar Reporte de Usuarios Activos (CSV)",
             data=csv_admin,
             file_name=f"Reporte_Usuarios_AlphaBuilders_{datetime.date.today().strftime('%Y%m%d')}.csv",
             mime="text/csv"
