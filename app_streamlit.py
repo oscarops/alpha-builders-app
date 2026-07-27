@@ -6,6 +6,10 @@ import os
 import pandas as pd
 from PIL import Image
 import streamlit as st
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.drawing.image import Image as OpenpyxlImage
+from openpyxl.utils import get_column_letter
 
 # ==========================================
 # 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
@@ -460,13 +464,79 @@ def base64_to_image(b64_str):
             return None
     return None
 
+def export_checklist_to_excel_file(jornada_dict):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Checklist Obra"
+
+    # Encabezados amplios y claros
+    headers = ["Jornada", "N°", "Actividad", "Estado", "Observaciones", "Evidencia Fotográfica"]
+    ws.append(headers)
+
+    # Estilo de cabecera profesional
+    for col in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = Font(bold=True, color="FFFFFF", size=11)
+        cell.fill = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    ws.row_dimensions[1].height = 30
+
+    datos = jornada_dict.get("Datos", [])
+    for row_idx, item in enumerate(datos, start=2):
+        ws.append([
+            item.get("Jornada", ""),
+            item.get("N°", ""),
+            item.get("Actividad", ""),
+            item.get("Estado", ""),
+            item.get("Observaciones", "")
+        ])
+
+        # Altura de fila generosa para albergar imágenes incrustadas con comodidad
+        ws.row_dimensions[row_idx].height = 75
+
+        # Alinear celdas de texto
+        for c_i in range(1, 6):
+            cell_txt = ws.cell(row=row_idx, column=c_i)
+            cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
+
+        # Insertar imagen incrustada si existe en base64
+        foto_b64 = item.get("Foto_B64")
+        if foto_b64:
+            try:
+                img_data = base64.b64decode(foto_b64)
+                img_pil = Image.open(io.BytesIO(img_data))
+                img_pil.thumbnail((120, 80))
+                img_stream = io.BytesIO()
+                img_pil.save(img_stream, format="PNG")
+                img_stream.seek(0)
+
+                img_xlsx = OpenpyxlImage(img_stream)
+                img_xlsx.width = 100
+                img_xlsx.height = 65
+                ws.add_image(img_xlsx, f"F{row_idx}")
+            except Exception:
+                ws.cell(row=row_idx, column=6, value="Error al cargar imagen")
+        else:
+            cell_sin = ws.cell(row=row_idx, column=6, value="Sin evidencia")
+            cell_sin.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Anchos de columna amplios para que se observe todo completo sin cortes
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 10
+    ws.column_dimensions['C'].width = 50
+    ws.column_dimensions['D'].width = 18
+    ws.column_dimensions['E'].width = 35
+    ws.column_dimensions['F'].width = 30
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
 def export_dataframe_to_excel_csv(df):
-    # Incluir la columna de evidencia de imágenes de manera limpia
-    df_export = df.copy()
-    if "Foto_B64" in df_export.columns:
-        df_export["Evidencia_Imagen_Adjunta"] = df_export["Foto_B64"].apply(lambda x: "Sí (Imagen Adjunta Base64)" if pd.notna(x) and x else "No")
-        df_export = df_export.drop(columns=["Foto_B64"], errors="ignore")
-    return df_export.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
+    df_clean = df.drop(columns=["Foto_B64"], errors="ignore")
+    return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 # ==========================================
 # 3. BASE DE DATOS Y ESTADOS DE SESIÓN
@@ -1081,13 +1151,14 @@ with tab_chk:
 
                                     st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
-                                csv_bytes = export_dataframe_to_excel_csv(df_data)
+                                # DESCARGAR EXCEL PROFESIONAL CON ANCHOS AMPLIOS E IMÁGENES INCRUSTADAS
+                                excel_bytes = export_checklist_to_excel_file(j)
                                 st.download_button(
-                                    label=f"📥 Descargar CSV - {j['Edificio']} ({j['Fecha']})",
-                                    data=csv_bytes,
-                                    file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.csv",
-                                    mime="text/csv",
-                                    key=f"dl_{orig_idx}"
+                                    label=f"📥 Descargar Excel con Imágenes - {j['Edificio']} ({j['Fecha']})",
+                                    data=excel_bytes,
+                                    file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.xlsx",
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    key=f"dl_xlsx_{orig_idx}"
                                 )
         else:
             st.info("Aún no hay inspecciones guardadas en el historial.")
