@@ -3,26 +3,32 @@ import pandas as pd
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN Y ESTILOS VISUALES APPLE LIGHT
+# 1. CONFIGURACIÓN Y ESTILOS CUPERTINO / SILICON VALLEY (APPLE PRO UI)
 # ==========================================
 st.set_page_config(
-    page_title="Alpha Builders | Portal Oficial de Obra",
-    page_icon="🏗️",
+    page_title="Alpha Builders | Executive Portal",
+    page_icon="🏢",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+# Estilos CSS Avanzados: Silicon Valley / Cupertino Apple Aesthetic
 st.markdown(
     """
     <style>
-    /* Fondo General Apple Light Canvas */
+    /* Transiciones y Smooth Scrolling */
+    * {
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Fondo Canvas Apple Light */
     .stApp {
-        background-color: #f5f5f7 !important;
+        background: #f5f5f7 !important;
         color: #1d1d1f !important;
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
 
-    /* Legibilidad de textos y etiquetas */
+    /* Legibilidad y Tipografía */
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
         color: #1d1d1f !important;
     }
@@ -31,17 +37,81 @@ st.markdown(
         color: #6e6e73 !important;
     }
 
-    /* Sidebar Estilo Apple Light */
+    /* BARRA LATERAL ESTILO APPLE CUPERTINO (SIDEBAR) */
     [data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #d2d2d7 !important;
-        padding-top: 15px !important;
+        background: #ffffff !important;
+        border-right: 1px solid #e5e5e7 !important;
+        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.02) !important;
+        padding-top: 20px !important;
     }
-    [data-testid="stSidebar"] * {
-        color: #1d1d1f !important;
+    
+    /* Tipografía Estilizada en Sidebar (Sin bloques feos) */
+    .sidebar-user-name {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1d1d1f;
+        margin-top: 10px;
+        margin-bottom: 2px;
+        letter-spacing: -0.01em;
+    }
+    .sidebar-user-email {
+        font-size: 0.88rem;
+        color: #0071e3 !important;
+        font-weight: 500;
+        margin-bottom: 6px;
+    }
+    .sidebar-user-cargo {
+        font-size: 0.82rem;
+        color: #86868b !important;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.05em;
     }
 
-    /* Entradas de texto e inputs legibles */
+    /* TARJETAS GLASSMORPHISM / APPLE CARD */
+    .apple-card-pro {
+        background: #ffffff;
+        border: 1px solid #e5e5e7;
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        margin-bottom: 25px;
+    }
+    .apple-card-pro:hover {
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+        border-color: #d2d2d7;
+    }
+
+    /* TARJETAS KPIS INTERACTIVAS CON EFECTO HOVER */
+    .kpi-card-pro {
+        background: #ffffff;
+        border: 1px solid #e5e5e7;
+        border-radius: 18px;
+        padding: 22px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+    }
+    .kpi-card-pro:hover {
+        border-color: #0071e3;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0, 113, 227, 0.12);
+    }
+    .kpi-value-pro {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1d1d1f !important;
+        letter-spacing: -0.03em;
+    }
+    .kpi-label-pro {
+        font-size: 0.78rem;
+        color: #86868b !important;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        margin-top: 4px;
+    }
+
+    /* INPUTS Y SELECTBOXES APPLE STYLE */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
         background-color: #ffffff !important;
         color: #1d1d1f !important;
@@ -50,7 +120,7 @@ st.markdown(
         padding: 10px 14px !important;
         font-size: 0.95rem !important;
         font-weight: 500 !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
     }
 
     .stTextInput input:focus, .stSelectbox > div > div:focus, .stNumberInput input:focus {
@@ -58,51 +128,15 @@ st.markdown(
         box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15) !important;
     }
 
-    ::placeholder {
+    /* INPUT DESHABILITADO BLOQUEADO */
+    .stTextInput input:disabled {
+        background-color: #f2f2f7 !important;
         color: #86868b !important;
-        opacity: 1 !important;
+        border-color: #e5e5e7 !important;
+        cursor: not-allowed;
     }
 
-    /* Tarjetas Contenedoras */
-    .apple-card-light {
-        background-color: #ffffff;
-        border: 1px solid #e5e5e7;
-        border-radius: 20px;
-        padding: 26px;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
-        margin-bottom: 25px;
-    }
-
-    /* Tarjetas KPIs */
-    .kpi-card-light {
-        background-color: #ffffff;
-        border: 1px solid #e5e5e7;
-        border-radius: 18px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-        transition: all 0.2s ease;
-    }
-    .kpi-card-light:hover {
-        border-color: #0071e3;
-        transform: translateY(-2px);
-    }
-    .kpi-value-light {
-        font-size: 2.3rem;
-        font-weight: 700;
-        color: #1d1d1f !important;
-        letter-spacing: -0.03em;
-    }
-    .kpi-label-light {
-        font-size: 0.78rem;
-        color: #86868b !important;
-        text-transform: uppercase;
-        font-weight: 600;
-        letter-spacing: 0.06em;
-        margin-top: 4px;
-    }
-
-    /* Pestañas (Segment Control) */
+    /* PESTAÑAS SEGMENT CONTROL APPLE */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: #e8e8ed !important;
@@ -111,7 +145,7 @@ st.markdown(
     }
     .stTabs [data-baseweb="tab"] {
         border-radius: 12px;
-        padding: 10px 22px;
+        padding: 10px 24px;
         background-color: transparent !important;
         color: #6e6e73 !important;
         font-weight: 600;
@@ -124,24 +158,33 @@ st.markdown(
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
     }
 
-    /* Botones Accento Azul Apple */
+    /* BOTONES SILICON VALLEY PILL BUTTONS */
     .stButton > button {
         background-color: #0071e3 !important;
         color: #ffffff !important;
         border-radius: 980px !important;
         border: none !important;
         font-weight: 600 !important;
-        padding: 10px 22px !important;
-        box-shadow: 0 2px 6px rgba(0, 113, 227, 0.25) !important;
-        transition: all 0.2s ease !important;
+        padding: 11px 24px !important;
+        box-shadow: 0 2px 8px rgba(0, 113, 227, 0.25) !important;
     }
     .stButton > button * {
         color: #ffffff !important;
     }
     .stButton > button:hover {
         background-color: #0077ed !important;
-        box-shadow: 0 4px 12px rgba(0, 113, 227, 0.35) !important;
+        box-shadow: 0 6px 18px rgba(0, 113, 227, 0.35) !important;
         transform: translateY(-1px);
+    }
+
+    /* TARJETA DE HISTORIAL JORNADAS */
+    .jornada-history-card {
+        background-color: #ffffff;
+        border-left: 4px solid #0071e3;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
 
     #MainMenu {visibility: hidden;}
@@ -152,7 +195,7 @@ st.markdown(
 )
 
 # ==========================================
-# 2. BASE DE DATOS Y ESTADOS DE SESIÓN
+# 2. ESTADOS DE SESIÓN Y BASE DE DATOS
 # ==========================================
 if "admin_emails" not in st.session_state:
     st.session_state.admin_emails = ["oscarsebitas2013@gmail.com"]
@@ -167,7 +210,6 @@ if "autenticado" not in st.session_state:
 if "db_fotos_perfil" not in st.session_state:
     st.session_state.db_fotos_perfil = {}
 
-# Base de datos global con contraseñas registradas
 if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = [
         {
@@ -186,6 +228,15 @@ if "db_checklists" not in st.session_state:
 
 if "db_rendimientos" not in st.session_state:
     st.session_state.db_rendimientos = {}
+
+# Lista de Edificios / Proyectos Disponibles
+EDIFICIOS_ALPHA = [
+    "Edificio Alpha Builders (Matriz)",
+    "Edificio Siglo XXI",
+    "Torre República",
+    "Torre Moscú",
+    "Proyecto Residencial El Bosque",
+]
 
 TRABAJADORES_NO_MINA = [
     {"nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER", "cargo": "BODEGA"},
@@ -248,13 +299,13 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 3. MÓDULO DE LOGIN, REGISTRO Y RECUPERACIÓN DE CLAVE
+# 3. MÓDULO DE LOGIN & REGISTRO
 # ==========================================
 if not st.session_state.autenticado:
     st.markdown(
         """
-        <div class="apple-card-light" style="text-align: center; max-width: 620px; margin: 40px auto 20px auto;">
-            <h1 style="font-size: 2.6rem; letter-spacing: -0.03em; font-weight: 700;">🏗️ Alpha Builders</h1>
+        <div class="apple-card-pro" style="text-align: center; max-width: 620px; margin: 50px auto 20px auto;">
+            <h1 style="font-size: 2.7rem; letter-spacing: -0.03em; font-weight: 700;">Alpha Builders</h1>
             <p style="color: #6e6e73; font-size: 1.05rem;">Portal Oficial de Control de Obra y Calidad</p>
         </div>
     """,
@@ -299,7 +350,7 @@ if not st.session_state.autenticado:
                 else:
                     st.error("Por favor ingrese su correo y contraseña.")
 
-        # --- REGISTRARSE (CON DOBLE CONFIRMACIÓN DE CONTRASEÑA) ---
+        # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
             st.caption("Complete la información para registrar su perfil de acceso.")
@@ -388,7 +439,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 4. BARRA LATERAL (CON PERFIL Y CONFIGURACIÓN INCORPORADA)
+# 4. BARRA LATERAL (CUPERTINO ESTILIZADO)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -396,24 +447,25 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    st.markdown("### 👤 Perfil de Usuario")
+    st.markdown("<h3 style='margin-bottom: 12px; font-weight: 700;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
     foto_perfil = st.session_state.db_fotos_perfil.get(user_email, None)
     if foto_perfil is not None:
         st.image(foto_perfil, use_column_width=True)
 
-    st.markdown(f"**Usuario:** {user_nombre_completo}")
-    st.markdown(f"**Correo:** `{user_email}`")
-    st.markdown(f"**Cargo:** `{user_cargo}`")
-    
+    # Tipografía estilizada limpia (Sin bloques feos en correo o cargo)
+    st.markdown(f"<div class='sidebar-user-name'>{user_nombre_completo}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='sidebar-user-email'>{user_email}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='sidebar-user-cargo'>Cargo: {user_cargo}</div>", unsafe_allow_html=True)
+
     if es_admin:
-        st.info("Rol: Administrador General")
+        st.markdown("<div style='margin-top: 8px; font-size: 0.8rem; color: #0071e3; font-weight: 600;'>Administrador General</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # MÓDULO DE CONFIGURACIÓN CON REPETIR CONTRASEÑA EN EL SIDEBAR
+    # Módulo de Configuración en Sidebar
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
-        st.caption("Ajustes personales y seguridad:")
+        st.caption("Ajustes personales:")
         
         edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
         edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
@@ -423,7 +475,7 @@ with st.sidebar:
         edit_cargo = st.selectbox("Cargo:", cargos_lista, index=idx_c, key="sb_car")
 
         edit_pass = st.text_input("Nueva Contraseña:", type="password", key="sb_pass")
-        edit_pass_rep = st.text_input("Repetir Nueva Contraseña:", type="password", key="sb_pass_rep")
+        edit_pass_rep = st.text_input("Repetir Contraseña:", type="password", key="sb_pass_rep")
 
         nueva_foto = st.file_uploader("Actualizar Foto de Perfil", type=["jpg", "jpeg", "png"], key="sb_foto")
         if nueva_foto is not None:
@@ -447,7 +499,7 @@ with st.sidebar:
                     if edit_pass.strip():
                         u["Password"] = edit_pass.strip()
 
-            st.success("Configuración actualizada correctamente.")
+            st.success("Configuración actualizada.")
             st.rerun()
 
     st.markdown("---")
@@ -456,16 +508,16 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v9.0\nEstilo Apple Light Canvas")
+    st.caption("Alpha Builders Portal v10.0\nSilicon Valley Cupertino Edition")
 
 # ==========================================
-# 5. DASHBOARD PRINCIPAL
+# 5. DASHBOARD PRINCIPAL Y METRICAS
 # ==========================================
 st.markdown(
     f"""
-    <div class="apple-card-light">
-        <h1 style="font-size: 2.2rem; letter-spacing: -0.03em; font-weight: 700;">🏗️ Alpha Builders</h1>
-        <p style="color: #6e6e73;">Panel de Control e Inspección | Usuario: <b>{user_nombre_completo}</b> ({user_cargo})</p>
+    <div class="apple-card-pro">
+        <h1 style="font-size: 2.3rem; letter-spacing: -0.03em; font-weight: 700;">Alpha Builders</h1>
+        <p style="color: #6e6e73;">Panel de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
     </div>
 """,
     unsafe_allow_html=True,
@@ -477,17 +529,17 @@ usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 k1, k2, k3 = st.columns(3)
 with k1:
     st.markdown(
-        '<div class="kpi-card-light"><div class="kpi-value-light">28</div><div class="kpi-label-light">Obreros Activos</div></div>',
+        '<div class="kpi-card-pro"><div class="kpi-value-pro">28</div><div class="kpi-label-pro">Obreros Activos</div></div>',
         unsafe_allow_html=True,
     )
 with k2:
     st.markdown(
-        f'<div class="kpi-card-light"><div class="kpi-value-light">{usr_chks}</div><div class="kpi-label-light">Checklists Guardados</div></div>',
+        f'<div class="kpi-card-pro"><div class="kpi-value-pro">{usr_chks}</div><div class="kpi-label-pro">Checklists Guardados</div></div>',
         unsafe_allow_html=True,
     )
 with k3:
     st.markdown(
-        f'<div class="kpi-card-light"><div class="kpi-value-light">{usr_rnds}</div><div class="kpi-label-light">Reportes de Rendimiento</div></div>',
+        f'<div class="kpi-card-pro"><div class="kpi-value-pro">{usr_rnds}</div><div class="kpi-label-pro">Reportes de Rendimiento</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -503,97 +555,122 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 6. MÓDULO 1: CHECKLIST DIARIO
+# 6. MÓDULO 1: CHECKLIST DIARIO CON BOTÓN "CREAR NUEVA JORNADA" Y SELECCIÓN DE EDIFICIO
 # ==========================================
 with tab_chk:
-    st.markdown("### 📋 Check List Diario – Control de Obra")
-    st.caption("Supervisión de seguridad, materiales y cumplimiento físico en el frente de trabajo.")
+    st.markdown("### Check List Diario – Control de Obra")
+    st.caption("Gestione la inspección diaria de frentes de trabajo por edificio y jornada.")
 
-    col_m1, col_m2, col_m3 = st.columns(3)
-    with col_m1:
-        proyecto_val = st.text_input("Proyecto:", value="Alpha Builders - Obra Central")
-    with col_m2:
-        residente_val = st.text_input("Responsable:", value=user_nombre_completo)
-    with col_m3:
-        fecha_val = st.date_input("Fecha:", datetime.date.today())
+    if "creando_jornada" not in st.session_state:
+        st.session_state.creando_jornada = False
 
+    # Botón principal para iniciar una nueva jornada
+    col_btn_j, _ = st.columns([2, 2])
+    with col_btn_j:
+        if st.button("➕ Crear Nueva Jornada de Inspección", type="primary", use_container_width=True):
+            st.session_state.creando_jornada = True
+
+    # FORMULARIO PARA CREAR NUEVA JORNADA
+    if st.session_state.creando_jornada:
+        st.markdown("---")
+        with st.container():
+            st.markdown("#### Configuración de la Nueva Jornada")
+            col_m1, col_m2, col_m3 = st.columns(3)
+
+            with col_m1:
+                edificio_val = st.selectbox("Edificio / Proyecto:", EDIFICIOS_ALPHA, key="sel_edificio")
+            with col_m2:
+                # RESPONSABLE BLOQUEADO (CARGADO AUTOMÁTICAMENTE DE LA SESIÓN)
+                st.text_input("Responsable:", value=user_nombre_completo, disabled=True, help="El responsable se carga automáticamente desde su inicio de sesión.")
+            with col_m3:
+                fecha_val = st.date_input("Fecha de Inspección:", datetime.date.today(), key="sel_fecha")
+
+            st.markdown("---")
+
+            with st.form("form_checklist_jornada"):
+                st.markdown("#### Jornada de la Mañana")
+                resp_manana = []
+
+                for idx, act in enumerate(ACTIVIDADES_MANANA, 1):
+                    st.markdown(f"**N° {idx}. {act}**")
+                    c_sel, c_obs, c_foto = st.columns([2, 3, 3])
+
+                    with c_sel:
+                        est = st.radio("Estado", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"m_st_{idx}", horizontal=True)
+                    with c_obs:
+                        ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
+                    with c_foto:
+                        ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
+
+                    st.markdown("<hr style='margin: 8px 0; border-color: #e5e5e7;'>", unsafe_allow_html=True)
+                    resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
+
+                st.markdown("#### Jornada de la Tarde")
+                resp_tarde = []
+
+                for idx, act in enumerate(ACTIVIDADES_TARDE, 1):
+                    st.markdown(f"**N° {idx}. {act}**")
+                    c_sel, c_obs, c_foto = st.columns([2, 3, 3])
+
+                    with c_sel:
+                        est = st.radio("Estado", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"t_st_{idx}", horizontal=True)
+                    with c_obs:
+                        ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
+                    with c_foto:
+                        ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
+
+                    st.markdown("<hr style='margin: 8px 0; border-color: #e5e5e7;'>", unsafe_allow_html=True)
+                    resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
+
+                col_sub1, col_sub2 = st.columns(2)
+                with col_sub1:
+                    btn_guardar_chk = st.form_submit_button("Guardar Jornada de Inspección", type="primary")
+
+            if btn_guardar_chk:
+                all_chk_data = resp_manana + resp_tarde
+                df_chk_save = pd.DataFrame(all_chk_data)
+
+                st.session_state.db_checklists[user_email].append({
+                    "Fecha": fecha_val.strftime("%Y-%m-%d"),
+                    "Edificio": edificio_val,
+                    "Responsable": user_nombre_completo,
+                    "Cargo": user_cargo,
+                    "Datos": df_chk_save
+                })
+
+                st.success(f"Jornada guardada exitosamente para **{edificio_val}**.")
+                st.session_state.creando_jornada = False
+                st.rerun()
+
+    # REGISTRO E HISTORIAL DE JORNADAS CREADAS POR EL USUARIO
     st.markdown("---")
+    st.markdown("### Historial de Jornadas e Inspecciones Creadas")
 
-    with st.form("form_checklist_official"):
-        st.markdown("#### Jornada de la Mañana")
-        resp_manana = []
+    mis_jornadas = st.session_state.db_checklists.get(user_email, [])
 
-        for idx, act in enumerate(ACTIVIDADES_MANANA, 1):
-            st.markdown(f"**N° {idx}. {act}**")
-            c_sel, c_obs, c_foto = st.columns([2, 3, 3])
+    if len(mis_jornadas) > 0:
+        for idx_j, j in enumerate(reversed(mis_jornadas), 1):
+            with st.expander(f"📌 Jornada #{len(mis_jornadas) - idx_j + 1} | Edificio: {j['Edificio']} | Fecha: {j['Fecha']} | Responsable: {j['Responsable']}"):
+                df_display = j["Datos"]
+                st.dataframe(df_display.drop(columns=["Foto_Objeto"]), use_container_width=True)
 
-            with c_sel:
-                est = st.radio("Estado", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"m_st_{idx}", horizontal=True)
-            with c_obs:
-                ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
-            with c_foto:
-                ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
-
-            st.markdown("<hr style='margin: 8px 0; border-color: #e5e5e7;'>", unsafe_allow_html=True)
-            resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
-
-        st.markdown("#### Jornada de la Tarde")
-        resp_tarde = []
-
-        for idx, act in enumerate(ACTIVIDADES_TARDE, 1):
-            st.markdown(f"**N° {idx}. {act}**")
-            c_sel, c_obs, c_foto = st.columns([2, 3, 3])
-
-            with c_sel:
-                est = st.radio("Estado", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"t_st_{idx}", horizontal=True)
-            with c_obs:
-                ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
-            with c_foto:
-                ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
-
-            st.markdown("<hr style='margin: 8px 0; border-color: #e5e5e7;'>", unsafe_allow_html=True)
-            resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
-
-        btn_guardar_chk = st.form_submit_button("Guardar Checklist Diario", type="primary")
-
-    if btn_guardar_chk:
-        all_chk_data = resp_manana + resp_tarde
-        df_chk_save = pd.DataFrame(all_chk_data)
-
-        st.session_state.db_checklists[user_email].append({
-            "Fecha": fecha_val.strftime("%Y-%m-%d"),
-            "Proyecto": proyecto_val,
-            "Responsable": residente_val,
-            "Cargo": user_cargo,
-            "Datos": df_chk_save
-        })
-
-        st.success(f"Checklist guardado correctamente para la cuenta {user_email}.")
-        st.dataframe(df_chk_save.drop(columns=["Foto_Objeto"]), use_container_width=True)
-
-        st.markdown("#### Evidencia Fotográfica Capturada")
-        has_images = False
-        cols_gal = st.columns(3)
-        g_idx = 0
-
-        for row_item in all_chk_data:
-            if row_item["Foto_Objeto"] is not None:
-                has_images = True
-                with cols_gal[g_idx % 3]:
-                    st.image(row_item["Foto_Objeto"], caption=f"[{row_item['Jornada']}] N° {row_item['N°']}: {row_item['Actividad']}", use_column_width=True)
-                g_idx += 1
-
-        if not has_images:
-            st.info("No se adjuntaron fotografías en esta inspección.")
-
-        csv_chk = df_chk_save.drop(columns=["Foto_Objeto"]).to_csv(index=False).encode("utf-8")
-        st.download_button(label="Descargar Checklist Diario (CSV)", data=csv_chk, file_name=f"Checklist_{fecha_val.strftime('%Y%m%d')}_{user_email}.csv", mime="text/csv")
+                # Descargar reporte individual
+                csv_item = df_display.drop(columns=["Foto_Objeto"]).to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    label=f"Descargar CSV - {j['Edificio']}",
+                    data=csv_item,
+                    file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.csv",
+                    mime="text/csv",
+                    key=f"dl_{idx_j}"
+                )
+    else:
+        st.info("Aún no ha creado jornadas de inspección. Presione el botón superior 'Crear Nueva Jornada' para iniciar.")
 
 # ==========================================
 # 7. MÓDULO 2: CONTROL DE RENDIMIENTO
 # ==========================================
 with tab_rend:
-    st.markdown("### 📊 Control de Rendimiento por Trabajador")
+    st.markdown("### Control de Rendimiento por Trabajador")
     st.caption("Asignación de rubros, cálculo de Horas-Hombre (HH) y diagnóstico de productividad.")
 
     col1, col2 = st.columns(2)
@@ -673,7 +750,7 @@ with tab_rend:
 if es_admin:
     tab_admin = tabs_app[2]
     with tab_admin:
-        st.markdown("### 👑 Panel de Control Administrador")
+        st.markdown("### Panel de Control Administrador")
         st.caption("Módulo exclusivo para monitoreo de usuarios, cargos y asignación de permisos.")
 
         # --- GESTIÓN DE ADMINS ---
