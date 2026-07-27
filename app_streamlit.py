@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (EFECTOS AVANZADOS)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (COMPACTOS Y EFECTISTAS)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -51,11 +51,12 @@ st.markdown(
         display: none !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): NEGRO ABSOLUTO CON TEXTO BLANCO */
+    /* 2. BARRA LATERAL (SIDEBAR): COMPACTO SIN SCROLL */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
-        padding-top: 15px !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -68,30 +69,43 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* Tarjeta de Perfil en Sidebar */
+    /* FOTO DE PERFIL EN CÍRCULO PERFECTO CON BORDE NARANJA */
+    [data-testid="stSidebar"] [data-testid="stImage"] img {
+        border-radius: 50% !important;
+        width: 110px !important;
+        height: 110px !important;
+        object-fit: cover !important;
+        border: 4px solid #ff8c00 !important;
+        box-shadow: 0 0 15px rgba(255, 140, 0, 0.4);
+        display: block;
+        margin: 0 auto;
+    }
+
+    /* Tarjeta de Perfil en Sidebar Compacta */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
-        border-radius: 16px;
-        padding: 16px;
+        border-radius: 12px;
+        padding: 10px;
         text-align: center;
-        margin-bottom: 15px;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        margin-bottom: 8px;
+        margin-top: 4px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
 
     .sidebar-user-name {
-        font-size: 1.1rem;
+        font-size: 0.95rem;
         font-weight: 800;
         color: #ffffff !important;
-        margin-top: 8px;
-        margin-bottom: 2px;
+        margin-top: 4px;
+        margin-bottom: 1px;
     }
 
     .sidebar-user-email {
-        font-size: 0.82rem;
+        font-size: 0.75rem;
         color: #72b2ff !important;
         font-weight: 600;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
     }
 
     .sidebar-user-cargo {
@@ -99,94 +113,93 @@ st.markdown(
         background: #323646 !important;
         color: #ffffff !important;
         border: 1px solid #484e5e !important;
-        font-size: 0.75rem !important;
+        font-size: 0.68rem !important;
         font-weight: 800 !important;
-        padding: 5px 14px !important;
+        padding: 3px 10px !important;
         border-radius: 20px !important;
         text-transform: uppercase !important;
-        letter-spacing: 0.05em !important;
     }
 
-    /* EXPANDER DE CONFIGURACIÓN */
+    /* ESPACIADOS Y BOTONES SIDEBAR COMPACTOS */
+    [data-testid="stSidebar"] hr {
+        margin: 8px 0 !important;
+        border-color: #282a36 !important;
+    }
+
+    [data-testid="stSidebar"] .stButton > button {
+        padding: 6px 16px !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* EXPANDER DE CONFIGURACIÓN COMPACTO */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
-        border-radius: 12px !important;
-        overflow: hidden !important;
+        border-radius: 10px !important;
+        margin-bottom: 4px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
         background-color: #282c36 !important;
-        border-bottom: 1px solid #323646 !important;
-        padding: 12px 16px !important;
+        padding: 8px 12px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
         color: #ffffff !important;
-        font-weight: 800 !important;
-        fill: #ffffff !important;
+        font-weight: 700 !important;
+        font-size: 0.85rem !important;
     }
 
-    /* Uploader de Fotos en Sidebar */
+    /* Uploader compacto en Sidebar */
     [data-testid="stSidebar"] [data-testid="stFileUploader"] {
-        background-color: #1c1e26 !important;
-        border: 1px dashed #484e5e !important;
-        border-radius: 12px !important;
-        padding: 10px !important;
+        padding: 4px !important;
     }
 
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] * {
-        color: #ffffff !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] button {
-        background-color: #323646 !important;
-        color: #ffffff !important;
-        border: 1px solid #484e5e !important;
-        border-radius: 8px !important;
-    }
-
-    /* 3. EFECTOS VISUALES AVANZADOS EN TARJETAS PRINCIPALES Y KPIS */
+    /* 3. TÍTULO PRINCIPAL CON EFECTOS VISUALES LLAMATIVOS */
     .executive-card-studio {
-        background: linear-gradient(145deg, #f3f6fc 0%, #e5ebf5 100%);
+        background: linear-gradient(135deg, #f3f6fc 0%, #e5ebf5 100%);
         border: 1px solid #b8c4d8;
-        border-radius: 24px;
-        padding: 30px;
-        box-shadow: 0 14px 40px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.8);
+        border-left: 6px solid #ff8c00;
+        border-radius: 20px;
+        padding: 24px 28px;
+        box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         margin-bottom: 25px;
-        transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-        position: relative;
-        overflow: hidden;
+        transition: all 0.3s ease;
     }
     .executive-card-studio:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 22px 55px rgba(0,0,0,0.14), 0 0 0 2px rgba(18, 19, 24, 0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 18px 45px rgba(0,0,0,0.12);
         border-color: #121318;
+        border-left-color: #ff8c00;
+    }
+
+    .brand-title {
+        background: linear-gradient(90deg, #121318 0%, #3a4256 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.08);
     }
 
     .kpi-card-studio {
         background: linear-gradient(145deg, #eceff6 0%, #dbe2ef 100%);
         border: 1px solid #aebacf;
         border-radius: 20px;
-        padding: 24px;
+        padding: 22px;
         text-align: center;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.06);
         transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-        position: relative;
-        overflow: hidden;
     }
     .kpi-card-studio:hover {
-        background: linear-gradient(145deg, #e3eaf7, #d0dbeee);
+        background: linear-gradient(145deg, #e3eaf7, #d0dbee);
         border-color: #121318;
-        transform: translateY(-6px) scale(1.02);
-        box-shadow: 0 18px 40px rgba(0,0,0,0.15), 0 0 0 2px rgba(18, 19, 24, 0.15);
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 16px 35px rgba(0,0,0,0.12);
     }
     .kpi-val-studio {
         font-size: 2.8rem;
         font-weight: 900;
         color: #121318 !important;
         letter-spacing: -0.03em;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .kpi-lbl-studio {
         font-size: 0.75rem;
@@ -269,7 +282,7 @@ st.markdown(
         font-weight: 900 !important;
     }
 
-    /* BOTONES PRIMARIOS NEGROS CON EFECTO ELEVADO */
+    /* BOTONES PRIMARIOS NEGROS */
     .stButton > button {
         background-color: #121318 !important;
         color: #ffffff !important;
@@ -294,11 +307,6 @@ st.markdown(
         border-radius: 12px !important;
         border: 1px solid #c2c7d2 !important;
         font-weight: 700 !important;
-        transition: all 0.2s ease;
-    }
-    .streamlit-expanderHeader:hover {
-        background-color: #dfe2e8 !important;
-        border-color: #121318 !important;
     }
 
     #MainMenu {visibility: hidden;}
@@ -481,7 +489,7 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO (CON images.png)
+# 4. MÓDULO DE LOGIN & REGISTRO
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -492,8 +500,8 @@ if not st.session_state.autenticado:
                 encoded_logo = base64.b64encode(image_file.read()).decode("utf-8")
             st.markdown(
                 f"""
-                <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
-                    <img src="data:image/png;base64,{encoded_logo}" style="width: 360px; max-width: 100%; pointer-events: none;">
+                <div style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
+                    <img src="data:image/png;base64,{encoded_logo}" style="width: 320px; max-width: 100%; pointer-events: none;">
                 </div>
             """,
                 unsafe_allow_html=True,
@@ -622,7 +630,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON images.png AL ANCHO EXACTO
+# 5. BARRA LATERAL COMPACTA (SIN SCROLL) CON FOTO CIRCULAR
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -635,14 +643,14 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; margin-bottom: 12px; padding: 0 4px;">
+            <div style="text-align: center; margin-bottom: 6px; padding: 0 4px;">
                 <img src="data:image/png;base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none;">
             </div>
         """,
             unsafe_allow_html=True,
         )
 
-    st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; font-weight: 800; margin-bottom: 6px; margin-top: 0px; color: #ffffff; font-size: 0.95rem;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
 
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     if not b64_foto:
@@ -651,7 +659,7 @@ with st.sidebar:
     img_obj = base64_to_image(b64_foto)
 
     if img_obj is not None:
-        st.image(img_obj, use_column_width=True)
+        st.image(img_obj)
 
     st.markdown(
         f"""
@@ -665,9 +673,9 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 6px; border-radius: 12px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 8px; font-size: 0.72rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 4px; border-radius: 10px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
-    st.markdown("---")
+    st.markdown("<hr>", unsafe_allow_html=True)
 
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
         st.caption("Ajustes personales y fotografía:")
@@ -711,22 +719,21 @@ with st.sidebar:
             st.success("Configuración actualizada correctamente.")
             st.rerun()
 
-    st.markdown("---")
+    st.markdown("<hr>", unsafe_allow_html=True)
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         st.rerun()
 
-    st.markdown("---")
-    st.caption("Alpha Builders Portal v34.0 Perfect Effects")
+    st.caption("Alpha Builders v35.0")
 
 # ==========================================
-# 6. DASHBOARD PRINCIPAL CON TARJETAS RESTAURADAS Y MEJORADAS
+# 6. DASHBOARD PRINCIPAL CON TÍTULO DE ALTO IMPACTO VISUAL
 # ==========================================
 st.markdown(
     f"""
     <div class="executive-card-studio">
-        <h1 class="brand-title" style="font-size: 2.3rem; font-weight: 900; margin: 0; color: #121318;">Portal de Control e Inspección</h1>
-        <p style="color: #5a5f6e; margin-top: 4px; font-size: 1.02rem;">{user_nombre_completo} — <b>{user_cargo}</b></p>
+        <h1 class="brand-title" style="font-size: 2.4rem; font-weight: 900; margin: 0;">Portal de Control e Inspección</h1>
+        <p style="color: #5a5f6e; margin-top: 6px; font-size: 1.05rem;">{user_nombre_completo} — <b>{user_cargo}</b></p>
     </div>
 """,
     unsafe_allow_html=True,
