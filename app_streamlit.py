@@ -480,7 +480,7 @@ def export_checklist_to_excel_file(jornada_dict):
         cell.fill = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-    ws.row_dimensions[1].height = 30
+    ws.row_dimensions[1].height = 32
 
     datos = jornada_dict.get("Datos", [])
     for row_idx, item in enumerate(datos, start=2):
@@ -492,42 +492,51 @@ def export_checklist_to_excel_file(jornada_dict):
             item.get("Observaciones", "")
         ])
 
-        # Altura de fila generosa para albergar imágenes incrustadas con comodidad
-        ws.row_dimensions[row_idx].height = 75
+        # Altura de fila grande para que la imagen luzca amplia y cómoda
+        ws.row_dimensions[row_idx].height = 110
 
-        # Alinear celdas de texto
+        # Alinear celdas de texto verticalmente
         for c_i in range(1, 6):
             cell_txt = ws.cell(row=row_idx, column=c_i)
             cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
 
-        # Insertar imagen incrustada si existe en base64
+        # Insertar imagen grande y centrada en la celda F
         foto_b64 = item.get("Foto_B64")
         if foto_b64:
             try:
                 img_data = base64.b64decode(foto_b64)
                 img_pil = Image.open(io.BytesIO(img_data))
-                img_pil.thumbnail((120, 80))
+                img_pil.thumbnail((180, 130)) # Imagen más grande y nítida
                 img_stream = io.BytesIO()
                 img_pil.save(img_stream, format="PNG")
                 img_stream.seek(0)
 
                 img_xlsx = OpenpyxlImage(img_stream)
-                img_xlsx.width = 100
-                img_xlsx.height = 65
+                img_xlsx.width = 160
+                img_xlsx.height = 100
+
+                # Cálculo de posición para centrarla perfectamente en la celda F
+                # Ancho de columna F = 40 (aprox 280 píxeles), Alto de fila = 110 (aprox 146 píxeles)
+                col_width_px = 280
+                row_height_px = 146
+                img_xlsx.left = (col_width_px - img_xlsx.width) / 2
+                img_xlsx.top = (row_height_px - img_xlsx.height) / 2
+
                 ws.add_image(img_xlsx, f"F{row_idx}")
             except Exception:
-                ws.cell(row=row_idx, column=6, value="Error al cargar imagen")
+                cell_err = ws.cell(row=row_idx, column=6, value="Error al cargar imagen")
+                cell_err.alignment = Alignment(horizontal="center", vertical="center")
         else:
             cell_sin = ws.cell(row=row_idx, column=6, value="Sin evidencia")
             cell_sin.alignment = Alignment(horizontal="center", vertical="center")
 
-    # Anchos de columna amplios para que se observe todo completo sin cortes
-    ws.column_dimensions['A'].width = 15
+    # Anchos de columna amplios para que se observe todo con total comodidad
+    ws.column_dimensions['A'].width = 16
     ws.column_dimensions['B'].width = 10
-    ws.column_dimensions['C'].width = 50
+    ws.column_dimensions['C'].width = 52
     ws.column_dimensions['D'].width = 18
     ws.column_dimensions['E'].width = 35
-    ws.column_dimensions['F'].width = 30
+    ws.column_dimensions['F'].width = 40  # Columna F amplia para la foto centrada
 
     output = io.BytesIO()
     wb.save(output)
@@ -1268,7 +1277,7 @@ if es_admin:
                         st.success(f"Se otorgaron permisos de administrador a: {mail_clean}")
                         st.rerun()
                     else:
-                        st.warning("El correo ingresado ya es administrador.")
+                        st.warning("The correo ingresado ya es administrador.")
 
         with col_adm2:
             st.markdown("**Administradores Actuales:**")
