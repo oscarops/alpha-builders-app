@@ -461,8 +461,12 @@ def base64_to_image(b64_str):
     return None
 
 def export_dataframe_to_excel_csv(df):
-    df_clean = df.drop(columns=["Foto_B64"], errors="ignore")
-    return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
+    # Incluir la columna de evidencia de imágenes de manera limpia
+    df_export = df.copy()
+    if "Foto_B64" in df_export.columns:
+        df_export["Evidencia_Imagen_Adjunta"] = df_export["Foto_B64"].apply(lambda x: "Sí (Imagen Adjunta Base64)" if pd.notna(x) and x else "No")
+        df_export = df_export.drop(columns=["Foto_B64"], errors="ignore")
+    return df_export.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 # ==========================================
 # 3. BASE DE DATOS Y ESTADOS DE SESIÓN
@@ -868,7 +872,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (UNIFICADO EN 2 COLUMNAS + BOTÓN VISTA PREVIA DE IMAGEN)
+# 7. MÓDULO 1: CHECKLIST DIARIO (UNIFICADO EN 2 COLUMNAS)
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -1069,7 +1073,6 @@ with tab_chk:
                                     if row['Observaciones']:
                                         st.caption(f"Obs: {row['Observaciones']}")
                                     
-                                    # BOTÓN DE VISTA PREVIA DE LA IMAGEN EN LUGAR DE MOSTRARLA DIRECTAMENTE
                                     if row.get("Foto_B64") is not None:
                                         img_evidencia = base64_to_image(row["Foto_B64"])
                                         if img_evidencia:
