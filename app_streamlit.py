@@ -498,7 +498,8 @@ def export_checklist_to_excel_file(jornada_dict):
             item.get("Observaciones", "")
         ])
 
-        ws.row_dimensions[row_idx].height = 110
+        # Altura de celda generosa para albergar la imagen en alta definición
+        ws.row_dimensions[row_idx].height = 140
 
         for c_i in range(1, 7):
             cell_txt = ws.cell(row=row_idx, column=c_i)
@@ -511,26 +512,27 @@ def export_checklist_to_excel_file(jornada_dict):
             try:
                 img_data = base64.b64decode(foto_b64)
                 img_pil = Image.open(io.BytesIO(img_data))
-                img_pil.thumbnail((140, 90))
+                
+                # ALTA RESOLUCIÓN Y TAMAÑO ADAPTADO AL ANCHO Y LARGO DE LA CELDA
+                img_pil.thumbnail((220, 130))
                 img_stream = io.BytesIO()
                 img_pil.save(img_stream, format="PNG")
                 img_stream.seek(0)
 
                 img_xlsx = OpenpyxlImage(img_stream)
-                img_xlsx.width = 110
-                img_xlsx.height = 75
+                img_xlsx.width = 180
+                img_xlsx.height = 110
 
-                # CENTRADO EXACTO EN LA MITAD DE LA CELDA F (según especificación visual)
-                col_w_px = 266
-                row_h_px = 146
+                # CENTRADO EXACTO EN LA MITAD DE LA CELDA F (Ancho columna F = 42, Alto fila = 140)
+                col_w_px = 294
+                row_h_px = 186
                 img_xlsx.left = (col_w_px - img_xlsx.width) / 2
                 img_xlsx.top = (row_h_px - img_xlsx.height) / 2
 
                 ws.add_image(img_xlsx, f"F{row_idx}")
             except Exception:
-                pass # Si hay error, se deja en blanco sin texto molesto
+                pass
         else:
-            # Si no hay imagen, la celda queda totalmente en blanco (sin texto)
             pass
 
     ws.column_dimensions['A'].width = 16
@@ -538,7 +540,7 @@ def export_checklist_to_excel_file(jornada_dict):
     ws.column_dimensions['C'].width = 52
     ws.column_dimensions['D'].width = 18
     ws.column_dimensions['E'].width = 35
-    ws.column_dimensions['F'].width = 38
+    ws.column_dimensions['F'].width = 42  # Ancho amplio para que la imagen ocupe y luzca perfecta
 
     output = io.BytesIO()
     wb.save(output)
@@ -953,7 +955,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (VERTICAL COMPLETO + CALENDARIO DIRECTO)
+# 7. MÓDULO 1: CHECKLIST DIARIO (VERTICAL COMPLETO + CALENDARIO AL MISMO NIVEL)
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -1078,8 +1080,13 @@ with tab_chk:
                         st.rerun()
 
     st.markdown("---")
-    st.markdown("### Historial de Jornadas e Inspecciones Creadas")
-    st.caption("Seleccione una fecha en el calendario interactivo para consultar las jornadas realizadas en ese día.")
+
+    # TÍTULO E HISTORIAL AL MISMO NIVEL HORIZONTAL DEL CALENDARIO
+    col_t_hist, col_t_cal = st.columns([2, 1], gap="large")
+    with col_t_hist:
+        st.markdown("### Historial de Jornadas e Inspecciones Creadas")
+    with col_t_cal:
+        fecha_busqueda = st.date_input("Filtrar por fecha:", datetime.date.today(), key="calendario_directo")
 
     if user_email not in st.session_state.db_checklists:
         st.session_state.db_checklists[user_email] = []
@@ -1087,15 +1094,13 @@ with tab_chk:
     mis_jornadas = st.session_state.db_checklists[user_email]
 
     if len(mis_jornadas) > 0:
-        # CALENDARIO DIRECTO Y LISTA DE JORNADAS AL LADO
-        col_hist_lista, col_hist_cal = st.columns([2, 1], gap="large")
+        fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
+        jornadas_en_fecha = [j for j in mis_jornadas if j['Fecha'] == fecha_busqueda_str]
 
-        with col_hist_cal:
-            fecha_busqueda = st.date_input("Filtrar por fecha:", datetime.date.today(), key="calendario_directo")
-            fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
-            
-            jornadas_en_fecha = [j for j in mis_jornadas if j['Fecha'] == fecha_busqueda_str]
-            st.info(f"**{len(jornadas_en_fecha)}** jornada(s) para el {fecha_busqueda_str}.")
+        col_hist_lista, col_hist_info_cal = st.columns([2, 1], gap="large")
+
+        with col_hist_info_cal:
+            st.info(f"**{len(jornadas_en_fecha)}** jornada(s) encontrada(s) para el **{fecha_busqueda_str}**.")
 
         with col_hist_lista:
             jornadas_a_mostrar = jornadas_en_fecha if len(jornadas_en_fecha) > 0 else mis_jornadas
