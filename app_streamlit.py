@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (AJUSTES FINALES)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (MÁS ARRIBA Y CENTRADO)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,10 +31,17 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
+    /* SUBIR TODO EL CONTENIDO SUPERIOR DE LA PÁGINA */
+    .block-container {
+        padding-top: 1.2rem !important;
+        padding-bottom: 2rem !important;
+    }
+
     /* 1. FONDO PRINCIPAL: BLANCO PURO */
     .stApp {
         background-color: #ffffff !important;
         color: #121318 !important;
+        transition: all 0.3s ease;
     }
 
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
@@ -50,7 +57,7 @@ st.markdown(
         display: none !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): MÁS ARRIBA Y CENTRADA */
+    /* 2. BARRA LATERAL (SIDEBAR): MÁS ARRIBA */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
@@ -58,7 +65,7 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.4rem !important;
+        gap: 0.3rem !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -71,23 +78,26 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL MÁS GRANDE, CENTRADA Y EN CÍRCULO CON BORDE NARANJA */
+    /* FOTO DE PERFIL MÁS GRANDE Y ABSOLUTAMENTE CENTRADA */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         text-align: center !important;
         display: flex !important;
         justify-content: center !important;
-        margin: 4px auto !important;
+        align-items: center !important;
+        margin: 2px auto !important;
+        width: 100% !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] img {
         border-radius: 50% !important;
-        width: 130px !important;
-        height: 130px !important;
+        width: 145px !important;
+        height: 145px !important;
         object-fit: cover !important;
         border: 4px solid #ff8c00 !important;
-        box-shadow: 0 0 18px rgba(255, 140, 0, 0.45);
-        display: block;
-        margin: 0 auto;
+        box-shadow: 0 0 20px rgba(255, 140, 0, 0.5);
+        display: block !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
     }
 
     /* Tarjeta de Perfil en Sidebar Compacta */
@@ -95,15 +105,15 @@ st.markdown(
         background: #1c1e26;
         border: 1px solid #323646;
         border-radius: 12px;
-        padding: 8px 10px;
+        padding: 6px 8px;
         text-align: center;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         margin-top: 2px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
 
     .sidebar-user-name {
-        font-size: 0.95rem;
+        font-size: 0.92rem;
         font-weight: 800;
         color: #ffffff !important;
         margin-top: 2px;
@@ -111,10 +121,10 @@ st.markdown(
     }
 
     .sidebar-user-email {
-        font-size: 0.73rem;
+        font-size: 0.72rem;
         color: #72b2ff !important;
         font-weight: 600;
-        margin-bottom: 3px;
+        margin-bottom: 2px;
     }
 
     .sidebar-user-cargo {
@@ -130,13 +140,13 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] hr {
-        margin: 6px 0 !important;
+        margin: 4px 0 !important;
         border-color: #282a36 !important;
     }
 
     [data-testid="stSidebar"] .stButton > button {
-        padding: 5px 14px !important;
-        font-size: 0.82rem !important;
+        padding: 4px 12px !important;
+        font-size: 0.8rem !important;
     }
 
     /* EXPANDER DE CONFIGURACIÓN */
@@ -149,13 +159,13 @@ st.markdown(
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
         background-color: #282c36 !important;
-        padding: 6px 10px !important;
+        padding: 5px 10px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
         color: #ffffff !important;
         font-weight: 700 !important;
-        font-size: 0.82rem !important;
+        font-size: 0.8rem !important;
     }
 
     /* 3. TARJETA PRINCIPAL CON BORDE NEGRO Y LETRA DISTINTIVA */
@@ -164,9 +174,9 @@ st.markdown(
         border: 1px solid #b8c4d8;
         border-left: 7px solid #121318;
         border-radius: 22px;
-        padding: 26px 30px;
+        padding: 24px 28px;
         box-shadow: 0 12px 35px rgba(0,0,0,0.06);
-        margin-bottom: 25px;
+        margin-bottom: 20px;
         transition: all 0.3s ease;
     }
     .executive-card-studio:hover {
@@ -191,7 +201,7 @@ st.markdown(
         background: linear-gradient(145deg, #eceff6 0%, #dbe2ef 100%);
         border: 1px solid #aebacf;
         border-radius: 20px;
-        padding: 22px;
+        padding: 20px;
         text-align: center;
         box-shadow: 0 8px 25px rgba(0,0,0,0.06);
         transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
@@ -203,7 +213,7 @@ st.markdown(
         box-shadow: 0 16px 35px rgba(0,0,0,0.12);
     }
     .kpi-val-studio {
-        font-size: 2.8rem;
+        font-size: 2.7rem;
         font-weight: 900;
         color: #121318 !important;
         letter-spacing: -0.03em;
@@ -214,7 +224,7 @@ st.markdown(
         text-transform: uppercase;
         font-weight: 800;
         letter-spacing: 0.08em;
-        margin-top: 6px;
+        margin-top: 4px;
     }
 
     /* PESTAÑAS (SEGMENT CONTROL) */
@@ -472,7 +482,7 @@ if not st.session_state.autenticado:
                 encoded_logo = base64.b64encode(image_file.read()).decode("utf-8")
             st.markdown(
                 f"""
-                <div style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
+                <div style="text-align: center; margin-top: 10px; margin-bottom: 10px;">
                     <img src="data:image/png;base64,{encoded_logo}" style="width: 320px; max-width: 100%; pointer-events: none;">
                 </div>
             """,
@@ -615,7 +625,7 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; margin-bottom: 4px; padding: 0 2px;">
+            <div style="text-align: center; margin-bottom: 2px; padding: 0 2px;">
                 <img src="data:image/png;base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none;">
             </div>
         """,
@@ -645,7 +655,7 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 6px; font-size: 0.7rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 3px; border-radius: 8px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 4px; font-size: 0.7rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 3px; border-radius: 8px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -696,7 +706,7 @@ with st.sidebar:
         st.session_state.autenticado = False
         st.rerun()
 
-    st.caption("Alpha Builders v36.0")
+    st.caption("Alpha Builders v37.0")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
