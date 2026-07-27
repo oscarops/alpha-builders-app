@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (COMPACTOS Y EFECTISTAS)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (AJUSTES FINALES)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -20,7 +20,7 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
@@ -35,7 +35,6 @@ st.markdown(
     .stApp {
         background-color: #ffffff !important;
         color: #121318 !important;
-        transition: all 0.3s ease;
     }
 
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
@@ -51,12 +50,15 @@ st.markdown(
         display: none !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): COMPACTO SIN SCROLL */
+    /* 2. BARRA LATERAL (SIDEBAR): MÁS ARRIBA Y CENTRADA */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
-        padding-top: 8px !important;
-        padding-bottom: 8px !important;
+        padding-top: 0px !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+        gap: 0.4rem !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -69,14 +71,21 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL EN CÍRCULO PERFECTO CON BORDE NARANJA */
+    /* FOTO DE PERFIL MÁS GRANDE, CENTRADA Y EN CÍRCULO CON BORDE NARANJA */
+    [data-testid="stSidebar"] [data-testid="stImage"] {
+        text-align: center !important;
+        display: flex !important;
+        justify-content: center !important;
+        margin: 4px auto !important;
+    }
+
     [data-testid="stSidebar"] [data-testid="stImage"] img {
         border-radius: 50% !important;
-        width: 110px !important;
-        height: 110px !important;
+        width: 130px !important;
+        height: 130px !important;
         object-fit: cover !important;
         border: 4px solid #ff8c00 !important;
-        box-shadow: 0 0 15px rgba(255, 140, 0, 0.4);
+        box-shadow: 0 0 18px rgba(255, 140, 0, 0.45);
         display: block;
         margin: 0 auto;
     }
@@ -86,10 +95,10 @@ st.markdown(
         background: #1c1e26;
         border: 1px solid #323646;
         border-radius: 12px;
-        padding: 10px;
+        padding: 8px 10px;
         text-align: center;
-        margin-bottom: 8px;
-        margin-top: 4px;
+        margin-bottom: 6px;
+        margin-top: 2px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
 
@@ -97,15 +106,15 @@ st.markdown(
         font-size: 0.95rem;
         font-weight: 800;
         color: #ffffff !important;
-        margin-top: 4px;
+        margin-top: 2px;
         margin-bottom: 1px;
     }
 
     .sidebar-user-email {
-        font-size: 0.75rem;
+        font-size: 0.73rem;
         color: #72b2ff !important;
         font-weight: 600;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
     }
 
     .sidebar-user-cargo {
@@ -113,55 +122,49 @@ st.markdown(
         background: #323646 !important;
         color: #ffffff !important;
         border: 1px solid #484e5e !important;
-        font-size: 0.68rem !important;
+        font-size: 0.65rem !important;
         font-weight: 800 !important;
-        padding: 3px 10px !important;
+        padding: 2px 8px !important;
         border-radius: 20px !important;
         text-transform: uppercase !important;
     }
 
-    /* ESPACIADOS Y BOTONES SIDEBAR COMPACTOS */
     [data-testid="stSidebar"] hr {
-        margin: 8px 0 !important;
+        margin: 6px 0 !important;
         border-color: #282a36 !important;
     }
 
     [data-testid="stSidebar"] .stButton > button {
-        padding: 6px 16px !important;
-        font-size: 0.85rem !important;
+        padding: 5px 14px !important;
+        font-size: 0.82rem !important;
     }
 
-    /* EXPANDER DE CONFIGURACIÓN COMPACTO */
+    /* EXPANDER DE CONFIGURACIÓN */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
         border-radius: 10px !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 2px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
         background-color: #282c36 !important;
-        padding: 8px 12px !important;
+        padding: 6px 10px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
         color: #ffffff !important;
         font-weight: 700 !important;
-        font-size: 0.85rem !important;
+        font-size: 0.82rem !important;
     }
 
-    /* Uploader compacto en Sidebar */
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] {
-        padding: 4px !important;
-    }
-
-    /* 3. TÍTULO PRINCIPAL CON EFECTOS VISUALES LLAMATIVOS */
+    /* 3. TARJETA PRINCIPAL CON BORDE NEGRO Y LETRA DISTINTIVA */
     .executive-card-studio {
-        background: linear-gradient(135deg, #f3f6fc 0%, #e5ebf5 100%);
+        background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
         border: 1px solid #b8c4d8;
-        border-left: 6px solid #ff8c00;
-        border-radius: 20px;
-        padding: 24px 28px;
+        border-left: 7px solid #121318;
+        border-radius: 22px;
+        padding: 26px 30px;
         box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         margin-bottom: 25px;
         transition: all 0.3s ease;
@@ -170,14 +173,18 @@ st.markdown(
         transform: translateY(-2px);
         box-shadow: 0 18px 45px rgba(0,0,0,0.12);
         border-color: #121318;
-        border-left-color: #ff8c00;
+        border-left-color: #121318;
     }
 
     .brand-title {
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 900 !important;
+        font-size: 2.6rem !important;
         background: linear-gradient(90deg, #121318 0%, #3a4256 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        text-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        letter-spacing: -0.04em !important;
     }
 
     .kpi-card-studio {
@@ -208,41 +215,6 @@ st.markdown(
         font-weight: 800;
         letter-spacing: 0.08em;
         margin-top: 6px;
-    }
-
-    /* BORDES NARANJA EN INPUTS DE LOGIN */
-    .stApp div[data-baseweb="input"] {
-        background-color: #ffffff !important;
-        border: 2px solid #ff8c00 !important;
-        border-radius: 12px !important;
-        box-shadow: 0 0 10px rgba(255, 140, 0, 0.2);
-        overflow: hidden !important;
-    }
-
-    .stApp div[data-baseweb="input"] input {
-        background-color: transparent !important;
-        color: #121318 !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 10px 14px !important;
-        font-size: 0.95rem !important;
-        font-weight: 600 !important;
-    }
-
-    .stApp .stSelectbox > div > div, .stApp .stNumberInput input, .stApp .stDateInput input {
-        background-color: #ffffff !important;
-        color: #121318 !important;
-        border: 1px solid #b8bec8 !important;
-        border-radius: 12px !important;
-        padding: 10px 14px !important;
-        font-size: 0.95rem !important;
-        font-weight: 600 !important;
-    }
-
-    .stTextInput input:disabled {
-        background-color: #e2e5ec !important;
-        color: #5a5f6e !important;
-        border: 1px solid #b8bec8 !important;
     }
 
     /* PESTAÑAS (SEGMENT CONTROL) */
@@ -630,7 +602,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL COMPACTA (SIN SCROLL) CON FOTO CIRCULAR
+# 5. BARRA LATERAL COMPACTA Y MÁS ARRIBA
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -643,14 +615,14 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; margin-bottom: 6px; padding: 0 4px;">
+            <div style="text-align: center; margin-bottom: 4px; padding: 0 2px;">
                 <img src="data:image/png;base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none;">
             </div>
         """,
             unsafe_allow_html=True,
         )
 
-    st.markdown("<h4 style='text-align: center; font-weight: 800; margin-bottom: 6px; margin-top: 0px; color: #ffffff; font-size: 0.95rem;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; font-weight: 800; margin-bottom: 4px; margin-top: 0px; color: #ffffff; font-size: 0.9rem;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
 
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     if not b64_foto:
@@ -673,7 +645,7 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 8px; font-size: 0.72rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 4px; border-radius: 10px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 6px; font-size: 0.7rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 3px; border-radius: 8px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -724,15 +696,15 @@ with st.sidebar:
         st.session_state.autenticado = False
         st.rerun()
 
-    st.caption("Alpha Builders v35.0")
+    st.caption("Alpha Builders v36.0")
 
 # ==========================================
-# 6. DASHBOARD PRINCIPAL CON TÍTULO DE ALTO IMPACTO VISUAL
+# 6. DASHBOARD PRINCIPAL
 # ==========================================
 st.markdown(
     f"""
     <div class="executive-card-studio">
-        <h1 class="brand-title" style="font-size: 2.4rem; font-weight: 900; margin: 0;">Portal de Control e Inspección</h1>
+        <h1 class="brand-title" style="font-size: 2.5rem; font-weight: 900; margin: 0;">Portal de Control e Inspección</h1>
         <p style="color: #5a5f6e; margin-top: 6px; font-size: 1.05rem;">{user_nombre_completo} — <b>{user_cargo}</b></p>
     </div>
 """,
