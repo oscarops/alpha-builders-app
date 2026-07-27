@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS ( ACOPLAMIENTO Y EXPANSIÓN TOTAL )
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (SIDEBAR FLUIDO Y EXPANSIVO)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,20 +31,13 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* FORZAR AL CONTENEDOR PRINCIPAL Y LA SECCIÓN MAIN A MOVERSE Y OCUPAR EL 100% DE LA PANTALLA */
-    section.main, [data-testid="stMain"] {
-        margin-left: 0px !important;
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-
-    .block-container, [data-testid="stMainBlockContainer"] {
+    /* CONTENEDOR PRINCIPAL ADAPTABLE AL ANCHO TOTAL */
+    .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1.5rem !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
+        padding-left: 2.5rem !important;
+        padding-right: 2.5rem !important;
         max-width: 100% !important;
-        width: 100% !important;
     }
 
     /* 1. FONDO PRINCIPAL: BLANCO PURO */
@@ -69,7 +62,6 @@ st.markdown(
         z-index: 999999 !important;
     }
 
-    /* CUANDO EL SIDEBAR ESTÁ OCULTO, EL BOTÓN SE FIJA EN LA ESQUINA SUPERIOR IZQUIERDA */
     [data-testid="collapsedControl"] {
         display: block !important;
         visibility: visible !important;
@@ -105,7 +97,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR) FIJA E INAMOVIBLE */
+    /* 2. BARRA LATERAL (SIDEBAR NATIVO Y FLUIDO) */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
@@ -113,15 +105,6 @@ st.markdown(
         padding-left: 12px !important;
         padding-right: 12px !important;
         padding-bottom: 15px !important;
-        width: 250px !important;
-        min-width: 250px !important;
-        max-width: 250px !important;
-        resize: none !important;
-    }
-
-    [data-testid="stSidebarResizer"] {
-        display: none !important;
-        pointer-events: none !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
