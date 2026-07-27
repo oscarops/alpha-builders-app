@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (CENTRALIZACIÓN PERFECTA)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (SIDEBAR FIJO Y CENTRADO)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,7 +31,6 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* SUBIR TODO EL CONTENIDO SUPERIOR DE LA PÁGINA */
     .block-container {
         padding-top: 1.2rem !important;
         padding-bottom: 2rem !important;
@@ -41,7 +40,6 @@ st.markdown(
     .stApp {
         background-color: #ffffff !important;
         color: #121318 !important;
-        transition: all 0.3s ease;
     }
 
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
@@ -53,15 +51,20 @@ st.markdown(
         color: #5a5f6e !important;
     }
 
-    [data-testid="stSidebarCollapseButton"] {
-        display: none !important;
-    }
-
-    /* 2. BARRA LATERAL (SIDEBAR): MÁS ARRIBA */
+    /* 2. BARRA LATERAL FIJA Y CON MARGEN INTERNO PARA QUE NO ESTÉ PEGADA */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
         padding-top: 0px !important;
+        padding-left: 15px !important;
+        padding-right: 15px !important;
+        min-width: 300px !important;
+        max-width: 300px !important;
+    }
+
+    /* BLOQUEAR EL RESIZE DE LA BARRA LATERAL */
+    [data-testid="stSidebarNav"] + div, [data-testid="stSidebar"] > div:first-child {
+        resize: none !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
@@ -78,7 +81,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* CORRECCIÓN ABSOLUTA: FOTO DE PERFIL 100% CENTRADA */
+    /* FOTO DE PERFIL 100% CENTRADA Y EXPUESTA */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: flex !important;
@@ -96,8 +99,8 @@ st.markdown(
 
     [data-testid="stSidebar"] [data-testid="stImage"] img {
         border-radius: 50% !important;
-        width: 145px !important;
-        height: 145px !important;
+        width: 140px !important;
+        height: 140px !important;
         object-fit: cover !important;
         border: 4px solid #ff8c00 !important;
         box-shadow: 0 0 20px rgba(255, 140, 0, 0.5);
@@ -618,7 +621,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL COMPACTA Y MÁS ARRIBA
+# 5. BARRA LATERAL CON BOTÓN TOGGLE Y MÁXIMA ELEGANCIA
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -626,6 +629,10 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
+    # Botón Superior para Mostrar / Ocultar Sidebar
+    if st.button("⇄ Ocultar / Mostrar Menú", use_container_width=True):
+        st.rerun()
+
     if os.path.exists("images.png"):
         with open("images.png", "rb") as image_file:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
@@ -712,7 +719,7 @@ with st.sidebar:
         st.session_state.autenticado = False
         st.rerun()
 
-    st.caption("Alpha Builders v38.0")
+    st.caption("Alpha Builders v39.0")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
