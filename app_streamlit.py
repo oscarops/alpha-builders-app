@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (SIDEBAR FLUIDO Y EXPANSIVO)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,7 +31,6 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* CONTENEDOR PRINCIPAL ADAPTABLE AL ANCHO TOTAL */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1.5rem !important;
@@ -97,7 +96,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR NATIVO Y FLUIDO) */
+    /* 2. BARRA LATERAL (SIDEBAR) */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
@@ -122,7 +121,6 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* TARJETA DEL LOGO ARRIBA */
     .sidebar-logo-card {
         background-color: #ffffff;
         border-radius: 12px;
@@ -136,7 +134,6 @@ st.markdown(
         display: block;
     }
 
-    /* FOTO DE PERFIL */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: block !important;
@@ -157,7 +154,6 @@ st.markdown(
         display: block !important;
     }
 
-    /* TARJETA DE PERFIL */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
@@ -211,7 +207,6 @@ st.markdown(
         border-color: #282a36 !important;
     }
 
-    /* EXPANDER DE CONFIGURACIÓN */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
@@ -231,7 +226,7 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* 3. TARJETA PRINCIPAL */
+    /* TARJETA PRINCIPAL */
     .executive-card-studio {
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
         border: 1px solid #b8c4d8;
@@ -348,6 +343,37 @@ st.markdown(
 # ==========================================
 DB_FILE = "local_db.json"
 
+DEFAULT_TRABAJADORES = [
+    {"nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER", "cargo": "BODEGA"},
+    {"nombre": "AGUALONGO PILAMUNGA LUIS LENIN", "cargo": "GYPSERO/ALBAÑIL"},
+    {"nombre": "ALTAMIRANO GUALAN WILLIAM PATRICIO", "cargo": "GYPSERO"},
+    {"nombre": "BUNSHI CAYANCELA SANTIAGO EFRAIN", "cargo": "ALBAÑIL"},
+    {"nombre": "CAYAMBE SANDOVAL LUIS ANTONIO", "cargo": "ALBAÑIL"},
+    {"nombre": "CUASCOTA INLAGO JOSE LIZARDO", "cargo": "ALBAÑIL"},
+    {"nombre": "CUERO BAMONTES DEIBINZON ESTALIN", "cargo": "AYUDANTE"},
+    {"nombre": "GUANOLUISA VACA LUIS FERNANDO", "cargo": "ALBAÑIL"},
+    {"nombre": "LLUGLLUNA FARINANGO SEGUNDO MANUEL", "cargo": "ALBAÑIL"},
+    {"nombre": "MORALES OTUNA VERONICA JAQUELINE", "cargo": "AYUDANTE"},
+    {"nombre": "OCHOA MORAN MIGUEL BERNARDO", "cargo": "GYPSERO"},
+    {"nombre": "PAGUAY RAMOS DILAN ANDRES", "cargo": "GYPSERO"},
+    {"nombre": "ROMERO ANDRANGO LUIS ENRIQUE", "cargo": "GYPSERO"},
+    {"nombre": "SANGUCHO FONSECA EDGAR XAVIER", "cargo": "ALBAÑIL"},
+    {"nombre": "TARAPUES MONARCO CARLOS ANDRES", "cargo": "GYPSERO"},
+    {"nombre": "TONATO TACO LUIS EUCLIDES", "cargo": "ALBAÑIL"},
+    {"nombre": "TOSCANO ALTAMIRANO JEREMMY WENDLEY", "cargo": "AYUDANTE"},
+    {"nombre": "TRONCOSO COBEÑA CRISTOPHER GEOVANNY", "cargo": "AYUDANTE"},
+    {"nombre": "TUTASI CASILLAS JORGE GEOVANI", "cargo": "FIERRERO"},
+    {"nombre": "CHAVEZ GUITARRA JOSE GREGORIO", "cargo": "GYPSERO"},
+    {"nombre": "CORDOVA FLORES ERICK DARIO", "cargo": "GYPSERO / AYUDANTE"},
+    {"nombre": "CABRERA CAMPO ANNDY JEREMIAS", "cargo": "GYPSERO / OPERADOR"},
+    {"nombre": "CHELA OCHOA RAUL", "cargo": "GYPSERO/ALBAÑIL"},
+    {"nombre": "SEMBLANTES TIPANLUISA JAVIER PATRICIO", "cargo": "GYPSERO/ALBAÑIL"},
+    {"nombre": "FUEREZ COYAGO JOSE SANTOS", "cargo": "HERRAMIENTAS"},
+    {"nombre": "ALTAMIRANO CORDOVA HECTOR LUIS", "cargo": "PINTOR"},
+    {"nombre": "ACOSTA AGUILAR JORGE PATRICIO", "cargo": "SOLDADOR"},
+    {"nombre": "TARAPUES CASTRO JOAO ALEXANDER", "cargo": "SOLDADOR"},
+]
+
 def get_repo_image_b64(filenames):
     for filename in filenames:
         if os.path.exists(filename):
@@ -362,7 +388,10 @@ def load_persistent_db():
     if os.path.exists(DB_FILE):
         try:
             with open(DB_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                d = json.load(f)
+                if "db_trabajadores" not in d:
+                    d["db_trabajadores"] = DEFAULT_TRABAJADORES
+                return d
         except Exception:
             pass
     return {
@@ -381,6 +410,7 @@ def load_persistent_db():
         ],
         "db_checklists": {},
         "db_rendimientos": {},
+        "db_trabajadores": DEFAULT_TRABAJADORES,
     }
 
 def save_persistent_db():
@@ -390,6 +420,7 @@ def save_persistent_db():
         "db_usuarios": st.session_state.get("db_usuarios", []),
         "db_checklists": st.session_state.get("db_checklists", {}),
         "db_rendimientos": st.session_state.get("db_rendimientos", {}),
+        "db_trabajadores": st.session_state.get("db_trabajadores", DEFAULT_TRABAJADORES),
     }
     try:
         with open(DB_FILE, "w", encoding="utf-8") as f:
@@ -404,6 +435,7 @@ if "db_loaded" not in st.session_state:
     st.session_state.db_usuarios = p_data.get("db_usuarios", [])
     st.session_state.db_checklists = p_data.get("db_checklists", {})
     st.session_state.db_rendimientos = p_data.get("db_rendimientos", {})
+    st.session_state.db_trabajadores = p_data.get("db_trabajadores", DEFAULT_TRABAJADORES)
     st.session_state.db_loaded = True
 
 def image_to_base64(image_file):
@@ -453,37 +485,6 @@ EDIFICIOS_ALPHA = [
     "Thomas Edison",
     "Westinghouse",
     "Smart",
-]
-
-TRABAJADORES_NO_MINA = [
-    {"nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER", "cargo": "BODEGA"},
-    {"nombre": "AGUALONGO PILAMUNGA LUIS LENIN", "cargo": "GYPSERO/ALBAÑIL"},
-    {"nombre": "ALTAMIRANO GUALAN WILLIAM PATRICIO", "cargo": "GYPSERO"},
-    {"nombre": "BUNSHI CAYANCELA SANTIAGO EFRAIN", "cargo": "ALBAÑIL"},
-    {"nombre": "CAYAMBE SANDOVAL LUIS ANTONIO", "cargo": "ALBAÑIL"},
-    {"nombre": "CUASCOTA INLAGO JOSE LIZARDO", "cargo": "ALBAÑIL"},
-    {"nombre": "CUERO BAMONTES DEIBINZON ESTALIN", "cargo": "AYUDANTE"},
-    {"nombre": "GUANOLUISA VACA LUIS FERNANDO", "cargo": "ALBAÑIL"},
-    {"nombre": "LLUGLLUNA FARINANGO SEGUNDO MANUEL", "cargo": "ALBAÑIL"},
-    {"nombre": "MORALES OTUNA VERONICA JAQUELINE", "cargo": "AYUDANTE"},
-    {"nombre": "OCHOA MORAN MIGUEL BERNARDO", "cargo": "GYPSERO"},
-    {"nombre": "PAGUAY RAMOS DILAN ANDRES", "cargo": "GYPSERO"},
-    {"nombre": "ROMERO ANDRANGO LUIS ENRIQUE", "cargo": "GYPSERO"},
-    {"nombre": "SANGUCHO FONSECA EDGAR XAVIER", "cargo": "ALBAÑIL"},
-    {"nombre": "TARAPUES MONARCO CARLOS ANDRES", "cargo": "GYPSERO"},
-    {"nombre": "TONATO TACO LUIS EUCLIDES", "cargo": "ALBAÑIL"},
-    {"nombre": "TOSCANO ALTAMIRANO JEREMMY WENDLEY", "cargo": "AYUDANTE"},
-    {"nombre": "TRONCOSO COBEÑA CRISTOPHER GEOVANNY", "cargo": "AYUDANTE"},
-    {"nombre": "TUTASI CASILLAS JORGE GEOVANI", "cargo": "FIERRERO"},
-    {"nombre": "CHAVEZ GUITARRA JOSE GREGORIO", "cargo": "GYPSERO"},
-    {"nombre": "CORDOVA FLORES ERICK DARIO", "cargo": "GYPSERO / AYUDANTE"},
-    {"nombre": "CABRERA CAMPO ANNDY JEREMIAS", "cargo": "GYPSERO / OPERADOR"},
-    {"nombre": "CHELA OCHOA RAUL", "cargo": "GYPSERO/ALBAÑIL"},
-    {"nombre": "SEMBLANTES TIPANLUISA JAVIER PATRICIO", "cargo": "GYPSERO/ALBAÑIL"},
-    {"nombre": "FUEREZ COYAGO JOSE SANTOS", "cargo": "HERRAMIENTAS"},
-    {"nombre": "ALTAMIRANO CORDOVA HECTOR LUIS", "cargo": "PINTOR"},
-    {"nombre": "ACOSTA AGUILAR JORGE PATRICIO", "cargo": "SOLDADOR"},
-    {"nombre": "TARAPUES CASTRO JOAO ALEXANDER", "cargo": "SOLDADOR"},
 ]
 
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
@@ -771,13 +772,65 @@ st.markdown(
 
 usr_chks = len(st.session_state.db_checklists.get(user_email, []))
 usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
+total_obreros = len(st.session_state.db_trabajadores)
 
 k1, k2, k3 = st.columns(3)
 with k1:
-    st.markdown(
-        '<div class="kpi-card-studio"><div class="kpi-val-studio">28</div><div class="kpi-lbl-studio">Obreros Activos</div></div>',
-        unsafe_allow_html=True,
-    )
+    with st.popover(f"👷 {total_obreros} Obreros Activos (Gestionar)", use_container_width=True):
+        st.markdown("#### Gestión de Obreros Activos")
+        st.caption("Agrega obreros manualmente o sube un archivo Excel (.xlsx / .csv).")
+
+        # Formulario para agregar individual
+        with st.form("form_add_obrero"):
+            nuevo_nombre_obrero = st.text_input("Nombre completo del obrero:")
+            nuevo_cargo_obrero = st.text_input("Cargo en obra (Ej. Albañil, Ayudante):")
+            btn_add_one = st.form_submit_button("Añadir Obrero")
+
+            if btn_add_one:
+                if nuevo_nombre_obrero and nuevo_cargo_obrero:
+                    st.session_state.db_trabajadores.append({
+                        "nombre": nuevo_nombre_obrero.strip().upper(),
+                        "cargo": nuevo_cargo_obrero.strip().upper()
+                    })
+                    save_persistent_db()
+                    st.success("¡Obrero agregado con éxito!")
+                    st.rerun()
+                else:
+                    st.error("Complete ambos campos.")
+
+        st.markdown("---")
+        st.markdown("**Carga Masiva vía Excel o CSV:**")
+        archivo_excel_obreros = st.file_uploader("Subir archivo con nombres y cargos", type=["xlsx", "csv"], key="upl_obreros")
+        
+        if archivo_excel_obreros is not None:
+            try:
+                if archivo_excel_obreros.name.endswith(".csv"):
+                    df_subido = pd.read_csv(archivo_excel_obreros)
+                else:
+                    df_subido = pd.read_excel(archivo_excel_obreros)
+                
+                if len(df_subido.columns) >= 2:
+                    st.write("Vista previa de datos cargados:", df_subido.head(3))
+                    if st.button("Importar y Actualizar Lista", type="primary"):
+                        for _, row in df_subido.iterrows():
+                            n_nom = str(row.iloc[0]).strip().upper()
+                            n_car = str(row.iloc[1]).strip().upper()
+                            if n_nom and n_nom != "NAN":
+                                if not any(t["nombre"] == n_nom for t in st.session_state.db_trabajadores):
+                                    st.session_state.db_trabajadores.append({"nombre": n_nom, "cargo": n_car})
+                        save_persistent_db()
+                        st.success("¡Obreros importados correctamente!")
+                        st.rerun()
+                else:
+                    st.error("El archivo debe contener al menos dos columnas (Nombre y Cargo).")
+            except Exception as e:
+                st.error(f"Error al leer el archivo: {e}")
+
+        st.markdown("---")
+        st.markdown("**Lista de obreros registrados:**")
+        df_obs_actuales = pd.DataFrame(st.session_state.db_trabajadores)
+        st.dataframe(df_obs_actuales, use_container_width=True, height=200)
+
 with k2:
     st.markdown(
         f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_chks}</div><div class="kpi-lbl-studio">Checklists Guardados</div></div>',
@@ -923,18 +976,45 @@ with tab_chk:
                     st.session_state.creando_jornada = False
                     st.rerun()
 
-    # HISTORIAL DE JORNADAS
+    # HISTORIAL DE JORNADAS (CON OPCIONES DE EDITAR, CAMBIAR NOMBRE Y ELIMINAR)
     st.markdown("---")
     st.markdown("### Historial de Jornadas e Inspecciones Creadas")
 
-    mis_jornadas = st.session_state.db_checklists.get(user_email, [])
+    if user_email not in st.session_state.db_checklists:
+        st.session_state.db_checklists[user_email] = []
+
+    mis_jornadas = st.session_state.db_checklists[user_email]
 
     if len(mis_jornadas) > 0:
-        for idx_j, j in enumerate(reversed(mis_jornadas), 1):
-            with st.expander(f"📌 Jornada #{len(mis_jornadas) - idx_j + 1} | Edificio: {j['Edificio']} | Fecha: {j['Fecha']} | Responsable: {j['Responsable']}"):
-                df_data = pd.DataFrame(j["Datos"])
+        for idx_j, j in enumerate(list(mis_jornadas)):
+            # Usamos un identificador único en el índice original
+            original_idx = len(mis_jornadas) - idx_j - 1
+            
+            with st.expander(f"📌 Jornada #{idx_j + 1} | Edificio: {j['Edificio']} | Fecha: {j['Fecha']} | Responsable: {j['Responsable']}"):
+                
+                # Opción para renombrar o cambiar fecha
+                with st.form(f"form_edit_jornada_{idx_j}"):
+                    st.markdown("#### Modificar Datos de la Jornada")
+                    col_ed1, col_ed2 = st.columns(2)
+                    with col_ed1:
+                        nuevo_nombre_edificio = st.text_input("Cambiar Nombre / Edificio:", value=j['Edificio'])
+                    with col_ed2:
+                        try:
+                            fecha_actual_obj = datetime.datetime.strptime(j['Fecha'], "%Y-%m-%d").date()
+                        except:
+                            fecha_actual_obj = datetime.date.today()
+                        nueva_fecha_obj = st.date_input("Cambiar Fecha:", value=fecha_actual_obj, key=f"f_ed_{idx_j}")
+
+                    btn_act_j = st.form_submit_button("Actualizar Nombre / Fecha")
+                    if btn_act_j:
+                        st.session_state.db_checklists[user_email][original_idx]['Edificio'] = nuevo_nombre_edificio.strip()
+                        st.session_state.db_checklists[user_email][original_idx]['Fecha'] = nueva_fecha_obj.strftime("%Y-%m-%d")
+                        save_persistent_db()
+                        st.success("¡Jornada actualizada con éxito!")
+                        st.rerun()
 
                 st.markdown("#### Detalle de Actividades e Inspección")
+                df_data = pd.DataFrame(j["Datos"])
                 for r_idx, row in df_data.iterrows():
                     col_det1, col_det2, col_det3 = st.columns([4, 2, 2])
                     with col_det1:
@@ -953,14 +1033,22 @@ with tab_chk:
 
                     st.markdown("<hr style='margin: 4px 0; border-color: #c2c7d2;'>", unsafe_allow_html=True)
 
-                csv_bytes = export_dataframe_to_excel_csv(df_data)
-                st.download_button(
-                    label=f"📥 Descargar Reporte CSV (Excel) - {j['Edificio']}",
-                    data=csv_bytes,
-                    file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.csv",
-                    mime="text/csv",
-                    key=f"dl_{idx_j}"
-                )
+                col_dl, col_del = st.columns([2, 2])
+                with col_dl:
+                    csv_bytes = export_dataframe_to_excel_csv(df_data)
+                    st.download_button(
+                        label=f"📥 Descargar CSV - {j['Edificio']}",
+                        data=csv_bytes,
+                        file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.csv",
+                        mime="text/csv",
+                        key=f"dl_{idx_j}"
+                    )
+                with col_del:
+                    if st.button(f"🗑️ Eliminar Jornada #{idx_j + 1}", key=f"del_j_{idx_j}", type="secondary"):
+                        st.session_state.db_checklists[user_email].pop(original_idx)
+                        save_persistent_db()
+                        st.success("Jornada eliminada correctamente.")
+                        st.rerun()
     else:
         st.info("Aún no ha creado jornadas de inspección. Presione 'Crear Nueva Jornada' para comenzar.")
 
@@ -973,9 +1061,9 @@ with tab_rend:
 
     col1, col2 = st.columns(2)
     with col1:
-        nombres_obreros = [t["nombre"] for t in TRABAJADORES_NO_MINA]
-        trabajador_sel = st.selectbox("Seleccionar Trabajador (28 Activos):", nombres_obreros)
-        cargo_actual = next(t["cargo"] for t in TRABAJADORES_NO_MINA if t["nombre"] == trabajador_sel)
+        nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
+        trabajador_sel = st.selectbox(f"Seleccionar Trabajador ({len(nombres_obreros)} Activos):", nombres_obreros)
+        cargo_actual = next((t["cargo"] for t in st.session_state.db_trabajadores if t["nombre"] == trabajador_sel), "OBRERO")
         st.info(f"**Cargo en obra:** {cargo_actual}")
 
     with col2:
