@@ -6,7 +6,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y TEMA STUDIO APPLE LIGHT SLATE
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS NATIVOS LIMPIOS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo de Control de Obra",
@@ -15,60 +15,53 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS Limpios y Profesionales (Blanco, Gris Slate, Negro Carbón)
+# Estilos CSS específicos (Sin romper iconos ni ligaduras SVG)
 st.markdown(
     """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-    * {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
-        transition: all 0.2s ease;
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     /* Fondo Lienzo Principal Studio Light Slate */
     .stApp {
         background: #f4f5f8 !important;
-        color: #1a1c23 !important;
     }
 
-    /* Texto Universal de Alta Legibilidad */
-    label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
-        color: #1a1c23 !important;
+    /* Ocultar iconos de colapso feos y solucionar textos desalineados */
+    [data-testid="stSidebarCollapseButton"] {
+        display: none !important;
     }
 
-    .stCaption, caption, small, [data-testid="stCaptionContainer"] {
-        color: #6c707a !important;
-    }
-
-    /* SIDEBAR CORREGIDO (BLANCO PURO) */
+    /* SIDEBAR BLANCO PURO ESPECÍFICO */
     [data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 1px solid #e1e3e8 !important;
-        padding-top: 20px !important;
+        padding-top: 15px !important;
     }
 
     /* Tarjeta de Perfil en Sidebar */
     .sidebar-profile-box {
         background: #f8f9fa;
         border: 1px solid #e1e3e8;
-        border-radius: 18px;
-        padding: 18px;
+        border-radius: 16px;
+        padding: 16px;
         text-align: center;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        margin-bottom: 15px;
     }
 
     .sidebar-user-name {
-        font-size: 1.15rem;
+        font-size: 1.1rem;
         font-weight: 800;
         color: #1a1c23 !important;
-        margin-top: 10px;
+        margin-top: 8px;
         margin-bottom: 2px;
     }
 
     .sidebar-user-email {
-        font-size: 0.85rem;
+        font-size: 0.82rem;
         color: #0071e3 !important;
         font-weight: 600;
         margin-bottom: 6px;
@@ -85,32 +78,31 @@ st.markdown(
         text-transform: uppercase;
     }
 
-    /* TARJETAS PRINCIPALES Y BANNER */
+    /* TARJETAS PRINCIPALES */
     .executive-card-light {
         background: #ffffff;
         border: 1px solid #e1e3e8;
         border-radius: 20px;
-        padding: 28px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.04);
-        margin-bottom: 25px;
+        padding: 26px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        margin-bottom: 20px;
     }
 
-    /* TARJETAS KPIS ELEVADAS CON SOMBRA Y HOVER */
+    /* TARJETAS KPIS ELEVADAS */
     .kpi-card-studio {
         background: #ffffff;
         border: 1px solid #e1e3e8;
         border-radius: 18px;
-        padding: 22px;
+        padding: 20px;
         text-align: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
     }
     .kpi-card-studio:hover {
         border-color: #1a1c23;
-        transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        transform: translateY(-2px);
     }
     .kpi-val-studio {
-        font-size: 2.7rem;
+        font-size: 2.5rem;
         font-weight: 900;
         color: #1a1c23 !important;
         letter-spacing: -0.03em;
@@ -124,38 +116,36 @@ st.markdown(
         margin-top: 4px;
     }
 
-    /* INPUTS Y SELECCIONES CLARAS */
+    /* INPUTS DE TEXTO ESPECÍFICOS Y LIMPIOS */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
         background-color: #ffffff !important;
         color: #1a1c23 !important;
         border: 1px solid #d1d5db !important;
         border-radius: 12px !important;
-        padding: 12px 16px !important;
+        padding: 10px 14px !important;
         font-size: 0.95rem !important;
-        font-weight: 500 !important;
-    }
-
-    .stTextInput input:focus, .stSelectbox > div > div:focus, .stNumberInput input:focus {
-        border-color: #0071e3 !important;
-        box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15) !important;
     }
 
     .stTextInput input:disabled {
         background-color: #f0f2f5 !important;
         color: #6c707a !important;
-        border-color: #e1e3e8 !important;
     }
 
-    /* PESTAÑAS (SEGMENT CONTROL APPLE STUDIO) */
+    /* BOTÓN OJO DE VER CONTRASEÑA CORREGIDO */
+    [data-testid="stTextInputIconButton"] {
+        right: 10px !important;
+    }
+
+    /* PESTAÑAS (SEGMENT CONTROL) */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
+        gap: 8px;
         background-color: #e5e7eb !important;
-        padding: 6px;
-        border-radius: 16px;
+        padding: 5px;
+        border-radius: 14px;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 12px;
-        padding: 10px 24px;
+        border-radius: 10px;
+        padding: 10px 22px;
         background-color: transparent !important;
         color: #4b5563 !important;
         font-weight: 600;
@@ -165,26 +155,22 @@ st.markdown(
         background-color: #ffffff !important;
         color: #1a1c23 !important;
         font-weight: 800;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
     }
 
-    /* BOTONES MONOCROMÁTICOS ELEGANTES */
+    /* BOTONES PRIMARIOS NEGROS */
     .stButton > button {
         background-color: #1a1c23 !important;
         color: #ffffff !important;
         border-radius: 980px !important;
         border: none !important;
         font-weight: 700 !important;
-        padding: 11px 26px !important;
-        box-shadow: 0 4px 12px rgba(26, 28, 35, 0.2) !important;
-    }
-    .stButton > button * {
-        color: #ffffff !important;
+        padding: 10px 24px !important;
+        box-shadow: 0 4px 12px rgba(26, 28, 35, 0.15) !important;
     }
     .stButton > button:hover {
         background-color: #0071e3 !important;
-        box-shadow: 0 6px 18px rgba(0, 113, 227, 0.3) !important;
-        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 113, 227, 0.25) !important;
     }
 
     #MainMenu {visibility: hidden;}
@@ -198,7 +184,7 @@ st.markdown(
 # 2. FUNCIONES DE APOYO Y ALMACENAMIENTO PERSISTENTE (BASE64)
 # ==========================================
 def image_to_base64(image_file):
-    """Guarda la imagen de perfil en formato Base64 para que no se borre al actualizar controles"""
+    """Guarda la imagen de perfil en formato Base64 para que no se borre"""
     if image_file is not None:
         try:
             img = Image.open(image_file)
@@ -341,7 +327,7 @@ if not st.session_state.autenticado:
         st.markdown(
             """
             <div class="executive-card-light" style="text-align: center; margin-top: 40px;">
-                <h1 style="font-size: 2.6rem; letter-spacing: -0.04em; font-weight: 900; margin: 0;">ALPHA BUILDERS</h1>
+                <h1 style="font-size: 2.5rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #1a1c23;">ALPHA BUILDERS</h1>
                 <p style="color: #6c707a; font-size: 1.05rem; font-weight: 500; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
             </div>
         """,
@@ -472,7 +458,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON PERSISTENCIA DE IMAGEN Y CONFIGURACIÓN
+# 5. BARRA LATERAL CON PERFIL Y CONFIGURACIÓN
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -480,7 +466,7 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    st.markdown("<h3 style='text-align: center; font-weight: 900; margin-bottom: 15px;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #1a1c23;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
     # Carga persistente de imagen en Base64
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
@@ -501,13 +487,13 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #1a1c23; font-weight: 800; background: #e5e7eb; padding: 8px; border-radius: 12px; border: 1px solid #d1d5db;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #1a1c23; font-weight: 800; background: #e5e7eb; padding: 6px; border-radius: 12px; border: 1px solid #d1d5db;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # Módulo de Configuración de Cuenta Limpio en Sidebar
+    # Módulo de Configuración en Sidebar
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
-        st.caption("Ajustes personales y de seguridad:")
+        st.caption("Ajustes personales:")
         
         edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
         edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
@@ -552,7 +538,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v14.0\nPro Edition")
+    st.caption("Alpha Builders Portal v15.0 Clean")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
@@ -560,7 +546,7 @@ with st.sidebar:
 st.markdown(
     f"""
     <div class="executive-card-light">
-        <h1 style="font-size: 2.3rem; letter-spacing: -0.03em; font-weight: 900; margin: 0;">Alpha Builders</h1>
+        <h1 style="font-size: 2.3rem; letter-spacing: -0.03em; font-weight: 900; margin: 0; color: #1a1c23;">Alpha Builders</h1>
         <p style="color: #6c707a; margin-top: 4px; font-size: 1.05rem;">Panel de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
     </div>
 """,
@@ -599,7 +585,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (CON CASILLAS OBLIGATORIAS SIN SELECCIONAR Y SELECCIÓN DE 12 EDIFICIOS)
+# 7. MÓDULO 1: CHECKLIST DIARIO
 # ==========================================
 with tab_chk:
     st.markdown("### Check List Diario – Control de Obra")
@@ -621,10 +607,8 @@ with tab_chk:
             col_m1, col_m2, col_m3 = st.columns(3)
 
             with col_m1:
-                # SELECCIÓN ENTRE LOS 12 EDIFICIOS
                 edificio_val = st.selectbox("Edificio / Proyecto:", EDIFICIOS_ALPHA, key="sel_edificio")
             with col_m2:
-                # RESPONSABLE AUTOMÁTICO BLOQUEADO
                 st.text_input("Responsable:", value=user_nombre_completo, disabled=True, help="Obtenido automáticamente de la sesión activa.")
             with col_m3:
                 fecha_val = st.date_input("Fecha de Inspección:", datetime.date.today(), key="sel_fecha")
@@ -640,7 +624,6 @@ with tab_chk:
                     c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
                     with c_sel:
-                        # INDEX=NONE: OBLIGA A SELECCIONAR MANUALMENTE
                         est = st.radio(
                             "Estado",
                             ["✓ Cumple", "✗ No Cumple", "N/A"],
@@ -664,7 +647,6 @@ with tab_chk:
                     c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
                     with c_sel:
-                        # INDEX=NONE: OBLIGA A SELECCIONAR MANUALMENTE
                         est = st.radio(
                             "Estado",
                             ["✓ Cumple", "✗ No Cumple", "N/A"],
@@ -685,7 +667,6 @@ with tab_chk:
             if btn_guardar_chk:
                 all_chk_data = resp_manana + resp_tarde
                 
-                # Validar que no queden campos vacíos
                 sin_responder = [item["Actividad"] for item in all_chk_data if item["Estado"] is None]
                 if sin_responder:
                     st.error(f"⚠️ Por favor seleccione el estado de todas las actividades ({len(sin_responder)} pendientes).")
