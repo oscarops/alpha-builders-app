@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (ANCHO 100% FLUIDO)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (ANCHO TOTAL ADAPTABLE)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,14 +31,21 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* CONTENEDOR PRINCIPAL QUE SE ACOPLA AL 100% DE LA PANTALLA AL OCULTAR EL SIDEBAR */
-    [data-testid="stMainBlockContainer"], .block-container {
+    /* CONTENEDOR PRINCIPAL QUE SE ACOPLA Y EXTIENDE A LA IZQUIERDA AL OCULTAR EL SIDEBAR */
+    .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1.5rem !important;
-        padding-left: 3rem !important;
-        padding-right: 3rem !important;
+        padding-left: 2.5rem !important;
+        padding-right: 2.5rem !important;
         max-width: 100% !important;
         width: 100% !important;
+    }
+
+    /* FORZAR AL CONTENEDOR DE LA PÁGINA A OCUPAR TODO EL ANCHO DISPONIBLE */
+    [data-testid="stMain"] {
+        width: 100% !important;
+        flex: 1 1 0% !important;
+        margin-left: 0px !important;
     }
 
     /* 1. FONDO PRINCIPAL: BLANCO PURO */
