@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (ACOPLAMIENTO PERFECTO)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,6 +31,7 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
+    /* CONTENEDOR PRINCIPAL QUE SE ACOPLA A PANTALLA COMPLETA AL OCULTAR EL SIDEBAR */
     .block-container {
         padding-top: 0.8rem !important;
         padding-bottom: 1.2rem !important;
@@ -221,7 +222,7 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* CONTENEDOR BLANCO DE CONFIGURACIÓN CON LETRAS NEGRAS Y VISIBILIDAD DE UPLOAD */
+    /* CONTENEDOR BLANCO DE CONFIGURACIÓN CON LETRAS NEGRAS (SIN ELEMENTOS FANTASMAS) */
     .config-white-card {
         background-color: #ffffff !important;
         border-radius: 10px;
@@ -252,14 +253,12 @@ st.markdown(
         color: #121318 !important;
     }
 
-    /* VISIBILIDAD DE LETRAS DE UPLOAD EN TARJETA BLANCA */
     .config-white-card [data-testid="stFileUploader"] span,
     .config-white-card [data-testid="stFileUploader"] small,
     .config-white-card [data-testid="stFileUploader"] div {
         color: #121318 !important;
     }
 
-    /* OJOS DE CONTRASEÑA EN COLOR OSCURO VISIBLE */
     .config-white-card button[aria-label*="password"] svg {
         fill: #121318 !important;
         color: #121318 !important;
@@ -465,9 +464,6 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_nombres = ""
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
-
-if "expander_abierto" not in st.session_state:
-    st.session_state.expander_abierto = False
 
 EDIFICIOS_ALPHA = [
     "Tesla",
@@ -686,7 +682,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (CONFIGURACIÓN CON FONDO BLANCO SIN TEXTO DE TÍTULO)
+# 5. BARRA LATERAL (CONFIGURACIÓN CON FONDO BLANCO SIN ELEMENTO FANTASMA)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
