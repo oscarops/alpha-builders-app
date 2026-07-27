@@ -235,6 +235,8 @@ st.markdown(
         padding: 22px 28px;
         box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         margin-bottom: 20px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .brand-title {
@@ -866,7 +868,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (UNIFICADO EN 2 COLUMNAS + HISTORIAL AGRUPADO POR MES)
+# 7. MÓDULO 1: CHECKLIST DIARIO (UNIFICADO EN 2 COLUMNAS + VISTA PREVIA DE IMÁGENES)
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -887,7 +889,6 @@ with tab_chk:
             with st.container():
                 st.markdown("#### Configuración de la Nueva Jornada")
                 
-                # DISTRIBUCIÓN EQUILIBRADA EN 3 COLUMNAS PARA EVITAR ESPACIO VACÍO A LA DERECHA
                 cfg_c1, cfg_c2, cfg_c3 = st.columns(3)
                 with cfg_c1:
                     edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="sel_edificio")
@@ -1061,12 +1062,20 @@ with tab_chk:
                                         st.success("¡Actualizado con éxito!")
                                         st.rerun()
 
-                                st.markdown("**Actividades Registradas:**")
+                                st.markdown("#### Actividades Registradas y Evidencias:")
                                 df_data = pd.DataFrame(j["Datos"])
                                 for _, row in df_data.iterrows():
                                     st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: `{row['Estado']}`")
                                     if row['Observaciones']:
                                         st.caption(f"Obs: {row['Observaciones']}")
+                                    
+                                    # VISTA PREVIA DIRECTA DE LA IMAGEN DE EVIDENCIA SI EXISTE
+                                    if row.get("Foto_B64") is not None:
+                                        img_evidencia = base64_to_image(row["Foto_B64"])
+                                        if img_evidencia:
+                                            st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", width=280)
+
+                                    st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
                                 csv_bytes = export_dataframe_to_excel_csv(df_data)
                                 st.download_button(
