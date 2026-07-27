@@ -1,190 +1,209 @@
+import base64
 import datetime
+import io
 import pandas as pd
+from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN Y ESTILOS CUPERTINO / SILICON VALLEY (APPLE PRO UI)
+# 1. CONFIGURACIÓN DE PÁGINA Y TEMA SILICON VALLEY / MONOCHROME GLASS
 # ==========================================
 st.set_page_config(
-    page_title="Alpha Builders | Executive Portal",
-    page_icon="🏢",
+    page_title="Alpha Builders | Portal Ejecutivo de Control de Obra",
+    page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS Avanzados: Silicon Valley / Cupertino Apple Aesthetic
+# Estilos CSS de Alta Gama para Interfaz Silicon Valley / Dark Slate (Gris, Blanco, Negro y Cristal)
 st.markdown(
     """
     <style>
-    /* Transiciones y Smooth Scrolling */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
     * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
         transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* Fondo Canvas Apple Light */
+    /* Fondo Canvas Principal */
     .stApp {
-        background: #f5f5f7 !important;
-        color: #1d1d1f !important;
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        background: radial-gradient(circle at 50% -20%, #1a1d29 0%, #0b0c10 60%, #050608 100%) !important;
+        color: #f5f5f7 !important;
     }
 
-    /* Legibilidad y Tipografía */
+    /* Regla Universal de Legibilidad */
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
-        color: #1d1d1f !important;
-    }
-    
-    .stCaption, caption, small, [data-testid="stCaptionContainer"] {
-        color: #6e6e73 !important;
+        color: #f5f5f7 !important;
     }
 
-    /* BARRA LATERAL ESTILO APPLE CUPERTINO (SIDEBAR) */
+    .stCaption, caption, small, [data-testid="stCaptionContainer"] {
+        color: #9a9a9f !important;
+    }
+
+    /* SIDEBAR ESTILO SILICON VALLEY EXECUTIVE */
     [data-testid="stSidebar"] {
-        background: #ffffff !important;
-        border-right: 1px solid #e5e5e7 !important;
-        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.02) !important;
+        background: rgba(18, 20, 29, 0.95) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+        backdrop-filter: blur(20px) !important;
         padding-top: 20px !important;
     }
-    
-    /* Tipografía Estilizada en Sidebar (Sin bloques feos) */
+
+    /* Contenedor de Perfil en Sidebar */
+    .sidebar-profile-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+
     .sidebar-user-name {
         font-size: 1.15rem;
-        font-weight: 700;
-        color: #1d1d1f;
+        font-weight: 800;
+        color: #ffffff !important;
+        letter-spacing: -0.02em;
         margin-top: 10px;
         margin-bottom: 2px;
-        letter-spacing: -0.01em;
-    }
-    .sidebar-user-email {
-        font-size: 0.88rem;
-        color: #0071e3 !important;
-        font-weight: 500;
-        margin-bottom: 6px;
-    }
-    .sidebar-user-cargo {
-        font-size: 0.82rem;
-        color: #86868b !important;
-        text-transform: uppercase;
-        font-weight: 600;
-        letter-spacing: 0.05em;
     }
 
-    /* TARJETAS GLASSMORPHISM / APPLE CARD */
-    .apple-card-pro {
-        background: #ffffff;
-        border: 1px solid #e5e5e7;
+    .sidebar-user-email {
+        font-size: 0.82rem;
+        color: #8a8a93 !important;
+        margin-bottom: 8px;
+    }
+
+    .sidebar-user-cargo {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff !important;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 5px 14px;
         border-radius: 20px;
-        padding: 28px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    /* TARJETAS EJECUTIVAS GLASSMORPHISM */
+    .executive-card {
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 24px;
+        padding: 32px;
+        backdrop-filter: blur(30px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
         margin-bottom: 25px;
     }
-    .apple-card-pro:hover {
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
-        border-color: #d2d2d7;
+    .executive-card:hover {
+        border-color: rgba(255, 255, 255, 0.22);
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        transform: translateY(-2px);
     }
 
-    /* TARJETAS KPIS INTERACTIVAS CON EFECTO HOVER */
-    .kpi-card-pro {
-        background: #ffffff;
-        border: 1px solid #e5e5e7;
-        border-radius: 18px;
-        padding: 22px;
+    /* KPIS DASHBOARD CON DEGRADADO MONOCROMÁTICO */
+    .kpi-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 22px;
+        padding: 24px;
         text-align: center;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
     }
-    .kpi-card-pro:hover {
-        border-color: #0071e3;
+    .kpi-card:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: #ffffff;
         transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(0, 113, 227, 0.12);
+        box-shadow: 0 15px 35px rgba(255, 255, 255, 0.12);
     }
-    .kpi-value-pro {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #1d1d1f !important;
-        letter-spacing: -0.03em;
+    .kpi-value {
+        font-size: 2.8rem;
+        font-weight: 900;
+        color: #ffffff !important;
+        letter-spacing: -0.04em;
     }
-    .kpi-label-pro {
+    .kpi-label {
         font-size: 0.78rem;
-        color: #86868b !important;
+        color: #8a8a93 !important;
         text-transform: uppercase;
-        font-weight: 600;
-        letter-spacing: 0.08em;
-        margin-top: 4px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        margin-top: 6px;
     }
 
-    /* INPUTS Y SELECTBOXES APPLE STYLE */
+    /* INPUTS Y SELECTBOXES MONOCHROME GLASS */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
-        background-color: #ffffff !important;
-        color: #1d1d1f !important;
-        border: 1px solid #d2d2d7 !important;
-        border-radius: 12px !important;
-        padding: 10px 14px !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 14px !important;
+        padding: 12px 16px !important;
         font-size: 0.95rem !important;
-        font-weight: 500 !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+        backdrop-filter: blur(12px) !important;
     }
 
     .stTextInput input:focus, .stSelectbox > div > div:focus, .stNumberInput input:focus {
-        border-color: #0071e3 !important;
-        box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15) !important;
+        border-color: #ffffff !important;
+        box-shadow: 0 0 18px rgba(255, 255, 255, 0.25) !important;
+        background-color: rgba(255, 255, 255, 0.09) !important;
     }
 
-    /* INPUT DESHABILITADO BLOQUEADO */
     .stTextInput input:disabled {
-        background-color: #f2f2f7 !important;
-        color: #86868b !important;
-        border-color: #e5e5e7 !important;
-        cursor: not-allowed;
+        background-color: rgba(255, 255, 255, 0.02) !important;
+        color: #6a6a70 !important;
+        border-color: rgba(255, 255, 255, 0.05) !important;
     }
 
-    /* PESTAÑAS SEGMENT CONTROL APPLE */
+    /* PESTAÑAS SEGMENT CONTROL SILICON VALLEY */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #e8e8ed !important;
-        padding: 6px;
-        border-radius: 16px;
+        gap: 12px;
+        background-color: rgba(255, 255, 255, 0.03) !important;
+        padding: 8px;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 12px;
-        padding: 10px 24px;
+        border-radius: 14px;
+        padding: 12px 28px;
         background-color: transparent !important;
-        color: #6e6e73 !important;
+        color: #8a8a93 !important;
         font-weight: 600;
         border: none !important;
     }
     .stTabs [aria-selected="true"] {
         background-color: #ffffff !important;
-        color: #1d1d1f !important;
-        font-weight: 700;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+        color: #000000 !important;
+        font-weight: 800;
+        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2) !important;
     }
 
-    /* BOTONES SILICON VALLEY PILL BUTTONS */
+    /* BOTONES MONOCROMÁTICOS ELEVADOS */
     .stButton > button {
-        background-color: #0071e3 !important;
-        color: #ffffff !important;
+        background: linear-gradient(180deg, #ffffff 0%, #e0e0e2 100%) !important;
+        color: #000000 !important;
         border-radius: 980px !important;
         border: none !important;
-        font-weight: 600 !important;
-        padding: 11px 24px !important;
-        box-shadow: 0 2px 8px rgba(0, 113, 227, 0.25) !important;
+        font-weight: 700 !important;
+        padding: 12px 30px !important;
+        box-shadow: 0 6px 18px rgba(255, 255, 255, 0.15) !important;
     }
     .stButton > button * {
-        color: #ffffff !important;
+        color: #000000 !important;
     }
     .stButton > button:hover {
-        background-color: #0077ed !important;
-        box-shadow: 0 6px 18px rgba(0, 113, 227, 0.35) !important;
-        transform: translateY(-1px);
+        background: #ffffff !important;
+        box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3) !important;
+        transform: translateY(-2px);
     }
 
-    /* TARJETA DE HISTORIAL JORNADAS */
-    .jornada-history-card {
-        background-color: #ffffff;
-        border-left: 4px solid #0071e3;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    /* EXPANDERS / CONTENEDORES DESPLEGABLES */
+    .streamlit-expanderHeader {
+        background-color: rgba(255, 255, 255, 0.03) !important;
+        border-radius: 14px !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        font-weight: 600 !important;
     }
 
     #MainMenu {visibility: hidden;}
@@ -195,7 +214,32 @@ st.markdown(
 )
 
 # ==========================================
-# 2. ESTADOS DE SESIÓN Y BASE DE DATOS
+# 2. FUNCIONES DE APOYO Y ALMACENAMIENTO PERSISTENTE BASE64
+# ==========================================
+def image_to_base64(image_file):
+    """Convierte una imagen subida en string base64 para guardarla de forma permanente en la sesión"""
+    if image_file is not None:
+        try:
+            img = Image.open(image_file)
+            buffered = io.BytesIO()
+            img.save(buffered, format="PNG")
+            return base64.b64encode(buffered.getvalue()).decode("utf-8")
+        except Exception:
+            return None
+    return None
+
+def base64_to_image(b64_str):
+    """Decodifica el string base64 guardado para reconstruir la imagen de perfil"""
+    if b64_str:
+        try:
+            img_data = base64.b64decode(b64_str)
+            return Image.open(io.BytesIO(img_data))
+        except Exception:
+            return None
+    return None
+
+# ==========================================
+# 3. BASE DE DATOS Y ESTADOS DE SESIÓN
 # ==========================================
 if "admin_emails" not in st.session_state:
     st.session_state.admin_emails = ["oscarsebitas2013@gmail.com"]
@@ -207,8 +251,9 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
 
-if "db_fotos_perfil" not in st.session_state:
-    st.session_state.db_fotos_perfil = {}
+# Almacenamiento persistente de fotos de perfil en Base64 {email: b64_string}
+if "db_fotos_perfil_b64" not in st.session_state:
+    st.session_state.db_fotos_perfil_b64 = {}
 
 if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = [
@@ -229,15 +274,23 @@ if "db_checklists" not in st.session_state:
 if "db_rendimientos" not in st.session_state:
     st.session_state.db_rendimientos = {}
 
-# Lista de Edificios / Proyectos Disponibles
+# NÓMINA OFICIAL COMPLETA DE LOS 12 EDIFICIOS DE ALPHA BUILDERS
 EDIFICIOS_ALPHA = [
-    "Edificio Alpha Builders (Matriz)",
-    "Edificio Siglo XXI",
-    "Torre República",
-    "Torre Moscú",
-    "Proyecto Residencial El Bosque",
+    "Tesla",
+    "Lafuente",
+    "Imagine",
+    "Asimov",
+    "Rubik",
+    "Castle Rock",
+    "Musk",
+    "Wolf",
+    "Dablanc",
+    "Thomas Edison",
+    "Westinghouse",
+    "Smart",
 ]
 
+# NÓMINA REAL DE 28 TRABAJADORES OPERATIVOS
 TRABAJADORES_NO_MINA = [
     {"nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER", "cargo": "BODEGA"},
     {"nombre": "AGUALONGO PILAMUNGA LUIS LENIN", "cargo": "GYPSERO/ALBAÑIL"},
@@ -272,6 +325,7 @@ TRABAJADORES_NO_MINA = [
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
 RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
 
+# ACTIVIDADES OFICIALES DEL CHECKLIST
 ACTIVIDADES_MANANA = [
     "Verificación de asistencia del personal",
     "Distribución de cuadrillas por frente de trabajo",
@@ -299,14 +353,14 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 3. MÓDULO DE LOGIN & REGISTRO
+# 4. MÓDULO DE LOGIN & REGISTRO (CON VALIDACIÓN DE CONTRASEÑA)
 # ==========================================
 if not st.session_state.autenticado:
     st.markdown(
         """
-        <div class="apple-card-pro" style="text-align: center; max-width: 620px; margin: 50px auto 20px auto;">
-            <h1 style="font-size: 2.7rem; letter-spacing: -0.03em; font-weight: 700;">Alpha Builders</h1>
-            <p style="color: #6e6e73; font-size: 1.05rem;">Portal Oficial de Control de Obra y Calidad</p>
+        <div class="executive-card" style="text-align: center; max-width: 640px; margin: 60px auto 20px auto;">
+            <h1 style="font-size: 2.8rem; letter-spacing: -0.04em; font-weight: 900;">Alpha Builders</h1>
+            <p style="color: #8a8a93; font-size: 1.05rem;">Portal Ejecutivo de Control de Obra y Calidad</p>
         </div>
     """,
         unsafe_allow_html=True,
@@ -320,7 +374,7 @@ if not st.session_state.autenticado:
         # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
-            st.caption("Ingrese sus credenciales registradas.")
+            st.caption("Ingrese sus credenciales para acceder al sistema.")
 
             login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
             login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
@@ -350,10 +404,10 @@ if not st.session_state.autenticado:
                 else:
                     st.error("Por favor ingrese su correo y contraseña.")
 
-        # --- REGISTRARSE ---
+        # --- REGISTRARSE (CON REPETIR CONTRASEÑA) ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
-            st.caption("Complete la información para registrar su perfil de acceso.")
+            st.caption("Complete todos los campos para registrar su cuenta.")
 
             col_n, col_a = st.columns(2)
             with col_n:
@@ -379,7 +433,7 @@ if not st.session_state.autenticado:
                         mail_clean = reg_email.strip().lower()
                         exists = any(u["Correo"] == mail_clean for u in st.session_state.db_usuarios)
                         if exists:
-                            st.warning("Este correo ya se encuentra registrado. Inicie sesión.")
+                            st.warning("Este correo ya se encuentra registrado.")
                         else:
                             st.session_state.autenticado = True
                             st.session_state.usuario_email = mail_clean
@@ -410,7 +464,7 @@ if not st.session_state.autenticado:
         # --- RECUPERACIÓN DE CONTRASEÑA ---
         with tab_reset:
             st.markdown("### Recuperación de Contraseña")
-            st.caption("Restablezca su acceso de forma segura.")
+            st.caption("Restablezca su contraseña de acceso.")
 
             reset_email = st.text_input("Ingrese su correo registrado:", placeholder="ejemplo@correo.com", key="rst_email")
             
@@ -430,7 +484,7 @@ if not st.session_state.autenticado:
 
                         if u_match:
                             u_match["Password"] = new_pass
-                            st.success(f"Contraseña actualizada con éxito para {mail_clean}. Ya puede iniciar sesión.")
+                            st.success(f"Contraseña actualizada con éxito para {mail_clean}.")
                         else:
                             st.error("El correo ingresado no se encuentra registrado.")
                 else:
@@ -439,7 +493,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 4. BARRA LATERAL (CUPERTINO ESTILIZADO)
+# 5. BARRA LATERAL CON PERSISTENCIA DE IMAGEN Y CONFIGURACIÓN
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -447,25 +501,34 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    st.markdown("<h3 style='margin-bottom: 12px; font-weight: 700;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-bottom: 15px; font-weight: 800;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
-    foto_perfil = st.session_state.db_fotos_perfil.get(user_email, None)
-    if foto_perfil is not None:
-        st.image(foto_perfil, use_column_width=True)
+    # Reconstrucción de la foto guardada en base64 (Evita que se borre)
+    b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
+    img_obj = base64_to_image(b64_foto)
 
-    # Tipografía estilizada limpia (Sin bloques feos en correo o cargo)
-    st.markdown(f"<div class='sidebar-user-name'>{user_nombre_completo}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='sidebar-user-email'>{user_email}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='sidebar-user-cargo'>Cargo: {user_cargo}</div>", unsafe_allow_html=True)
+    if img_obj is not None:
+        st.image(img_obj, use_column_width=True)
+
+    st.markdown(
+        f"""
+        <div class="sidebar-profile-card">
+            <div class="sidebar-user-name">{user_nombre_completo}</div>
+            <div class="sidebar-user-email">{user_email}</div>
+            <div class="sidebar-user-cargo">{user_cargo}</div>
+        </div>
+    """,
+        unsafe_allow_html=True,
+    )
 
     if es_admin:
-        st.markdown("<div style='margin-top: 8px; font-size: 0.8rem; color: #0071e3; font-weight: 600;'>Administrador General</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #ffffff; font-weight: 800; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2);'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # Módulo de Configuración en Sidebar
+    # Módulo de Configuración de Cuenta en Sidebar (Con Confirmación de Clave)
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
-        st.caption("Ajustes personales:")
+        st.caption("Ajustes personales y de seguridad:")
         
         edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
         edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
@@ -477,9 +540,11 @@ with st.sidebar:
         edit_pass = st.text_input("Nueva Contraseña:", type="password", key="sb_pass")
         edit_pass_rep = st.text_input("Repetir Contraseña:", type="password", key="sb_pass_rep")
 
-        nueva_foto = st.file_uploader("Actualizar Foto de Perfil", type=["jpg", "jpeg", "png"], key="sb_foto")
-        if nueva_foto is not None:
-            st.session_state.db_fotos_perfil[user_email] = nueva_foto
+        nueva_foto_file = st.file_uploader("Actualizar Foto de Perfil", type=["jpg", "jpeg", "png"], key="sb_foto_file")
+        if nueva_foto_file is not None:
+            b64_str = image_to_base64(nueva_foto_file)
+            if b64_str:
+                st.session_state.db_fotos_perfil_b64[user_email] = b64_str
 
         if st.button("Guardar Ajustes", type="primary", use_container_width=True):
             if edit_pass.strip() or edit_pass_rep.strip():
@@ -499,7 +564,7 @@ with st.sidebar:
                     if edit_pass.strip():
                         u["Password"] = edit_pass.strip()
 
-            st.success("Configuración actualizada.")
+            st.success("Configuración actualizada correctamente.")
             st.rerun()
 
     st.markdown("---")
@@ -508,16 +573,16 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v10.0\nSilicon Valley Cupertino Edition")
+    st.caption("Alpha Builders Portal v12.0\nSilicon Valley Monochrome Glass Edition")
 
 # ==========================================
-# 5. DASHBOARD PRINCIPAL Y METRICAS
+# 6. DASHBOARD PRINCIPAL
 # ==========================================
 st.markdown(
     f"""
-    <div class="apple-card-pro">
-        <h1 style="font-size: 2.3rem; letter-spacing: -0.03em; font-weight: 700;">Alpha Builders</h1>
-        <p style="color: #6e6e73;">Panel de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
+    <div class="executive-card">
+        <h1 style="font-size: 2.5rem; letter-spacing: -0.04em; font-weight: 900;">Alpha Builders</h1>
+        <p style="color: #8a8a93;">Panel de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
     </div>
 """,
     unsafe_allow_html=True,
@@ -529,17 +594,17 @@ usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 k1, k2, k3 = st.columns(3)
 with k1:
     st.markdown(
-        '<div class="kpi-card-pro"><div class="kpi-value-pro">28</div><div class="kpi-label-pro">Obreros Activos</div></div>',
+        '<div class="kpi-card"><div class="kpi-value">28</div><div class="kpi-label">Obreros Activos</div></div>',
         unsafe_allow_html=True,
     )
 with k2:
     st.markdown(
-        f'<div class="kpi-card-pro"><div class="kpi-value-pro">{usr_chks}</div><div class="kpi-label-pro">Checklists Guardados</div></div>',
+        f'<div class="kpi-card"><div class="kpi-value">{usr_chks}</div><div class="kpi-label">Checklists Guardados</div></div>',
         unsafe_allow_html=True,
     )
 with k3:
     st.markdown(
-        f'<div class="kpi-card-pro"><div class="kpi-value-pro">{usr_rnds}</div><div class="kpi-label-pro">Reportes de Rendimiento</div></div>',
+        f'<div class="kpi-card"><div class="kpi-value">{usr_rnds}</div><div class="kpi-label">Reportes de Rendimiento</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -555,22 +620,21 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 6. MÓDULO 1: CHECKLIST DIARIO CON BOTÓN "CREAR NUEVA JORNADA" Y SELECCIÓN DE EDIFICIO
+# 7. MÓDULO 1: CHECKLIST DIARIO (CREAR JORNADA Y CASILLAS VACÍAS)
 # ==========================================
 with tab_chk:
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Gestione la inspección diaria de frentes de trabajo por edificio y jornada.")
+    st.caption("Supervisión diaria de frentes de trabajo con inspección manual obligatoria.")
 
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
 
-    # Botón principal para iniciar una nueva jornada
     col_btn_j, _ = st.columns([2, 2])
     with col_btn_j:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary", use_container_width=True):
             st.session_state.creando_jornada = True
 
-    # FORMULARIO PARA CREAR NUEVA JORNADA
+    # FORMULARIO DE CREACIÓN DE JORNADA
     if st.session_state.creando_jornada:
         st.markdown("---")
         with st.container():
@@ -578,10 +642,11 @@ with tab_chk:
             col_m1, col_m2, col_m3 = st.columns(3)
 
             with col_m1:
+                # SELECCIÓN ENTRE LOS 12 EDIFICIOS OFICIALES
                 edificio_val = st.selectbox("Edificio / Proyecto:", EDIFICIOS_ALPHA, key="sel_edificio")
             with col_m2:
-                # RESPONSABLE BLOQUEADO (CARGADO AUTOMÁTICAMENTE DE LA SESIÓN)
-                st.text_input("Responsable:", value=user_nombre_completo, disabled=True, help="El responsable se carga automáticamente desde su inicio de sesión.")
+                # CAMPO RESPONSABLE BLOQUEADO AUTOMÁTICO
+                st.text_input("Responsable:", value=user_nombre_completo, disabled=True, help="Obtenido automáticamente de la sesión activa.")
             with col_m3:
                 fecha_val = st.date_input("Fecha de Inspección:", datetime.date.today(), key="sel_fecha")
 
@@ -596,13 +661,20 @@ with tab_chk:
                     c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
                     with c_sel:
-                        est = st.radio("Estado", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"m_st_{idx}", horizontal=True)
+                        # INDEX=NONE: NADA QUEDA SELECCIONADO POR DEFECTO
+                        est = st.radio(
+                            "Estado",
+                            ["✓ Cumple", "✗ No Cumple", "N/A"],
+                            index=None,
+                            key=f"m_st_{idx}",
+                            horizontal=True,
+                        )
                     with c_obs:
                         ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
                     with c_foto:
                         ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: #e5e5e7;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 8px 0; border-color: rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
                     resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
 
                 st.markdown("#### Jornada de la Tarde")
@@ -613,36 +685,47 @@ with tab_chk:
                     c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
                     with c_sel:
-                        est = st.radio("Estado", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"t_st_{idx}", horizontal=True)
+                        # INDEX=NONE: NADA QUEDA SELECCIONADO POR DEFECTO
+                        est = st.radio(
+                            "Estado",
+                            ["✓ Cumple", "✗ No Cumple", "N/A"],
+                            index=None,
+                            key=f"t_st_{idx}",
+                            horizontal=True,
+                        )
                     with c_obs:
                         ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
                     with c_foto:
                         ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: #e5e5e7;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 8px 0; border-color: rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
                     resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
 
-                col_sub1, col_sub2 = st.columns(2)
-                with col_sub1:
-                    btn_guardar_chk = st.form_submit_button("Guardar Jornada de Inspección", type="primary")
+                btn_guardar_chk = st.form_submit_button("Guardar Jornada de Inspección", type="primary")
 
             if btn_guardar_chk:
                 all_chk_data = resp_manana + resp_tarde
-                df_chk_save = pd.DataFrame(all_chk_data)
+                
+                # Validar que no existan ítems sin responder
+                sin_responder = [item["Actividad"] for item in all_chk_data if item["Estado"] is None]
+                if sin_responder:
+                    st.error(f"⚠️ Atención: Existen {len(sin_responder)} actividades sin responder. Seleccione el estado para todas.")
+                else:
+                    df_chk_save = pd.DataFrame(all_chk_data)
 
-                st.session_state.db_checklists[user_email].append({
-                    "Fecha": fecha_val.strftime("%Y-%m-%d"),
-                    "Edificio": edificio_val,
-                    "Responsable": user_nombre_completo,
-                    "Cargo": user_cargo,
-                    "Datos": df_chk_save
-                })
+                    st.session_state.db_checklists[user_email].append({
+                        "Fecha": fecha_val.strftime("%Y-%m-%d"),
+                        "Edificio": edificio_val,
+                        "Responsable": user_nombre_completo,
+                        "Cargo": user_cargo,
+                        "Datos": df_chk_save
+                    })
 
-                st.success(f"Jornada guardada exitosamente para **{edificio_val}**.")
-                st.session_state.creando_jornada = False
-                st.rerun()
+                    st.success(f"Jornada guardada exitosamente para **{edificio_val}**.")
+                    st.session_state.creando_jornada = False
+                    st.rerun()
 
-    # REGISTRO E HISTORIAL DE JORNADAS CREADAS POR EL USUARIO
+    # HISTORIAL DE JORNADAS CREADAS
     st.markdown("---")
     st.markdown("### Historial de Jornadas e Inspecciones Creadas")
 
@@ -654,7 +737,6 @@ with tab_chk:
                 df_display = j["Datos"]
                 st.dataframe(df_display.drop(columns=["Foto_Objeto"]), use_container_width=True)
 
-                # Descargar reporte individual
                 csv_item = df_display.drop(columns=["Foto_Objeto"]).to_csv(index=False).encode("utf-8")
                 st.download_button(
                     label=f"Descargar CSV - {j['Edificio']}",
@@ -667,7 +749,7 @@ with tab_chk:
         st.info("Aún no ha creado jornadas de inspección. Presione el botón superior 'Crear Nueva Jornada' para iniciar.")
 
 # ==========================================
-# 7. MÓDULO 2: CONTROL DE RENDIMIENTO
+# 8. MÓDULO 2: CONTROL DE RENDIMIENTO
 # ==========================================
 with tab_rend:
     st.markdown("### Control de Rendimiento por Trabajador")
@@ -745,7 +827,7 @@ with tab_rend:
         st.info("Aún no existen registros en su historial.")
 
 # ==========================================
-# 8. MÓDULO ADMINISTRADOR
+# 9. MÓDULO ADMINISTRADOR
 # ==========================================
 if es_admin:
     tab_admin = tabs_app[2]
