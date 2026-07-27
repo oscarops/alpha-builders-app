@@ -868,7 +868,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (UNIFICADO EN 2 COLUMNAS + VISTA PREVIA DE IMÁGENES)
+# 7. MÓDULO 1: CHECKLIST DIARIO (UNIFICADO EN 2 COLUMNAS + BOTÓN VISTA PREVIA DE IMAGEN)
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -1069,11 +1069,12 @@ with tab_chk:
                                     if row['Observaciones']:
                                         st.caption(f"Obs: {row['Observaciones']}")
                                     
-                                    # VISTA PREVIA DIRECTA DE LA IMAGEN DE EVIDENCIA SI EXISTE
+                                    # BOTÓN DE VISTA PREVIA DE LA IMAGEN EN LUGAR DE MOSTRARLA DIRECTAMENTE
                                     if row.get("Foto_B64") is not None:
                                         img_evidencia = base64_to_image(row["Foto_B64"])
                                         if img_evidencia:
-                                            st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", width=280)
+                                            with st.popover(f"📷 Vista previa de la imagen"):
+                                                st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_column_width=True)
 
                                     st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
