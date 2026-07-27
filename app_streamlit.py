@@ -31,7 +31,6 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* AJUSTE SUPERIOR DE PÁGINA QUE SE ADAPTA AL 100% DE PANTALLA COMPLETA */
     .block-container {
         padding-top: 0.8rem !important;
         padding-bottom: 1.2rem !important;
@@ -39,7 +38,7 @@ st.markdown(
         width: 100% !important;
     }
 
-    /* 1. FONDO PRINCIPAL: BLANCO PURO */
+    /* FONDO PRINCIPAL */
     .stApp {
         background-color: #ffffff !important;
         color: #121318 !important;
@@ -55,7 +54,7 @@ st.markdown(
         color: #5a5f6e !important;
     }
 
-    /* BOTÓN PARA COLAPSAR SIDEBAR SIEMPRE VISIBLE */
+    /* BOTÓN PARA COLAPSAR SIDEBAR */
     [data-testid="stSidebarCollapseButton"], 
     [data-testid="collapsedControl"] {
         display: block !important;
@@ -73,14 +72,6 @@ st.markdown(
         height: 32px !important;
         color: #ffffff !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-        transition: all 0.2s ease !important;
-    }
-
-    [data-testid="stSidebarCollapseButton"] button:hover, 
-    [data-testid="collapsedControl"] button:hover {
-        background-color: #ff8c00 !important;
-        border-color: #ff8c00 !important;
-        transform: scale(1.08);
     }
 
     [data-testid="stSidebarCollapseButton"] svg, 
@@ -89,7 +80,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): ANCHO FIJO Y SIN SOLAPAMIENTO */
+    /* BARRA LATERAL (SIDEBAR) */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
@@ -123,13 +114,13 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* TARJETA DEL LOGO ARRIBA CON MARGEN INFERIOR GRANDE */
+    /* TARJETA DEL LOGO ARRIBA */
     .sidebar-logo-card {
         background-color: #ffffff;
         border-radius: 12px;
         padding: 8px 10px;
         margin-top: 0px !important;
-        margin-bottom: 24px !important;
+        margin-bottom: 20px !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         width: 100% !important;
         box-sizing: border-box;
@@ -137,17 +128,13 @@ st.markdown(
         display: block;
     }
 
-    /* FOTO DE PERFIL DEL MISMO ANCHO EXACTO Y DESPLAZADA ABAJO */
+    /* FOTO DE PERFIL */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: block !important;
-        margin-top: 10px !important;
-        margin-bottom: 12px !important;
+        margin-top: 6px !important;
+        margin-bottom: 10px !important;
         clear: both !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stImage"] > div {
-        width: 100% !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] img {
@@ -162,7 +149,7 @@ st.markdown(
         display: block !important;
     }
 
-    /* TARJETA DE INFORMACIÓN DE PERFIL */
+    /* TARJETA DE PERFIL */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
@@ -180,8 +167,6 @@ st.markdown(
         font-size: 0.88rem;
         font-weight: 800;
         color: #ffffff !important;
-        margin-top: 1px;
-        margin-bottom: 1px !important;
         line-height: 1.2;
     }
 
@@ -218,7 +203,7 @@ st.markdown(
         border-color: #282a36 !important;
     }
 
-    /* EXPANDER Y CAMPOS DE CONFIGURACIÓN CON FONDO GRIS OSCURO */
+    /* EXPANDER DE CONFIGURACIÓN */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
@@ -238,28 +223,36 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* ESTILO GRIS PARA ENTRADAS Y DESPLEGABLES DENTRO DE CONFIGURACIÓN EN SIDEBAR */
+    /* ESTILO NEGRO CON LETRAS Y OJOS BLANCOS PARA CAMPOS DE CONFIGURACIÓN */
     [data-testid="stSidebar"] input[type="text"], 
     [data-testid="stSidebar"] input[type="password"],
     [data-testid="stSidebar"] [data-baseweb="select"] > div,
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] {
-        background-color: #282c36 !important;
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] > div {
+        background-color: #121318 !important;
         color: #ffffff !important;
-        border: 1px solid #424858 !important;
+        border: 1px solid #383c4a !important;
         border-radius: 8px !important;
     }
 
-    [data-testid="stSidebar"] input::placeholder {
-        color: #a0a6b8 !important;
+    [data-testid="stSidebar"] input {
+        color: #ffffff !important;
+    }
+
+    /* ICONO DEL OJO Y FLECHAS EN BLANCO */
+    [data-testid="stSidebar"] button[aria-label*="password"],
+    [data-testid="stSidebar"] [data-baseweb="select"] svg,
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] svg {
+        fill: #ffffff !important;
+        color: #ffffff !important;
     }
 
     [data-testid="stSidebar"] .stButton > button {
         padding: 6px 12px !important;
         font-size: 0.78rem !important;
-        margin-top: 2px !important;
+        margin-top: 4px !important;
     }
 
-    /* 3. TARJETA PRINCIPAL CON BORDE NEGRO Y LETRA DISTINTIVA */
+    /* TARJETA PRINCIPAL */
     .executive-card-studio {
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
         border: 1px solid #b8c4d8;
@@ -268,13 +261,6 @@ st.markdown(
         padding: 22px 28px;
         box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         margin-bottom: 20px;
-        transition: all 0.3s ease;
-    }
-    .executive-card-studio:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 18px 45px rgba(0,0,0,0.12);
-        border-color: #121318;
-        border-left-color: #121318;
     }
 
     .brand-title {
@@ -284,7 +270,6 @@ st.markdown(
         background: linear-gradient(90deg, #121318 0%, #3a4256 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        text-shadow: 0 2px 12px rgba(0,0,0,0.08);
         letter-spacing: -0.04em !important;
     }
 
@@ -295,30 +280,22 @@ st.markdown(
         padding: 18px;
         text-align: center;
         box-shadow: 0 8px 25px rgba(0,0,0,0.06);
-        transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .kpi-card-studio:hover {
-        background: linear-gradient(145deg, #e3eaf7, #d0dbee);
-        border-color: #121318;
-        transform: translateY(-5px) scale(1.02);
-        box-shadow: 0 16px 35px rgba(0,0,0,0.12);
-    }
+
     .kpi-val-studio {
         font-size: 2.5rem;
         font-weight: 900;
         color: #121318 !important;
-        letter-spacing: -0.03em;
     }
+
     .kpi-lbl-studio {
         font-size: 0.72rem;
         color: #4a5060 !important;
         text-transform: uppercase;
         font-weight: 800;
-        letter-spacing: 0.08em;
-        margin-top: 2px;
     }
 
-    /* PESTAÑAS (SEGMENT CONTROL) */
+    /* PESTAÑAS */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background-color: #e2e5ec !important;
@@ -330,32 +307,20 @@ st.markdown(
     .stTabs [data-baseweb="tab"] {
         border-radius: 12px !important;
         padding: 10px 24px !important;
-        background-color: transparent !important;
-        border: none !important;
-        transition: all 0.2s ease;
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        background-color: rgba(0,0,0,0.04);
-    }
-    .stTabs [data-baseweb="tab"] p, 
-    .stTabs [data-baseweb="tab"] span {
-        color: #4a5060 !important;
-        font-weight: 700 !important;
     }
 
     .stTabs [aria-selected="true"] {
         background-color: #121318 !important;
         border-radius: 12px !important;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.3) !important;
     }
+
     .stTabs [aria-selected="true"] p, 
-    .stTabs [aria-selected="true"] span,
-    .stTabs [aria-selected="true"] div {
+    .stTabs [aria-selected="true"] span {
         color: #ffffff !important;
         font-weight: 900 !important;
     }
 
-    /* BOTONES PRIMARIOS NEGROS */
+    /* BOTONES PRIMARIOS */
     .stButton > button {
         background-color: #121318 !important;
         color: #ffffff !important;
@@ -363,23 +328,6 @@ st.markdown(
         border: none !important;
         font-weight: 800 !important;
         padding: 10px 22px !important;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    }
-    .stButton > button p, .stButton > button span {
-        color: #ffffff !important;
-    }
-    .stButton > button:hover {
-        background-color: #2c303d !important;
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35) !important;
-    }
-
-    .streamlit-expanderHeader {
-        background-color: #e8eaee !important;
-        border-radius: 12px !important;
-        border: 1px solid #c2c7d2 !important;
-        font-weight: 700 !important;
     }
 
     #MainMenu {visibility: hidden;}
@@ -390,7 +338,7 @@ st.markdown(
 )
 
 # ==========================================
-# 2. PERSISTENCIA EN DISCO (LOCAL_DB.JSON Y REPO)
+# 2. PERSISTENCIA EN DISCO
 # ==========================================
 DB_FILE = "local_db.json"
 
@@ -486,6 +434,9 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
 
+if "expander_abierto" not in st.session_state:
+    st.session_state.expander_abierto = False
+
 EDIFICIOS_ALPHA = [
     "Tesla",
     "Lafuente",
@@ -562,7 +513,7 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO (CON images.png)
+# 4. MÓDULO DE LOGIN & REGISTRO
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -703,7 +654,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (ENTRADAS GRISES Y RECOGIMIENTO AUTOMÁTICO AL GUARDAR)
+# 5. BARRA LATERAL (ENTRADAS NEGRAS Y AUTO-CIERRE)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -712,7 +663,6 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    # LOGO EN RECUADRO CON FONDO BLANCO BIEN ARRIBA Y SEPARADO
     logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
     if not os.path.exists(logo_filename):
         logo_filename = "images.png"
@@ -756,26 +706,23 @@ with st.sidebar:
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # PESTAÑA DESPLEGABLE CON AUTOCIERRE AUTOMÁTICO
-    with st.expander("⚙️ Configuración de Cuenta", expanded=False):
+    # EXPANDER CON CIERRE AUTOMÁTICO AL GUARDAR
+    with st.expander("⚙️ Configuración de Cuenta", expanded=st.session_state.expander_abierto):
         st.caption("Ajustes personales y fotografía:")
         
-        with st.form("form_config_cuenta"):
-            edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
-            edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
-            
-            cargos_lista = ["Residente", "Asistente", "Ayudante"]
-            idx_c = cargos_lista.index(user_cargo) if user_cargo in cargos_lista else 0
-            edit_cargo = st.selectbox("Cargo:", cargos_lista, index=idx_c, key="sb_car")
+        edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
+        edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
+        
+        cargos_lista = ["Residente", "Asistente", "Ayudante"]
+        idx_c = cargos_lista.index(user_cargo) if user_cargo in cargos_lista else 0
+        edit_cargo = st.selectbox("Cargo:", cargos_lista, index=idx_c, key="sb_car")
 
-            edit_pass = st.text_input("Nueva Contraseña:", type="password", key="sb_pass")
-            edit_pass_rep = st.text_input("Repetir Contraseña:", type="password", key="sb_pass_rep")
+        edit_pass = st.text_input("Nueva Contraseña:", type="password", key="sb_pass")
+        edit_pass_rep = st.text_input("Repetir Contraseña:", type="password", key="sb_pass_rep")
 
-            nueva_foto_file = st.file_uploader("Actualizar Foto de Perfil", type=["jpg", "jpeg", "png"], key="sb_foto_file")
+        nueva_foto_file = st.file_uploader("Actualizar Foto de Perfil", type=["jpg", "jpeg", "png"], key="sb_foto_file")
 
-            btn_guardar_ajustes = st.form_submit_button("Guardar Ajustes", type="primary", use_container_width=True)
-
-        if btn_guardar_ajustes:
+        if st.button("Guardar Ajustes", type="primary", use_container_width=True):
             if edit_pass.strip() or edit_pass_rep.strip():
                 if edit_pass != edit_pass_rep:
                     st.error("Las nuevas contraseñas no coinciden.")
@@ -799,6 +746,7 @@ with st.sidebar:
                         u["Password"] = edit_pass.strip()
 
             save_persistent_db()
+            st.session_state.expander_abierto = False
             st.success("Configuración actualizada correctamente.")
             st.rerun()
 
