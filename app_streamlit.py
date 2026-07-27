@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (CORREGIDOS)
+# 1. CONFIGURACIÓN Y ESTILOS TRÍCROMAS (CORREGIDOS)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -53,7 +53,7 @@ st.markdown(
         padding-top: 15px !important;
     }
 
-    /* Textos generales dentro del Sidebar en Blanco Puro */
+    /* Textos generales dentro del Sidebar */
     [data-testid="stSidebar"] label, 
     [data-testid="stSidebar"] p, 
     [data-testid="stSidebar"] span, 
@@ -90,7 +90,7 @@ st.markdown(
         margin-bottom: 8px;
     }
 
-    /* CORRECCIÓN: Etiqueta del Cargo con Fondo Oscuro Grafito y Texto Blanco Brillante */
+    /* Etiqueta del Cargo */
     .sidebar-user-cargo {
         display: inline-block;
         background: #323646 !important;
@@ -102,6 +102,48 @@ st.markdown(
         border-radius: 20px !important;
         text-transform: uppercase !important;
         letter-spacing: 0.05em !important;
+    }
+
+    /* CORRECCIÓN: CABECERA DEL EXPANDER / CONFIGURACIÓN DE CUENTA */
+    [data-testid="stSidebar"] .streamlit-expanderHeader {
+        background-color: #1c1e26 !important;
+        border: 1px solid #323646 !important;
+        border-radius: 12px !important;
+        color: #ffffff !important;
+        padding: 12px 16px !important;
+    }
+
+    [data-testid="stSidebar"] .streamlit-expanderHeader * {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+
+    [data-testid="stSidebar"] .streamlit-expanderContent {
+        background-color: #121318 !important;
+        border: 1px solid #323646 !important;
+        border-top: none !important;
+        border-radius: 0 0 12px 12px !important;
+        padding: 15px !important;
+    }
+
+    /* CORRECCIÓN: UPLOADER DE FOTO DE PERFIL EN SIDEBAR */
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] {
+        background-color: #1c1e26 !important;
+        border: 1px dashed #484e5e !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] * {
+        color: #ffffff !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] button {
+        background-color: #323646 !important;
+        color: #ffffff !important;
+        border: 1px solid #484e5e !important;
+        border-radius: 8px !important;
+        padding: 6px 14px !important;
     }
 
     /* 3. MÓDULO Y TARJETAS: GRIS METÁLICO */
@@ -143,8 +185,8 @@ st.markdown(
         margin-top: 4px;
     }
 
-    /* FORMULARIOS E INPUTS */
-    .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
+    /* FORMULARIOS E INPUTS EN ÁREA PRINCIPAL */
+    .stApp .stTextInput input, .stApp .stSelectbox > div > div, .stApp .stNumberInput input, .stApp .stDateInput input {
         background-color: #ffffff !important;
         color: #121318 !important;
         border: 1px solid #b8bec8 !important;
@@ -159,11 +201,7 @@ st.markdown(
         color: #5a5f6e !important;
     }
 
-    [data-testid="stTextInputIconButton"] {
-        right: 10px !important;
-    }
-
-    /* CORRECCIÓN ABSOLUTA PESTAÑAS ACTIVAS E INACTIVAS */
+    /* PESTAÑAS (SEGMENT CONTROL) */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background-color: #e2e5ec !important;
@@ -214,14 +252,6 @@ st.markdown(
     .stButton > button:hover {
         background-color: #2c303d !important;
         transform: translateY(-2px);
-    }
-
-    /* EXPANDERS */
-    .streamlit-expanderHeader {
-        background-color: #e8eaee !important;
-        border-radius: 12px !important;
-        border: 1px solid #c2c7d2 !important;
-        font-weight: 700 !important;
     }
 
     #MainMenu {visibility: hidden;}
@@ -403,8 +433,8 @@ if not st.session_state.autenticado:
         st.markdown(
             """
             <div class="executive-card-studio" style="text-align: center; margin-top: 40px;">
-                <h1 style="font-size: 2.6rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #121318;">ALPHA BUILDERS</h1>
-                <p style="color: #5a5f6e; font-size: 1.05rem; font-weight: 600; margin-top: 6px;">Portal Corporativo | Cazadores de Inversiones</p>
+                <h1 style="font-size: 2.5rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #121318;">ALPHA BUILDERS</h1>
+                <p style="color: #5a5f6e; font-size: 1.05rem; font-weight: 600; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
             </div>
         """,
             unsafe_allow_html=True,
@@ -412,6 +442,7 @@ if not st.session_state.autenticado:
 
         tab_login, tab_register, tab_reset = st.tabs(["Iniciar Sesión", "Registrarse", "¿Olvidaste tu Contraseña?"])
 
+        # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
             st.caption("Ingrese sus credenciales registradas.")
@@ -438,12 +469,13 @@ if not st.session_state.autenticado:
                                 st.session_state.db_rendimientos[mail_clean] = []
                             st.rerun()
                         else:
-                            st.error("Contraseña incorrecta.")
+                            st.error("Contraseña incorrecta. Intente nuevamente.")
                     else:
                         st.error("El usuario no existe. Complete el registro.")
                 else:
                     st.error("Ingrese su correo y contraseña.")
 
+        # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
             st.caption("Complete la información para habilitar su acceso.")
@@ -501,6 +533,7 @@ if not st.session_state.autenticado:
                 else:
                     st.error("Por favor complete todos los campos requeridos.")
 
+        # --- RECUPERACIÓN DE CONTRASEÑA ---
         with tab_reset:
             st.markdown("### Recuperación de Contraseña")
             st.caption("Restablezca su acceso de forma segura.")
@@ -533,7 +566,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (SIDEBAR NEGRO ABSOLUTO CON TEXTO BLANCO CORREGIDO)
+# 5. BARRA LATERAL CON PERFIL Y CONFIGURACIÓN
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -541,7 +574,7 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    st.markdown("<h3 style='text-align: center; font-weight: 900; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     img_obj = base64_to_image(b64_foto)
@@ -561,7 +594,7 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #ffffff; font-weight: 800; background: #282a36; padding: 6px; border-radius: 12px; border: 1px solid #3c424e;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 6px; border-radius: 12px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -613,7 +646,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v20.0 Final")
+    st.caption("Alpha Builders Portal v21.0")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
