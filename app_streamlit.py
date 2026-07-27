@@ -89,7 +89,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): FIJA, SIN SCROLL Y CON ESPACIO CLARO */
+    /* 2. BARRA LATERAL (SIDEBAR): ANCHO FIJO Y SIN SOLAPAMIENTO */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
@@ -218,7 +218,7 @@ st.markdown(
         border-color: #282a36 !important;
     }
 
-    /* EXPANDER DE CONFIGURACIÓN */
+    /* EXPANDER Y CAMPOS DE CONFIGURACIÓN CON FONDO GRIS OSCURO */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
@@ -236,6 +236,21 @@ st.markdown(
         color: #ffffff !important;
         font-weight: 700 !important;
         font-size: 0.78rem !important;
+    }
+
+    /* ESTILO GRIS PARA ENTRADAS Y DESPLEGABLES DENTRO DE CONFIGURACIÓN EN SIDEBAR */
+    [data-testid="stSidebar"] input[type="text"], 
+    [data-testid="stSidebar"] input[type="password"],
+    [data-testid="stSidebar"] [data-baseweb="select"] > div,
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] {
+        background-color: #282c36 !important;
+        color: #ffffff !important;
+        border: 1px solid #424858 !important;
+        border-radius: 8px !important;
+    }
+
+    [data-testid="stSidebar"] input::placeholder {
+        color: #a0a6b8 !important;
     }
 
     [data-testid="stSidebar"] .stButton > button {
@@ -688,7 +703,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (LOGO MÁS ARRIBA CON SEPARACIÓN)
+# 5. BARRA LATERAL (ENTRADAS GRISES Y RECOGIMIENTO AUTOMÁTICO AL GUARDAR)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -741,27 +756,26 @@ with st.sidebar:
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
+    # PESTAÑA DESPLEGABLE CON AUTOCIERRE AUTOMÁTICO
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
         st.caption("Ajustes personales y fotografía:")
         
-        edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
-        edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
-        
-        cargos_lista = ["Residente", "Asistente", "Ayudante"]
-        idx_c = cargos_lista.index(user_cargo) if user_cargo in cargos_lista else 0
-        edit_cargo = st.selectbox("Cargo:", cargos_lista, index=idx_c, key="sb_car")
+        with st.form("form_config_cuenta"):
+            edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
+            edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
+            
+            cargos_lista = ["Residente", "Asistente", "Ayudante"]
+            idx_c = cargos_lista.index(user_cargo) if user_cargo in cargos_lista else 0
+            edit_cargo = st.selectbox("Cargo:", cargos_lista, index=idx_c, key="sb_car")
 
-        edit_pass = st.text_input("Nueva Contraseña:", type="password", key="sb_pass")
-        edit_pass_rep = st.text_input("Repetir Contraseña:", type="password", key="sb_pass_rep")
+            edit_pass = st.text_input("Nueva Contraseña:", type="password", key="sb_pass")
+            edit_pass_rep = st.text_input("Repetir Contraseña:", type="password", key="sb_pass_rep")
 
-        nueva_foto_file = st.file_uploader("Actualizar Foto de Perfil", type=["jpg", "jpeg", "png"], key="sb_foto_file")
-        if nueva_foto_file is not None:
-            b64_str = image_to_base64(nueva_foto_file)
-            if b64_str:
-                st.session_state.db_fotos_perfil_b64[user_email] = b64_str
-                save_persistent_db()
+            nueva_foto_file = st.file_uploader("Actualizar Foto de Perfil", type=["jpg", "jpeg", "png"], key="sb_foto_file")
 
-        if st.button("Guardar Ajustes", type="primary", use_container_width=True):
+            btn_guardar_ajustes = st.form_submit_button("Guardar Ajustes", type="primary", use_container_width=True)
+
+        if btn_guardar_ajustes:
             if edit_pass.strip() or edit_pass_rep.strip():
                 if edit_pass != edit_pass_rep:
                     st.error("Las nuevas contraseñas no coinciden.")
@@ -770,6 +784,11 @@ with st.sidebar:
             st.session_state.usuario_nombres = edit_nombres.strip()
             st.session_state.usuario_apellidos = edit_apellidos.strip()
             st.session_state.usuario_cargo = edit_cargo
+
+            if nueva_foto_file is not None:
+                b64_str = image_to_base64(nueva_foto_file)
+                if b64_str:
+                    st.session_state.db_fotos_perfil_b64[user_email] = b64_str
 
             for u in st.session_state.db_usuarios:
                 if u["Correo"] == user_email:
