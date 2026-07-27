@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (CORREGIDOS)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (DEFINITIVOS)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -26,7 +26,6 @@ st.markdown(
         font-family: 'Inter', sans-serif;
     }
 
-    /* TÍTULOS CON ESTILO IDÉNTICO AL LOGO (MONTSERRAT) */
     h1, h2, h3, .brand-title {
         font-family: 'Montserrat', sans-serif !important;
         letter-spacing: -0.03em !important;
@@ -127,38 +126,23 @@ st.markdown(
         fill: #ffffff !important;
     }
 
-    /* CAJAS DE TEXTO Y FONDO DEL OJO DE CONTRASEÑA EN EL SIDEBAR */
-    [data-testid="stSidebar"] div[data-baseweb="input"] {
-        background-color: #ffffff !important;
-        border: 1px solid #323646 !important;
-        border-radius: 10px !important;
-        overflow: hidden !important;
-    }
-
-    [data-testid="stSidebar"] div[data-baseweb="input"] input {
+    /* CORRECCIÓN DEFINITIVA OJO DE CONTRASEÑA EN SIDEBAR */
+    [data-testid="stSidebar"] .stTextInput input[type="password"] {
         background-color: #ffffff !important;
         color: #121318 !important;
-        font-weight: 600 !important;
-        padding: 8px 10px !important;
+        border-radius: 10px 0 0 10px !important;
     }
 
-    /* CORRECCIÓN: Fondo negro/oscuro para el botón del ojo de visibilidad */
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] {
-        background-color: #1c1e26 !important;
+        background-color: #ffffff !important;
+        border: 1px solid #b8bec8;
+        border-left: none;
         border-radius: 0 10px 10px 0 !important;
-        padding: 0 6px !important;
     }
 
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] button {
-        background-color: transparent !important;
-        border: none !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] svg,
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] path {
-        fill: #ffffff !important;
-        color: #ffffff !important;
-        stroke: #ffffff !important;
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] button svg {
+        fill: #121318 !important;
+        color: #121318 !important;
     }
 
     /* Uploader de Fotos en Sidebar */
@@ -180,32 +164,39 @@ st.markdown(
         border-radius: 8px !important;
     }
 
-    /* 3. MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL */
+    /* 3. MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL CON EFECTOS DE BORDE Y HOVER */
     .executive-card-studio {
-        background: #eef0f4;
-        border: 1px solid #d0d4dc;
-        border-radius: 20px;
-        padding: 26px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-        margin-bottom: 20px;
+        background: linear-gradient(135deg, #f0f3f8 0%, #e2e7ef 100%);
+        border: 1px solid #c5cddb;
+        border-radius: 22px;
+        padding: 28px;
+        box-shadow: 0 12px 35px rgba(0,0,0,0.06);
+        margin-bottom: 25px;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .executive-card-studio:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 18px 45px rgba(0,0,0,0.12);
+        border-color: #121318;
     }
 
     .kpi-card-studio {
-        background: #e2e5ec;
-        border: 1px solid #c2c7d2;
-        border-radius: 18px;
-        padding: 20px;
+        background: linear-gradient(135deg, #eaedf4 0%, #d8deeb 100%);
+        border: 1px solid #b8c2d4;
+        border-radius: 20px;
+        padding: 22px;
         text-align: center;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.05);
-        transition: all 0.25s ease;
+        box-shadow: 0 8px 22px rgba(0,0,0,0.05);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .kpi-card-studio:hover {
-        background: #d4d8e2;
+        background: linear-gradient(135deg, #e0e6f2, #ccd4e4);
         border-color: #121318;
-        transform: translateY(-3px);
+        transform: translateY(-5px) scale(1.01);
+        box-shadow: 0 16px 35px rgba(0,0,0,0.12);
     }
     .kpi-val-studio {
-        font-size: 2.7rem;
+        font-size: 2.8rem;
         font-weight: 900;
         color: #121318 !important;
         letter-spacing: -0.03em;
@@ -624,7 +615,7 @@ es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
     if os.path.exists("images.png"):
-        st.image("images.png", use_container_width=True)
+        st.image("images.png", use_column_width=True)
 
     st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
@@ -701,7 +692,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v27.0")
+    st.caption("Alpha Builders Portal v28.0 Final Pro")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL (TÍTULO MODIFICADO Y SIN USUARIO ACTIVO)
