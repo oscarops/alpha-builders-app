@@ -511,17 +511,16 @@ def export_checklist_to_excel_file(jornada_dict):
             try:
                 img_data = base64.b64decode(foto_b64)
                 img_pil = Image.open(io.BytesIO(img_data))
-                img_pil.thumbnail((150, 95))
+                img_pil.thumbnail((140, 90))
                 img_stream = io.BytesIO()
                 img_pil.save(img_stream, format="PNG")
                 img_stream.seek(0)
 
                 img_xlsx = OpenpyxlImage(img_stream)
-                img_xlsx.width = 120
-                img_xlsx.height = 80
+                img_xlsx.width = 110
+                img_xlsx.height = 75
 
-                # CENTRADO EXACTO EN LA MITAD DE LA CELDA F
-                # Ancho columna F = 38 (aprox 266 px), Alto fila = 110 (aprox 146 px)
+                # CENTRADO EXACTO EN LA MITAD DE LA CELDA F (según especificación visual)
                 col_w_px = 266
                 row_h_px = 146
                 img_xlsx.left = (col_w_px - img_xlsx.width) / 2
@@ -529,11 +528,10 @@ def export_checklist_to_excel_file(jornada_dict):
 
                 ws.add_image(img_xlsx, f"F{row_idx}")
             except Exception:
-                cell_err = ws.cell(row=row_idx, column=6, value="Error al cargar imagen")
-                cell_err.alignment = Alignment(horizontal="center", vertical="center")
+                pass # Si hay error, se deja en blanco sin texto molesto
         else:
-            cell_sin = ws.cell(row=row_idx, column=6, value="Sin evidencia")
-            cell_sin.alignment = Alignment(horizontal="center", vertical="center")
+            # Si no hay imagen, la celda queda totalmente en blanco (sin texto)
+            pass
 
     ws.column_dimensions['A'].width = 16
     ws.column_dimensions['B'].width = 10
@@ -955,7 +953,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (VERTICAL COMPLETO + CALENDARIO INTERACTIVO)
+# 7. MÓDULO 1: CHECKLIST DIARIO (VERTICAL COMPLETO + CALENDARIO DIRECTO)
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -1081,7 +1079,7 @@ with tab_chk:
 
     st.markdown("---")
     st.markdown("### Historial de Jornadas e Inspecciones Creadas")
-    st.caption("Consulte el historial completo o utilice el calendario interactivo al lado para buscar jornadas por fecha específica.")
+    st.caption("Seleccione una fecha en el calendario interactivo para consultar las jornadas realizadas en ese día.")
 
     if user_email not in st.session_state.db_checklists:
         st.session_state.db_checklists[user_email] = []
@@ -1089,18 +1087,17 @@ with tab_chk:
     mis_jornadas = st.session_state.db_checklists[user_email]
 
     if len(mis_jornadas) > 0:
-        col_hist_izq, col_hist_der = st.columns([2, 1], gap="large")
+        # CALENDARIO DIRECTO Y LISTA DE JORNADAS AL LADO
+        col_hist_lista, col_hist_cal = st.columns([2, 1], gap="large")
 
-        with col_hist_der:
-            st.markdown("#### 📅 Calendario Buscador")
-            fecha_busqueda = st.date_input("Seleccione fecha a buscar:", datetime.date.today(), key="calendario_jornadas")
+        with col_hist_cal:
+            fecha_busqueda = st.date_input("Filtrar por fecha:", datetime.date.today(), key="calendario_directo")
             fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
             
             jornadas_en_fecha = [j for j in mis_jornadas if j['Fecha'] == fecha_busqueda_str]
-            st.info(f"**{len(jornadas_en_fecha)}** jornada(s) encontrada(s) para el {fecha_busqueda_str}.")
+            st.info(f"**{len(jornadas_en_fecha)}** jornada(s) para el {fecha_busqueda_str}.")
 
-        with col_hist_izq:
-            # Si se busca una fecha, filtramos; si no, mostramos todas agrupadas
+        with col_hist_lista:
             jornadas_a_mostrar = jornadas_en_fecha if len(jornadas_en_fecha) > 0 else mis_jornadas
             
             meses_nombres = {
