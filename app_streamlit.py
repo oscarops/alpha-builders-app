@@ -89,7 +89,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): ANCHO FIJO Y FLUJO LIMPIO SIN SOLAPAMIENTO */
+    /* 2. BARRA LATERAL (SIDEBAR): FIJA, SIN SCROLL Y CON ESPACIO CLARO */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
@@ -109,7 +109,8 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.6rem !important;
+        gap: 0.5rem !important;
+        padding-top: 0px !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -122,13 +123,13 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* TARJETA DEL LOGO EN FONDO BLANCO A MÁS ANCHO Y CON MARGEN SEPARADO */
+    /* TARJETA DEL LOGO ARRIBA CON MARGEN INFERIOR GRANDE */
     .sidebar-logo-card {
         background-color: #ffffff;
         border-radius: 12px;
         padding: 8px 10px;
-        margin-top: 4px;
-        margin-bottom: 10px !important;
+        margin-top: 0px !important;
+        margin-bottom: 24px !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         width: 100% !important;
         box-sizing: border-box;
@@ -136,12 +137,12 @@ st.markdown(
         display: block;
     }
 
-    /* FOTO DE PERFIL DEL MISMO ANCHO EXACTO Y SIN COMPRIMIR */
+    /* FOTO DE PERFIL DEL MISMO ANCHO EXACTO Y DESPLAZADA ABAJO */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: block !important;
-        margin: 0 0 10px 0 !important;
-        position: relative !important;
+        margin-top: 10px !important;
+        margin-bottom: 12px !important;
         clear: both !important;
     }
 
@@ -168,7 +169,7 @@ st.markdown(
         border-radius: 12px;
         padding: 10px 8px !important;
         text-align: center;
-        margin-top: 2px;
+        margin-top: 4px;
         margin-bottom: 8px;
         width: 100% !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.3);
@@ -687,7 +688,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (LOGO Y FOTO AL MISMO ANCHO CON SEPARACIÓN)
+# 5. BARRA LATERAL (LOGO MÁS ARRIBA CON SEPARACIÓN)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -696,7 +697,7 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    # LOGO EN RECUADRO CON FONDO BLANCO A TODO EL ANCHO (100%) Y CON SEPARACIÓN
+    # LOGO EN RECUADRO CON FONDO BLANCO BIEN ARRIBA Y SEPARADO
     logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
     if not os.path.exists(logo_filename):
         logo_filename = "images.png"
