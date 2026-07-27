@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (CORREGIDOS)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS CORREGIDOS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -101,7 +101,7 @@ st.markdown(
         letter-spacing: 0.05em !important;
     }
 
-    /* EXPANDER / CONFIGURACIÓN DE CUENTA (CABECERA Y TEXTO) */
+    /* EXPANDER / CONFIGURACIÓN DE CUENTA (CABECERA Y CONTENIDO) */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
@@ -121,40 +121,44 @@ st.markdown(
         fill: #ffffff !important;
     }
 
-    /* CORRECCIÓN INTEGRAL: CAJAS DE TEXTO Y ICONO DEL OJO VISIBLE */
-    [data-testid="stSidebar"] div[data-baseweb="input"] {
+    /* CORRECCIÓN DEFINTIVA: INPUTS Y BOTÓN OJO DE VER CONTRASEÑA EN NEGRO */
+    [data-testid="stSidebar"] .stTextInput div[data-baseweb="input"] {
         background-color: #ffffff !important;
         border: 1px solid #b8bec8 !important;
         border-radius: 10px !important;
-        overflow: hidden !important;
+        padding: 0px 4px !important;
     }
 
-    [data-testid="stSidebar"] div[data-baseweb="input"] input {
+    [data-testid="stSidebar"] .stTextInput input {
         background-color: #ffffff !important;
         color: #121318 !important;
         font-weight: 600 !important;
-        padding: 8px 12px !important;
+        padding: 8px 10px !important;
+        border: none !important;
     }
 
+    /* Forzar fondo blanco e icono NEGRO para el botón del ojo */
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] {
         background-color: #ffffff !important;
+        border: none !important;
         padding-right: 8px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] button {
-        background-color: transparent !important;
+        background-color: #ffffff !important;
         border: none !important;
-        padding: 0 !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] svg,
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] path {
-        fill: #121318 !important;
-        color: #121318 !important;
-        stroke: #121318 !important;
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] path,
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] span {
+        fill: #000000 !important;
+        color: #000000 !important;
+        stroke: #000000 !important;
+        opacity: 1 !important;
     }
 
-    /* Uploader de Archivos en Sidebar */
+    /* File Uploader en Sidebar */
     [data-testid="stSidebar"] [data-testid="stFileUploader"] {
         background-color: #1c1e26 !important;
         border: 1px dashed #484e5e !important;
@@ -173,7 +177,7 @@ st.markdown(
         border-radius: 8px !important;
     }
 
-    /* 3. MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL */
+    /* MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL */
     .executive-card-studio {
         background: #eef0f4;
         border: 1px solid #d0d4dc;
@@ -210,22 +214,6 @@ st.markdown(
         font-weight: 800;
         letter-spacing: 0.08em;
         margin-top: 4px;
-    }
-
-    /* FORMULARIOS E INPUTS EN ÁREA PRINCIPAL */
-    .stApp .stTextInput input, .stApp .stSelectbox > div > div, .stApp .stNumberInput input, .stApp .stDateInput input {
-        background-color: #ffffff !important;
-        color: #121318 !important;
-        border: 1px solid #b8bec8 !important;
-        border-radius: 12px !important;
-        padding: 10px 14px !important;
-        font-size: 0.95rem !important;
-        font-weight: 600 !important;
-    }
-
-    .stTextInput input:disabled {
-        background-color: #e2e5ec !important;
-        color: #5a5f6e !important;
     }
 
     /* PESTAÑAS (SEGMENT CONTROL) */
@@ -279,13 +267,6 @@ st.markdown(
         transform: translateY(-2px);
     }
 
-    .streamlit-expanderHeader {
-        background-color: #e8eaee !important;
-        border-radius: 12px !important;
-        border: 1px solid #c2c7d2 !important;
-        font-weight: 700 !important;
-    }
-
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
@@ -294,12 +275,13 @@ st.markdown(
 )
 
 # ==========================================
-# 2. PERSISTENCIA EN DISCO (LOCAL_DB.JSON Y RESPALDO DE FOTO)
+# 2. PERSISTENCIA EN DISCO (LOCAL_DB.JSON Y CARGA DE IMÁGENES REPO)
 # ==========================================
 DB_FILE = "local_db.json"
 
-def get_default_profile_b64():
-    for filename in ["perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png", "avatar.jpg"]:
+def get_repo_image_b64(filenames):
+    """Busca imágenes locales subidas al repositorio sin sobrecargar el código Python"""
+    for filename in filenames:
         if os.path.exists(filename):
             try:
                 with open(filename, "rb") as f:
@@ -472,15 +454,19 @@ if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
 
     with col_l2:
-        st.markdown(
-            """
-            <div class="executive-card-studio" style="text-align: center; margin-top: 40px;">
-                <h1 style="font-size: 2.6rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #121318;">ALPHA BUILDERS</h1>
-                <p style="color: #5a5f6e; font-size: 1.05rem; font-weight: 600; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
-            </div>
-        """,
-            unsafe_allow_html=True,
-        )
+        # Cargar logo.png si existe en la carpeta sin sobrecargar código
+        if os.path.exists("logo.png"):
+            st.image("logo.png", use_column_width=True)
+        else:
+            st.markdown(
+                """
+                <div class="executive-card-studio" style="text-align: center; margin-top: 40px;">
+                    <h1 style="font-size: 2.6rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #121318;">ALPHA BUILDERS</h1>
+                    <p style="color: #5a5f6e; font-size: 1.05rem; font-weight: 600; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
+                </div>
+            """,
+                unsafe_allow_html=True,
+            )
 
         tab_login, tab_register, tab_reset = st.tabs(["Iniciar Sesión", "Registrarse", "¿Olvidaste tu Contraseña?"])
 
@@ -510,7 +496,7 @@ if not st.session_state.autenticado:
                                 st.session_state.db_rendimientos[mail_clean] = []
                             st.rerun()
                         else:
-                            st.error("Contraseña incorrecta. Intente nuevamente.")
+                            st.error("Contraseña incorrecta.")
                     else:
                         st.error("El usuario no existe. Complete el registro.")
                 else:
@@ -605,7 +591,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON PERFIL Y CONFIGURACIÓN
+# 5. BARRA LATERAL CON PERFIL Y LECTURA DE LOGO/FOTO REPO
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -613,11 +599,16 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
+    # 1. Cargar Logo si se encuentra en la carpeta del repositorio
+    if os.path.exists("logo.png"):
+        st.image("logo.png", use_column_width=True)
+
     st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
+    # 2. Cargar Foto de Perfil
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     if not b64_foto:
-        b64_foto = get_default_profile_b64()
+        b64_foto = get_repo_image_b64(["perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png"])
 
     img_obj = base64_to_image(b64_foto)
 
@@ -688,7 +679,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v24.0 Eye Icon Fix")
+    st.caption("Alpha Builders Portal v25.0")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
