@@ -121,32 +121,37 @@ st.markdown(
         fill: #ffffff !important;
     }
 
-    /* ENTRADAS DE TEXTO Y CONTRASEÑA DENTRO DEL SIDEBAR */
+    /* CORRECCIÓN INTEGRAL: CAJAS DE TEXTO Y ICONO DEL OJO VISIBLE */
     [data-testid="stSidebar"] div[data-baseweb="input"] {
         background-color: #ffffff !important;
         border: 1px solid #b8bec8 !important;
-        border-radius: 12px !important;
-        padding: 2px 6px !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
     }
 
     [data-testid="stSidebar"] div[data-baseweb="input"] input {
-        background-color: transparent !important;
+        background-color: #ffffff !important;
         color: #121318 !important;
         font-weight: 600 !important;
+        padding: 8px 12px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] {
-        background-color: transparent !important;
+        background-color: #ffffff !important;
+        padding-right: 8px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] button {
         background-color: transparent !important;
         border: none !important;
+        padding: 0 !important;
     }
 
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] svg {
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] svg,
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] path {
         fill: #121318 !important;
         color: #121318 !important;
+        stroke: #121318 !important;
     }
 
     /* Uploader de Archivos en Sidebar */
@@ -168,7 +173,7 @@ st.markdown(
         border-radius: 8px !important;
     }
 
-    /* MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL */
+    /* 3. MÓDULO Y TARJETAS DEL ÁREA PRINCIPAL */
     .executive-card-studio {
         background: #eef0f4;
         border: 1px solid #d0d4dc;
@@ -294,7 +299,6 @@ st.markdown(
 DB_FILE = "local_db.json"
 
 def get_default_profile_b64():
-    """Busca una imagen de perfil subida a la carpeta del repositorio (perfil.jpg / perfil.png)"""
     for filename in ["perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png", "avatar.jpg"]:
         if os.path.exists(filename):
             try:
@@ -601,7 +605,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON PERFIL Y LECTURA DE RESPALDO DE FOTO
+# 5. BARRA LATERAL CON PERFIL Y CONFIGURACIÓN
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -611,10 +615,7 @@ es_admin = user_email in st.session_state.admin_emails
 with st.sidebar:
     st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
-    # 1. Intentar cargar desde el estado guardado
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
-    
-    # 2. Si no hay foto en sesión, intentar cargar la foto fija del repo (perfil.jpg / perfil.png)
     if not b64_foto:
         b64_foto = get_default_profile_b64()
 
@@ -687,7 +688,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v23.0 Persistent")
+    st.caption("Alpha Builders Portal v24.0 Eye Icon Fix")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
