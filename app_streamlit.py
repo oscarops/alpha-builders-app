@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (SIDEBAR OPTIMIZADO 255PX)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (FULL WIDTH AL OCULTAR SIDEBAR)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,9 +31,12 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
+    /* AJUSTE SUPERIOR DE PÁGINA QUE SE ADAPTA AL 100% DE PANTALLA COMPLETA AL OCULTAR SIDEBAR */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1.5rem !important;
+        max-width: 100% !important;
+        width: 100% !important;
     }
 
     /* 1. FONDO PRINCIPAL: BLANCO PURO */
@@ -86,23 +89,14 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): ANCHO REDUCIDO EN 15% (255PX) Y COMPACTO */
+    /* 2. BARRA LATERAL (SIDEBAR): ANCHO COMPACTO */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
         padding-top: 0px !important;
         padding-left: 10px !important;
         padding-right: 10px !important;
-        min-width: 255px !important;
-        max-width: 255px !important;
         width: 255px !important;
-    }
-
-    /* DESHABILITAR RESIZE/ARRASTRE DEL SIDEBAR */
-    [data-testid="stSidebarResizer"],
-    [data-testid="stSidebar"] > div:first-child + div {
-        display: none !important;
-        pointer-events: none !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
@@ -119,7 +113,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL RECTANGULAR DEL MISMO ANCHO QUE LA TARJETA */
+    /* FOTO DE PERFIL RECTANGULAR DEL MISMO ANCHO QUE LA TARJETA DE NOMBRE */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: block !important;
@@ -142,12 +136,12 @@ st.markdown(
         display: block !important;
     }
 
-    /* TARJETA DE PERFIL COMPACTA Y AL ANCHO */
+    /* TARJETA DE PERFIL CON DOS NOMBRES ARRIBA Y DOS APELLIDOS ABAJO */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
         border-radius: 12px;
-        padding: 8px 10px !important;
+        padding: 10px 8px !important;
         text-align: center;
         margin-bottom: 4px;
         margin-top: 2px;
@@ -155,20 +149,28 @@ st.markdown(
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
-    .sidebar-user-name {
-        font-size: 0.88rem;
+    .sidebar-user-nombres {
+        font-size: 0.92rem;
         font-weight: 800;
         color: #ffffff !important;
         margin-top: 2px;
         margin-bottom: 2px !important;
-        line-height: 1.25;
+        line-height: 1.2;
+    }
+
+    .sidebar-user-apellidos {
+        font-size: 0.90rem;
+        font-weight: 700;
+        color: #e0e4ed !important;
+        margin-bottom: 6px !important;
+        line-height: 1.2;
     }
 
     .sidebar-user-email {
         font-size: 0.7rem;
         color: #72b2ff !important;
         font-weight: 600;
-        margin-bottom: 6px !important;
+        margin-bottom: 8px !important;
         word-break: break-all;
     }
 
@@ -189,7 +191,7 @@ st.markdown(
         border-color: #282a36 !important;
     }
 
-    /* EXPANDER DE CONFIGURACIÓN COMPACTO */
+    /* EXPANDER DE CONFIGURACIÓN */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
@@ -657,10 +659,11 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL OPTIMIZADA DE 255PX DE ANCHO
+# 5. BARRA LATERAL CON DOS NOMBRES Y DOS APELLIDOS EN LÍNEAS SEPARADAS
 # ==========================================
 user_email = st.session_state.usuario_email
-user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
+user_nombres = st.session_state.usuario_nombres
+user_apellidos = st.session_state.usuario_apellidos
 user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
@@ -691,7 +694,8 @@ with st.sidebar:
     st.markdown(
         f"""
         <div class="sidebar-profile-box">
-            <div class="sidebar-user-name">{user_nombre_completo}</div>
+            <div class="sidebar-user-nombres">{user_nombres}</div>
+            <div class="sidebar-user-apellidos">{user_apellidos}</div>
             <div class="sidebar-user-email">{user_email}</div>
             <div class="sidebar-user-cargo">{user_cargo}</div>
         </div>
@@ -754,6 +758,8 @@ with st.sidebar:
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
 # ==========================================
+user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
+
 st.markdown(
     f"""
     <div class="executive-card-studio">
