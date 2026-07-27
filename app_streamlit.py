@@ -469,11 +469,9 @@ def export_checklist_to_excel_file(jornada_dict):
     ws = wb.active
     ws.title = "Checklist Obra"
 
-    # Encabezados amplios y claros
     headers = ["Jornada", "N°", "Actividad", "Estado", "Observaciones", "Evidencia Fotográfica"]
     ws.append(headers)
 
-    # Estilo de borde fino para todas las celdas (líneas de cuadrícula limpias)
     thin_border = Border(
         left=Side(style='thin', color='D3D3D3'),
         right=Side(style='thin', color='D3D3D3'),
@@ -481,7 +479,6 @@ def export_checklist_to_excel_file(jornada_dict):
         bottom=Side(style='thin', color='D3D3D3')
     )
 
-    # Estilo de cabecera profesional
     for col in range(1, len(headers) + 1):
         cell = ws.cell(row=1, column=col)
         cell.font = Font(bold=True, color="FFFFFF", size=11)
@@ -501,37 +498,34 @@ def export_checklist_to_excel_file(jornada_dict):
             item.get("Observaciones", "")
         ])
 
-        # Altura de fila grande y cómoda
         ws.row_dimensions[row_idx].height = 110
 
-        # Aplicar bordes y alineación a las celdas de texto de la fila
         for c_i in range(1, 7):
             cell_txt = ws.cell(row=row_idx, column=c_i)
             cell_txt.border = thin_border
             if c_i < 6:
                 cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
 
-        # Insertar imagen centrada con precisión en la celda F
         foto_b64 = item.get("Foto_B64")
         if foto_b64:
             try:
                 img_data = base64.b64decode(foto_b64)
                 img_pil = Image.open(io.BytesIO(img_data))
-                img_pil.thumbnail((160, 100))
+                img_pil.thumbnail((150, 95))
                 img_stream = io.BytesIO()
                 img_pil.save(img_stream, format="PNG")
                 img_stream.seek(0)
 
                 img_xlsx = OpenpyxlImage(img_stream)
-                img_xlsx.width = 130
-                img_xlsx.height = 85
+                img_xlsx.width = 120
+                img_xlsx.height = 80
 
-                # Cálculo matemático exacto para centrar la imagen en la celda F
-                # Columna F ancho = 38 (aprox 266 px), Fila alto = 110 (aprox 146 px)
+                # CENTRADO EXACTO EN LA MITAD DE LA CELDA F
+                # Ancho columna F = 38 (aprox 266 px), Alto fila = 110 (aprox 146 px)
                 col_w_px = 266
                 row_h_px = 146
-                img_xlsx.left = max(5, (col_w_px - img_xlsx.width) / 2)
-                img_xlsx.top = max(5, (row_h_px - img_xlsx.height) / 2)
+                img_xlsx.left = (col_w_px - img_xlsx.width) / 2
+                img_xlsx.top = (row_h_px - img_xlsx.height) / 2
 
                 ws.add_image(img_xlsx, f"F{row_idx}")
             except Exception:
@@ -541,7 +535,6 @@ def export_checklist_to_excel_file(jornada_dict):
             cell_sin = ws.cell(row=row_idx, column=6, value="Sin evidencia")
             cell_sin.alignment = Alignment(horizontal="center", vertical="center")
 
-    # Anchos de columna amplios para claridad absoluta
     ws.column_dimensions['A'].width = 16
     ws.column_dimensions['B'].width = 10
     ws.column_dimensions['C'].width = 52
@@ -962,143 +955,154 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (UNIFICADO EN 2 COLUMNAS)
+# 7. MÓDULO 1: CHECKLIST DIARIO (VERTICAL COMPLETO + CALENDARIO INTERACTIVO)
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
 
-    col_izq_chk, col_der_historial = st.columns([1, 1], gap="large")
+    st.markdown("### Check List Diario – Control de Obra")
+    st.caption("Supervisión diaria de frentes de trabajo con verificación manual obligatoria.")
 
-    with col_izq_chk:
-        st.markdown("### Check List Diario – Control de Obra")
-        st.caption("Supervisión diaria de frentes de trabajo con verificación manual obligatoria.")
+    if not st.session_state.creando_jornada:
+        if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
+            st.session_state.creando_jornada = True
 
-        if not st.session_state.creando_jornada:
-            if st.button("➕ Crear Nueva Jornada de Inspección", type="primary", use_container_width=True):
-                st.session_state.creando_jornada = True
+    if st.session_state.creando_jornada:
+        st.markdown("---")
+        with st.container():
+            st.markdown("#### Configuración de la Nueva Jornada")
+            
+            cfg_c1, cfg_c2, cfg_c3 = st.columns(3)
+            with cfg_c1:
+                edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="sel_edificio")
+            with cfg_c2:
+                st.text_input("Responsable:", value=user_nombre_completo, disabled=True)
+            with cfg_c3:
+                fecha_val = st.date_input("Fecha:", datetime.date.today(), key="sel_fecha")
 
-        if st.session_state.creando_jornada:
             st.markdown("---")
-            with st.container():
-                st.markdown("#### Configuración de la Nueva Jornada")
-                
-                cfg_c1, cfg_c2, cfg_c3 = st.columns(3)
-                with cfg_c1:
-                    edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="sel_edificio")
-                with cfg_c2:
-                    st.text_input("Responsable:", value=user_nombre_completo, disabled=True)
-                with cfg_c3:
-                    fecha_val = st.date_input("Fecha:", datetime.date.today(), key="sel_fecha")
 
-                st.markdown("---")
+            with st.form("form_checklist_jornada"):
+                st.markdown("#### 🌅 Jornada de la Mañana")
+                resp_manana = []
 
-                with st.form("form_checklist_jornada"):
-                    st.markdown("#### 🌅 Jornada de la Mañana")
-                    resp_manana = []
+                for idx, act in enumerate(ACTIVIDADES_MANANA, 1):
+                    st.markdown(f"**N° {idx}. {act}**")
+                    c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
-                    for idx, act in enumerate(ACTIVIDADES_MANANA, 1):
-                        st.markdown(f"**N° {idx}. {act}**")
-                        c_sel, c_obs, c_foto = st.columns([2, 3, 3])
+                    with c_sel:
+                        est = st.radio(
+                            "Estado",
+                            ["✓ Cumple", "✗ No Cumple", "N/A"],
+                            index=None,
+                            key=f"m_st_{idx}",
+                            horizontal=True,
+                        )
+                    with c_obs:
+                        ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
+                    with c_foto:
+                        ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
 
-                        with c_sel:
-                            est = st.radio(
-                                "Estado",
-                                ["✓ Cumple", "✗ No Cumple", "N/A"],
-                                index=None,
-                                key=f"m_st_{idx}",
-                                horizontal=True,
-                            )
-                        with c_obs:
-                            ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
-                        with c_foto:
-                            ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
+                    st.markdown("<hr style='margin: 8px 0; border-color: #c2c7d2;'>", unsafe_allow_html=True)
+                    
+                    ft_b64 = image_to_base64(ft) if ft is not None else None
+                    resp_manana.append({
+                        "Jornada": "Mañana",
+                        "N°": idx,
+                        "Actividad": act,
+                        "Estado": est,
+                        "Observaciones": ob,
+                        "Foto_B64": ft_b64,
+                        "Foto_Adjunta": "Sí" if ft is not None else "No"
+                    })
 
-                        st.markdown("<hr style='margin: 8px 0; border-color: #c2c7d2;'>", unsafe_allow_html=True)
-                        
-                        ft_b64 = image_to_base64(ft) if ft is not None else None
-                        resp_manana.append({
-                            "Jornada": "Mañana",
-                            "N°": idx,
-                            "Actividad": act,
-                            "Estado": est,
-                            "Observaciones": ob,
-                            "Foto_B64": ft_b64,
-                            "Foto_Adjunta": "Sí" if ft is not None else "No"
-                        })
+                st.markdown("#### 🌆 Jornada de la Tarde")
+                resp_tarde = []
 
-                    st.markdown("#### 🌆 Jornada de la Tarde")
-                    resp_tarde = []
+                for idx, act in enumerate(ACTIVIDADES_TARDE, 1):
+                    st.markdown(f"**N° {idx}. {act}**")
+                    c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
-                    for idx, act in enumerate(ACTIVIDADES_TARDE, 1):
-                        st.markdown(f"**N° {idx}. {act}**")
-                        c_sel, c_obs, c_foto = st.columns([2, 3, 3])
+                    with c_sel:
+                        est = st.radio(
+                            "Estado",
+                            ["✓ Cumple", "✗ No Cumple", "N/A"],
+                            index=None,
+                            key=f"t_st_{idx}",
+                            horizontal=True,
+                        )
+                    with c_obs:
+                        ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
+                    with c_foto:
+                        ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
 
-                        with c_sel:
-                            est = st.radio(
-                                "Estado",
-                                ["✓ Cumple", "✗ No Cumple", "N/A"],
-                                index=None,
-                                key=f"t_st_{idx}",
-                                horizontal=True,
-                            )
-                        with c_obs:
-                            ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
-                        with c_foto:
-                            ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
+                    st.markdown("<hr style='margin: 8px 0; border-color: #c2c7d2;'>", unsafe_allow_html=True)
+                    
+                    ft_b64 = image_to_base64(ft) if ft is not None else None
+                    resp_tarde.append({
+                        "Jornada": "Tarde",
+                        "N°": idx,
+                        "Actividad": act,
+                        "Estado": est,
+                        "Observaciones": ob,
+                        "Foto_B64": ft_b64,
+                        "Foto_Adjunta": "Sí" if ft is not None else "No"
+                    })
 
-                        st.markdown("<hr style='margin: 8px 0; border-color: #c2c7d2;'>", unsafe_allow_html=True)
-                        
-                        ft_b64 = image_to_base64(ft) if ft is not None else None
-                        resp_tarde.append({
-                            "Jornada": "Tarde",
-                            "N°": idx,
-                            "Actividad": act,
-                            "Estado": est,
-                            "Observaciones": ob,
-                            "Foto_B64": ft_b64,
-                            "Foto_Adjunta": "Sí" if ft is not None else "No"
-                        })
+                btn_guardar_chk = st.form_submit_button("Guardar Jornada de Inspección", type="primary")
 
-                    btn_guardar_chk = st.form_submit_button("Guardar Jornada de Inspección", type="primary")
-
-                if btn_guardar_chk:
-                    if edificio_val == "-- Seleccione --" or not edificio_val:
-                        st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
+            if btn_guardar_chk:
+                if edificio_val == "-- Seleccione --" or not edificio_val:
+                    st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
+                else:
+                    all_chk_data = resp_manana + resp_tarde
+                    sin_responder = [item["Actividad"] for item in all_chk_data if item["Estado"] is None]
+                    if sin_responder:
+                        st.error(f"⚠️ Seleccione el estado de todas las actividades ({len(sin_responder)} pendientes).")
                     else:
-                        all_chk_data = resp_manana + resp_tarde
-                        sin_responder = [item["Actividad"] for item in all_chk_data if item["Estado"] is None]
-                        if sin_responder:
-                            st.error(f"⚠️ Seleccione el estado de todas las actividades ({len(sin_responder)} pendientes).")
-                        else:
-                            df_chk_save = pd.DataFrame(all_chk_data)
+                        df_chk_save = pd.DataFrame(all_chk_data)
 
-                            if user_email not in st.session_state.db_checklists:
-                                st.session_state.db_checklists[user_email] = []
+                        if user_email not in st.session_state.db_checklists:
+                            st.session_state.db_checklists[user_email] = []
 
-                            st.session_state.db_checklists[user_email].append({
-                                "Fecha": fecha_val.strftime("%Y-%m-%d"),
-                                "Edificio": edificio_val,
-                                "Responsable": user_nombre_completo,
-                                "Cargo": user_cargo,
-                                "Datos": df_chk_save.to_dict(orient="records")
-                            })
+                        st.session_state.db_checklists[user_email].append({
+                            "Fecha": fecha_val.strftime("%Y-%m-%d"),
+                            "Edificio": edificio_val,
+                            "Responsable": user_nombre_completo,
+                            "Cargo": user_cargo,
+                            "Datos": df_chk_save.to_dict(orient="records")
+                        })
 
-                            save_persistent_db()
-                            st.success(f"Jornada guardada para **{edificio_val}**.")
-                            st.session_state.creando_jornada = False
-                            st.rerun()
+                        save_persistent_db()
+                        st.success(f"Jornada guardada para **{edificio_val}**.")
+                        st.session_state.creando_jornada = False
+                        st.rerun()
 
-    with col_der_historial:
-        st.markdown("### Historial de Jornadas")
-        st.caption("Inspecciones agrupadas por mes para mayor orden.")
+    st.markdown("---")
+    st.markdown("### Historial de Jornadas e Inspecciones Creadas")
+    st.caption("Consulte el historial completo o utilice el calendario interactivo al lado para buscar jornadas por fecha específica.")
 
-        if user_email not in st.session_state.db_checklists:
-            st.session_state.db_checklists[user_email] = []
+    if user_email not in st.session_state.db_checklists:
+        st.session_state.db_checklists[user_email] = []
 
-        mis_jornadas = st.session_state.db_checklists[user_email]
+    mis_jornadas = st.session_state.db_checklists[user_email]
 
-        if len(mis_jornadas) > 0:
+    if len(mis_jornadas) > 0:
+        col_hist_izq, col_hist_der = st.columns([2, 1], gap="large")
+
+        with col_hist_der:
+            st.markdown("#### 📅 Calendario Buscador")
+            fecha_busqueda = st.date_input("Seleccione fecha a buscar:", datetime.date.today(), key="calendario_jornadas")
+            fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
+            
+            jornadas_en_fecha = [j for j in mis_jornadas if j['Fecha'] == fecha_busqueda_str]
+            st.info(f"**{len(jornadas_en_fecha)}** jornada(s) encontrada(s) para el {fecha_busqueda_str}.")
+
+        with col_hist_izq:
+            # Si se busca una fecha, filtramos; si no, mostramos todas agrupadas
+            jornadas_a_mostrar = jornadas_en_fecha if len(jornadas_en_fecha) > 0 else mis_jornadas
+            
             meses_nombres = {
                 "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
                 "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
@@ -1107,7 +1111,8 @@ with tab_chk:
 
             jornadas_con_index = []
             for orig_idx, j_item in enumerate(mis_jornadas):
-                jornadas_con_index.append((orig_idx, j_item))
+                if j_item in jornadas_a_mostrar:
+                    jornadas_con_index.append((orig_idx, j_item))
 
             jornadas_con_index.sort(key=lambda x: x[1]['Fecha'], reverse=True)
 
@@ -1171,7 +1176,6 @@ with tab_chk:
 
                                     st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
-                                # DESCARGAR EXCEL PROFESIONAL CON BORDES Y IMAGEN CENTRADA
                                 excel_bytes = export_checklist_to_excel_file(j)
                                 st.download_button(
                                     label=f"📥 Descargar Excel con Imágenes - {j['Edificio']} ({j['Fecha']})",
@@ -1180,8 +1184,8 @@ with tab_chk:
                                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                     key=f"dl_xlsx_{orig_idx}"
                                 )
-        else:
-            st.info("Aún no hay inspecciones guardadas en el historial.")
+    else:
+        st.info("Aún no hay inspecciones guardadas en el historial.")
 
 # ==========================================
 # 8. MÓDULO 2: CONTROL DE RENDIMIENTO
