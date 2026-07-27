@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (COMPACTO Y FIJO)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,10 +31,10 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* AJUSTE SUPERIOR DE PÁGINA */
+    /* AJUSTE SUPERIOR DE PÁGINA QUE SE ADAPTA AL 100% DE PANTALLA COMPLETA */
     .block-container {
         padding-top: 0.8rem !important;
-        padding-bottom: 1rem !important;
+        padding-bottom: 1.2rem !important;
         max-width: 100% !important;
         width: 100% !important;
     }
@@ -89,7 +89,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): FIJA, INAMOVIBLE Y SIN SCROLL */
+    /* 2. BARRA LATERAL (SIDEBAR): FIJA, SIN SCROLL Y CON ESPACIO ENTRE TARJETAS */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
@@ -103,15 +103,13 @@ st.markdown(
         resize: none !important;
     }
 
-    /* BLOQUEO TOTAL DE REDIMENSIONAMIENTO DEL SIDEBAR EN BROWSER */
     [data-testid="stSidebarResizer"] {
         display: none !important;
         pointer-events: none !important;
     }
 
-    /* ESPACIADO COMPACTO DE ELEMENTOS INTERNOS */
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.35rem !important;
+        gap: 0.5rem !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -124,11 +122,11 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL RECTANGULAR AL ANCHO DE LA TARJETA */
+    /* FOTO DE PERFIL OPTIMIZADA EN ALTURA PARA EVITAR EL SCROLL */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: block !important;
-        margin: 2px 0 4px 0 !important;
+        margin: 4px 0 8px 0 !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] > div {
@@ -138,8 +136,7 @@ st.markdown(
     [data-testid="stSidebar"] [data-testid="stImage"] img {
         border-radius: 12px !important;
         width: 100% !important;
-        height: auto !important;
-        max-width: 100% !important;
+        max-height: 135px !important;
         object-fit: cover !important;
         border: 1px solid #323646 !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -147,15 +144,15 @@ st.markdown(
         display: block !important;
     }
 
-    /* TARJETA DE PERFIL CON DOS NOMBRES Y DOS APELLIDOS */
+    /* TARJETA DE PERFIL BIEN DEFINIDA Y SEPARADA */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
         border-radius: 12px;
-        padding: 8px 8px !important;
+        padding: 10px 8px !important;
         text-align: center;
-        margin-top: 2px;
-        margin-bottom: 2px;
+        margin-top: 4px;
+        margin-bottom: 8px;
         width: 100% !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
@@ -202,12 +199,13 @@ st.markdown(
         border-color: #282a36 !important;
     }
 
-    /* EXPANDER DE CONFIGURACIÓN COMPACTO */
+    /* EXPANDER DE CONFIGURACIÓN */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
         border-radius: 10px !important;
-        margin-bottom: 2px !important;
+        margin-top: 4px !important;
+        margin-bottom: 6px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
@@ -222,8 +220,9 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] .stButton > button {
-        padding: 5px 12px !important;
+        padding: 6px 12px !important;
         font-size: 0.78rem !important;
+        margin-top: 4px !important;
     }
 
     /* 3. TARJETA PRINCIPAL CON BORDE NEGRO Y LETRA DISTINTIVA */
@@ -670,7 +669,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (LOGO CON FONDO BLANCO COMPACTA Y SIN SCROLL)
+# 5. BARRA LATERAL (TARJETAS SEPARADAS Y SIN SCROLL)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -690,7 +689,7 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; background-color: #ffffff; border-radius: 10px; padding: 6px; margin-top: 2px; margin-bottom: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+            <div style="text-align: center; background-color: #ffffff; border-radius: 10px; padding: 6px; margin-top: 2px; margin-bottom: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
                 <img src="data:image/{ext};base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none; display: block; margin: 0 auto;">
             </div>
         """,
