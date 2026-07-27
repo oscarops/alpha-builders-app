@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y TEMA TIPO APPLE
+# 1. CONFIGURACIÓN DE PÁGINA Y TEMA LIQUID GLASS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal de Obra",
@@ -12,110 +12,132 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS Minimalistas (Estilo Apple: Blanco, Negro, Gris Grafito)
+# Estilos CSS con efecto Liquid Glass (Glassmorphism) + Texto 100% Legible
 st.markdown(
     """
     <style>
-    /* Estructura Global */
+    /* Fondo General estilo Apple Dark Canvas */
     .stApp {
-        background-color: #0a0a0c;
-        color: #f5f5f7;
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        background: radial-gradient(circle at 50% -20%, #1e2640 0%, #0d0f17 60%, #050608 100%);
+        color: #f5f5f7 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* FORZAR LEGIBILIDAD DE TEXTOS Y ETIQUETAS */
+    label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
+        color: #f5f5f7 !important;
     }
     
-    /* Header Minimalista Tipo Apple */
-    .apple-header {
-        background-color: #161617;
-        border: 1px solid #2d2d2d;
-        padding: 30px 36px;
+    .stCaption, caption, small, [data-testid="stCaptionContainer"] {
+        color: #a1a1a6 !important;
+    }
+
+    /* Tarjeta Principal y Header Estilo Liquid Glass */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 24px;
+        padding: 30px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        margin-bottom: 25px;
+    }
+
+    /* Tarjetas de Métricas (KPIs) Liquid Glass */
+    .kpi-glass {
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 20px;
-        color: #f5f5f7;
-        margin-bottom: 28px;
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-    }
-    .apple-header h1 {
-        color: #ffffff !important;
-        font-weight: 700;
-        margin: 0;
-        font-size: 2.2rem;
-        letter-spacing: -0.03em;
-    }
-    .apple-header p {
-        color: #86868b;
-        margin-top: 6px;
-        margin-bottom: 0;
-        font-size: 1.05rem;
-    }
-
-    /* Tarjetas Minimalistas (Cards) */
-    .apple-card {
-        background-color: #161617;
-        border: 1px solid #2d2d2d;
-        padding: 24px;
-        border-radius: 18px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        margin-bottom: 20px;
-    }
-
-    /* Métricas Dashboard (KPIs) */
-    .kpi-card-apple {
-        background-color: #161617;
-        border: 1px solid #2d2d2d;
         padding: 22px;
-        border-radius: 18px;
         text-align: center;
-        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
     }
-    .kpi-card-apple:hover {
-        border-color: #515154;
+    .kpi-glass:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.25);
         transform: translateY(-2px);
     }
-    .kpi-value-apple {
-        font-size: 2.2rem;
+    .kpi-value-glass {
+        font-size: 2.3rem;
         font-weight: 700;
-        color: #ffffff;
+        color: #ffffff !important;
         letter-spacing: -0.02em;
     }
-    .kpi-label-apple {
+    .kpi-label-glass {
         font-size: 0.8rem;
-        color: #86868b;
+        color: #86868b !important;
         text-transform: uppercase;
         font-weight: 600;
         letter-spacing: 0.08em;
         margin-top: 6px;
     }
 
-    /* Pestañas Principales (Apple Tab Bar) */
+    /* Inputs y Campos de Texto Estilo Apple Glass */
+    .stTextInput input, .stSelectbox select, .stNumberInput input, .stDateInput input {
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 14px !important;
+        padding: 12px 16px !important;
+        backdrop-filter: blur(10px);
+    }
+    .stTextInput input:focus, .stSelectbox select:focus, .stNumberInput input:focus {
+        border-color: #2997ff !important;
+        box-shadow: 0 0 12px rgba(41, 151, 255, 0.4) !important;
+    }
+    ::placeholder {
+        color: #86868b !important;
+        opacity: 1;
+    }
+
+    /* Pestañas (Tabs) Estilo Apple App Store Segment Control */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background-color: #161617;
+        background: rgba(255, 255, 255, 0.06) !important;
+        backdrop-filter: blur(15px);
         padding: 6px;
         border-radius: 16px;
-        border: 1px solid #2d2d2d;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .stTabs [data-baseweb="tab"] {
         border-radius: 12px;
-        padding: 10px 22px;
-        background-color: transparent;
-        color: #86868b;
+        padding: 10px 24px;
+        background-color: transparent !important;
+        color: #a1a1a6 !important;
         font-weight: 500;
         border: none !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #f5f5f7 !important;
-        color: #000000 !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+        backdrop-filter: blur(10px);
+        color: #ffffff !important;
         font-weight: 600;
-        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
 
-    /* Botones y Radio Buttons */
+    /* Botones Estilo Apple Blue Accent */
     .stButton > button {
-        border-radius: 12px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
+        background: linear-gradient(180deg, #0071e3 0%, #005bb5 100%) !important;
+        color: #ffffff !important;
+        border-radius: 14px !important;
+        border: none !important;
+        font-weight: 600 !important;
+        padding: 12px 24px !important;
+        box-shadow: 0 4px 15px rgba(0, 113, 227, 0.3) !important;
+        transition: all 0.2s ease !important;
+    }
+    .stButton > button:hover {
+        background: linear-gradient(180deg, #147ce5 0%, #0066cc 100%) !important;
+        box-shadow: 0 6px 20px rgba(0, 113, 227, 0.5) !important;
+        transform: translateY(-1px);
     }
 
-    /* Ocultar elementos innecesarios */
+    /* Ocultar elementos predeterminados */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
@@ -132,14 +154,12 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_nombre = ""
     st.session_state.usuario_cargo = ""
 
-# Almacenamiento aislado por usuario
 if "db_checklists" not in st.session_state:
     st.session_state.db_checklists = {}
 
 if "db_rendimientos" not in st.session_state:
     st.session_state.db_rendimientos = {}
 
-# Nómina de Trabajadores
 TRABAJADORES_NO_MINA = [
     {"nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER", "cargo": "BODEGA"},
     {"nombre": "AGUALONGO PILAMUNGA LUIS LENIN", "cargo": "GYPSERO/ALBAÑIL"},
@@ -201,14 +221,14 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 3. MÓDULO DE ACCESO / LOGIN & REGISTRO TIPO FACEBOOK / APPLE
+# 3. MÓDULO DE ACCESO / LOGIN & REGISTRO
 # ==========================================
 if not st.session_state.autenticado:
     st.markdown(
         """
-        <div class="apple-header" style="text-align: center;">
-            <h1>ALPHA BUILDERS</h1>
-            <p>Portal de Control de Obra y Calidad</p>
+        <div class="glass-card" style="text-align: center; max-width: 650px; margin: 40px auto 20px auto;">
+            <h1 style="font-size: 2.5rem; letter-spacing: -0.03em;">ALPHA BUILDERS</h1>
+            <p style="color: #86868b;">Portal de Control de Obra y Calidad</p>
         </div>
     """,
         unsafe_allow_html=True,
@@ -219,11 +239,11 @@ if not st.session_state.autenticado:
     with col_c2:
         tab_login, tab_register = st.tabs(["Iniciar Sesión", "Registrarse"])
 
-        # --- PESTAÑA 1: INICIAR SESIÓN ---
+        # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
-            st.caption("Ingrese sus credenciales registradas para acceder.")
-            
+            st.caption("Ingrese sus credenciales para acceder a su perfil.")
+
             login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
             login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
 
@@ -233,17 +253,17 @@ if not st.session_state.autenticado:
                     st.session_state.usuario_email = login_email.strip().lower()
                     st.session_state.usuario_nombre = login_email.split("@")[0].title()
                     st.session_state.usuario_cargo = "Residente"
-                    
+
                     if st.session_state.usuario_email not in st.session_state.db_checklists:
                         st.session_state.db_checklists[st.session_state.usuario_email] = []
                     if st.session_state.usuario_email not in st.session_state.db_rendimientos:
                         st.session_state.db_rendimientos[st.session_state.usuario_email] = []
                     st.rerun()
                 else:
-                    st.error("Ingrese correo y contraseña.")
+                    st.error("Por favor ingrese correo y contraseña.")
 
             st.markdown("---")
-            st.caption("O accede instantáneamente con tu cuenta corporativa:")
+            st.caption("Acceso directo corporativo:")
             col_g, col_o = st.columns(2)
             with col_g:
                 if st.button("🌐 Con Google", use_container_width=True):
@@ -260,10 +280,10 @@ if not st.session_state.autenticado:
                     st.session_state.usuario_cargo = "Residente"
                     st.rerun()
 
-        # --- PESTAÑA 2: REGISTRARSE ---
+        # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
-            st.caption("Es rápido y fácil.")
+            st.caption("Complete los campos para habilitar su acceso.")
 
             col_n, col_a = st.columns(2)
             with col_n:
@@ -273,8 +293,6 @@ if not st.session_state.autenticado:
 
             reg_email = st.text_input("Correo electrónico:", placeholder="ejemplo@correo.com", key="reg_email")
             reg_pass = st.text_input("Nueva contraseña:", type="password", key="reg_pass")
-            
-            # Selector de Cargo con las 3 opciones solicitadas
             reg_cargo = st.selectbox("Cargo / Rol en Obra:", ["Residente", "Asistente", "Ayudante"])
 
             if st.button("Registrarte", type="primary", use_container_width=True):
@@ -283,16 +301,16 @@ if not st.session_state.autenticado:
                     st.session_state.usuario_email = reg_email.strip().lower()
                     st.session_state.usuario_nombre = f"{reg_nombres.strip()} {reg_apellidos.strip()}"
                     st.session_state.usuario_cargo = reg_cargo
-                    
+
                     if st.session_state.usuario_email not in st.session_state.db_checklists:
                         st.session_state.db_checklists[st.session_state.usuario_email] = []
                     if st.session_state.usuario_email not in st.session_state.db_rendimientos:
                         st.session_state.db_rendimientos[st.session_state.usuario_email] = []
 
-                    st.success("¡Registro exitoso!")
+                    st.success("¡Registro completado!")
                     st.rerun()
                 else:
-                    st.error("Por favor complete todos los campos requeridos para el registro.")
+                    st.error("Complete todos los campos requeridos para el registro.")
 
     st.stop()
 
@@ -304,7 +322,7 @@ user_nombre = st.session_state.usuario_nombre
 user_cargo = st.session_state.usuario_cargo
 
 with st.sidebar:
-    st.markdown("### 👤 Perfil de Usuario")
+    st.markdown("### 👤 Perfil de Sesión")
     st.markdown(f"**Usuario:** `{user_nombre}`")
     st.markdown(f"**Correo:** `{user_email}`")
     st.markdown(f"**Cargo:** `{user_cargo}`")
@@ -315,14 +333,14 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Pro v3.5\nDiseño Minimalista Estilo Apple")
+    st.caption("Alpha Builders Liquid Glass v4.0\nEstilo Apple App Store")
 
 # ==========================================
 # 5. PANEL PRINCIPAL / DASHBOARD
 # ==========================================
 st.markdown(
     f"""
-    <div class="apple-header">
+    <div class="glass-card">
         <h1>ALPHA BUILDERS</h1>
         <p>Panel de Control | Usuario: <b>{user_nombre}</b> ({user_cargo})</p>
     </div>
@@ -336,17 +354,17 @@ usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 k1, k2, k3 = st.columns(3)
 with k1:
     st.markdown(
-        '<div class="kpi-card-apple"><div class="kpi-value-apple">28</div><div class="kpi-label-apple">Obreros Activos</div></div>',
+        '<div class="kpi-glass"><div class="kpi-value-glass">28</div><div class="kpi-label-glass">Obreros Activos</div></div>',
         unsafe_allow_html=True,
     )
 with k2:
     st.markdown(
-        f'<div class="kpi-card-apple"><div class="kpi-value-apple">{usr_chks}</div><div class="kpi-label-apple">Checklists Realizados</div></div>',
+        f'<div class="kpi-glass"><div class="kpi-value-glass">{usr_chks}</div><div class="kpi-label-glass">Checklists Guardados</div></div>',
         unsafe_allow_html=True,
     )
 with k3:
     st.markdown(
-        f'<div class="kpi-card-apple"><div class="kpi-value-apple">{usr_rnds}</div><div class="kpi-label-apple">Reportes de Rendimiento</div></div>',
+        f'<div class="kpi-glass"><div class="kpi-value-glass">{usr_rnds}</div><div class="kpi-label-glass">Reportes de Rendimiento</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -373,7 +391,7 @@ with tab_chk:
 
     st.markdown("---")
 
-    with st.form("form_checklist_apple"):
+    with st.form("form_checklist_glass"):
         st.markdown("#### 🌅 Jornada de la Mañana")
         resp_manana = []
 
@@ -388,7 +406,7 @@ with tab_chk:
             with c_foto:
                 ft = st.file_uploader("📷 Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
 
-            st.markdown("<hr style='margin: 8px 0; border-color: #2d2d2d;'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 8px 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
             resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí 📷" if ft is not None else "No"})
 
         st.markdown("#### 🌆 Jornada de la Tarde")
@@ -405,7 +423,7 @@ with tab_chk:
             with c_foto:
                 ft = st.file_uploader("📷 Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
 
-            st.markdown("<hr style='margin: 8px 0; border-color: #2d2d2d;'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 8px 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
             resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí 📷" if ft is not None else "No"})
 
         btn_guardar_chk = st.form_submit_button("💾 Guardar Checklist Diario", type="primary")
