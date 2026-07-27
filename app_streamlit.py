@@ -31,15 +31,16 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* FORZAR CONTENEDORES A OCUPAR ABSOLUTAMENTE TODO EL ANCHO DE LA PANTALLA */
-    .block-container, [data-testid="stMainBlockContainer"], [data-testid="stMain"] {
+    /* FORZAR DE MANERA AGRESIVA EL ANCHO TOTAL DE LA PANTALLA EN EL CONTENEDOR PRINCIPAL */
+    .block-container, [data-testid="stMainBlockContainer"], [data-testid="stMain"], section.main {
         padding-top: 1rem !important;
         padding-bottom: 1.5rem !important;
         padding-left: 2rem !important;
         padding-right: 2rem !important;
         max-width: 100% !important;
         width: 100% !important;
-        margin: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
     }
 
     /* 1. FONDO PRINCIPAL: BLANCO PURO */
@@ -524,7 +525,7 @@ ACTIVIDADES_TARDE = [
     "Verificación del orden y limpieza de los frentes de trabajo",
     "Confirmación de materiales para el siguiente día",
     "Revisión del cumplimiento de la meta diaria",
-    "Cierre de actividades in campo",
+    "Cierre de actividades en campo",
 ]
 
 # ==========================================
