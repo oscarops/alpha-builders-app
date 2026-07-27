@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (MÁS ARRIBA Y CENTRADO)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (CENTRALIZACIÓN PERFECTA)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -78,14 +78,20 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL MÁS GRANDE Y ABSOLUTAMENTE CENTRADA */
+    /* CORRECCIÓN ABSOLUTA: FOTO DE PERFIL 100% CENTRADA */
     [data-testid="stSidebar"] [data-testid="stImage"] {
-        text-align: center !important;
+        width: 100% !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
+        text-align: center !important;
         margin: 2px auto !important;
-        width: 100% !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stImage"] > div {
+        margin: 0 auto !important;
+        display: flex !important;
+        justify-content: center !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] img {
@@ -706,7 +712,7 @@ with st.sidebar:
         st.session_state.autenticado = False
         st.rerun()
 
-    st.caption("Alpha Builders v37.0")
+    st.caption("Alpha Builders v38.0")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
