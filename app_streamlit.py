@@ -7,7 +7,7 @@ import pandas as pd
 from PIL import Image
 import streamlit as st
 import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from openpyxl.utils import get_column_letter
 
@@ -473,12 +473,21 @@ def export_checklist_to_excel_file(jornada_dict):
     headers = ["Jornada", "N°", "Actividad", "Estado", "Observaciones", "Evidencia Fotográfica"]
     ws.append(headers)
 
+    # Estilo de borde fino para todas las celdas (líneas de cuadrícula limpias)
+    thin_border = Border(
+        left=Side(style='thin', color='D3D3D3'),
+        right=Side(style='thin', color='D3D3D3'),
+        top=Side(style='thin', color='D3D3D3'),
+        bottom=Side(style='thin', color='D3D3D3')
+    )
+
     # Estilo de cabecera profesional
     for col in range(1, len(headers) + 1):
         cell = ws.cell(row=1, column=col)
         cell.font = Font(bold=True, color="FFFFFF", size=11)
         cell.fill = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = thin_border
 
     ws.row_dimensions[1].height = 32
 
@@ -492,35 +501,37 @@ def export_checklist_to_excel_file(jornada_dict):
             item.get("Observaciones", "")
         ])
 
-        # Altura de fila grande para que la imagen luzca amplia y cómoda
+        # Altura de fila grande y cómoda
         ws.row_dimensions[row_idx].height = 110
 
-        # Alinear celdas de texto verticalmente
-        for c_i in range(1, 6):
+        # Aplicar bordes y alineación a las celdas de texto de la fila
+        for c_i in range(1, 7):
             cell_txt = ws.cell(row=row_idx, column=c_i)
-            cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
+            cell_txt.border = thin_border
+            if c_i < 6:
+                cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
 
-        # Insertar imagen grande y centrada en la celda F
+        # Insertar imagen centrada con precisión en la celda F
         foto_b64 = item.get("Foto_B64")
         if foto_b64:
             try:
                 img_data = base64.b64decode(foto_b64)
                 img_pil = Image.open(io.BytesIO(img_data))
-                img_pil.thumbnail((180, 130)) # Imagen más grande y nítida
+                img_pil.thumbnail((160, 100))
                 img_stream = io.BytesIO()
                 img_pil.save(img_stream, format="PNG")
                 img_stream.seek(0)
 
                 img_xlsx = OpenpyxlImage(img_stream)
-                img_xlsx.width = 160
-                img_xlsx.height = 100
+                img_xlsx.width = 130
+                img_xlsx.height = 85
 
-                # Cálculo de posición para centrarla perfectamente en la celda F
-                # Ancho de columna F = 40 (aprox 280 píxeles), Alto de fila = 110 (aprox 146 píxeles)
-                col_width_px = 280
-                row_height_px = 146
-                img_xlsx.left = (col_width_px - img_xlsx.width) / 2
-                img_xlsx.top = (row_height_px - img_xlsx.height) / 2
+                # Cálculo matemático exacto para centrar la imagen en la celda F
+                # Columna F ancho = 38 (aprox 266 px), Fila alto = 110 (aprox 146 px)
+                col_w_px = 266
+                row_h_px = 146
+                img_xlsx.left = max(5, (col_w_px - img_xlsx.width) / 2)
+                img_xlsx.top = max(5, (row_h_px - img_xlsx.height) / 2)
 
                 ws.add_image(img_xlsx, f"F{row_idx}")
             except Exception:
@@ -530,13 +541,13 @@ def export_checklist_to_excel_file(jornada_dict):
             cell_sin = ws.cell(row=row_idx, column=6, value="Sin evidencia")
             cell_sin.alignment = Alignment(horizontal="center", vertical="center")
 
-    # Anchos de columna amplios para que se observe todo con total comodidad
+    # Anchos de columna amplios para claridad absoluta
     ws.column_dimensions['A'].width = 16
     ws.column_dimensions['B'].width = 10
     ws.column_dimensions['C'].width = 52
     ws.column_dimensions['D'].width = 18
     ws.column_dimensions['E'].width = 35
-    ws.column_dimensions['F'].width = 40  # Columna F amplia para la foto centrada
+    ws.column_dimensions['F'].width = 38
 
     output = io.BytesIO()
     wb.save(output)
@@ -1160,7 +1171,7 @@ with tab_chk:
 
                                     st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
-                                # DESCARGAR EXCEL PROFESIONAL CON ANCHOS AMPLIOS E IMÁGENES INCRUSTADAS
+                                # DESCARGAR EXCEL PROFESIONAL CON BORDES Y IMAGEN CENTRADA
                                 excel_bytes = export_checklist_to_excel_file(j)
                                 st.download_button(
                                     label=f"📥 Descargar Excel con Imágenes - {j['Edificio']} ({j['Fecha']})",
@@ -1277,7 +1288,7 @@ if es_admin:
                         st.success(f"Se otorgaron permisos de administrador a: {mail_clean}")
                         st.rerun()
                     else:
-                        st.warning("The correo ingresado ya es administrador.")
+                        st.warning("El correo ingresado ya es administrador.")
 
         with col_adm2:
             st.markdown("**Administradores Actuales:**")
