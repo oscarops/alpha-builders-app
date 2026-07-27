@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (LEGIBILIDAD GARANTIZADA)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -44,7 +44,6 @@ st.markdown(
         color: #121318 !important;
     }
 
-    /* REGULAR TEXTOS DE ÁREA PRINCIPAL EN NEGRO */
     .stApp p, .stApp label, .stApp span, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
         color: #121318;
     }
@@ -202,7 +201,7 @@ st.markdown(
         border-color: #282a36 !important;
     }
 
-    /* EXPANDER Y FORMULARIOS DE CONFIGURACIÓN */
+    /* EXPANDER DE CONFIGURACIÓN */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
@@ -222,38 +221,35 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* ESTILO NEGRO TOTAL PARA CAMPOS DE ENTRADA EN SIDEBAR */
-    [data-testid="stSidebar"] input[type="text"], 
-    [data-testid="stSidebar"] input[type="password"],
-    [data-testid="stSidebar"] [data-baseweb="select"] > div,
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] > div,
-    [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
-        background-color: #121318 !important;
-        color: #ffffff !important;
-        border: 1px solid #383c4a !important;
+    /* ESTILO FONDO BLANCO Y LETRAS NEGRAS PARA EL CONTENEDOR DE CONFIGURACIÓN */
+    .config-white-card {
+        background-color: #ffffff !important;
+        border-radius: 10px;
+        padding: 10px;
+        margin-top: 4px;
+        margin-bottom: 4px;
+        border: 1px solid #d0d5dd;
+    }
+
+    .config-white-card label, 
+    .config-white-card p, 
+    .config-white-card span, 
+    .config-white-card div {
+        color: #121318 !important;
+        font-weight: 600 !important;
+    }
+
+    .config-white-card input[type="text"], 
+    .config-white-card input[type="password"],
+    .config-white-card [data-baseweb="select"] > div {
+        background-color: #f8fafc !important;
+        color: #121318 !important;
+        border: 1px solid #cbd5e1 !important;
         border-radius: 8px !important;
     }
 
-    [data-testid="stSidebar"] input {
-        color: #ffffff !important;
-    }
-
-    /* ICONOS Y TEXTOS DENTRO DEL FILE UPLOADER Y OJOS DE PASSWORD EN BLANCO */
-    [data-testid="stSidebar"] button[aria-label*="password"],
-    [data-testid="stSidebar"] [data-baseweb="select"] svg,
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] svg,
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] span,
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] button {
-        fill: #ffffff !important;
-        color: #ffffff !important;
-    }
-
-    [data-testid="stSidebar"] .stButton > button {
-        padding: 6px 12px !important;
-        font-size: 0.78rem !important;
-        margin-top: 4px !important;
-        background-color: #121318 !important;
-        border: 1px solid #383c4a !important;
+    .config-white-card input {
+        color: #121318 !important;
     }
 
     /* 3. TARJETA PRINCIPAL CON BORDE NEGRO */
@@ -299,7 +295,7 @@ st.markdown(
         font-weight: 800;
     }
 
-    /* CORRECCIÓN DE PESTAÑAS (TABS) - TEXTO BLANCO SOBRE BOTÓN SELECCIONADO NEGRO */
+    /* CORRECCIÓN DE PESTAÑAS (TABS) */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background-color: #e2e5ec !important;
@@ -456,9 +452,6 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_nombres = ""
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
-
-if "expander_abierto" not in st.session_state:
-    st.session_state.expander_abierto = False
 
 EDIFICIOS_ALPHA = [
     "Tesla",
@@ -677,7 +670,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (ENTRADAS NEGRAS Y AUTO-CIERRE)
+# 5. BARRA LATERAL (CONFIGURACIÓN CON FONDO BLANCO Y LETRAS NEGRAS)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -729,8 +722,8 @@ with st.sidebar:
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # EXPANDER CON RECOGIMIENTO AUTOMÁTICO
-    with st.expander("⚙️ Configuración de Cuenta", expanded=st.session_state.expander_abierto):
+    with st.expander("⚙️ Configuración de Cuenta", expanded=False):
+        st.markdown('<div class="config-white-card">', unsafe_allow_html=True)
         st.caption("Ajustes personales y fotografía:")
         
         edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
@@ -769,9 +762,9 @@ with st.sidebar:
                         u["Password"] = edit_pass.strip()
 
             save_persistent_db()
-            st.session_state.expander_abierto = False
             st.success("Configuración actualizada correctamente.")
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
     if st.button("Cerrar Sesión", use_container_width=True):
@@ -971,7 +964,7 @@ with tab_chk:
                             img_evidencia = base64_to_image(row["Foto_B64"])
                             if img_evidencia:
                                 with st.popover("📷 Ver Foto"):
-                                    st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_container_width=True)
+                                    st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_column_width=True)
                         else:
                             st.caption("Sin foto")
 
