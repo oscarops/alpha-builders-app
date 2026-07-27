@@ -776,61 +776,10 @@ total_obreros = len(st.session_state.db_trabajadores)
 
 k1, k2, k3 = st.columns(3)
 with k1:
-    with st.popover(f"👷 {total_obreros} Obreros Activos (Gestionar)", use_container_width=True):
-        st.markdown("#### Gestión de Obreros Activos")
-        st.caption("Agrega obreros manualmente o sube un archivo Excel (.xlsx / .csv).")
-
-        # Formulario para agregar individual
-        with st.form("form_add_obrero"):
-            nuevo_nombre_obrero = st.text_input("Nombre completo del obrero:")
-            nuevo_cargo_obrero = st.text_input("Cargo en obra (Ej. Albañil, Ayudante):")
-            btn_add_one = st.form_submit_button("Añadir Obrero")
-
-            if btn_add_one:
-                if nuevo_nombre_obrero and nuevo_cargo_obrero:
-                    st.session_state.db_trabajadores.append({
-                        "nombre": nuevo_nombre_obrero.strip().upper(),
-                        "cargo": nuevo_cargo_obrero.strip().upper()
-                    })
-                    save_persistent_db()
-                    st.success("¡Obrero agregado con éxito!")
-                    st.rerun()
-                else:
-                    st.error("Complete ambos campos.")
-
-        st.markdown("---")
-        st.markdown("**Carga Masiva vía Excel o CSV:**")
-        archivo_excel_obreros = st.file_uploader("Subir archivo con nombres y cargos", type=["xlsx", "csv"], key="upl_obreros")
-        
-        if archivo_excel_obreros is not None:
-            try:
-                if archivo_excel_obreros.name.endswith(".csv"):
-                    df_subido = pd.read_csv(archivo_excel_obreros)
-                else:
-                    df_subido = pd.read_excel(archivo_excel_obreros)
-                
-                if len(df_subido.columns) >= 2:
-                    st.write("Vista previa de datos cargados:", df_subido.head(3))
-                    if st.button("Importar y Actualizar Lista", type="primary"):
-                        for _, row in df_subido.iterrows():
-                            n_nom = str(row.iloc[0]).strip().upper()
-                            n_car = str(row.iloc[1]).strip().upper()
-                            if n_nom and n_nom != "NAN":
-                                if not any(t["nombre"] == n_nom for t in st.session_state.db_trabajadores):
-                                    st.session_state.db_trabajadores.append({"nombre": n_nom, "cargo": n_car})
-                        save_persistent_db()
-                        st.success("¡Obreros importados correctamente!")
-                        st.rerun()
-                else:
-                    st.error("El archivo debe contener al menos dos columnas (Nombre y Cargo).")
-            except Exception as e:
-                st.error(f"Error al leer el archivo: {e}")
-
-        st.markdown("---")
-        st.markdown("**Lista de obreros registrados:**")
-        df_obs_actuales = pd.DataFrame(st.session_state.db_trabajadores)
-        st.dataframe(df_obs_actuales, use_container_width=True, height=200)
-
+    st.markdown(
+        f'<div class="kpi-card-studio"><div class="kpi-val-studio">{total_obreros}</div><div class="kpi-lbl-studio">Obreros Activos</div></div>',
+        unsafe_allow_html=True,
+    )
 with k2:
     st.markdown(
         f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_chks}</div><div class="kpi-lbl-studio">Checklists Guardados</div></div>',
@@ -844,13 +793,14 @@ with k3:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-pestanas = ["Checklist Diario", "Control de Rendimiento"]
+pestanas = ["Checklist Diario", "Control de Rendimiento", "Gestión de Obreros"]
 if es_admin:
     pestanas.append("Panel Admin")
 
 tabs_app = st.tabs(pestanas)
 tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
+tab_obreros = tabs_app[2]
 
 # ==========================================
 # 7. MÓDULO 1: CHECKLIST DIARIO
@@ -976,7 +926,7 @@ with tab_chk:
                     st.session_state.creando_jornada = False
                     st.rerun()
 
-    # HISTORIAL DE JORNADAS (CON OPCIONES DE EDITAR, CAMBIAR NOMBRE Y ELIMINAR)
+    # HISTORIAL DE JORNADAS
     st.markdown("---")
     st.markdown("### Historial de Jornadas e Inspecciones Creadas")
 
@@ -987,12 +937,10 @@ with tab_chk:
 
     if len(mis_jornadas) > 0:
         for idx_j, j in enumerate(list(mis_jornadas)):
-            # Usamos un identificador único en el índice original
             original_idx = len(mis_jornadas) - idx_j - 1
             
             with st.expander(f"📌 Jornada #{idx_j + 1} | Edificio: {j['Edificio']} | Fecha: {j['Fecha']} | Responsable: {j['Responsable']}"):
                 
-                # Opción para renombrar o cambiar fecha
                 with st.form(f"form_edit_jornada_{idx_j}"):
                     st.markdown("#### Modificar Datos de la Jornada")
                     col_ed1, col_ed2 = st.columns(2)
@@ -1135,10 +1083,81 @@ with tab_rend:
         st.info("Aún no existen registros en su historial.")
 
 # ==========================================
-# 9. MÓDULO ADMINISTRADOR
+# 9. MÓDULO 3: GESTIÓN DE OBREROS A PANTALLA COMPLETA
+# ==========================================
+with tab_obreros:
+    st.markdown("### Gestión Completa de Obreros Activos")
+    st.caption("Administre la plantilla de trabajadores, agregue registros individuales o importe listas completas desde Excel.")
+
+    col_og1, col_og2 = st.columns([1, 1])
+
+    with col_og1:
+        st.markdown("#### ➕ Agregar Nuevo Obrero")
+        with st.form("form_add_obrero_full"):
+            nuevo_nombre_obrero = st.text_input("Nombre completo:")
+            nuevo_cargo_obrero = st.text_input("Cargo en obra (Ej. Albañil, Ayudante, Fierrero):")
+            btn_add_one = st.form_submit_button("Registrar Obrero", type="primary")
+
+            if btn_add_one:
+                if nuevo_nombre_obrero and nuevo_cargo_obrero:
+                    st.session_state.db_trabajadores.append({
+                        "nombre": nuevo_nombre_obrero.strip().upper(),
+                        "cargo": nuevo_cargo_obrero.strip().upper()
+                    })
+                    save_persistent_db()
+                    st.success("¡Obrero registrado con éxito!")
+                    st.rerun()
+                else:
+                    st.error("Por favor complete ambos campos.")
+
+    with col_og2:
+        st.markdown("#### 📂 Importación Masiva (Excel / CSV)")
+        archivo_excel_obreros = st.file_uploader("Subir tabla con nombre y cargo", type=["xlsx", "csv"], key="upl_obreros_full")
+        
+        if archivo_excel_obreros is not None:
+            try:
+                if archivo_excel_obreros.name.endswith(".csv"):
+                    df_subido = pd.read_csv(archivo_excel_obreros)
+                else:
+                    df_subido = pd.read_excel(archivo_excel_obreros)
+                
+                if len(df_subido.columns) >= 2:
+                    st.write("Vista previa de importación:", df_subido.head(3))
+                    if st.button("Confirmar Importación Masiva", type="primary"):
+                        for _, row in df_subido.iterrows():
+                            n_nom = str(row.iloc[0]).strip().upper()
+                            n_car = str(row.iloc[1]).strip().upper()
+                            if n_nom and n_nom != "NAN":
+                                if not any(t["nombre"] == n_nom for t in st.session_state.db_trabajadores):
+                                    st.session_state.db_trabajadores.append({"nombre": n_nom, "cargo": n_car})
+                        save_persistent_db()
+                        st.success("¡Importación completada con éxito!")
+                        st.rerun()
+                else:
+                    st.error("El archivo debe tener al menos dos columnas (Nombre y Cargo).")
+            except Exception as e:
+                st.error(f"Error procesando el archivo: {e}")
+
+    st.markdown("---")
+    st.markdown("#### 📋 Listado General de Obreros Registrados")
+    
+    df_obs_general = pd.DataFrame(st.session_state.db_trabajadores)
+    st.dataframe(df_obs_general, use_container_width=True, height=350)
+
+    # Opción para eliminar obrero individual
+    with st.expander("🗑️ Eliminar Obrero de la Lista"):
+        obrero_a_borrar = st.selectbox("Seleccione el obrero a eliminar:", [t["nombre"] for t in st.session_state.db_trabajadores])
+        if st.button("Eliminar Obrero Seleccionado", type="secondary"):
+            st.session_state.db_trabajadores = [t for t in st.session_state.db_trabajadores if t["nombre"] != obrero_a_borrar]
+            save_persistent_db()
+            st.success(f"Obrero {obrero_a_borrar} eliminado correctamente.")
+            st.rerun()
+
+# ==========================================
+# 10. MÓDULO ADMINISTRADOR
 # ==========================================
 if es_admin:
-    tab_admin = tabs_app[2]
+    tab_admin = tabs_app[3]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
         st.caption("Módulo exclusivo para monitoreo de usuarios y asignación de permisos.")
