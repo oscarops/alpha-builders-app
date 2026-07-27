@@ -6,7 +6,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS NATIVOS LIMPIOS
+# 1. CONFIGURACIÓN Y ESTILOS STUDIO APPLE SLATE
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo de Control de Obra",
@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS específicos (Sin romper iconos ni ligaduras SVG)
+# Estilos CSS Limpios Específicos sin romper componentes
 st.markdown(
     """
     <style>
@@ -30,7 +30,7 @@ st.markdown(
         background: #f4f5f8 !important;
     }
 
-    /* Ocultar iconos de colapso feos y solucionar textos desalineados */
+    /* Ocultar elementos de colapso no deseados */
     [data-testid="stSidebarCollapseButton"] {
         display: none !important;
     }
@@ -131,7 +131,7 @@ st.markdown(
         color: #6c707a !important;
     }
 
-    /* BOTÓN OJO DE VER CONTRASEÑA CORREGIDO */
+    /* BOTÓN OJO DE VER CONTRASEÑA */
     [data-testid="stTextInputIconButton"] {
         right: 10px !important;
     }
@@ -184,7 +184,7 @@ st.markdown(
 # 2. FUNCIONES DE APOYO Y ALMACENAMIENTO PERSISTENTE (BASE64)
 # ==========================================
 def image_to_base64(image_file):
-    """Guarda la imagen de perfil en formato Base64 para que no se borre"""
+    """Guarda la imagen de perfil en formato Base64 para que no se borre al actualizar controles"""
     if image_file is not None:
         try:
             img = Image.open(image_file)
@@ -204,6 +204,12 @@ def base64_to_image(b64_str):
         except Exception:
             return None
     return None
+
+def export_dataframe_to_excel_csv(df):
+    """Genera CSV con codificación utf-8-sig y separador por punto y coma (;) para apertura directa e impecable en Excel"""
+    # Se eliminan objetos de imagen antes de exportar
+    df_clean = df.drop(columns=["Foto_Objeto"], errors="ignore")
+    return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 # ==========================================
 # 3. BASE DE DATOS Y ESTADOS DE SESIÓN
@@ -240,7 +246,7 @@ if "db_checklists" not in st.session_state:
 if "db_rendimientos" not in st.session_state:
     st.session_state.db_rendimientos = {}
 
-# NÓMINA OFICIAL DE LOS 12 EDIFICIOS
+# NÓMINA OFICIAL DE LOS 12 EDIFICIOS DE ALPHA BUILDERS
 EDIFICIOS_ALPHA = [
     "Tesla",
     "Lafuente",
@@ -458,7 +464,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON PERFIL Y CONFIGURACIÓN
+# 5. BARRA LATERAL CON PERSISTENCIA DE IMAGEN Y CONFIGURACIÓN
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -468,7 +474,7 @@ es_admin = user_email in st.session_state.admin_emails
 with st.sidebar:
     st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #1a1c23;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
-    # Carga persistente de imagen en Base64
+    # Carga persistente de imagen en Base64 (Nunca se borra)
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     img_obj = base64_to_image(b64_foto)
 
@@ -538,7 +544,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v15.0 Clean")
+    st.caption("Alpha Builders Portal v16.0 Pro")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
@@ -585,11 +591,11 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO
+# 7. MÓDULO 1: CHECKLIST DIARIO (CON FOTOS AL LADO DE CADA ACTIVIDAD)
 # ==========================================
 with tab_chk:
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión diaria de frentes de trabajo con verificación manual obligatoria.")
+    st.caption("Supervisión diaria de frentes de trabajo con verificación manual obligatoria y evidencia fotográfica.")
 
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
@@ -616,7 +622,7 @@ with tab_chk:
             st.markdown("---")
 
             with st.form("form_checklist_jornada"):
-                st.markdown("#### Jornada de la Mañana")
+                st.markdown("#### 🌅 Jornada de la Mañana")
                 resp_manana = []
 
                 for idx, act in enumerate(ACTIVIDADES_MANANA, 1):
@@ -634,12 +640,25 @@ with tab_chk:
                     with c_obs:
                         ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
                     with c_foto:
-                        ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
+                        ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
+                        if ft is not None:
+                            st.image(ft, caption="Vista previa adjunta", width=140)
 
                     st.markdown("<hr style='margin: 8px 0; border-color: #e1e3e8;'>", unsafe_allow_html=True)
-                    resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
+                    
+                    # Convertir foto a Base64 para guardarla permanentemente en el registro
+                    ft_b64 = image_to_base64(ft) if ft is not None else None
+                    resp_manana.append({
+                        "Jornada": "Mañana",
+                        "N°": idx,
+                        "Actividad": act,
+                        "Estado": est,
+                        "Observaciones": ob,
+                        "Foto_B64": ft_b64,
+                        "Foto_Adjunta": "Sí" if ft is not None else "No"
+                    })
 
-                st.markdown("#### Jornada de la Tarde")
+                st.markdown("#### 🌆 Jornada de la Tarde")
                 resp_tarde = []
 
                 for idx, act in enumerate(ACTIVIDADES_TARDE, 1):
@@ -657,10 +676,22 @@ with tab_chk:
                     with c_obs:
                         ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
                     with c_foto:
-                        ft = st.file_uploader("Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
+                        ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
+                        if ft is not None:
+                            st.image(ft, caption="Vista previa adjunta", width=140)
 
                     st.markdown("<hr style='margin: 8px 0; border-color: #e1e3e8;'>", unsafe_allow_html=True)
-                    resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí" if ft is not None else "No"})
+                    
+                    ft_b64 = image_to_base64(ft) if ft is not None else None
+                    resp_tarde.append({
+                        "Jornada": "Tarde",
+                        "N°": idx,
+                        "Actividad": act,
+                        "Estado": est,
+                        "Observaciones": ob,
+                        "Foto_B64": ft_b64,
+                        "Foto_Adjunta": "Sí" if ft is not None else "No"
+                    })
 
                 btn_guardar_chk = st.form_submit_button("Guardar Jornada de Inspección", type="primary")
 
@@ -685,7 +716,7 @@ with tab_chk:
                     st.session_state.creando_jornada = False
                     st.rerun()
 
-    # HISTORIAL DE JORNADAS CREADAS
+    # HISTORIAL DE JORNADAS CREADAS CON FOTOS AL LADO DE CADA ACTIVIDAD
     st.markdown("---")
     st.markdown("### Historial de Jornadas e Inspecciones Creadas")
 
@@ -694,13 +725,32 @@ with tab_chk:
     if len(mis_jornadas) > 0:
         for idx_j, j in enumerate(reversed(mis_jornadas), 1):
             with st.expander(f"📌 Jornada #{len(mis_jornadas) - idx_j + 1} | Edificio: {j['Edificio']} | Fecha: {j['Fecha']} | Responsable: {j['Responsable']}"):
-                df_display = j["Datos"]
-                st.dataframe(df_display.drop(columns=["Foto_Objeto"]), use_container_width=True)
+                df_data = j["Datos"]
 
-                csv_item = df_display.drop(columns=["Foto_Objeto"]).to_csv(index=False).encode("utf-8")
+                # Despliegue interactivo con fotos adjuntas al lado de cada actividad
+                st.markdown("#### Detalle de Actividades e Inspección")
+                for _, row in df_data.iterrows():
+                    col_det1, col_det2, col_det3 = st.columns([3, 2, 2])
+                    with col_det1:
+                        st.markdown(f"**[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**")
+                        st.caption(f"Observación: {row['Observaciones'] if row['Observaciones'] else 'Sin observaciones'}")
+                    with col_det2:
+                        st.markdown(f"**Estado:** `{row['Estado']}`")
+                    with col_det3:
+                        if row.get("Foto_B64") is not None:
+                            img_evidencia = base64_to_image(row["Foto_B64"])
+                            if img_evidencia:
+                                st.image(img_evidencia, caption="Evidencia Fotográfica", width=130)
+                        else:
+                            st.caption("Sin foto adjunta")
+
+                    st.markdown("<hr style='margin: 4px 0; border-color: #f0f2f5;'>", unsafe_allow_html=True)
+
+                # Exportación CSV limpia con UTF-8-SIG para Excel
+                csv_bytes = export_dataframe_to_excel_csv(df_data.drop(columns=["Foto_B64"], errors="ignore"))
                 st.download_button(
-                    label=f"Descargar CSV - {j['Edificio']}",
-                    data=csv_item,
+                    label=f"📥 Descargar CSV Formateado (Excel) - {j['Edificio']}",
+                    data=csv_bytes,
                     file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.csv",
                     mime="text/csv",
                     key=f"dl_{idx_j}"
@@ -781,8 +831,8 @@ with tab_rend:
         df_mis_r = pd.DataFrame(mis_rendimientos)
         st.dataframe(df_mis_r, use_container_width=True)
 
-        csv_r = df_mis_r.to_csv(index=False).encode("utf-8")
-        st.download_button(label="Descargar Rendimientos (CSV)", data=csv_r, file_name=f"Rendimientos_{user_email}.csv", mime="text/csv")
+        csv_bytes_r = export_dataframe_to_excel_csv(df_mis_r)
+        st.download_button(label="📥 Descargar Rendimientos en CSV (Excel)", data=csv_bytes_r, file_name=f"Rendimientos_{user_email}.csv", mime="text/csv")
     else:
         st.info("Aún no existen registros en su historial.")
 
@@ -841,10 +891,10 @@ if es_admin:
         df_act = pd.DataFrame(resumen_actividad)
         st.dataframe(df_act, use_container_width=True)
 
-        csv_admin = df_act.to_csv(index=False).encode("utf-8")
+        csv_admin_bytes = export_dataframe_to_excel_csv(df_act)
         st.download_button(
-            label="Descargar Reporte de Usuarios Activos (CSV)",
-            data=csv_admin,
+            label="📥 Descargar Reporte de Usuarios (Excel CSV)",
+            data=csv_admin_bytes,
             file_name=f"Reporte_Usuarios_AlphaBuilders_{datetime.date.today().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
