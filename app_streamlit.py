@@ -498,8 +498,8 @@ def export_checklist_to_excel_file(jornada_dict):
             item.get("Observaciones", "")
         ])
 
-        # Fila amplia para albergar la imagen a gran escala
-        ws.row_dimensions[row_idx].height = 160
+        # Fila muy alta para acomodar la imagen en su tamaño completo sin compresión vertical
+        ws.row_dimensions[row_idx].height = 200
 
         for c_i in range(1, 7):
             cell_txt = ws.cell(row=row_idx, column=c_i)
@@ -513,22 +513,21 @@ def export_checklist_to_excel_file(jornada_dict):
                 img_data = base64.b64decode(foto_b64)
                 img_pil = Image.open(io.BytesIO(img_data))
                 
-                # ALTA RESOLUCIÓN CON LANZOS
-                img_pil = img_pil.resize((400, 300), Image.Resampling.LANCZOS)
+                # MANTENER TAMAÑO COMPLETO EN ALTA DEFINICIÓN CON LANCZOS
+                img_pil = img_pil.resize((600, 450), Image.Resampling.LANCZOS)
                 img_stream = io.BytesIO()
-                img_pil.save(img_stream, format="PNG", quality=95)
+                img_pil.save(img_stream, format="PNG", quality=100)
                 img_stream.seek(0)
 
                 img_xlsx = OpenpyxlImage(img_stream)
                 
-                # OCUPAR AGRESIVAMENTE TODO EL ANCHO Y ALTO DE LA CELDA
-                # Ancho columna F = 48 (aprox 336 px), Alto fila = 160 (aprox 213 px)
-                img_xlsx.width = 320
-                img_xlsx.height = 150
+                # OCUPAR EL TAMAÑO COMPLETO DE ANCHO Y ALTO EN LA CELDA
+                img_xlsx.width = 330
+                img_xlsx.height = 190
 
-                # CENTRADO EXACTO EN LA CELDA
-                col_w_px = 336
-                row_h_px = 213
+                # CENTRADO EXACTO EN LA CELDA F (Ancho columna F = 50, Alto fila = 200)
+                col_w_px = 350
+                row_h_px = 266
                 img_xlsx.left = max(2, (col_w_px - img_xlsx.width) / 2)
                 img_xlsx.top = max(2, (row_h_px - img_xlsx.height) / 2)
 
@@ -543,7 +542,7 @@ def export_checklist_to_excel_file(jornada_dict):
     ws.column_dimensions['C'].width = 52
     ws.column_dimensions['D'].width = 18
     ws.column_dimensions['E'].width = 35
-    ws.column_dimensions['F'].width = 48  # Columna F muy amplia para que la imagen ocupe todo el espacio
+    ws.column_dimensions['F'].width = 50  # Columna F extra amplia para acoger la imagen completa
 
     output = io.BytesIO()
     wb.save(output)
@@ -958,7 +957,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (VERTICAL COMPLETO + TÍTULO Y CALENDARIO AL MISMO NIVEL)
+# 7. MÓDULO 1: CHECKLIST DIARIO (VERTICAL COMPLETO + CALENDARIO AL MISMO NIVEL)
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
