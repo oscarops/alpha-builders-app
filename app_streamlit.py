@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (SIDEBAR FIJO Y FOTO RECTANGULAR)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (SIDEBAR OPTIMIZADO 255PX)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -32,8 +32,8 @@ st.markdown(
     }
 
     .block-container {
-        padding-top: 1.2rem !important;
-        padding-bottom: 2rem !important;
+        padding-top: 1rem !important;
+        padding-bottom: 1.5rem !important;
     }
 
     /* 1. FONDO PRINCIPAL: BLANCO PURO */
@@ -66,8 +66,8 @@ st.markdown(
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
         border-radius: 50% !important;
-        width: 38px !important;
-        height: 38px !important;
+        width: 34px !important;
+        height: 34px !important;
         color: #ffffff !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
         transition: all 0.2s ease !important;
@@ -86,24 +86,27 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): DESHABILITAR MODIFICACIÓN MANUAL (FIJA) */
+    /* 2. BARRA LATERAL (SIDEBAR): ANCHO REDUCIDO EN 15% (255PX) Y COMPACTO */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
         padding-top: 0px !important;
-        padding-left: 14px !important;
-        padding-right: 14px !important;
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+        min-width: 255px !important;
+        max-width: 255px !important;
+        width: 255px !important;
     }
 
-    /* Ocultar / Inhabilitar manija de arrastre del Sidebar */
+    /* DESHABILITAR RESIZE/ARRASTRE DEL SIDEBAR */
     [data-testid="stSidebarResizer"],
-    [data-testid="stSidebar"] > div:nth-child(2) {
+    [data-testid="stSidebar"] > div:first-child + div {
         display: none !important;
         pointer-events: none !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.4rem !important;
+        gap: 0.25rem !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -116,11 +119,11 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL RECTANGULAR DEL MISMO ANCHO DE LA TARJETA */
+    /* FOTO DE PERFIL RECTANGULAR DEL MISMO ANCHO QUE LA TARJETA */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: block !important;
-        margin: 6px 0 !important;
+        margin: 4px 0 !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] > div {
@@ -128,43 +131,44 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] img {
-        border-radius: 14px !important;
+        border-radius: 12px !important;
         width: 100% !important;
         height: auto !important;
+        max-width: 100% !important;
         object-fit: cover !important;
         border: 1px solid #323646 !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
         margin: 0 !important;
         display: block !important;
     }
 
-    /* TARJETA DE PERFIL CON ANCHO IDENTICO A LA FOTO */
+    /* TARJETA DE PERFIL COMPACTA Y AL ANCHO */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
-        border-radius: 14px;
-        padding: 12px 10px !important;
+        border-radius: 12px;
+        padding: 8px 10px !important;
         text-align: center;
-        margin-bottom: 6px;
-        margin-top: 4px;
+        margin-bottom: 4px;
+        margin-top: 2px;
         width: 100% !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
     .sidebar-user-name {
-        font-size: 0.98rem;
+        font-size: 0.88rem;
         font-weight: 800;
         color: #ffffff !important;
         margin-top: 2px;
-        margin-bottom: 4px !important;
-        line-height: 1.3;
+        margin-bottom: 2px !important;
+        line-height: 1.25;
     }
 
     .sidebar-user-email {
-        font-size: 0.76rem;
+        font-size: 0.7rem;
         color: #72b2ff !important;
         font-weight: 600;
-        margin-bottom: 8px !important;
+        margin-bottom: 6px !important;
         word-break: break-all;
     }
 
@@ -173,35 +177,40 @@ st.markdown(
         background: #323646 !important;
         color: #ffffff !important;
         border: 1px solid #484e5e !important;
-        font-size: 0.68rem !important;
+        font-size: 0.62rem !important;
         font-weight: 800 !important;
-        padding: 4px 10px !important;
-        border-radius: 20px !important;
+        padding: 3px 8px !important;
+        border-radius: 16px !important;
         text-transform: uppercase !important;
     }
 
     [data-testid="stSidebar"] hr {
-        margin: 8px 0 !important;
+        margin: 6px 0 !important;
         border-color: #282a36 !important;
     }
 
-    /* EXPANDER DE CONFIGURACIÓN */
+    /* EXPANDER DE CONFIGURACIÓN COMPACTO */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
-        border-radius: 12px !important;
-        margin-bottom: 4px !important;
+        border-radius: 10px !important;
+        margin-bottom: 2px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
         background-color: #282c36 !important;
-        padding: 8px 12px !important;
+        padding: 6px 8px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
         color: #ffffff !important;
         font-weight: 700 !important;
-        font-size: 0.85rem !important;
+        font-size: 0.8rem !important;
+    }
+
+    [data-testid="stSidebar"] .stButton > button {
+        padding: 6px 14px !important;
+        font-size: 0.8rem !important;
     }
 
     /* 3. TARJETA PRINCIPAL CON BORDE NEGRO Y LETRA DISTINTIVA */
@@ -210,7 +219,7 @@ st.markdown(
         border: 1px solid #b8c4d8;
         border-left: 7px solid #121318;
         border-radius: 22px;
-        padding: 26px 30px;
+        padding: 24px 30px;
         box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         margin-bottom: 25px;
         transition: all 0.3s ease;
@@ -648,7 +657,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL OPTIMIZADA CON FOTO RECTANGULAR
+# 5. BARRA LATERAL OPTIMIZADA DE 255PX DE ANCHO
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -661,14 +670,14 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; margin-bottom: 4px; padding: 0 2px;">
+            <div style="text-align: center; margin-bottom: 2px; padding: 0 2px;">
                 <img src="data:image/png;base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none;">
             </div>
         """,
             unsafe_allow_html=True,
         )
 
-    st.markdown("<h4 style='text-align: center; font-weight: 800; margin-bottom: 4px; margin-top: 0px; color: #ffffff; font-size: 0.95rem;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; font-weight: 800; margin-bottom: 2px; margin-top: 0px; color: #ffffff; font-size: 0.88rem;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
 
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     if not b64_foto:
@@ -691,7 +700,7 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 8px; font-size: 0.72rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 4px; border-radius: 10px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 6px; font-size: 0.68rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 3px; border-radius: 8px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -933,7 +942,7 @@ with tab_chk:
                             img_evidencia = base64_to_image(row["Foto_B64"])
                             if img_evidencia:
                                 with st.popover("📷 Ver Foto"):
-                                    st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_column_width=True)
+                                    st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_container_width=True)
                         else:
                             st.caption("Sin foto")
 
