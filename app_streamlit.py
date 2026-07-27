@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (ACOPLAMIENTO PERFECTO)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,7 +31,6 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* CONTENEDOR PRINCIPAL QUE SE ACOPLA A PANTALLA COMPLETA AL OCULTAR EL SIDEBAR */
     .block-container {
         padding-top: 0.8rem !important;
         padding-bottom: 1.2rem !important;
@@ -222,49 +221,7 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* CONTENEDOR BLANCO DE CONFIGURACIÓN CON LETRAS NEGRAS (SIN ELEMENTOS FANTASMAS) */
-    .config-white-card {
-        background-color: #ffffff !important;
-        border-radius: 10px;
-        padding: 10px;
-        margin-top: 4px;
-        margin-bottom: 4px;
-        border: 1px solid #d0d5dd;
-    }
-
-    .config-white-card label, 
-    .config-white-card p, 
-    .config-white-card span, 
-    .config-white-card div {
-        color: #121318 !important;
-        font-weight: 600 !important;
-    }
-
-    .config-white-card input[type="text"], 
-    .config-white-card input[type="password"],
-    .config-white-card [data-baseweb="select"] > div {
-        background-color: #f8fafc !important;
-        color: #121318 !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 8px !important;
-    }
-
-    .config-white-card input {
-        color: #121318 !important;
-    }
-
-    .config-white-card [data-testid="stFileUploader"] span,
-    .config-white-card [data-testid="stFileUploader"] small,
-    .config-white-card [data-testid="stFileUploader"] div {
-        color: #121318 !important;
-    }
-
-    .config-white-card button[aria-label*="password"] svg {
-        fill: #121318 !important;
-        color: #121318 !important;
-    }
-
-    /* 3. TARJETA PRINCIPAL CON BORDE NEGRO */
+    /* 3. TARJETA PRINCIPAL (ESTILO ORIGINAL RESTAURADO) */
     .executive-card-studio {
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
         border: 1px solid #b8c4d8;
@@ -273,6 +230,13 @@ st.markdown(
         padding: 22px 28px;
         box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+    .executive-card-studio:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 45px rgba(0,0,0,0.12);
+        border-color: #121318;
+        border-left-color: #121318;
     }
 
     .brand-title {
@@ -282,6 +246,7 @@ st.markdown(
         background: linear-gradient(90deg, #121318 0%, #3a4256 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        text-shadow: 0 2px 12px rgba(0,0,0,0.08);
         letter-spacing: -0.04em !important;
     }
 
@@ -682,7 +647,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (CONFIGURACIÓN CON FONDO BLANCO SIN ELEMENTO FANTASMA)
+# 5. BARRA LATERAL (CONFIGURACIÓN SIN ELEMENTO FANTASMA)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -735,8 +700,6 @@ with st.sidebar:
     st.markdown("<hr>", unsafe_allow_html=True)
 
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
-        st.markdown('<div class="config-white-card">', unsafe_allow_html=True)
-        
         edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
         edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
         
@@ -775,7 +738,6 @@ with st.sidebar:
             save_persistent_db()
             st.success("Configuración actualizada correctamente.")
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
     if st.button("Cerrar Sesión", use_container_width=True):
