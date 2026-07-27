@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (ANCHO 100% FORZADO)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS ( ACOPLAMIENTO Y EXPANSIÓN TOTAL )
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -31,16 +31,20 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
-    /* FORZAR DE MANERA AGRESIVA EL ANCHO TOTAL DE LA PANTALLA EN EL CONTENEDOR PRINCIPAL */
-    .block-container, [data-testid="stMainBlockContainer"], [data-testid="stMain"], section.main {
+    /* FORZAR AL CONTENEDOR PRINCIPAL Y LA SECCIÓN MAIN A MOVERSE Y OCUPAR EL 100% DE LA PANTALLA */
+    section.main, [data-testid="stMain"] {
+        margin-left: 0px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .block-container, [data-testid="stMainBlockContainer"] {
         padding-top: 1rem !important;
         padding-bottom: 1.5rem !important;
         padding-left: 2rem !important;
         padding-right: 2rem !important;
         max-width: 100% !important;
         width: 100% !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
     }
 
     /* 1. FONDO PRINCIPAL: BLANCO PURO */
@@ -101,7 +105,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR) */
+    /* 2. BARRA LATERAL (SIDEBAR) FIJA E INAMOVIBLE */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
