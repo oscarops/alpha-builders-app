@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (DEFINITIVOS)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (SIDEBAR PERFECCIONADO)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -52,7 +52,7 @@ st.markdown(
         color: #5a5f6e !important;
     }
 
-    /* BOTÓN PARA DESPLAZAR/OCULTAR SIDEBAR SIEMPRE VISIBLE Y RESALTADO */
+    /* BOTÓN PARA COLAPSAR SIDEBAR SIEMPRE VISIBLE Y RESALTADO */
     [data-testid="stSidebarCollapseButton"], 
     [data-testid="collapsedControl"] {
         display: block !important;
@@ -96,7 +96,7 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.5rem !important;
+        gap: 0.4rem !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -109,13 +109,13 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* CORRECCIÓN DE CENTRADO ABSOLUTO PARA LA FOTO DE PERFIL */
+    /* FOTO DE PERFIL MÁS GRANDE QUE OCUPA TODO EL ANCHO DISPONIBLE Y QUEDA CENTRADA */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        margin: 6px 0 !important;
+        margin: 8px 0 !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] > div {
@@ -126,41 +126,42 @@ st.markdown(
 
     [data-testid="stSidebar"] [data-testid="stImage"] img {
         border-radius: 50% !important;
-        width: 140px !important;
-        height: 140px !important;
+        width: 180px !important;
+        height: 180px !important;
+        max-width: 85% !important;
         object-fit: cover !important;
         border: 4px solid #ff8c00 !important;
-        box-shadow: 0 0 20px rgba(255, 140, 0, 0.45);
+        box-shadow: 0 0 22px rgba(255, 140, 0, 0.5);
         margin: 0 auto !important;
         display: block !important;
     }
 
-    /* TARJETA DE PERFIL ESPACIADA Y AIREADA (NO PEGADA) */
+    /* TARJETA DE PERFIL ESPACIADA */
     .sidebar-profile-box {
         background: #1c1e26;
         border: 1px solid #323646;
         border-radius: 14px;
-        padding: 14px 12px !important;
+        padding: 12px 10px !important;
         text-align: center;
-        margin-bottom: 10px;
-        margin-top: 6px;
+        margin-bottom: 6px;
+        margin-top: 4px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
 
     .sidebar-user-name {
-        font-size: 1.02rem;
+        font-size: 0.98rem;
         font-weight: 800;
         color: #ffffff !important;
         margin-top: 2px;
-        margin-bottom: 6px !important;
+        margin-bottom: 4px !important;
         line-height: 1.3;
     }
 
     .sidebar-user-email {
-        font-size: 0.78rem;
+        font-size: 0.76rem;
         color: #72b2ff !important;
         font-weight: 600;
-        margin-bottom: 10px !important;
+        margin-bottom: 8px !important;
         word-break: break-all;
     }
 
@@ -169,16 +170,15 @@ st.markdown(
         background: #323646 !important;
         color: #ffffff !important;
         border: 1px solid #484e5e !important;
-        font-size: 0.7rem !important;
+        font-size: 0.68rem !important;
         font-weight: 800 !important;
-        padding: 5px 12px !important;
+        padding: 4px 10px !important;
         border-radius: 20px !important;
         text-transform: uppercase !important;
-        letter-spacing: 0.04em !important;
     }
 
     [data-testid="stSidebar"] hr {
-        margin: 10px 0 !important;
+        margin: 8px 0 !important;
         border-color: #282a36 !important;
     }
 
@@ -187,7 +187,7 @@ st.markdown(
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
         border-radius: 12px !important;
-        margin-bottom: 6px !important;
+        margin-bottom: 4px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
@@ -498,7 +498,7 @@ ACTIVIDADES_TARDE = [
     "Revisión de observaciones pendientes",
     "Verificación de trabajos corregidos",
     "Verificación del orden y limpieza de los frentes de trabajo",
-    "Confirmación de materials para el siguiente día",
+    "Confirmación de materiales para el siguiente día",
     "Revisión del cumplimiento de la meta diaria",
     "Cierre de actividades en campo",
 ]
@@ -645,7 +645,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON MÁXIMA ELEGANCIA Y CENTRADO
+# 5. BARRA LATERAL OPTIMIZADA
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -658,14 +658,14 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; margin-bottom: 6px; padding: 0 2px;">
+            <div style="text-align: center; margin-bottom: 4px; padding: 0 2px;">
                 <img src="data:image/png;base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none;">
             </div>
         """,
             unsafe_allow_html=True,
         )
 
-    st.markdown("<h4 style='text-align: center; font-weight: 800; margin-bottom: 6px; margin-top: 0px; color: #ffffff; font-size: 0.95rem;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; font-weight: 800; margin-bottom: 4px; margin-top: 0px; color: #ffffff; font-size: 0.95rem;'>Perfil de Usuario</h4>", unsafe_allow_html=True)
 
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     if not b64_foto:
@@ -739,10 +739,8 @@ with st.sidebar:
         st.session_state.autenticado = False
         st.rerun()
 
-    st.caption("Alpha Builders v41.0")
-
 # ==========================================
-# 6. DASHBOARD PRINCIPAL QUE SE ADAPTA AL ANCHO TOTAL
+# 6. DASHBOARD PRINCIPAL
 # ==========================================
 st.markdown(
     f"""
