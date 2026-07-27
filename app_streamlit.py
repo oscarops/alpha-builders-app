@@ -89,7 +89,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* 2. BARRA LATERAL (SIDEBAR): FIJA, SIN SCROLL Y CON ESPACIO ENTRE TARJETAS */
+    /* 2. BARRA LATERAL (SIDEBAR): FIJA, SIN SCROLL Y CON CONEXIÓN HARMONIOSA */
     [data-testid="stSidebar"] {
         background-color: #121318 !important;
         border-right: 2px solid #282a36 !important;
@@ -109,7 +109,7 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.4rem !important;
+        gap: 0.35rem !important;
     }
 
     [data-testid="stSidebar"] label, 
@@ -122,11 +122,11 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* FOTO DE PERFIL MÁS GRANDE */
+    /* FOTO DE PERFIL AJUSTADA AL 100% DEL ANCHO */
     [data-testid="stSidebar"] [data-testid="stImage"] {
         width: 100% !important;
         display: block !important;
-        margin: 4px 0 8px 0 !important;
+        margin: 2px 0 6px 0 !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] > div {
@@ -134,12 +134,12 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] [data-testid="stImage"] img {
-        border-radius: 14px !important;
+        border-radius: 12px !important;
         width: 100% !important;
-        max-height: 185px !important;
+        max-height: 165px !important;
         object-fit: cover !important;
         border: 1px solid #323646 !important;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         margin: 0 !important;
         display: block !important;
     }
@@ -152,7 +152,7 @@ st.markdown(
         padding: 10px 8px !important;
         text-align: center;
         margin-top: 4px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         width: 100% !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
@@ -204,8 +204,8 @@ st.markdown(
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
         border-radius: 10px !important;
-        margin-top: 4px !important;
-        margin-bottom: 6px !important;
+        margin-top: 2px !important;
+        margin-bottom: 4px !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
@@ -220,9 +220,9 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] .stButton > button {
-        padding: 6px 12px !important;
+        padding: 5px 12px !important;
         font-size: 0.78rem !important;
-        margin-top: 4px !important;
+        margin-top: 2px !important;
     }
 
     /* 3. TARJETA PRINCIPAL CON BORDE NEGRO Y LETRA DISTINTIVA */
@@ -669,7 +669,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (LOGO MÁS PEQUEÑO Y FOTO MÁS GRANDE CON SEPARACIÓN)
+# 5. BARRA LATERAL (LOGO AL MISMO ANCHO QUE LA IMAGEN Y SEPARADOS)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -678,7 +678,7 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    # LOGO EN RECUADRO MÁS PEQUEÑO Y CON MARGEN INFERIOR PRONUNCIADO
+    # LOGO EN RECUADRO CON FONDO BLANCO A TODO EL ANCHO (100%) Y CON SEPARACIÓN
     logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
     if not os.path.exists(logo_filename):
         logo_filename = "images.png"
@@ -689,7 +689,7 @@ with st.sidebar:
             encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
         st.markdown(
             f"""
-            <div style="text-align: center; background-color: #ffffff; border-radius: 10px; padding: 4px; margin-top: 2px; margin-bottom: 22px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); width: 70%; margin-left: auto; margin-right: auto;">
+            <div style="text-align: center; background-color: #ffffff; border-radius: 12px; padding: 8px 10px; margin-top: 4px; margin-bottom: 18px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3); width: 100% !important; box-sizing: border-box;">
                 <img src="data:image/{ext};base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none; display: block; margin: 0 auto;">
             </div>
         """,
