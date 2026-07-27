@@ -20,7 +20,7 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
@@ -31,6 +31,7 @@ st.markdown(
         letter-spacing: -0.03em !important;
     }
 
+    /* CONTENEDOR PRINCIPAL FLUIDO Y ADAPTABLE A PANTALLA COMPLETA */
     .block-container {
         padding-top: 0.8rem !important;
         padding-bottom: 1.2rem !important;
@@ -221,7 +222,7 @@ st.markdown(
         font-size: 0.78rem !important;
     }
 
-    /* 3. TARJETA PRINCIPAL (ESTILO ORIGINAL RESTAURADO) */
+    /* 3. TARJETA PRINCIPAL CON ESTILO ORIGINAL DE GROSOR DE FUENTE */
     .executive-card-studio {
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
         border: 1px solid #b8c4d8;
@@ -241,13 +242,13 @@ st.markdown(
 
     .brand-title {
         font-family: 'Montserrat', sans-serif !important;
-        font-weight: 900 !important;
+        font-weight: 700 !important;
         font-size: 2.4rem !important;
         background: linear-gradient(90deg, #121318 0%, #3a4256 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-shadow: 0 2px 12px rgba(0,0,0,0.08);
-        letter-spacing: -0.04em !important;
+        letter-spacing: -0.03em !important;
     }
 
     .kpi-card-studio {
@@ -752,7 +753,7 @@ user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 st.markdown(
     f"""
     <div class="executive-card-studio">
-        <h1 class="brand-title" style="font-size: 2.5rem; font-weight: 900; margin: 0;">Portal de Control e Inspección</h1>
+        <h1 class="brand-title" style="font-size: 2.5rem; font-weight: 700; margin: 0;">Portal de Control e Inspección</h1>
         <p style="color: #5a5f6e; margin-top: 6px; font-size: 1.05rem;">{user_nombre_completo} — <b>{user_cargo}</b></p>
     </div>
 """,
