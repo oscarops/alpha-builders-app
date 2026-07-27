@@ -8,7 +8,7 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (CORREGIDOS)
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -20,10 +20,16 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
 
     html, body, [class*="css"] {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* TÍTULOS CON ESTILO IDÉNTICO AL LOGO (MONTSERRAT) */
+    h1, h2, h3, .brand-title {
+        font-family: 'Montserrat', sans-serif !important;
+        letter-spacing: -0.03em !important;
     }
 
     /* 1. FONDO PRINCIPAL: BLANCO PURO */
@@ -106,6 +112,7 @@ st.markdown(
         background-color: #1c1e26 !important;
         border: 1px solid #323646 !important;
         border-radius: 12px !important;
+        overflow: hidden !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stExpander"] summary {
@@ -120,34 +127,38 @@ st.markdown(
         fill: #ffffff !important;
     }
 
-    /* CORRECCIÓN DE CAJAS DE TEXTO E ICONO DEL OJO VISIBLE */
+    /* CAJAS DE TEXTO Y FONDO DEL OJO DE CONTRASEÑA EN EL SIDEBAR */
     [data-testid="stSidebar"] div[data-baseweb="input"] {
         background-color: #ffffff !important;
-        border: 1px solid #b8bec8 !important;
+        border: 1px solid #323646 !important;
         border-radius: 10px !important;
+        overflow: hidden !important;
     }
 
     [data-testid="stSidebar"] div[data-baseweb="input"] input {
         background-color: #ffffff !important;
         color: #121318 !important;
         font-weight: 600 !important;
+        padding: 8px 10px !important;
     }
 
-    /* FORZAR VISIBILIDAD DEL ICONO DEL OJO EN NEGRO */
+    /* CORRECCIÓN: Fondo negro/oscuro para el botón del ojo de visibilidad */
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] {
+        background-color: #1c1e26 !important;
+        border-radius: 0 10px 10px 0 !important;
+        padding: 0 6px !important;
+    }
+
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] button {
         background-color: transparent !important;
         border: none !important;
     }
 
     [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] svg,
-    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] path,
-    [data-testid="stSidebar"] button[title="Show password"] svg,
-    [data-testid="stSidebar"] button[title="Hide password"] svg {
-        fill: #121318 !important;
-        color: #121318 !important;
-        stroke: #121318 !important;
-        visibility: visible !important;
-        display: block !important;
+    [data-testid="stSidebar"] [data-testid="stTextInputIconButton"] path {
+        fill: #ffffff !important;
+        color: #ffffff !important;
+        stroke: #ffffff !important;
     }
 
     /* Uploader de Fotos en Sidebar */
@@ -468,14 +479,13 @@ if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
 
     with col_l2:
-        # Cargar logo images.png subida al repositorio
         if os.path.exists("images.png"):
             st.image("images.png", use_container_width=True)
         else:
             st.markdown(
                 """
                 <div class="executive-card-studio" style="text-align: center; margin-top: 40px;">
-                    <h1 style="font-size: 2.6rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #121318;">ALPHA BUILDERS</h1>
+                    <h1 class="brand-title" style="font-size: 2.6rem; font-weight: 900; margin: 0; color: #121318;">ALPHA BUILDERS</h1>
                     <p style="color: #5a5f6e; font-size: 1.05rem; font-weight: 600; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
                 </div>
             """,
@@ -605,7 +615,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON LOGO E IMAGEN DE PERFIL
+# 5. BARRA LATERAL CON PERFIL Y CONFIGURACIÓN
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -613,13 +623,11 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    # 1. Cargar Logo Oficial images.png
     if os.path.exists("images.png"):
         st.image("images.png", use_container_width=True)
 
     st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
-    # 2. Cargar Foto de Perfil
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     if not b64_foto:
         b64_foto = get_repo_image_b64(["perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png"])
@@ -627,7 +635,7 @@ with st.sidebar:
     img_obj = base64_to_image(b64_foto)
 
     if img_obj is not None:
-        st.image(img_obj, use_container_width=True)
+        st.image(img_obj, use_column_width=True)
 
     st.markdown(
         f"""
@@ -693,16 +701,16 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v26.0 HQ Logo")
+    st.caption("Alpha Builders Portal v27.0")
 
 # ==========================================
-# 6. DASHBOARD PRINCIPAL
+# 6. DASHBOARD PRINCIPAL (TÍTULO MODIFICADO Y SIN USUARIO ACTIVO)
 # ==========================================
 st.markdown(
     f"""
     <div class="executive-card-studio">
-        <h1 style="font-size: 2.5rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #121318;">Alpha Builders</h1>
-        <p style="color: #5a5f6e; margin-top: 4px; font-size: 1.05rem;">Portal Corporativo de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
+        <h1 class="brand-title" style="font-size: 2.3rem; font-weight: 900; margin: 0; color: #121318;">Portal de Control e Inspección</h1>
+        <p style="color: #5a5f6e; margin-top: 4px; font-size: 1.02rem;">{user_nombre_completo} — <b>{user_cargo}</b></p>
     </div>
 """,
     unsafe_allow_html=True,
@@ -886,7 +894,7 @@ with tab_chk:
                             img_evidencia = base64_to_image(row["Foto_B64"])
                             if img_evidencia:
                                 with st.popover("📷 Ver Foto"):
-                                    st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_container_width=True)
+                                    st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_column_width=True)
                         else:
                             st.caption("Sin foto")
 
