@@ -3,50 +3,77 @@ import pandas as pd
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y TEMA LIQUID GLASS
+# 1. CONFIGURACIÓN Y CSS OFICIAL LIQUID GLASS (APPLE STORE)
 # ==========================================
 st.set_page_config(
-    page_title="Alpha Builders | Portal de Obra",
+    page_title="Alpha Builders | Portal Oficial de Obra",
     page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS con efecto Liquid Glass (Glassmorphism) + Texto 100% Legible
+# Estilos CSS de grado producción estilo Apple App Store / Liquid Glass
 st.markdown(
     """
     <style>
-    /* Fondo General estilo Apple Dark Canvas */
+    /* Fondo Canvas Apple Dark Space */
     .stApp {
-        background: radial-gradient(circle at 50% -20%, #1e2640 0%, #0d0f17 60%, #050608 100%);
-        color: #f5f5f7 !important;
+        background: radial-gradient(circle at 50% -20%, #1c2333 0%, #0c0e14 60%, #040507 100%);
+        color: #ffffff !important;
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
     }
 
-    /* FORZAR LEGIBILIDAD DE TEXTOS Y ETIQUETAS */
-    label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
-        color: #f5f5f7 !important;
+    /* LEGIBILIDAD DE LABELS Y TEXTOS GENERALES */
+    label, p, span, h1, h2, h3, h4, h5, h6, .stMarkdown {
+        color: #ffffff !important;
+        font-weight: 500;
     }
     
     .stCaption, caption, small, [data-testid="stCaptionContainer"] {
-        color: #a1a1a6 !important;
+        color: #98989d !important;
     }
 
-    /* Tarjeta Principal y Header Estilo Liquid Glass */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.05);
+    /* RECUADROS DE ENTRADA CORREGIDOS (DARK LIQUID GLASS) */
+    .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
+        background-color: rgba(20, 24, 35, 0.85) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 12px !important;
+        padding: 12px 16px !important;
+        font-size: 0.95rem !important;
+        font-weight: 500 !important;
+        backdrop-filter: blur(15px) !important;
+        -webkit-backdrop-filter: blur(15px) !important;
+    }
+
+    /* FOCO EN INPUTS - BORDE AZUL ELECTRIC APPLE */
+    .stTextInput input:focus, .stSelectbox > div > div:focus, .stNumberInput input:focus {
+        border-color: #2997ff !important;
+        box-shadow: 0 0 12px rgba(41, 151, 255, 0.4) !important;
+        background-color: rgba(25, 30, 45, 0.95) !important;
+    }
+
+    /* PLACEHOLDERS EN GRIS CLARO LEGBLE */
+    ::placeholder {
+        color: #8e8e93 !important;
+        opacity: 1 !important;
+    }
+
+    /* TARJETAS CONTENEDORAS GLASSMORPHISM */
+    .glass-card-official {
+        background: rgba(255, 255, 255, 0.04);
         backdrop-filter: blur(25px);
         -webkit-backdrop-filter: blur(25px);
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 24px;
-        padding: 30px;
+        padding: 32px;
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
         margin-bottom: 25px;
     }
 
-    /* Tarjetas de Métricas (KPIs) Liquid Glass */
-    .kpi-glass {
-        background: rgba(255, 255, 255, 0.04);
+    /* TARJETAS KPIS */
+    .kpi-card-official {
+        background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -56,79 +83,61 @@ st.markdown(
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         transition: all 0.3s ease;
     }
-    .kpi-glass:hover {
-        background: rgba(255, 255, 255, 0.08);
+    .kpi-card-official:hover {
+        background: rgba(255, 255, 255, 0.07);
         border-color: rgba(255, 255, 255, 0.25);
         transform: translateY(-2px);
     }
-    .kpi-value-glass {
+    .kpi-value-official {
         font-size: 2.3rem;
         font-weight: 700;
         color: #ffffff !important;
         letter-spacing: -0.02em;
     }
-    .kpi-label-glass {
+    .kpi-label-official {
         font-size: 0.8rem;
-        color: #86868b !important;
+        color: #98989d !important;
         text-transform: uppercase;
         font-weight: 600;
         letter-spacing: 0.08em;
         margin-top: 6px;
     }
 
-    /* Inputs y Campos de Texto Estilo Apple Glass */
-    .stTextInput input, .stSelectbox select, .stNumberInput input, .stDateInput input {
-        background: rgba(255, 255, 255, 0.08) !important;
-        color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        border-radius: 14px !important;
-        padding: 12px 16px !important;
-        backdrop-filter: blur(10px);
-    }
-    .stTextInput input:focus, .stSelectbox select:focus, .stNumberInput input:focus {
-        border-color: #2997ff !important;
-        box-shadow: 0 0 12px rgba(41, 151, 255, 0.4) !important;
-    }
-    ::placeholder {
-        color: #86868b !important;
-        opacity: 1;
-    }
-
-    /* Pestañas (Tabs) Estilo Apple App Store Segment Control */
+    /* PESTAÑA TIPO SEGMENT CONTROL APPLE */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background: rgba(255, 255, 255, 0.06) !important;
         backdrop-filter: blur(15px);
         padding: 6px;
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
     }
     .stTabs [data-baseweb="tab"] {
         border-radius: 12px;
         padding: 10px 24px;
         background-color: transparent !important;
-        color: #a1a1a6 !important;
+        color: #8e8e93 !important;
         font-weight: 500;
         border: none !important;
     }
     .stTabs [aria-selected="true"] {
-        background: rgba(255, 255, 255, 0.2) !important;
+        background: rgba(255, 255, 255, 0.18) !important;
         backdrop-filter: blur(10px);
         color: #ffffff !important;
         font-weight: 600;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     }
 
-    /* Botones Estilo Apple Blue Accent */
+    /* BOTONES ACCENTO AZUL APPLE */
     .stButton > button {
         background: linear-gradient(180deg, #0071e3 0%, #005bb5 100%) !important;
         color: #ffffff !important;
-        border-radius: 14px !important;
+        border-radius: 12px !important;
         border: none !important;
         font-weight: 600 !important;
         padding: 12px 24px !important;
-        box-shadow: 0 4px 15px rgba(0, 113, 227, 0.3) !important;
+        box-shadow: 0 4px 15px rgba(0, 113, 227, 0.35) !important;
         transition: all 0.2s ease !important;
     }
     .stButton > button:hover {
@@ -137,7 +146,7 @@ st.markdown(
         transform: translateY(-1px);
     }
 
-    /* Ocultar elementos predeterminados */
+    /* OCULTAR ELEMENTOS PREDETERMINADOS */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
@@ -146,7 +155,7 @@ st.markdown(
 )
 
 # ==========================================
-# 2. BASE DE DATOS Y ESTADOS DE SESIÓN
+# 2. ESTADOS DE SESIÓN Y REGISTRO
 # ==========================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -221,14 +230,14 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 3. MÓDULO DE ACCESO / LOGIN & REGISTRO
+# 3. PÁGINA DE LOGIN / REGISTRO
 # ==========================================
 if not st.session_state.autenticado:
     st.markdown(
         """
-        <div class="glass-card" style="text-align: center; max-width: 650px; margin: 40px auto 20px auto;">
+        <div class="glass-card-official" style="text-align: center; max-width: 650px; margin: 40px auto 20px auto;">
             <h1 style="font-size: 2.5rem; letter-spacing: -0.03em;">ALPHA BUILDERS</h1>
-            <p style="color: #86868b;">Portal de Control de Obra y Calidad</p>
+            <p style="color: #98989d;">Portal Oficial de Control de Obra y Calidad</p>
         </div>
     """,
         unsafe_allow_html=True,
@@ -242,7 +251,7 @@ if not st.session_state.autenticado:
         # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
-            st.caption("Ingrese sus credenciales para acceder a su perfil.")
+            st.caption("Ingrese sus credenciales registradas.")
 
             login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
             login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
@@ -263,7 +272,7 @@ if not st.session_state.autenticado:
                     st.error("Por favor ingrese correo y contraseña.")
 
             st.markdown("---")
-            st.caption("Acceso directo corporativo:")
+            st.caption("Acceso corporativo directo:")
             col_g, col_o = st.columns(2)
             with col_g:
                 if st.button("🌐 Con Google", use_container_width=True):
@@ -283,7 +292,7 @@ if not st.session_state.autenticado:
         # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
-            st.caption("Complete los campos para habilitar su acceso.")
+            st.caption("Complete todos los campos para registrar su acceso.")
 
             col_n, col_a = st.columns(2)
             with col_n:
@@ -310,7 +319,7 @@ if not st.session_state.autenticado:
                     st.success("¡Registro completado!")
                     st.rerun()
                 else:
-                    st.error("Complete todos los campos requeridos para el registro.")
+                    st.error("Por favor complete todos los campos de registro.")
 
     st.stop()
 
@@ -333,14 +342,14 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Liquid Glass v4.0\nEstilo Apple App Store")
+    st.caption("Alpha Builders Official Portal\nDiseño Liquid Glass")
 
 # ==========================================
 # 5. PANEL PRINCIPAL / DASHBOARD
 # ==========================================
 st.markdown(
     f"""
-    <div class="glass-card">
+    <div class="glass-card-official">
         <h1>ALPHA BUILDERS</h1>
         <p>Panel de Control | Usuario: <b>{user_nombre}</b> ({user_cargo})</p>
     </div>
@@ -354,17 +363,17 @@ usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 k1, k2, k3 = st.columns(3)
 with k1:
     st.markdown(
-        '<div class="kpi-glass"><div class="kpi-value-glass">28</div><div class="kpi-label-glass">Obreros Activos</div></div>',
+        '<div class="kpi-card-official"><div class="kpi-value-official">28</div><div class="kpi-label-official">Obreros Activos</div></div>',
         unsafe_allow_html=True,
     )
 with k2:
     st.markdown(
-        f'<div class="kpi-glass"><div class="kpi-value-glass">{usr_chks}</div><div class="kpi-label-glass">Checklists Guardados</div></div>',
+        f'<div class="kpi-card-official"><div class="kpi-value-official">{usr_chks}</div><div class="kpi-label-official">Checklists Guardados</div></div>',
         unsafe_allow_html=True,
     )
 with k3:
     st.markdown(
-        f'<div class="kpi-glass"><div class="kpi-value-glass">{usr_rnds}</div><div class="kpi-label-glass">Reportes de Rendimiento</div></div>',
+        f'<div class="kpi-card-official"><div class="kpi-value-official">{usr_rnds}</div><div class="kpi-label-official">Reportes de Rendimiento</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -391,7 +400,7 @@ with tab_chk:
 
     st.markdown("---")
 
-    with st.form("form_checklist_glass"):
+    with st.form("form_checklist_official"):
         st.markdown("#### 🌅 Jornada de la Mañana")
         resp_manana = []
 
