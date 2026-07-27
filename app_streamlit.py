@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN Y CSS OFICIAL LIQUID GLASS (APPLE STORE)
+# 1. CONFIGURACIÓN DE PÁGINA Y TEMA APPLE LIGHT
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Oficial de Obra",
@@ -12,137 +12,136 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS de grado producción estilo Apple App Store / Liquid Glass
+# Estilos CSS Oficiales de Apple (Apple Light Canvas) con Contraste de Texto Garantizado
 st.markdown(
     """
     <style>
-    /* Fondo Canvas Apple Dark Space */
+    /* Fondo General Apple Light Canvas */
     .stApp {
-        background: radial-gradient(circle at 50% -20%, #1c2333 0%, #0c0e14 60%, #040507 100%);
-        color: #ffffff !important;
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+        background-color: #f5f5f7 !important;
+        color: #1d1d1f !important;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
 
-    /* LEGIBILIDAD DE LABELS Y TEXTOS GENERALES */
-    label, p, span, h1, h2, h3, h4, h5, h6, .stMarkdown {
-        color: #ffffff !important;
-        font-weight: 500;
+    /* FORZAR LEGIBILIDAD DE TEXTOS Y LABELS EN NEGRO SOBRE FONDO CLARO */
+    label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
+        color: #1d1d1f !important;
     }
     
     .stCaption, caption, small, [data-testid="stCaptionContainer"] {
-        color: #98989d !important;
+        color: #6e6e73 !important;
     }
 
-    /* RECUADROS DE ENTRADA CORREGIDOS (DARK LIQUID GLASS) */
+    /* CORRECCIÓN DE LA BARRA LATERAL (SIDEBAR APPLE LIGHT) */
+    [data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-right: 1px solid #d2d2d7 !important;
+    }
+    [data-testid="stSidebar"] * {
+        color: #1d1d1f !important;
+    }
+
+    /* RECUADROS DE ENTRADA CORREGIDOS (INPUTS CLAROS Y LEGIBLES) */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
-        background-color: rgba(20, 24, 35, 0.85) !important;
-        color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        background-color: #ffffff !important;
+        color: #1d1d1f !important;
+        border: 1px solid #d2d2d7 !important;
         border-radius: 12px !important;
         padding: 12px 16px !important;
         font-size: 0.95rem !important;
         font-weight: 500 !important;
-        backdrop-filter: blur(15px) !important;
-        -webkit-backdrop-filter: blur(15px) !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
     }
 
-    /* FOCO EN INPUTS - BORDE AZUL ELECTRIC APPLE */
+    /* FOCO EN INPUTS - AZUL APPLE */
     .stTextInput input:focus, .stSelectbox > div > div:focus, .stNumberInput input:focus {
-        border-color: #2997ff !important;
-        box-shadow: 0 0 12px rgba(41, 151, 255, 0.4) !important;
-        background-color: rgba(25, 30, 45, 0.95) !important;
+        border-color: #0071e3 !important;
+        box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15) !important;
     }
 
-    /* PLACEHOLDERS EN GRIS CLARO LEGBLE */
     ::placeholder {
-        color: #8e8e93 !important;
+        color: #86868b !important;
         opacity: 1 !important;
     }
 
-    /* TARJETAS CONTENEDORAS GLASSMORPHISM */
-    .glass-card-official {
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(25px);
-        -webkit-backdrop-filter: blur(25px);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 24px;
-        padding: 32px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    /* TARJETAS CONTENEDORAS APPLE LIGHT */
+    .apple-card-light {
+        background-color: #ffffff;
+        border: 1px solid #e5e5e7;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
         margin-bottom: 25px;
     }
 
-    /* TARJETAS KPIS */
-    .kpi-card-official {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 20px;
+    /* TARJETAS KPIS APPLE */
+    .kpi-card-light {
+        background-color: #ffffff;
+        border: 1px solid #e5e5e7;
+        border-radius: 18px;
         padding: 22px;
         text-align: center;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        transition: all 0.2s ease;
     }
-    .kpi-card-official:hover {
-        background: rgba(255, 255, 255, 0.07);
-        border-color: rgba(255, 255, 255, 0.25);
+    .kpi-card-light:hover {
+        border-color: #d2d2d7;
         transform: translateY(-2px);
     }
-    .kpi-value-official {
-        font-size: 2.3rem;
+    .kpi-value-light {
+        font-size: 2.4rem;
         font-weight: 700;
-        color: #ffffff !important;
-        letter-spacing: -0.02em;
+        color: #1d1d1f !important;
+        letter-spacing: -0.03em;
     }
-    .kpi-label-official {
+    .kpi-label-light {
         font-size: 0.8rem;
-        color: #98989d !important;
+        color: #86868b !important;
         text-transform: uppercase;
         font-weight: 600;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
         margin-top: 6px;
     }
 
     /* PESTAÑA TIPO SEGMENT CONTROL APPLE */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background: rgba(255, 255, 255, 0.06) !important;
-        backdrop-filter: blur(15px);
-        padding: 6px;
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background-color: #e8e8ed !important;
+        padding: 5px;
+        border-radius: 14px;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 12px;
-        padding: 10px 24px;
+        border-radius: 10px;
+        padding: 10px 22px;
         background-color: transparent !important;
-        color: #8e8e93 !important;
+        color: #6e6e73 !important;
         font-weight: 500;
         border: none !important;
     }
     .stTabs [aria-selected="true"] {
-        background: rgba(255, 255, 255, 0.18) !important;
-        backdrop-filter: blur(10px);
-        color: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #1d1d1f !important;
         font-weight: 600;
-        border: 1px solid rgba(255, 255, 255, 0.25) !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
     }
 
     /* BOTONES ACCENTO AZUL APPLE */
     .stButton > button {
-        background: linear-gradient(180deg, #0071e3 0%, #005bb5 100%) !important;
+        background-color: #0071e3 !important;
         color: #ffffff !important;
-        border-radius: 12px !important;
+        border-radius: 980px !important; /* Estilo píldora Apple */
         border: none !important;
         font-weight: 600 !important;
-        padding: 12px 24px !important;
-        box-shadow: 0 4px 15px rgba(0, 113, 227, 0.35) !important;
+        padding: 10px 22px !important;
+        box-shadow: 0 2px 6px rgba(0, 113, 227, 0.25) !important;
         transition: all 0.2s ease !important;
     }
+    .stButton > button * {
+        color: #ffffff !important;
+    }
     .stButton > button:hover {
-        background: linear-gradient(180deg, #147ce5 0%, #0066cc 100%) !important;
-        box-shadow: 0 6px 20px rgba(0, 113, 227, 0.5) !important;
+        background-color: #0077ed !important;
+        box-shadow: 0 4px 12px rgba(0, 113, 227, 0.35) !important;
         transform: translateY(-1px);
     }
 
@@ -155,13 +154,29 @@ st.markdown(
 )
 
 # ==========================================
-# 2. ESTADOS DE SESIÓN Y REGISTRO
+# 2. ESTADOS DE SESIÓN Y BASE DE DATOS
 # ==========================================
+# Definición de correos administradores (Tu cuenta)
+ADMIN_EMAILS = ["oscarsebitas2013@gmail.com", "admin@alphabuilders.com"]
+
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
     st.session_state.usuario_nombre = ""
     st.session_state.usuario_cargo = ""
+
+# Base de datos global de usuarios registrados en el sistema
+if "db_usuarios" not in st.session_state:
+    st.session_state.db_usuarios = [
+        {
+            "Nombres": "Oscar Sebastián",
+            "Apellidos": "Narváez Ojeda",
+            "Correo": "oscarsebitas2013@gmail.com",
+            "Cargo": "Residente",
+            "Fecha_Registro": "2026-07-26",
+            "Estado": "Activo 🟢",
+        }
+    ]
 
 if "db_checklists" not in st.session_state:
     st.session_state.db_checklists = {}
@@ -230,14 +245,14 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 3. PÁGINA DE LOGIN / REGISTRO
+# 3. MÓDULO DE ACCESO / LOGIN & REGISTRO
 # ==========================================
 if not st.session_state.autenticado:
     st.markdown(
         """
-        <div class="glass-card-official" style="text-align: center; max-width: 650px; margin: 40px auto 20px auto;">
-            <h1 style="font-size: 2.5rem; letter-spacing: -0.03em;">ALPHA BUILDERS</h1>
-            <p style="color: #98989d;">Portal Oficial de Control de Obra y Calidad</p>
+        <div class="apple-card-light" style="text-align: center; max-width: 620px; margin: 40px auto 20px auto;">
+            <h1 style="font-size: 2.6rem; letter-spacing: -0.03em;">Alpha Builders</h1>
+            <p style="color: #6e6e73;">Portal Oficial de Control de Obra y Calidad</p>
         </div>
     """,
         unsafe_allow_html=True,
@@ -251,7 +266,7 @@ if not st.session_state.autenticado:
         # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
-            st.caption("Ingrese sus credenciales registradas.")
+            st.caption("Ingrese sus credenciales de acceso.")
 
             login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
             login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
@@ -260,8 +275,24 @@ if not st.session_state.autenticado:
                 if login_email and login_pass:
                     st.session_state.autenticado = True
                     st.session_state.usuario_email = login_email.strip().lower()
-                    st.session_state.usuario_nombre = login_email.split("@")[0].title()
-                    st.session_state.usuario_cargo = "Residente"
+
+                    # Buscar el cargo y nombre si ya está registrado
+                    u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == st.session_state.usuario_email), None)
+                    if u_match:
+                        st.session_state.usuario_nombre = f"{u_match['Nombres']} {u_match['Apellidos']}"
+                        st.session_state.usuario_cargo = u_match["Cargo"]
+                    else:
+                        st.session_state.usuario_nombre = login_email.split("@")[0].title()
+                        st.session_state.usuario_cargo = "Residente"
+                        # Agregar a usuarios activos
+                        st.session_state.db_usuarios.append({
+                            "Nombres": st.session_state.usuario_nombre,
+                            "Apellidos": "",
+                            "Correo": st.session_state.usuario_email,
+                            "Cargo": st.session_state.usuario_cargo,
+                            "Fecha_Registro": datetime.date.today().strftime("%Y-%m-%d"),
+                            "Estado": "Activo 🟢"
+                        })
 
                     if st.session_state.usuario_email not in st.session_state.db_checklists:
                         st.session_state.db_checklists[st.session_state.usuario_email] = []
@@ -272,27 +303,27 @@ if not st.session_state.autenticado:
                     st.error("Por favor ingrese correo y contraseña.")
 
             st.markdown("---")
-            st.caption("Acceso corporativo directo:")
+            st.caption("O ingrese con su proveedor corporativo:")
             col_g, col_o = st.columns(2)
             with col_g:
                 if st.button("🌐 Con Google", use_container_width=True):
                     st.session_state.autenticado = True
-                    st.session_state.usuario_email = "usuario.google@gmail.com"
-                    st.session_state.usuario_nombre = "Usuario Google"
-                    st.session_state.usuario_cargo = "Residente"
+                    st.session_state.usuario_email = "oscarsebitas2013@gmail.com"
+                    st.session_state.usuario_nombre = "Oscar Sebastián Narváez Ojeda"
+                    st.session_state.usuario_cargo = "Residente (Admin)"
                     st.rerun()
             with col_o:
                 if st.button("🏢 Con Outlook", use_container_width=True):
                     st.session_state.autenticado = True
                     st.session_state.usuario_email = "usuario.outlook@outlook.com"
                     st.session_state.usuario_nombre = "Usuario Outlook"
-                    st.session_state.usuario_cargo = "Residente"
+                    st.session_state.usuario_cargo = "Asistente"
                     st.rerun()
 
         # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
-            st.caption("Complete todos los campos para registrar su acceso.")
+            st.caption("Complete la información para habilitar su perfil.")
 
             col_n, col_a = st.columns(2)
             with col_n:
@@ -311,6 +342,16 @@ if not st.session_state.autenticado:
                     st.session_state.usuario_nombre = f"{reg_nombres.strip()} {reg_apellidos.strip()}"
                     st.session_state.usuario_cargo = reg_cargo
 
+                    # Registrar en base de datos global de usuarios
+                    st.session_state.db_usuarios.append({
+                        "Nombres": reg_nombres.strip(),
+                        "Apellidos": reg_apellidos.strip(),
+                        "Correo": st.session_state.usuario_email,
+                        "Cargo": reg_cargo,
+                        "Fecha_Registro": datetime.date.today().strftime("%Y-%m-%d"),
+                        "Estado": "Activo 🟢"
+                    })
+
                     if st.session_state.usuario_email not in st.session_state.db_checklists:
                         st.session_state.db_checklists[st.session_state.usuario_email] = []
                     if st.session_state.usuario_email not in st.session_state.db_rendimientos:
@@ -324,17 +365,20 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 4. BARRA LATERAL CON PERFIL
+# 4. BARRA LATERAL CON PERFIL E INFORMACIÓN
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre = st.session_state.usuario_nombre
 user_cargo = st.session_state.usuario_cargo
+es_admin = user_email in ADMIN_EMAILS
 
 with st.sidebar:
     st.markdown("### 👤 Perfil de Sesión")
-    st.markdown(f"**Usuario:** `{user_nombre}`")
+    st.markdown(f"**Usuario:** {user_nombre}")
     st.markdown(f"**Correo:** `{user_email}`")
     st.markdown(f"**Cargo:** `{user_cargo}`")
+    if es_admin:
+        st.success("Acceso Administrador 👑")
 
     st.markdown("---")
     if st.button("🚪 Cerrar Sesión", use_container_width=True):
@@ -342,16 +386,16 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Official Portal\nDiseño Liquid Glass")
+    st.caption("Alpha Builders Official Portal\nEstilo Apple Light Canvas")
 
 # ==========================================
-# 5. PANEL PRINCIPAL / DASHBOARD
+# 5. DASHBOARD PRINCIPAL
 # ==========================================
 st.markdown(
     f"""
-    <div class="glass-card-official">
-        <h1>ALPHA BUILDERS</h1>
-        <p>Panel de Control | Usuario: <b>{user_nombre}</b> ({user_cargo})</p>
+    <div class="apple-card-light">
+        <h1 style="font-size: 2.2rem; letter-spacing: -0.03em;">Alpha Builders</h1>
+        <p style="color: #6e6e73;">Panel de Control | Usuario: <b>{user_nombre}</b> ({user_cargo})</p>
     </div>
 """,
     unsafe_allow_html=True,
@@ -363,25 +407,30 @@ usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 k1, k2, k3 = st.columns(3)
 with k1:
     st.markdown(
-        '<div class="kpi-card-official"><div class="kpi-value-official">28</div><div class="kpi-label-official">Obreros Activos</div></div>',
+        '<div class="kpi-card-light"><div class="kpi-value-light">28</div><div class="kpi-label-light">Obreros Activos</div></div>',
         unsafe_allow_html=True,
     )
 with k2:
     st.markdown(
-        f'<div class="kpi-card-official"><div class="kpi-value-official">{usr_chks}</div><div class="kpi-label-official">Checklists Guardados</div></div>',
+        f'<div class="kpi-card-light"><div class="kpi-value-light">{usr_chks}</div><div class="kpi-label-light">Checklists Guardados</div></div>',
         unsafe_allow_html=True,
     )
 with k3:
     st.markdown(
-        f'<div class="kpi-card-official"><div class="kpi-value-official">{usr_rnds}</div><div class="kpi-label-official">Reportes de Rendimiento</div></div>',
+        f'<div class="kpi-card-light"><div class="kpi-value-light">{usr_rnds}</div><div class="kpi-label-light">Reportes de Rendimiento</div></div>',
         unsafe_allow_html=True,
     )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-tab_chk, tab_rend = st.tabs(
-    ["📋 Checklist Diario", "📊 Control de Rendimiento por Trabajador"]
-)
+# Pestañas dinámicas (Incluye pestaña Admin si es Administrador)
+pestanas = ["📋 Checklist Diario", "📊 Control de Rendimiento por Trabajador"]
+if es_admin:
+    pestanas.append("👑 Panel Admin (Usuarios Activos)")
+
+tabs_app = st.tabs(pestanas)
+tab_chk = tabs_app[0]
+tab_rend = tabs_app[1]
 
 # ==========================================
 # 6. MÓDULO 1: CHECKLIST DIARIO
@@ -415,7 +464,7 @@ with tab_chk:
             with c_foto:
                 ft = st.file_uploader("📷 Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
 
-            st.markdown("<hr style='margin: 8px 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 8px 0; border-color: #e5e5e7;'>", unsafe_allow_html=True)
             resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí 📷" if ft is not None else "No"})
 
         st.markdown("#### 🌆 Jornada de la Tarde")
@@ -432,7 +481,7 @@ with tab_chk:
             with c_foto:
                 ft = st.file_uploader("📷 Foto (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
 
-            st.markdown("<hr style='margin: 8px 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 8px 0; border-color: #e5e5e7;'>", unsafe_allow_html=True)
             resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": ob, "Foto_Objeto": ft, "Foto_Adjunta": "Sí 📷" if ft is not None else "No"})
 
         btn_guardar_chk = st.form_submit_button("💾 Guardar Checklist Diario", type="primary")
@@ -547,3 +596,50 @@ with tab_rend:
         st.download_button(label="📥 Descargar Rendimientos (CSV)", data=csv_r, file_name=f"Rendimientos_{user_email}.csv", mime="text/csv")
     else:
         st.info("Aún no existen registros en su historial.")
+
+# ==========================================
+# 8. MÓDULO EXCLUSIVO ADMIN: GESTIÓN DE USUARIOS
+# ==========================================
+if es_admin:
+    tab_admin = tabs_app[2]
+    with tab_admin:
+        st.markdown("### 👑 Panel de Control Administrador")
+        st.caption("Módulo exclusivo para monitoreo de usuarios registrados, cargos y actividad global en la plataforma.")
+
+        df_users = pd.DataFrame(st.session_state.db_usuarios)
+
+        col_a1, col_a2 = st.columns(2)
+        with col_a1:
+            st.markdown(f"**Total de Usuarios Registrados:** `{len(df_users)}`")
+        with col_a2:
+            st.markdown("**Nivel de Acceso:** `Administrador General (Pro)`")
+
+        st.markdown("#### Lista de Usuarios Activos")
+        st.dataframe(df_users, use_container_width=True)
+
+        # Resumen consolidado de actividad por usuario
+        st.markdown("#### Resumen Global de Registros por Usuario")
+        resumen_actividad = []
+        for u in st.session_state.db_usuarios:
+            e = u["Correo"]
+            num_c = len(st.session_state.db_checklists.get(e, []))
+            num_r = len(st.session_state.db_rendimientos.get(e, []))
+            resumen_actividad.append({
+                "Usuario": u["Nombres"] if u["Nombres"] else e,
+                "Correo": e,
+                "Cargo": u["Cargo"],
+                "Checklists Generados": num_c,
+                "Rendimientos Registrados": num_r,
+                "Estado": u["Estado"]
+            })
+
+        df_act = pd.DataFrame(resumen_actividad)
+        st.dataframe(df_act, use_container_width=True)
+
+        csv_admin = df_act.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="📥 Descargar Reporte de Usuarios Activos (CSV)",
+            data=csv_admin,
+            file_name=f"Reporte_Usuarios_AlphaBuilders_{datetime.date.today().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
