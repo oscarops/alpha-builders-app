@@ -8,16 +8,15 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN Y ESTILOS OFICIALES ALPHA BUILDERS HQ (ESTILO ALPHABUILDERSHQ.COM)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS (NEGRO, BLANCO Y GRIS METÁLICO)
 # ==========================================
 st.set_page_config(
-    page_title="Alpha Builders | Cazadores de Inversiones",
-    page_icon="🏢",
+    page_title="Alpha Builders | Portal Ejecutivo",
+    page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS Oficiales de Alpha Builders HQ (Gris Antracita #38404a, Blanco Puro #ffffff, Negro #1d2127)
 st.markdown(
     """
     <style>
@@ -27,42 +26,53 @@ st.markdown(
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    /* Fondo Principal Gris Antracita Oficial */
+    /* 1. FONDO PRINCIPAL: BLANCO PURO IMPOLUTO */
     .stApp {
-        background: linear-gradient(180deg, #323842 0%, #252a32 100%) !important;
-        color: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #121318 !important;
     }
 
-    /* Textos Universales en Blanco Puro Garantizado */
+    /* Regla Universal de Legibilidad en Lienzo Blanco */
     label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
-        color: #ffffff !important;
+        color: #121318 !important;
         font-weight: 500;
     }
 
     .stCaption, caption, small, [data-testid="stCaptionContainer"] {
-        color: #c2c7d0 !important;
+        color: #5a5f6e !important;
     }
 
     [data-testid="stSidebarCollapseButton"] {
         display: none !important;
     }
 
-    /* BARRA LATERAL ESTILO ALPHABUILDERS HQ */
+    /* 2. BARRA LATERAL (SIDEBAR): NEGRO ABSOLUTO CON TEXTO BLANCO */
     [data-testid="stSidebar"] {
-        background-color: #21252d !important;
-        border-right: 1px solid #3c424e !important;
+        background-color: #121318 !important;
+        border-right: 2px solid #282a36 !important;
         padding-top: 15px !important;
+    }
+
+    /* Textos dentro del Sidebar en Blanco Puro */
+    [data-testid="stSidebar"] label, 
+    [data-testid="stSidebar"] p, 
+    [data-testid="stSidebar"] span, 
+    [data-testid="stSidebar"] h1, 
+    [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3, 
+    [data-testid="stSidebar"] div {
+        color: #ffffff !important;
     }
 
     /* Tarjeta de Perfil en Sidebar */
     .sidebar-profile-box {
-        background: #2b303b;
-        border: 1px solid #434a57;
-        border-radius: 14px;
+        background: #1c1e26;
+        border: 1px solid #323646;
+        border-radius: 16px;
         padding: 16px;
         text-align: center;
         margin-bottom: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
     }
 
     .sidebar-user-name {
@@ -74,136 +84,144 @@ st.markdown(
     }
 
     .sidebar-user-email {
-        font-size: 0.85rem;
-        color: #6bb2ff !important;
+        font-size: 0.82rem;
+        color: #72b2ff !important;
         font-weight: 600;
         margin-bottom: 6px;
     }
 
     .sidebar-user-cargo {
         display: inline-block;
-        background: #17191f;
-        color: #ffffff !important;
+        background: #ffffff;
+        color: #121318 !important;
         font-size: 0.72rem;
-        font-weight: 700;
-        padding: 4px 14px;
+        font-weight: 800;
+        padding: 4px 12px;
         border-radius: 20px;
         text-transform: uppercase;
-        border: 1px solid #3c424e;
     }
 
-    /* TARJETAS PRINCIPALES */
+    /* 3. MÓDULOS Y TARJETAS: GRIS METÁLICO CON EFECTOS Y ELEVACIÓN */
     .executive-card-studio {
-        background: #282d36;
-        border: 1px solid #3f4654;
-        border-radius: 18px;
+        background: #eef0f4;
+        border: 1px solid #d0d4dc;
+        border-radius: 20px;
         padding: 26px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.06);
         margin-bottom: 20px;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .executive-card-studio:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.12);
+        border-color: #121318;
     }
 
-    /* TARJETAS KPIS ELEVADAS */
+    /* TARJETAS KPIS GRIS GRAFITO */
     .kpi-card-studio {
-        background: #282d36;
-        border: 1px solid #3f4654;
-        border-radius: 16px;
+        background: #e2e5ec;
+        border: 1px solid #c2c7d2;
+        border-radius: 18px;
         padding: 20px;
         text-align: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .kpi-card-studio:hover {
-        border-color: #ffffff;
-        transform: translateY(-2px);
+        background: #d4d8e2;
+        border-color: #121318;
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 12px 28px rgba(0,0,0,0.12);
     }
     .kpi-val-studio {
-        font-size: 2.6rem;
+        font-size: 2.7rem;
         font-weight: 900;
-        color: #ffffff !important;
+        color: #121318 !important;
         letter-spacing: -0.03em;
     }
     .kpi-lbl-studio {
         font-size: 0.75rem;
-        color: #c2c7d0 !important;
+        color: #4a5060 !important;
         text-transform: uppercase;
-        font-weight: 700;
+        font-weight: 800;
         letter-spacing: 0.08em;
         margin-top: 4px;
     }
 
-    /* RECUADROS DE ENTRADA Y FORMULARIOS (TEXTO NEGRO SOBRE BLANCO PARA LECTURA PERFECTA) */
+    /* RECUADROS DE ENTRADA Y FORMULARIOS (TEXTO NEGRO SOBRE BLANCO) */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
         background-color: #ffffff !important;
-        color: #111318 !important;
-        border: 1px solid #c2c7d0 !important;
-        border-radius: 10px !important;
+        color: #121318 !important;
+        border: 1px solid #b8bec8 !important;
+        border-radius: 12px !important;
         padding: 10px 14px !important;
         font-size: 0.95rem !important;
         font-weight: 600 !important;
     }
 
     .stTextInput input:focus, .stSelectbox > div > div:focus, .stNumberInput input:focus {
-        border-color: #6bb2ff !important;
-        box-shadow: 0 0 0 3px rgba(107, 178, 255, 0.25) !important;
-    }
-
-    ::placeholder {
-        color: #6c707a !important;
-        opacity: 1 !important;
+        border-color: #121318 !important;
+        box-shadow: 0 0 0 3px rgba(18, 19, 24, 0.15) !important;
     }
 
     .stTextInput input:disabled {
-        background-color: #e5e7eb !important;
-        color: #4b5563 !important;
+        background-color: #e2e5ec !important;
+        color: #5a5f6e !important;
     }
 
-    /* PESTAÑAS TIPO MENÚ ALPHABUILDERS HQ (BOTÓN NEGRO CON TEXTO BLANCO) */
+    [data-testid="stTextInputIconButton"] {
+        right: 10px !important;
+    }
+
+    /* PESTAÑAS SEGMENT CONTROL */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
-        background-color: transparent !important;
-        padding: 5px 0;
-        border-bottom: 2px solid #3f4654;
+        background-color: #e2e5ec !important;
+        padding: 6px;
+        border-radius: 16px;
+        border: 1px solid #c2c7d2;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 8px;
+        border-radius: 12px;
         padding: 10px 24px;
         background-color: transparent !important;
-        color: #c2c7d0 !important;
-        font-weight: 600;
+        color: #4a5060 !important;
+        font-weight: 700;
         border: none !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #17191f !important;
+        background-color: #121318 !important;
         color: #ffffff !important;
-        font-weight: 800;
-        border: 1px solid #434a57 !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        font-weight: 900;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25) !important;
     }
 
-    /* BOTONES ESTILO MENÚ OFICIAL (NEGROS CON BORDE SUTIL) */
+    /* BOTONES PRIMARIOS EN NEGRO CON EFECTO HOVER GRIS */
     .stButton > button {
-        background-color: #17191f !important;
+        background-color: #121318 !important;
         color: #ffffff !important;
-        border-radius: 8px !important;
-        border: 1px solid #434a57 !important;
-        font-weight: 700 !important;
-        padding: 10px 24px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+        border-radius: 980px !important;
+        border: none !important;
+        font-weight: 800 !important;
+        padding: 11px 26px !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+        transition: all 0.25s ease !important;
     }
     .stButton > button * {
         color: #ffffff !important;
     }
     .stButton > button:hover {
-        background-color: #000000 !important;
-        border-color: #ffffff !important;
-        transform: translateY(-1px);
+        background-color: #2c303d !important;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3) !important;
+        transform: translateY(-2px);
     }
 
     /* EXPANDERS / CONTENEDORES DESPLEGABLES */
     .streamlit-expanderHeader {
-        background-color: #282d36 !important;
-        border-radius: 10px !important;
-        border: 1px solid #3f4654 !important;
-        color: #ffffff !important;
+        background-color: #e8eaee !important;
+        border-radius: 12px !important;
+        border: 1px solid #c2c7d2 !important;
+        font-weight: 700 !important;
     }
 
     #MainMenu {visibility: hidden;}
@@ -257,7 +275,6 @@ def save_persistent_db():
     except Exception:
         pass
 
-# Carga inicial de datos
 if "db_loaded" not in st.session_state:
     p_data = load_persistent_db()
     st.session_state.admin_emails = p_data.get("admin_emails", ["oscarsebitas2013@gmail.com"])
@@ -292,7 +309,7 @@ def export_dataframe_to_excel_csv(df):
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 # ==========================================
-# 3. BASE DE DATOS Y LISTAS DE EDIFICIOS/TRABAJADORES
+# 3. BASE DE DATOS Y ESTADOS DE SESIÓN
 # ==========================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -301,7 +318,6 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
 
-# NÓMINA OFICIAL DE LOS 12 EDIFICIOS DE ALPHA BUILDERS
 EDIFICIOS_ALPHA = [
     "Tesla",
     "Lafuente",
@@ -317,7 +333,6 @@ EDIFICIOS_ALPHA = [
     "Smart",
 ]
 
-# NÓMINA DE TRABAJADORES OPERATIVOS
 TRABAJADORES_NO_MINA = [
     {"nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER", "cargo": "BODEGA"},
     {"nombre": "AGUALONGO PILAMUNGA LUIS LENIN", "cargo": "GYPSERO/ALBAÑIL"},
@@ -388,8 +403,8 @@ if not st.session_state.autenticado:
         st.markdown(
             """
             <div class="executive-card-studio" style="text-align: center; margin-top: 40px;">
-                <h1 style="font-size: 2.8rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #ffffff;">ALPHA BUILDERS</h1>
-                <p style="color: #c2c7d0; font-size: 1.05rem; font-weight: 500; margin-top: 6px;">Portal Corporativo | Cazadores de Inversiones</p>
+                <h1 style="font-size: 2.6rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #121318;">ALPHA BUILDERS</h1>
+                <p style="color: #5a5f6e; font-size: 1.05rem; font-weight: 600; margin-top: 6px;">Portal Corporativo | Cazadores de Inversiones</p>
             </div>
         """,
             unsafe_allow_html=True,
@@ -397,7 +412,6 @@ if not st.session_state.autenticado:
 
         tab_login, tab_register, tab_reset = st.tabs(["Iniciar Sesión", "Registrarse", "¿Olvidaste tu Contraseña?"])
 
-        # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
             st.caption("Ingrese sus credenciales registradas.")
@@ -424,13 +438,12 @@ if not st.session_state.autenticado:
                                 st.session_state.db_rendimientos[mail_clean] = []
                             st.rerun()
                         else:
-                            st.error("Contraseña incorrecta. Intente nuevamente.")
+                            st.error("Contraseña incorrecta.")
                     else:
                         st.error("El usuario no existe. Complete el registro.")
                 else:
                     st.error("Ingrese su correo y contraseña.")
 
-        # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
             st.caption("Complete la información para habilitar su acceso.")
@@ -488,7 +501,6 @@ if not st.session_state.autenticado:
                 else:
                     st.error("Por favor complete todos los campos requeridos.")
 
-        # --- RECUPERACIÓN DE CONTRASEÑA ---
         with tab_reset:
             st.markdown("### Recuperación de Contraseña")
             st.caption("Restablezca su acceso de forma segura.")
@@ -521,7 +533,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON PERSISTENCIA DE FOTO
+# 5. BARRA LATERAL (SIDEBAR NEGRO ABSOLUTO)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -529,7 +541,7 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; font-weight: 900; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     img_obj = base64_to_image(b64_foto)
@@ -549,7 +561,7 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #ffffff; font-weight: 800; background: #17191f; padding: 6px; border-radius: 12px; border: 1px solid #3f4654;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #ffffff; font-weight: 800; background: #282a36; padding: 6px; border-radius: 12px; border: 1px solid #3c424e;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -601,16 +613,16 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v18.0 HQ Edition")
+    st.caption("Alpha Builders Portal v19.0 Balanced")
 
 # ==========================================
-# 6. DASHBOARD PRINCIPAL
+# 6. DASHBOARD PRINCIPAL EN TARJETAS GRIS METÁLICO SOBRE FONDO BLANCO
 # ==========================================
 st.markdown(
     f"""
     <div class="executive-card-studio">
-        <h1 style="font-size: 2.5rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #ffffff;">Alpha Builders</h1>
-        <p style="color: #c2c7d0; margin-top: 4px; font-size: 1.05rem;">Portal Corporativo de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
+        <h1 style="font-size: 2.5rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #121318;">Alpha Builders</h1>
+        <p style="color: #5a5f6e; margin-top: 4px; font-size: 1.05rem;">Portal Corporativo de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
     </div>
 """,
     unsafe_allow_html=True,
@@ -647,7 +659,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (POPOVER DE VISTA PREVIA FLOTANTE)
+# 7. MÓDULO 1: CHECKLIST DIARIO
 # ==========================================
 with tab_chk:
     st.markdown("### Check List Diario – Control de Obra")
@@ -697,7 +709,7 @@ with tab_chk:
                     with c_foto:
                         ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: #3f4654;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 8px 0; border-color: #c2c7d2;'>", unsafe_allow_html=True)
                     
                     ft_b64 = image_to_base64(ft) if ft is not None else None
                     resp_manana.append({
@@ -730,7 +742,7 @@ with tab_chk:
                     with c_foto:
                         ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: #3f4654;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 8px 0; border-color: #c2c7d2;'>", unsafe_allow_html=True)
                     
                     ft_b64 = image_to_base64(ft) if ft is not None else None
                     resp_tarde.append({
@@ -790,7 +802,6 @@ with tab_chk:
                     with col_det2:
                         st.markdown(f"**Estado:** `{row['Estado']}`")
                     with col_det3:
-                        # POPOVER DE VISTA PREVIA DE FOTO
                         if row.get("Foto_B64") is not None:
                             img_evidencia = base64_to_image(row["Foto_B64"])
                             if img_evidencia:
@@ -799,7 +810,7 @@ with tab_chk:
                         else:
                             st.caption("Sin foto")
 
-                    st.markdown("<hr style='margin: 4px 0; border-color: #3f4654;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 4px 0; border-color: #c2c7d2;'>", unsafe_allow_html=True)
 
                 csv_bytes = export_dataframe_to_excel_csv(df_data)
                 st.download_button(
