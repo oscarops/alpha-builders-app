@@ -1,21 +1,23 @@
 import base64
 import datetime
 import io
+import json
+import os
 import pandas as pd
 from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. CONFIGURACIÓN Y ESTILOS STUDIO APPLE SLATE
+# 1. CONFIGURACIÓN Y ESTILOS TITAN GRAY & CHARCOAL
 # ==========================================
 st.set_page_config(
-    page_title="Alpha Builders | Portal Ejecutivo de Control de Obra",
+    page_title="Alpha Builders | Portal Ejecutivo",
     page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Estilos CSS Limpios Específicos sin romper componentes
+# Estilos CSS Titan Charcoal & Studio Slate
 st.markdown(
     """
     <style>
@@ -25,91 +27,101 @@ st.markdown(
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    /* Fondo Lienzo Principal Studio Light Slate */
+    /* Fondo Lienzo Principal Titan Charcoal */
     .stApp {
-        background: #f4f5f8 !important;
+        background: #111318 !important;
+        color: #f0f2f6 !important;
     }
 
-    /* Ocultar elementos de colapso no deseados */
+    /* Textos Universales */
+    label, p, span, div, h1, h2, h3, h4, h5, h6, .stMarkdown {
+        color: #f0f2f6 !important;
+    }
+
+    .stCaption, caption, small, [data-testid="stCaptionContainer"] {
+        color: #9ba1b0 !important;
+    }
+
     [data-testid="stSidebarCollapseButton"] {
         display: none !important;
     }
 
-    /* SIDEBAR BLANCO PURO ESPECÍFICO */
+    /* SIDEBAR TITAN DARK */
     [data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #e1e3e8 !important;
+        background-color: #181a20 !important;
+        border-right: 1px solid #2d313e !important;
         padding-top: 15px !important;
     }
 
     /* Tarjeta de Perfil en Sidebar */
     .sidebar-profile-box {
-        background: #f8f9fa;
-        border: 1px solid #e1e3e8;
+        background: #21242d;
+        border: 1px solid #2d313e;
         border-radius: 16px;
         padding: 16px;
         text-align: center;
         margin-bottom: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
 
     .sidebar-user-name {
         font-size: 1.1rem;
         font-weight: 800;
-        color: #1a1c23 !important;
+        color: #ffffff !important;
         margin-top: 8px;
         margin-bottom: 2px;
     }
 
     .sidebar-user-email {
         font-size: 0.82rem;
-        color: #0071e3 !important;
+        color: #4da6ff !important;
         font-weight: 600;
         margin-bottom: 6px;
     }
 
     .sidebar-user-cargo {
         display: inline-block;
-        background: #1a1c23;
-        color: #ffffff !important;
+        background: #ffffff;
+        color: #111318 !important;
         font-size: 0.72rem;
-        font-weight: 700;
+        font-weight: 800;
         padding: 4px 12px;
         border-radius: 20px;
         text-transform: uppercase;
     }
 
     /* TARJETAS PRINCIPALES */
-    .executive-card-light {
-        background: #ffffff;
-        border: 1px solid #e1e3e8;
+    .executive-card-studio {
+        background: #181a20;
+        border: 1px solid #2d313e;
         border-radius: 20px;
         padding: 26px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
         margin-bottom: 20px;
     }
 
     /* TARJETAS KPIS ELEVADAS */
     .kpi-card-studio {
-        background: #ffffff;
-        border: 1px solid #e1e3e8;
+        background: #181a20;
+        border: 1px solid #2d313e;
         border-radius: 18px;
         padding: 20px;
         text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     .kpi-card-studio:hover {
-        border-color: #1a1c23;
+        border-color: #4da6ff;
         transform: translateY(-2px);
     }
     .kpi-val-studio {
-        font-size: 2.5rem;
+        font-size: 2.6rem;
         font-weight: 900;
-        color: #1a1c23 !important;
+        color: #ffffff !important;
         letter-spacing: -0.03em;
     }
     .kpi-lbl-studio {
         font-size: 0.75rem;
-        color: #6c707a !important;
+        color: #9ba1b0 !important;
         text-transform: uppercase;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -118,20 +130,19 @@ st.markdown(
 
     /* INPUTS DE TEXTO ESPECÍFICOS Y LIMPIOS */
     .stTextInput input, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
-        background-color: #ffffff !important;
-        color: #1a1c23 !important;
-        border: 1px solid #d1d5db !important;
+        background-color: #21242d !important;
+        color: #ffffff !important;
+        border: 1px solid #363b4a !important;
         border-radius: 12px !important;
         padding: 10px 14px !important;
         font-size: 0.95rem !important;
     }
 
     .stTextInput input:disabled {
-        background-color: #f0f2f5 !important;
+        background-color: #181a20 !important;
         color: #6c707a !important;
     }
 
-    /* BOTÓN OJO DE VER CONTRASEÑA */
     [data-testid="stTextInputIconButton"] {
         right: 10px !important;
     }
@@ -139,38 +150,43 @@ st.markdown(
     /* PESTAÑAS (SEGMENT CONTROL) */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background-color: #e5e7eb !important;
+        background-color: #21242d !important;
         padding: 5px;
         border-radius: 14px;
+        border: 1px solid #2d313e;
     }
     .stTabs [data-baseweb="tab"] {
         border-radius: 10px;
         padding: 10px 22px;
         background-color: transparent !important;
-        color: #4b5563 !important;
+        color: #9ba1b0 !important;
         font-weight: 600;
         border: none !important;
     }
     .stTabs [aria-selected="true"] {
         background-color: #ffffff !important;
-        color: #1a1c23 !important;
+        color: #111318 !important;
         font-weight: 800;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
     }
 
-    /* BOTONES PRIMARIOS NEGROS */
+    /* BOTONES PRIMARIOS */
     .stButton > button {
-        background-color: #1a1c23 !important;
-        color: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #111318 !important;
         border-radius: 980px !important;
         border: none !important;
-        font-weight: 700 !important;
+        font-weight: 800 !important;
         padding: 10px 24px !important;
-        box-shadow: 0 4px 12px rgba(26, 28, 35, 0.15) !important;
+        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1) !important;
+    }
+    .stButton > button * {
+        color: #111318 !important;
     }
     .stButton > button:hover {
-        background-color: #0071e3 !important;
-        box-shadow: 0 6px 16px rgba(0, 113, 227, 0.25) !important;
+        background-color: #4da6ff !important;
+        color: #ffffff !important;
+        box-shadow: 0 6px 16px rgba(77, 166, 255, 0.3) !important;
     }
 
     #MainMenu {visibility: hidden;}
@@ -181,10 +197,60 @@ st.markdown(
 )
 
 # ==========================================
-# 2. FUNCIONES DE APOYO Y ALMACENAMIENTO PERSISTENTE (BASE64)
+# 2. PERSISTENCIA EN DISCO (JSON PERSISTENTE QUE NUNCA SE BORRA)
 # ==========================================
+DB_FILE = "local_db.json"
+
+def load_persistent_db():
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "admin_emails": ["oscarsebitas2013@gmail.com"],
+        "db_fotos_perfil_b64": {},
+        "db_usuarios": [
+            {
+                "Nombres": "Oscar Sebastián",
+                "Apellidos": "Narváez Ojeda",
+                "Correo": "oscarsebitas2013@gmail.com",
+                "Password": "Al678554",
+                "Cargo": "Residente",
+                "Fecha_Registro": "2026-07-26",
+                "Estado": "Activo",
+            }
+        ],
+        "db_checklists": {},
+        "db_rendimientos": {},
+    }
+
+def save_persistent_db():
+    data_to_save = {
+        "admin_emails": st.session_state.get("admin_emails", ["oscarsebitas2013@gmail.com"]),
+        "db_fotos_perfil_b64": st.session_state.get("db_fotos_perfil_b64", {}),
+        "db_usuarios": st.session_state.get("db_usuarios", []),
+        "db_checklists": st.session_state.get("db_checklists", {}),
+        "db_rendimientos": st.session_state.get("db_rendimientos", {}),
+    }
+    try:
+        with open(DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(data_to_save, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        pass
+
+# Carga inicial a la memoria de la sesión
+if "db_loaded" not in st.session_state:
+    p_data = load_persistent_db()
+    st.session_state.admin_emails = p_data.get("admin_emails", ["oscarsebitas2013@gmail.com"])
+    st.session_state.db_fotos_perfil_b64 = p_data.get("db_fotos_perfil_b64", {})
+    st.session_state.db_usuarios = p_data.get("db_usuarios", [])
+    st.session_state.db_checklists = p_data.get("db_checklists", {})
+    st.session_state.db_rendimientos = p_data.get("db_rendimientos", {})
+    st.session_state.db_loaded = True
+
 def image_to_base64(image_file):
-    """Guarda la imagen de perfil en formato Base64 para que no se borre al actualizar controles"""
     if image_file is not None:
         try:
             img = Image.open(image_file)
@@ -196,7 +262,6 @@ def image_to_base64(image_file):
     return None
 
 def base64_to_image(b64_str):
-    """Reconstruye la imagen almacenada desde Base64"""
     if b64_str:
         try:
             img_data = base64.b64decode(b64_str)
@@ -206,17 +271,12 @@ def base64_to_image(b64_str):
     return None
 
 def export_dataframe_to_excel_csv(df):
-    """Genera CSV con codificación utf-8-sig y separador por punto y coma (;) para apertura directa e impecable en Excel"""
-    # Se eliminan objetos de imagen antes de exportar
-    df_clean = df.drop(columns=["Foto_Objeto"], errors="ignore")
+    df_clean = df.drop(columns=["Foto_B64"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 # ==========================================
 # 3. BASE DE DATOS Y ESTADOS DE SESIÓN
 # ==========================================
-if "admin_emails" not in st.session_state:
-    st.session_state.admin_emails = ["oscarsebitas2013@gmail.com"]
-
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
@@ -224,29 +284,6 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
 
-if "db_fotos_perfil_b64" not in st.session_state:
-    st.session_state.db_fotos_perfil_b64 = {}
-
-if "db_usuarios" not in st.session_state:
-    st.session_state.db_usuarios = [
-        {
-            "Nombres": "Oscar Sebastián",
-            "Apellidos": "Narváez Ojeda",
-            "Correo": "oscarsebitas2013@gmail.com",
-            "Password": "Al678554",
-            "Cargo": "Residente",
-            "Fecha_Registro": "2026-07-26",
-            "Estado": "Activo",
-        }
-    ]
-
-if "db_checklists" not in st.session_state:
-    st.session_state.db_checklists = {}
-
-if "db_rendimientos" not in st.session_state:
-    st.session_state.db_rendimientos = {}
-
-# NÓMINA OFICIAL DE LOS 12 EDIFICIOS DE ALPHA BUILDERS
 EDIFICIOS_ALPHA = [
     "Tesla",
     "Lafuente",
@@ -262,7 +299,6 @@ EDIFICIOS_ALPHA = [
     "Smart",
 ]
 
-# NÓMINA REAL DE 28 TRABAJADORES OPERATIVOS
 TRABAJADORES_NO_MINA = [
     {"nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER", "cargo": "BODEGA"},
     {"nombre": "AGUALONGO PILAMUNGA LUIS LENIN", "cargo": "GYPSERO/ALBAÑIL"},
@@ -332,9 +368,9 @@ if not st.session_state.autenticado:
     with col_l2:
         st.markdown(
             """
-            <div class="executive-card-light" style="text-align: center; margin-top: 40px;">
-                <h1 style="font-size: 2.5rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #1a1c23;">ALPHA BUILDERS</h1>
-                <p style="color: #6c707a; font-size: 1.05rem; font-weight: 500; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
+            <div class="executive-card-studio" style="text-align: center; margin-top: 40px;">
+                <h1 style="font-size: 2.6rem; letter-spacing: -0.04em; font-weight: 900; margin: 0; color: #ffffff;">ALPHA BUILDERS</h1>
+                <p style="color: #9ba1b0; font-size: 1.05rem; font-weight: 500; margin-top: 6px;">Portal Corporativo de Control de Obra y Calidad</p>
             </div>
         """,
             unsafe_allow_html=True,
@@ -342,7 +378,6 @@ if not st.session_state.autenticado:
 
         tab_login, tab_register, tab_reset = st.tabs(["Iniciar Sesión", "Registrarse", "¿Olvidaste tu Contraseña?"])
 
-        # --- INICIAR SESIÓN ---
         with tab_login:
             st.markdown("### Iniciar Sesión")
             st.caption("Ingrese sus credenciales registradas.")
@@ -369,13 +404,12 @@ if not st.session_state.autenticado:
                                 st.session_state.db_rendimientos[mail_clean] = []
                             st.rerun()
                         else:
-                            st.error("Contraseña incorrecta. Intente nuevamente.")
+                            st.error("Contraseña incorrecta.")
                     else:
                         st.error("El usuario no existe. Complete el registro.")
                 else:
                     st.error("Ingrese su correo y contraseña.")
 
-        # --- REGISTRARSE ---
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
             st.caption("Complete la información para habilitar su acceso.")
@@ -427,12 +461,12 @@ if not st.session_state.autenticado:
                             if mail_clean not in st.session_state.db_rendimientos:
                                 st.session_state.db_rendimientos[mail_clean] = []
 
+                            save_persistent_db()
                             st.success("¡Registro completado exitosamente!")
                             st.rerun()
                 else:
                     st.error("Por favor complete todos los campos requeridos.")
 
-        # --- RECUPERACIÓN DE CONTRASEÑA ---
         with tab_reset:
             st.markdown("### Recuperación de Contraseña")
             st.caption("Restablezca su acceso de forma segura.")
@@ -455,6 +489,7 @@ if not st.session_state.autenticado:
 
                         if u_match:
                             u_match["Password"] = new_pass
+                            save_persistent_db()
                             st.success(f"Contraseña actualizada con éxito para {mail_clean}.")
                         else:
                             st.error("El correo ingresado no está registrado.")
@@ -464,7 +499,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL CON PERSISTENCIA DE IMAGEN Y CONFIGURACIÓN
+# 5. BARRA LATERAL CON FOTO PERSISTENTE
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombre_completo = f"{st.session_state.usuario_nombres} {st.session_state.usuario_apellidos}".strip()
@@ -472,9 +507,8 @@ user_cargo = st.session_state.usuario_cargo
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
-    st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #1a1c23;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; font-weight: 800; margin-bottom: 12px; color: #ffffff;'>Perfil de Usuario</h3>", unsafe_allow_html=True)
 
-    # Carga persistente de imagen en Base64 (Nunca se borra)
     b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
     img_obj = base64_to_image(b64_foto)
 
@@ -493,13 +527,12 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #1a1c23; font-weight: 800; background: #e5e7eb; padding: 6px; border-radius: 12px; border: 1px solid #d1d5db;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 15px; font-size: 0.78rem; color: #ffffff; font-weight: 800; background: #282c37; padding: 6px; border-radius: 12px; border: 1px solid #363b4a;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # Módulo de Configuración en Sidebar
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
-        st.caption("Ajustes personales:")
+        st.caption("Ajustes personales y foto:")
         
         edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
         edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
@@ -516,6 +549,7 @@ with st.sidebar:
             b64_str = image_to_base64(nueva_foto_file)
             if b64_str:
                 st.session_state.db_fotos_perfil_b64[user_email] = b64_str
+                save_persistent_db()
 
         if st.button("Guardar Ajustes", type="primary", use_container_width=True):
             if edit_pass.strip() or edit_pass_rep.strip():
@@ -535,7 +569,8 @@ with st.sidebar:
                     if edit_pass.strip():
                         u["Password"] = edit_pass.strip()
 
-            st.success("Configuración actualizada correctamente.")
+            save_persistent_db()
+            st.success("Configuración guardada en disco.")
             st.rerun()
 
     st.markdown("---")
@@ -544,16 +579,16 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.caption("Alpha Builders Portal v16.0 Pro")
+    st.caption("Alpha Builders Portal v17.0 Titan Persistent")
 
 # ==========================================
 # 6. DASHBOARD PRINCIPAL
 # ==========================================
 st.markdown(
     f"""
-    <div class="executive-card-light">
-        <h1 style="font-size: 2.3rem; letter-spacing: -0.03em; font-weight: 900; margin: 0; color: #1a1c23;">Alpha Builders</h1>
-        <p style="color: #6c707a; margin-top: 4px; font-size: 1.05rem;">Panel de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
+    <div class="executive-card-studio">
+        <h1 style="font-size: 2.3rem; letter-spacing: -0.03em; font-weight: 900; margin: 0; color: #ffffff;">Alpha Builders</h1>
+        <p style="color: #9ba1b0; margin-top: 4px; font-size: 1.05rem;">Panel de Control e Inspección | Usuario Activo: <b>{user_nombre_completo}</b> ({user_cargo})</p>
     </div>
 """,
     unsafe_allow_html=True,
@@ -581,7 +616,6 @@ with k3:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Pestañas principales
 pestanas = ["Checklist Diario", "Control de Rendimiento"]
 if es_admin:
     pestanas.append("Panel Admin")
@@ -591,11 +625,11 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (CON FOTOS AL LADO DE CADA ACTIVIDAD)
+# 7. MÓDULO 1: CHECKLIST DIARIO (CON FOTOS INTERACTIVAS EN VISTA PREVIA)
 # ==========================================
 with tab_chk:
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión diaria de frentes de trabajo con verificación manual obligatoria y evidencia fotográfica.")
+    st.caption("Supervisión diaria de frentes de trabajo con verificación manual obligatoria.")
 
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
@@ -605,7 +639,6 @@ with tab_chk:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary", use_container_width=True):
             st.session_state.creando_jornada = True
 
-    # FORMULARIO DE CREACIÓN DE JORNADA
     if st.session_state.creando_jornada:
         st.markdown("---")
         with st.container():
@@ -641,12 +674,9 @@ with tab_chk:
                         ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
                     with c_foto:
                         ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
-                        if ft is not None:
-                            st.image(ft, caption="Vista previa adjunta", width=140)
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: #e1e3e8;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 8px 0; border-color: #2d313e;'>", unsafe_allow_html=True)
                     
-                    # Convertir foto a Base64 para guardarla permanentemente en el registro
                     ft_b64 = image_to_base64(ft) if ft is not None else None
                     resp_manana.append({
                         "Jornada": "Mañana",
@@ -677,10 +707,8 @@ with tab_chk:
                         ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
                     with c_foto:
                         ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
-                        if ft is not None:
-                            st.image(ft, caption="Vista previa adjunta", width=140)
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: #e1e3e8;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 8px 0; border-color: #2d313e;'>", unsafe_allow_html=True)
                     
                     ft_b64 = image_to_base64(ft) if ft is not None else None
                     resp_tarde.append({
@@ -700,23 +728,27 @@ with tab_chk:
                 
                 sin_responder = [item["Actividad"] for item in all_chk_data if item["Estado"] is None]
                 if sin_responder:
-                    st.error(f"⚠️ Por favor seleccione el estado de todas las actividades ({len(sin_responder)} pendientes).")
+                    st.error(f"⚠️ Seleccione el estado de todas las actividades ({len(sin_responder)} pendientes).")
                 else:
                     df_chk_save = pd.DataFrame(all_chk_data)
+
+                    if user_email not in st.session_state.db_checklists:
+                        st.session_state.db_checklists[user_email] = []
 
                     st.session_state.db_checklists[user_email].append({
                         "Fecha": fecha_val.strftime("%Y-%m-%d"),
                         "Edificio": edificio_val,
                         "Responsable": user_nombre_completo,
                         "Cargo": user_cargo,
-                        "Datos": df_chk_save
+                        "Datos": df_chk_save.to_dict(orient="records")
                     })
 
-                    st.success(f"Jornada guardada exitosamente para el edificio **{edificio_val}**.")
+                    save_persistent_db()
+                    st.success(f"Jornada guardada para **{edificio_val}**.")
                     st.session_state.creando_jornada = False
                     st.rerun()
 
-    # HISTORIAL DE JORNADAS CREADAS CON FOTOS AL LADO DE CADA ACTIVIDAD
+    # HISTORIAL DE JORNADAS CON BOTÓN VISTA PREVIA FLOTANTE
     st.markdown("---")
     st.markdown("### Historial de Jornadas e Inspecciones Creadas")
 
@@ -725,31 +757,31 @@ with tab_chk:
     if len(mis_jornadas) > 0:
         for idx_j, j in enumerate(reversed(mis_jornadas), 1):
             with st.expander(f"📌 Jornada #{len(mis_jornadas) - idx_j + 1} | Edificio: {j['Edificio']} | Fecha: {j['Fecha']} | Responsable: {j['Responsable']}"):
-                df_data = j["Datos"]
+                df_data = pd.DataFrame(j["Datos"])
 
-                # Despliegue interactivo con fotos adjuntas al lado de cada actividad
                 st.markdown("#### Detalle de Actividades e Inspección")
-                for _, row in df_data.iterrows():
-                    col_det1, col_det2, col_det3 = st.columns([3, 2, 2])
+                for r_idx, row in df_data.iterrows():
+                    col_det1, col_det2, col_det3 = st.columns([4, 2, 2])
                     with col_det1:
                         st.markdown(f"**[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**")
-                        st.caption(f"Observación: {row['Observaciones'] if row['Observaciones'] else 'Sin observaciones'}")
+                        st.caption(f"Observaciones: {row['Observaciones'] if row['Observaciones'] else 'Sin observaciones'}")
                     with col_det2:
                         st.markdown(f"**Estado:** `{row['Estado']}`")
                     with col_det3:
+                        # VISTA PREVIA LIMPIA POR CLIC
                         if row.get("Foto_B64") is not None:
                             img_evidencia = base64_to_image(row["Foto_B64"])
                             if img_evidencia:
-                                st.image(img_evidencia, caption="Evidencia Fotográfica", width=130)
+                                with st.popover("📷 Ver Foto"):
+                                    st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_column_width=True)
                         else:
-                            st.caption("Sin foto adjunta")
+                            st.caption("Sin foto")
 
-                    st.markdown("<hr style='margin: 4px 0; border-color: #f0f2f5;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 4px 0; border-color: #2d313e;'>", unsafe_allow_html=True)
 
-                # Exportación CSV limpia con UTF-8-SIG para Excel
-                csv_bytes = export_dataframe_to_excel_csv(df_data.drop(columns=["Foto_B64"], errors="ignore"))
+                csv_bytes = export_dataframe_to_excel_csv(df_data)
                 st.download_button(
-                    label=f"📥 Descargar CSV Formateado (Excel) - {j['Edificio']}",
+                    label=f"📥 Descargar Reporte CSV (Excel) - {j['Edificio']}",
                     data=csv_bytes,
                     file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.csv",
                     mime="text/csv",
@@ -820,7 +852,11 @@ with tab_rend:
                 "Estado": estado_diag,
             }
 
+            if user_email not in st.session_state.db_rendimientos:
+                st.session_state.db_rendimientos[user_email] = []
+
             st.session_state.db_rendimientos[user_email].append(nuevo_registro)
+            save_persistent_db()
             st.success(f"Rendimiento registrado correctamente para {trabajador_sel}.")
 
     st.markdown("---")
@@ -843,9 +879,8 @@ if es_admin:
     tab_admin = tabs_app[2]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
-        st.caption("Módulo exclusivo para monitoreo de usuarios, cargos y asignación de permisos.")
+        st.caption("Módulo exclusivo para monitoreo de usuarios y asignación de permisos.")
 
-        # --- GESTIÓN DE ADMINS ---
         st.markdown("#### Gestión de Administradores de la Plataforma")
         col_adm1, col_adm2 = st.columns([2, 1])
 
@@ -856,6 +891,7 @@ if es_admin:
                     mail_clean = nuevo_admin_mail.strip().lower()
                     if mail_clean not in st.session_state.admin_emails:
                         st.session_state.admin_emails.append(mail_clean)
+                        save_persistent_db()
                         st.success(f"Se otorgaron permisos de administrador a: {mail_clean}")
                         st.rerun()
                     else:
@@ -868,7 +904,6 @@ if es_admin:
 
         st.markdown("---")
 
-        # --- MONITOR DE USUARIOS ---
         st.markdown("#### Usuarios Activos en la Plataforma")
         df_users = pd.DataFrame(st.session_state.db_usuarios)
         st.dataframe(df_users, use_container_width=True)
