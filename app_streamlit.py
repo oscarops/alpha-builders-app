@@ -345,7 +345,7 @@ st.markdown(
 )
 
 # ==========================================
-# 2. PERSISTENCIA EN DISCO
+# 2. PERSISTENCIA EN DISCO Y FUNCIONES AUXILIARES
 # ==========================================
 DB_FILE = "local_db.json"
 
@@ -379,6 +379,14 @@ DEFAULT_TRABAJADORES = [
     {"nombre": "ACOSTA AGUILAR JORGE PATRICIO", "cargo": "SOLDADOR"},
     {"nombre": "TARAPUES CASTRO JOAO ALEXANDER", "cargo": "SOLDADOR"},
 ]
+
+def render_estado_badge(estado_str):
+    if "Cumple" in estado_str and "No" not in estado_str:
+        return f'<span style="background-color: #dcfce7; color: #16a34a; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #bbf7d0; font-size: 0.82rem;">{estado_str}</span>'
+    elif "No Cumple" in estado_str:
+        return f'<span style="background-color: #fee2e2; color: #dc2626; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #fca5a5; font-size: 0.82rem;">{estado_str}</span>'
+    else:
+        return f'<span style="background-color: #f1f5f9; color: #121318; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.82rem;">{estado_str}</span>'
 
 def get_repo_image_b64(filenames):
     for filename in filenames:
@@ -606,7 +614,7 @@ ACTIVIDADES_MANANA = [
     "Distribución de cuadrillas por frente de trabajo",
     "Recorrido inicial de obra",
     "Supervisión de la ejecución de los trabajos",  # N° 4
-    "Verificación de los trabajos y la calidad",    # N° 5 (Unión 7 y 8)
+    "Verificación de los trabajos y la calidad",    # N° 5
     "Coordinación con otras especialidades",
     "Corrección de observaciones detectadas",
 ]
@@ -616,7 +624,7 @@ ACTIVIDADES_TARDE = [
     "Verificación del avance físico de las actividades",
     "Control del rendimiento de las cuadrillas",
     "Supervisión de la ejecución de los trabajos",  # N° 4
-    "Verificación de los trabajos y la calidad",    # N° 5 (Unión 7 y 8)
+    "Verificación de los trabajos y la calidad",    # N° 5
     "Revisión de observaciones pendientes",
     "Verificación de trabajos corregidos",
     "Verificación del orden y limpieza de los frentes de trabajo",
@@ -624,9 +632,8 @@ ACTIVIDADES_TARDE = [
     "Revisión del cumplimiento de la meta diaria",
     "Cierre de actividades en campo",
 ]
-
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO
+# 4. MÓDULO DE LOGIN & REGISTRO (SIN MENSAJES FLOTANTES DE ENTER)
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -1260,7 +1267,6 @@ with tab_chk:
                                     st.markdown("---")
                                     st.markdown("##### 📋 Editar Lista Completa de Actividades de la Inspección")
                                     
-                                    # CONSTRUIR DICCIONARIO CON DATOS PREVIAMENTE GUARDADOS
                                     saved_map = {}
                                     for item_g in j.get("Datos", []):
                                         key_map = f"{item_g['Jornada']}_{item_g['N°']}_{item_g['Actividad']}"
@@ -1268,7 +1274,6 @@ with tab_chk:
 
                                     nuevos_datos_actualizados = []
 
-                                    # CARGAR TODAS LAS ACTIVIDADES DE LA MAÑANA
                                     st.markdown("###### 🌅 Jornada de la Mañana")
                                     for idx_m, act_m in enumerate(ACTIVIDADES_MANANA, 1):
                                         k_m = f"Mañana_{idx_m}_{act_m}"
@@ -1319,7 +1324,6 @@ with tab_chk:
                                             })
                                         st.markdown("<hr style='margin: 4px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
 
-                                    # CARGAR TODAS LAS ACTIVIDADES DE LA TARDE
                                     st.markdown("###### 🌆 Jornada de la Tarde")
                                     for idx_t, act_t in enumerate(ACTIVIDADES_TARDE, 1):
                                         k_t = f"Tarde_{idx_t}_{act_t}"
@@ -1387,7 +1391,9 @@ with tab_chk:
                             st.markdown("#### Actividades Registradas y Evidencias:")
                             df_data = pd.DataFrame(j["Datos"])
                             for _, row in df_data.iterrows():
-                                st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: `{row['Estado']}`")
+                                
+                                estado_badge = render_estado_badge(row['Estado'])
+                                st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: {estado_badge}", unsafe_allow_html=True)
                                 
                                 sub_tasks = row.get("Actividades_Especificas", [])
                                 if sub_tasks:
