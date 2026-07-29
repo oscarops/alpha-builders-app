@@ -609,7 +609,7 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO (CON PIN OBLIGATORIO)
+# 4. MÓDULO DE LOGIN & REGISTRO (SIN MENSAJES FLOTANTES DE ENTER)
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -633,11 +633,14 @@ if not st.session_state.autenticado:
             st.markdown("### Iniciar Sesión")
             st.caption("Ingrese sus credenciales registradas y el código de acceso.")
 
-            login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
-            login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
-            login_pin = st.text_input("Código de Seguridad (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="log_pin")
+            with st.form("form_login_clean"):
+                login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
+                login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
+                login_pin = st.text_input("Código de Seguridad (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="log_pin")
 
-            if st.button("Entrar al Portal", type="primary", use_container_width=True):
+                btn_log = st.form_submit_button("Entrar al Portal", type="primary", use_container_width=True)
+
+            if btn_log:
                 if login_email and login_pass and login_pin:
                     mail_clean = login_email.strip().lower()
                     u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
@@ -670,24 +673,27 @@ if not st.session_state.autenticado:
             st.markdown("### Crear una Cuenta Nueva")
             st.caption("Complete la información para habilitar su acceso.")
 
-            col_n, col_a = st.columns(2)
-            with col_n:
-                reg_nombres = st.text_input("Nombres:", placeholder="Ej. Juan Carlos")
-            with col_a:
-                reg_apellidos = st.text_input("Apellidos:", placeholder="Ej. Pérez Gómez")
+            with st.form("form_register_clean"):
+                col_n, col_a = st.columns(2)
+                with col_n:
+                    reg_nombres = st.text_input("Nombres:", placeholder="Ej. Juan Carlos")
+                with col_a:
+                    reg_apellidos = st.text_input("Apellidos:", placeholder="Ej. Pérez Gómez")
 
-            reg_email = st.text_input("Correo electrónico:", placeholder="ejemplo@correo.com", key="reg_email")
-            
-            col_p1, col_p2 = st.columns(2)
-            with col_p1:
-                reg_pass = st.text_input("Crear contraseña:", type="password", key="reg_pass")
-            with col_p2:
-                reg_pass_repeat = st.text_input("Repetir contraseña:", type="password", key="reg_pass_rep")
+                reg_email = st.text_input("Correo electrónico:", placeholder="ejemplo@correo.com", key="reg_email")
+                
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    reg_pass = st.text_input("Crear contraseña:", type="password", key="reg_pass")
+                with col_p2:
+                    reg_pass_repeat = st.text_input("Repetir contraseña:", type="password", key="reg_pass_rep")
 
-            reg_cargo = st.selectbox("Cargo / Rol en Obra:", ["Residente", "Asistente", "Ayudante"])
-            reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="reg_pin")
+                reg_cargo = st.selectbox("Cargo / Rol en Obra:", ["Residente", "Asistente", "Ayudante"])
+                reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="reg_pin")
 
-            if st.button("Completar Registro", type="primary", use_container_width=True):
+                btn_reg = st.form_submit_button("Completar Registro", type="primary", use_container_width=True)
+
+            if btn_reg:
                 if reg_nombres and reg_apellidos and reg_email and reg_pass and reg_pass_repeat and reg_pin:
                     current_pin = st.session_state.get("access_pin", "1254")
                     if reg_pin.strip() != current_pin:
@@ -731,15 +737,18 @@ if not st.session_state.autenticado:
             st.markdown("### Recuperación de Contraseña")
             st.caption("Restablezca su acceso de forma segura.")
 
-            reset_email = st.text_input("Ingrese su correo registrado:", placeholder="ejemplo@correo.com", key="rst_email")
-            
-            col_rp1, col_rp2 = st.columns(2)
-            with col_rp1:
-                new_pass = st.text_input("Nueva contraseña:", type="password", key="rst_pass")
-            with col_rp2:
-                new_pass_rep = st.text_input("Repetir nueva contraseña:", type="password", key="rst_pass_rep")
+            with st.form("form_reset_clean"):
+                reset_email = st.text_input("Ingrese su correo registrado:", placeholder="ejemplo@correo.com", key="rst_email")
+                
+                col_rp1, col_rp2 = st.columns(2)
+                with col_rp1:
+                    new_pass = st.text_input("Nueva contraseña:", type="password", key="rst_pass")
+                with col_rp2:
+                    new_pass_rep = st.text_input("Repetir nueva contraseña:", type="password", key="rst_pass_rep")
 
-            if st.button("Restablecer Contraseña", type="primary", use_container_width=True):
+                btn_reset = st.form_submit_button("Restablecer Contraseña", type="primary", use_container_width=True)
+
+            if btn_reset:
                 if reset_email and new_pass and new_pass_rep:
                     if new_pass != new_pass_rep:
                         st.error("Las contraseñas no coinciden.")
@@ -967,7 +976,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (JORNADAS INDEPENDIENTES MAÑANA/TARDE)
+# 7. MÓDULO 1: CHECKLIST DIARIO (CON EDICIÓN COMPLETA POST-GUARDADO)
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -1068,9 +1077,7 @@ with tab_chk:
                 if edificio_val == "-- Seleccione --" or not edificio_val:
                     st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
                 else:
-                    # FILTRAR ACTIVIDADES QUE REALMENTE SE RESPONDIERON
                     manana_respondida = [item for item in resp_manana if item["Estado"] is not None]
-                    tarde_respondida = [item for item in resp_tarde if item["Estado"] is None]
                     tarde_respondida = [item for item in resp_tarde if item["Estado"] is not None]
 
                     all_chk_data = manana_respondida + tarde_respondida
@@ -1159,21 +1166,59 @@ with tab_chk:
 
                     with col_j_info:
                         with st.expander(f"📌 {j['Edificio']} — {j['Fecha']}"):
-                            with st.form(f"form_edit_jornada_{orig_idx}"):
-                                st.markdown("#### Editar Detalles")
-                                nuevo_nombre_edificio = st.selectbox("Nombre / Edificio:", EDIFICIOS_ALPHA, index=EDIFICIOS_ALPHA.index(j['Edificio']) if j['Edificio'] in EDIFICIOS_ALPHA else 0, key=f"ed_sel_{orig_idx}")
-                                try:
-                                    f_obj = datetime.datetime.strptime(j['Fecha'], "%Y-%m-%d").date()
-                                except:
-                                    f_obj = datetime.date.today()
-                                nueva_fecha_obj = st.date_input("Fecha:", value=f_obj, key=f"f_ed_{orig_idx}")
+                            # EDICIÓN DE ENCABEZADO Y ACTIVIDADES DENTRO DEL HISTORIAL
+                            with st.expander("✏️ Editar Detalles de la Jornada y Actividades Guardadas", expanded=False):
+                                with st.form(f"form_full_edit_{orig_idx}"):
+                                    st.markdown("##### 📍 Modificar Edificio y Fecha")
+                                    nuevo_edificio = st.selectbox("Nombre / Edificio:", EDIFICIOS_ALPHA, index=EDIFICIOS_ALPHA.index(j['Edificio']) if j['Edificio'] in EDIFICIOS_ALPHA else 0, key=f"fe_ed_sel_{orig_idx}")
+                                    try:
+                                        f_obj = datetime.datetime.strptime(j['Fecha'], "%Y-%m-%d").date()
+                                    except:
+                                        f_obj = datetime.date.today()
+                                    nueva_fecha = st.date_input("Fecha:", value=f_obj, key=f"fe_f_ed_{orig_idx}")
 
-                                if st.form_submit_button("Actualizar Cambios"):
-                                    st.session_state.db_checklists[user_email][orig_idx]['Edificio'] = nuevo_nombre_edificio
-                                    st.session_state.db_checklists[user_email][orig_idx]['Fecha'] = nueva_fecha_obj.strftime("%Y-%m-%d")
-                                    save_persistent_db()
-                                    st.success("¡Actualizado con éxito!")
-                                    st.rerun()
+                                    st.markdown("---")
+                                    st.markdown("##### 📋 Editar Actividades Registradas")
+                                    
+                                    edit_datos_actuales = j.get("Datos", [])
+                                    nuevos_datos_actualizados = []
+
+                                    for row_i, act_item in enumerate(edit_datos_actuales):
+                                        st.markdown(f"**[{act_item['Jornada']}] N° {act_item['N°']}. {act_item['Actividad']}**")
+                                        c1_e, c2_e, c3_e = st.columns([2, 3, 3])
+                                        
+                                        opciones_est = ["✓ Cumple", "✗ No Cumple", "N/A"]
+                                        idx_est = opciones_est.index(act_item["Estado"]) if act_item["Estado"] in opciones_est else 0
+                                        
+                                        with c1_e:
+                                            n_est = st.radio("Estado", opciones_est, index=idx_est, key=f"fe_st_{orig_idx}_{row_i}", horizontal=True)
+                                        with c2_e:
+                                            n_obs = st.text_input("Observación", value=act_item.get("Observaciones", ""), key=f"fe_ob_{orig_idx}_{row_i}", placeholder="Observaciones...")
+                                        with c3_e:
+                                            n_foto_file = st.file_uploader("Actualizar Foto", type=["jpg", "jpeg", "png"], key=f"fe_ft_{orig_idx}_{row_i}")
+
+                                        b64_foto_actual = act_item.get("Foto_B64")
+                                        if n_foto_file is not None:
+                                            b64_foto_actual = image_to_base64(n_foto_file)
+
+                                        nuevos_datos_actualizados.append({
+                                            "Jornada": act_item["Jornada"],
+                                            "N°": act_item["N°"],
+                                            "Actividad": act_item["Actividad"],
+                                            "Estado": n_est,
+                                            "Observaciones": n_obs,
+                                            "Foto_B64": b64_foto_actual,
+                                            "Foto_Adjunta": "Sí" if b64_foto_actual else "No"
+                                        })
+                                        st.markdown("<hr style='margin: 4px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
+
+                                    if st.form_submit_button("💾 Guardar Todos los Cambios de la Jornada", type="primary"):
+                                        st.session_state.db_checklists[user_email][orig_idx]['Edificio'] = nuevo_edificio
+                                        st.session_state.db_checklists[user_email][orig_idx]['Fecha'] = nueva_fecha.strftime("%Y-%m-%d")
+                                        st.session_state.db_checklists[user_email][orig_idx]['Datos'] = nuevos_datos_actualizados
+                                        save_persistent_db()
+                                        st.success("¡Jornada y actividades actualizadas con éxito!")
+                                        st.rerun()
 
                             st.markdown("#### Actividades Registradas y Evidencias:")
                             df_data = pd.DataFrame(j["Datos"])
@@ -1297,9 +1342,11 @@ if es_admin:
 
         with col_pin1:
             pin_actual = st.session_state.get("access_pin", "1254")
-            nuevo_pin_input = st.text_input("Nuevo Código PIN (4 dígitos):", value=pin_actual, max_chars=4, type="password", help="Código requerido para iniciar sesión y registrar cuentas nuevas.")
-            
-            if st.button("Guardar Nuevo Código PIN", type="primary"):
+            with st.form("form_pin_clean"):
+                nuevo_pin_input = st.text_input("Nuevo Código PIN (4 dígitos):", value=pin_actual, max_chars=4, type="password", help="Código requerido para iniciar sesión y registrar cuentas nuevas.")
+                btn_pin_save = st.form_submit_button("Guardar Nuevo Código PIN", type="primary")
+
+            if btn_pin_save:
                 if len(nuevo_pin_input.strip()) == 4 and nuevo_pin_input.strip().isdigit():
                     st.session_state.access_pin = nuevo_pin_input.strip()
                     save_persistent_db()
@@ -1317,8 +1364,11 @@ if es_admin:
         col_adm1, col_adm2 = st.columns([2, 1])
 
         with col_adm1:
-            nuevo_admin_mail = st.text_input("Ingrese correo para conceder permisos de Administrador:", placeholder="usuario@correo.com")
-            if st.button("Otorgar Acceso Administrador"):
+            with st.form("form_admin_add_clean"):
+                nuevo_admin_mail = st.text_input("Ingrese correo para conceder permisos de Administrador:", placeholder="usuario@correo.com")
+                btn_admin_add = st.form_submit_button("Otorgar Acceso Administrador")
+
+            if btn_admin_add:
                 if nuevo_admin_mail:
                     mail_clean = nuevo_admin_mail.strip().lower()
                     if mail_clean not in st.session_state.admin_emails:
