@@ -967,14 +967,14 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO
+# 7. MÓDULO 1: CHECKLIST DIARIO (JORNADAS INDEPENDIENTES MAÑANA/TARDE)
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
 
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión diaria de frentes de trabajo con verificación manual obligatoria.")
+    st.caption("Supervisión diaria de frentes de trabajo con verificación manual opcional por jornada.")
 
     if not st.session_state.creando_jornada:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -1068,10 +1068,15 @@ with tab_chk:
                 if edificio_val == "-- Seleccione --" or not edificio_val:
                     st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
                 else:
-                    all_chk_data = resp_manana + resp_tarde
-                    sin_responder = [item["Actividad"] for item in all_chk_data if item["Estado"] is None]
-                    if sin_responder:
-                        st.error(f"⚠️ Seleccione el estado de todas las actividades ({len(sin_responder)} pendientes).")
+                    # FILTRAR ACTIVIDADES QUE REALMENTE SE RESPONDIERON
+                    manana_respondida = [item for item in resp_manana if item["Estado"] is not None]
+                    tarde_respondida = [item for item in resp_tarde if item["Estado"] is None]
+                    tarde_respondida = [item for item in resp_tarde if item["Estado"] is not None]
+
+                    all_chk_data = manana_respondida + tarde_respondida
+
+                    if len(all_chk_data) == 0:
+                        st.error("⚠️ Por favor responda al menos a una actividad (Mañana o Tarde) para guardar.")
                     else:
                         df_chk_save = pd.DataFrame(all_chk_data)
 
@@ -1087,7 +1092,7 @@ with tab_chk:
                         })
 
                         save_persistent_db()
-                        st.success(f"Jornada guardada para **{edificio_val}**.")
+                        st.success(f"Jornada guardada exitosamente para **{edificio_val}** ({len(all_chk_data)} actividades registradas).")
                         st.session_state.creando_jornada = False
                         st.rerun()
 
@@ -1279,7 +1284,7 @@ with tab_rend:
         st.info("Aún no existen registros en su historial.")
 
 # ==========================================
-# 9. MÓDULO ADMINISTRADOR (CON BORRADO DE CUENTAS)
+# 9. MÓDULO ADMINISTRADOR
 # ==========================================
 if es_admin:
     tab_admin = tabs_app[2]
@@ -1333,14 +1338,13 @@ if es_admin:
 
         st.markdown("#### Usuarios Activos y Gestión de Cuentas")
         
-        # MÓDULO DE ELIMINACIÓN DE CUENTAS CREACIÓN RECIENTE O ANTIGUAS
         lista_correos = [u["Correo"] for u in st.session_state.db_usuarios]
         
         col_del_usr1, col_del_usr2 = st.columns([2, 1])
         with col_del_usr1:
             usuario_a_eliminar = st.selectbox("Seleccionar cuenta de usuario a eliminar:", lista_correos, key="sel_user_del")
         with col_del_usr2:
-            st.write("") # Espaciador
+            st.write("") 
             st.write("")
             if st.button("🗑️ Eliminar Cuenta Seleccionada", type="secondary"):
                 if usuario_a_eliminar == user_email:
@@ -1355,7 +1359,6 @@ if es_admin:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # TABLA DE USUARIOS CON CONTRASEÑA ENMASCARADA
         db_usuarios_privados = []
         for u in st.session_state.db_usuarios:
             u_copy = u.copy()
