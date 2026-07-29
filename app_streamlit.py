@@ -609,7 +609,7 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO (CON PIN DE 4 DÍGITOS)
+# 4. MÓDULO DE LOGIN & REGISTRO (CON PIN OBLIGATORIO)
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -685,10 +685,14 @@ if not st.session_state.autenticado:
                 reg_pass_repeat = st.text_input("Repetir contraseña:", type="password", key="reg_pass_rep")
 
             reg_cargo = st.selectbox("Cargo / Rol en Obra:", ["Residente", "Asistente", "Ayudante"])
+            reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="reg_pin")
 
             if st.button("Completar Registro", type="primary", use_container_width=True):
-                if reg_nombres and reg_apellidos and reg_email and reg_pass and reg_pass_repeat:
-                    if reg_pass != reg_pass_repeat:
+                if reg_nombres and reg_apellidos and reg_email and reg_pass and reg_pass_repeat and reg_pin:
+                    current_pin = st.session_state.get("access_pin", "1254")
+                    if reg_pin.strip() != current_pin:
+                        st.error("⚠️ Código de Seguridad (PIN) incorrecto. No se puede crear la cuenta.")
+                    elif reg_pass != reg_pass_repeat:
                         st.error("Las contraseñas no coinciden.")
                     else:
                         mail_clean = reg_email.strip().lower()
@@ -721,7 +725,7 @@ if not st.session_state.autenticado:
                             st.success("¡Registro completado exitosamente!")
                             st.rerun()
                 else:
-                    st.error("Por favor complete todos los campos requeridos.")
+                    st.error("Por favor complete todos los campos requeridos, incluyendo el código PIN.")
 
         with tab_reset:
             st.markdown("### Recuperación de Contraseña")
@@ -1275,7 +1279,7 @@ with tab_rend:
         st.info("Aún no existen registros en su historial.")
 
 # ==========================================
-# 9. MÓDULO ADMINISTRADOR (CON CAMBIO DE CÓDIGO PIN)
+# 9. MÓDULO ADMINISTRADOR (CON BORRADO DE CUENTAS)
 # ==========================================
 if es_admin:
     tab_admin = tabs_app[2]
@@ -1283,12 +1287,12 @@ if es_admin:
         st.markdown("### Panel de Control Administrador")
         st.caption("Módulo exclusivo para monitoreo de usuarios, permisos y configuración de seguridad.")
 
-        st.markdown("#### 🔐 Código de Seguridad de Inicio de Sesión (PIN)")
+        st.markdown("#### 🔐 Código de Seguridad de Acceso y Registro (PIN)")
         col_pin1, col_pin2 = st.columns([2, 1])
 
         with col_pin1:
             pin_actual = st.session_state.get("access_pin", "1254")
-            nuevo_pin_input = st.text_input("Nuevo Código PIN (4 dígitos):", value=pin_actual, max_chars=4, type="password", help="Código requerido para iniciar sesión en la app.")
+            nuevo_pin_input = st.text_input("Nuevo Código PIN (4 dígitos):", value=pin_actual, max_chars=4, type="password", help="Código requerido para iniciar sesión y registrar cuentas nuevas.")
             
             if st.button("Guardar Nuevo Código PIN", type="primary"):
                 if len(nuevo_pin_input.strip()) == 4 and nuevo_pin_input.strip().isdigit():
@@ -1327,9 +1331,31 @@ if es_admin:
 
         st.markdown("---")
 
-        st.markdown("#### Usuarios Activos en la Plataforma")
+        st.markdown("#### Usuarios Activos y Gestión de Cuentas")
         
-        # PRIVACIDAD COMPLETA DE CONTRASEÑAS
+        # MÓDULO DE ELIMINACIÓN DE CUENTAS CREACIÓN RECIENTE O ANTIGUAS
+        lista_correos = [u["Correo"] for u in st.session_state.db_usuarios]
+        
+        col_del_usr1, col_del_usr2 = st.columns([2, 1])
+        with col_del_usr1:
+            usuario_a_eliminar = st.selectbox("Seleccionar cuenta de usuario a eliminar:", lista_correos, key="sel_user_del")
+        with col_del_usr2:
+            st.write("") # Espaciador
+            st.write("")
+            if st.button("🗑️ Eliminar Cuenta Seleccionada", type="secondary"):
+                if usuario_a_eliminar == user_email:
+                    st.error("No puedes eliminar la cuenta activa con la que estás con sesión iniciada.")
+                else:
+                    st.session_state.db_usuarios = [u for u in st.session_state.db_usuarios if u["Correo"] != usuario_a_eliminar]
+                    if usuario_a_eliminar in st.session_state.admin_emails and len(st.session_state.admin_emails) > 1:
+                        st.session_state.admin_emails.remove(usuario_a_eliminar)
+                    save_persistent_db()
+                    st.success(f"Cuenta de usuario **{usuario_a_eliminar}** eliminada correctamente.")
+                    st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # TABLA DE USUARIOS CON CONTRASEÑA ENMASCARADA
         db_usuarios_privados = []
         for u in st.session_state.db_usuarios:
             u_copy = u.copy()
