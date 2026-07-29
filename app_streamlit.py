@@ -474,7 +474,6 @@ def export_checklist_to_excel_file(jornada_dict):
     ws = wb.active
     ws.title = "Checklist Obra"
 
-    # Encabezado informativo superior
     ws.merge_cells("A1:F1")
     ws["A1"] = f"INSPECCIÓN DE OBRA - {jornada_dict.get('Edificio', '')} ({jornada_dict.get('Fecha', '')})"
     ws["A1"].font = Font(bold=True, color="FFFFFF", size=13)
@@ -509,9 +508,8 @@ def export_checklist_to_excel_file(jornada_dict):
     start_row = 5
     for row_idx, item in enumerate(datos, start=start_row):
         obs_val = item.get("Observaciones", "")
-        # Si tiene actividades específicas registradas, las añadimos a la observación para el Excel
         if item.get("Actividades_Especificas"):
-            sub_acts = " | Tareas: " + ", ".join([f"{a['Actividad']} ({a['Estado']})" for a in item["Actividades_Especificas"] if a.get("Actividad")])
+            sub_acts = " | Actividades a realizar: " + ", ".join([f"• {a['Actividad']}" for a in item["Actividades_Especificas"] if a.get("Actividad")])
             obs_val += sub_acts
 
         ws.append([
@@ -553,7 +551,6 @@ def export_checklist_to_excel_file(jornada_dict):
             except Exception:
                 pass
 
-    # Agregar fila final con Observación General si existe
     if jornada_dict.get("Observacion_General"):
         last_r = len(datos) + start_row
         ws.cell(row=last_r, column=1, value="OBSERVACIÓN GENERAL DE LA INSPECCIÓN:").font = Font(bold=True)
@@ -603,13 +600,13 @@ EDIFICIOS_ALPHA = [
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
 RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
 
-# ESTRUCTURA ACTUALIZADA SEGÚN REQUERIMIENTOS SOLICITADOS
+# LISTA DE ACTIVIDADES ACTUALIZADA SEGÚN ESPECIFICACIÓN SOLICITADA
 ACTIVIDADES_MANANA = [
     "Verificación de asistencia del personal",
     "Distribución de cuadrillas por frente de trabajo",
     "Recorrido inicial de obra",
     "Supervisión de la ejecución de los trabajos",  # N° 4
-    "Verificación de los trabajos y la calidad",    # N° 5 (Unión de antiguos 7 y 8)
+    "Verificación de los trabajos y la calidad",    # N° 5 (Unión 7 y 8)
     "Coordinación con otras especialidades",
     "Corrección de observaciones detectadas",
 ]
@@ -619,7 +616,7 @@ ACTIVIDADES_TARDE = [
     "Verificación del avance físico de las actividades",
     "Control del rendimiento de las cuadrillas",
     "Supervisión de la ejecución de los trabajos",  # N° 4
-    "Verificación de los trabajos y la calidad",    # N° 5 (Unión de antiguos 7 y 8)
+    "Verificación de los trabajos y la calidad",    # N° 5 (Unión 7 y 8)
     "Revisión de observaciones pendientes",
     "Verificación de trabajos corregidos",
     "Verificación del orden y limpieza de los frentes de trabajo",
@@ -996,7 +993,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (ESTRUCTURA ACTUALIZADA + HORAS + TABLA Y OBS. GENERAL)
+# 7. MÓDULO 1: CHECKLIST DIARIO
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -1035,20 +1032,19 @@ with tab_chk:
                 for idx, act in enumerate(ACTIVIDADES_MANANA, 1):
                     st.markdown(f"**N° {idx}. {act}**")
                     
-                    # SI ES SUPERVISIÓN DE TRABAJOS (N° 4) -> AGREGAR TABLA PARA ACTIVIDADES A REALIZAR
                     sub_actividades_m = []
+                    # N° 4: SUPERVISIÓN DE LA EJECUCIÓN DE LOS TRABAJOS -> TABLA SOLO PARA ACTIVIDADES A REALIZAR (SIN CUMPLE/NO CUMPLE)
                     if act == "Supervisión de la ejecución de los trabajos":
                         st.caption("📌 Indique las actividades específicas a realizar durante la jornada de la mañana:")
                         df_sub_m = pd.DataFrame([
-                            {"Actividad": "", "Estado": "✓ Cumple"},
-                            {"Actividad": "", "Estado": "✓ Cumple"}
+                            {"Actividad": ""},
+                            {"Actividad": ""}
                         ])
                         sub_edited_m = st.data_editor(
                             df_sub_m,
                             num_rows="dynamic",
                             column_config={
-                                "Actividad": st.column_config.TextColumn("Nombre de la Actividad Específica"),
-                                "Estado": st.column_config.SelectboxColumn("Estado", options=["✓ Cumple", "✗ No Cumple", "N/A"])
+                                "Actividad": st.column_config.TextColumn("Descripción de la Actividad a Realizar")
                             },
                             key=f"sub_m_{idx}"
                         )
@@ -1093,15 +1089,14 @@ with tab_chk:
                     if act == "Supervisión de la ejecución de los trabajos":
                         st.caption("📌 Indique las actividades específicas a realizar durante la jornada de la tarde:")
                         df_sub_t = pd.DataFrame([
-                            {"Actividad": "", "Estado": "✓ Cumple"},
-                            {"Actividad": "", "Estado": "✓ Cumple"}
+                            {"Actividad": ""},
+                            {"Actividad": ""}
                         ])
                         sub_edited_t = st.data_editor(
                             df_sub_t,
                             num_rows="dynamic",
                             column_config={
-                                "Actividad": st.column_config.TextColumn("Nombre de la Actividad Específica"),
-                                "Estado": st.column_config.SelectboxColumn("Estado", options=["✓ Cumple", "✗ No Cumple", "N/A"])
+                                "Actividad": st.column_config.TextColumn("Descripción de la Actividad a Realizar")
                             },
                             key=f"sub_t_{idx}"
                         )
@@ -1238,7 +1233,6 @@ with tab_chk:
                     with col_j_info:
                         with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})"):
                             
-                            # EDICIÓN DE ENCABEZADO Y ACTIVIDADES EN HISTORIAL
                             with st.expander("✏️ Editar Detalles de la Jornada y Actividades Guardadas", expanded=False):
                                 with st.form(f"form_full_edit_{orig_idx}"):
                                     st.markdown("##### 📍 Modificar Edificio, Fecha y Horas")
@@ -1273,17 +1267,15 @@ with tab_chk:
                                     for row_i, act_item in enumerate(edit_datos_actuales):
                                         st.markdown(f"**[{act_item['Jornada']}] N° {act_item['N°']}. {act_item['Actividad']}**")
                                         
-                                        # SI TIENE ACTIVIDADES ESPECÍFICAS
                                         sub_acts_editadas = act_item.get("Actividades_Especificas", [])
                                         if act_item['Actividad'] == "Supervisión de la ejecución de los trabajos":
-                                            st.caption("Tareas específicas realizadas:")
-                                            df_sub_edit = pd.DataFrame(sub_acts_editadas if sub_acts_editadas else [{"Actividad": "", "Estado": "✓ Cumple"}])
+                                            st.caption("Actividades a realizar:")
+                                            df_sub_edit = pd.DataFrame(sub_acts_editadas if sub_acts_editadas else [{"Actividad": ""}])
                                             edited_sub_df = st.data_editor(
                                                 df_sub_edit,
                                                 num_rows="dynamic",
                                                 column_config={
-                                                    "Actividad": st.column_config.TextColumn("Nombre de la Actividad"),
-                                                    "Estado": st.column_config.SelectboxColumn("Estado", options=["✓ Cumple", "✗ No Cumple", "N/A"])
+                                                    "Actividad": st.column_config.TextColumn("Descripción de la Actividad")
                                                 },
                                                 key=f"fe_sub_edit_{orig_idx}_{row_i}"
                                             )
@@ -1295,7 +1287,7 @@ with tab_chk:
                                         idx_est = opciones_est.index(act_item["Estado"]) if act_item["Estado"] in opciones_est else 0
                                         
                                         with c1_e:
-                                            n_est = st.radio("Estado", opciones_est, index=idx_est, key=f"fe_st_{orig_idx}_{row_i}", horizontal=True)
+                                            n_est = st.radio("Estado General", opciones_est, index=idx_est, key=f"fe_st_{orig_idx}_{row_i}", horizontal=True)
                                         with c2_e:
                                             n_obs = st.text_input("Observación", value=act_item.get("Observaciones", ""), key=f"fe_ob_{orig_idx}_{row_i}", placeholder="Observaciones...")
                                         with c3_e:
@@ -1336,12 +1328,11 @@ with tab_chk:
                             for _, row in df_data.iterrows():
                                 st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: `{row['Estado']}`")
                                 
-                                # Si tiene tareas específicas registradas en Supervisión de trabajos
                                 sub_tasks = row.get("Actividades_Especificas", [])
                                 if sub_tasks:
                                     for st_item in sub_tasks:
                                         if st_item.get("Actividad"):
-                                            st.markdown(f"  * ▫️ *Tarea:* {st_item['Actividad']} — `{st_item['Estado']}`")
+                                            st.markdown(f"  * ▫️ *Actividad:* {st_item['Actividad']}")
 
                                 if row['Observaciones']:
                                     st.caption(f"Obs: {row['Observaciones']}")
