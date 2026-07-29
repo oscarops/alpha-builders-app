@@ -397,10 +397,13 @@ def load_persistent_db():
                 d = json.load(f)
                 if "db_trabajadores" not in d:
                     d["db_trabajadores"] = DEFAULT_TRABAJADORES
+                if "access_pin" not in d:
+                    d["access_pin"] = "1254"
                 return d
         except Exception:
             pass
     return {
+        "access_pin": "1254",
         "admin_emails": ["oscarsebitas2013@gmail.com"],
         "db_fotos_perfil_b64": {},
         "db_usuarios": [
@@ -421,6 +424,7 @@ def load_persistent_db():
 
 def save_persistent_db():
     data_to_save = {
+        "access_pin": st.session_state.get("access_pin", "1254"),
         "admin_emails": st.session_state.get("admin_emails", ["oscarsebitas2013@gmail.com"]),
         "db_fotos_perfil_b64": st.session_state.get("db_fotos_perfil_b64", {}),
         "db_usuarios": st.session_state.get("db_usuarios", []),
@@ -436,6 +440,7 @@ def save_persistent_db():
 
 if "db_loaded" not in st.session_state:
     p_data = load_persistent_db()
+    st.session_state.access_pin = p_data.get("access_pin", "1254")
     st.session_state.admin_emails = p_data.get("admin_emails", ["oscarsebitas2013@gmail.com"])
     st.session_state.db_fotos_perfil_b64 = p_data.get("db_fotos_perfil_b64", {})
     st.session_state.db_usuarios = p_data.get("db_usuarios", [])
@@ -498,7 +503,6 @@ def export_checklist_to_excel_file(jornada_dict):
             item.get("Observaciones", "")
         ])
 
-        # Fila muy alta para acomodar la imagen en su tamaño completo sin compresión vertical
         ws.row_dimensions[row_idx].height = 200
 
         for c_i in range(1, 7):
@@ -513,7 +517,6 @@ def export_checklist_to_excel_file(jornada_dict):
                 img_data = base64.b64decode(foto_b64)
                 img_pil = Image.open(io.BytesIO(img_data))
                 
-                # MANTENER TAMAÑO COMPLETO EN ALTA DEFINICIÓN CON LANCZOS
                 img_pil = img_pil.resize((600, 450), Image.Resampling.LANCZOS)
                 img_stream = io.BytesIO()
                 img_pil.save(img_stream, format="PNG", quality=100)
@@ -521,11 +524,9 @@ def export_checklist_to_excel_file(jornada_dict):
 
                 img_xlsx = OpenpyxlImage(img_stream)
                 
-                # OCUPAR EL TAMAÑO COMPLETO DE ANCHO Y ALTO EN LA CELDA
                 img_xlsx.width = 330
                 img_xlsx.height = 190
 
-                # CENTRADO EXACTO EN LA CELDA F (Ancho columna F = 50, Alto fila = 200)
                 col_w_px = 350
                 row_h_px = 266
                 img_xlsx.left = max(2, (col_w_px - img_xlsx.width) / 2)
@@ -542,7 +543,7 @@ def export_checklist_to_excel_file(jornada_dict):
     ws.column_dimensions['C'].width = 52
     ws.column_dimensions['D'].width = 18
     ws.column_dimensions['E'].width = 35
-    ws.column_dimensions['F'].width = 50  # Columna F extra amplia para acoger la imagen completa
+    ws.column_dimensions['F'].width = 50
 
     output = io.BytesIO()
     wb.save(output)
@@ -608,7 +609,7 @@ ACTIVIDADES_TARDE = [
 ]
 
 # ==========================================
-# 4. MÓDULO DE LOGIN & REGISTRO
+# 4. MÓDULO DE LOGIN & REGISTRO (CON PIN DE 4 DÍGITOS)
 # ==========================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -630,35 +631,40 @@ if not st.session_state.autenticado:
 
         with tab_login:
             st.markdown("### Iniciar Sesión")
-            st.caption("Ingrese sus credenciales registradas.")
+            st.caption("Ingrese sus credenciales registradas y el código de acceso.")
 
             login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
             login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
+            login_pin = st.text_input("Código de Seguridad (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="log_pin")
 
             if st.button("Entrar al Portal", type="primary", use_container_width=True):
-                if login_email and login_pass:
+                if login_email and login_pass and login_pin:
                     mail_clean = login_email.strip().lower()
                     u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
 
                     if u_match:
                         if u_match["Password"] == login_pass:
-                            st.session_state.autenticado = True
-                            st.session_state.usuario_email = mail_clean
-                            st.session_state.usuario_nombres = u_match["Nombres"]
-                            st.session_state.usuario_apellidos = u_match["Apellidos"]
-                            st.session_state.usuario_cargo = u_match["Cargo"]
+                            current_pin = st.session_state.get("access_pin", "1254")
+                            if login_pin.strip() == current_pin:
+                                st.session_state.autenticado = True
+                                st.session_state.usuario_email = mail_clean
+                                st.session_state.usuario_nombres = u_match["Nombres"]
+                                st.session_state.usuario_apellidos = u_match["Apellidos"]
+                                st.session_state.usuario_cargo = u_match["Cargo"]
 
-                            if mail_clean not in st.session_state.db_checklists:
-                                st.session_state.db_checklists[mail_clean] = []
-                            if mail_clean not in st.session_state.db_rendimientos:
-                                st.session_state.db_rendimientos[mail_clean] = []
-                            st.rerun()
+                                if mail_clean not in st.session_state.db_checklists:
+                                    st.session_state.db_checklists[mail_clean] = []
+                                if mail_clean not in st.session_state.db_rendimientos:
+                                    st.session_state.db_rendimientos[mail_clean] = []
+                                st.rerun()
+                            else:
+                                st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
                         else:
                             st.error("Contraseña incorrecta.")
                     else:
                         st.error("El usuario no existe. Complete el registro.")
                 else:
-                    st.error("Ingrese su correo y contraseña.")
+                    st.error("Por favor complete todos los campos, incluyendo el código PIN de 4 dígitos.")
 
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
@@ -957,7 +963,7 @@ tab_chk = tabs_app[0]
 tab_rend = tabs_app[1]
 
 # ==========================================
-# 7. MÓDULO 1: CHECKLIST DIARIO (VERTICAL COMPLETO + CALENDARIO AL MISMO NIVEL)
+# 7. MÓDULO 1: CHECKLIST DIARIO
 # ==========================================
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -1083,7 +1089,6 @@ with tab_chk:
 
     st.markdown("---")
 
-    # TÍTULO E HISTORIAL AL MISMO NIVEL HORIZONTAL EXACTO DEL CALENDARIO
     col_t_hist, col_t_cal = st.columns([3, 1], gap="large")
     with col_t_hist:
         st.markdown("### Historial de Jornadas e Inspecciones Creadas")
@@ -1270,13 +1275,34 @@ with tab_rend:
         st.info("Aún no existen registros en su historial.")
 
 # ==========================================
-# 9. MÓDULO ADMINISTRADOR
+# 9. MÓDULO ADMINISTRADOR (CON CAMBIO DE CÓDIGO PIN)
 # ==========================================
 if es_admin:
     tab_admin = tabs_app[2]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
-        st.caption("Módulo exclusivo para monitoreo de usuarios y asignación de permisos.")
+        st.caption("Módulo exclusivo para monitoreo de usuarios, permisos y configuración de seguridad.")
+
+        st.markdown("#### 🔐 Código de Seguridad de Inicio de Sesión (PIN)")
+        col_pin1, col_pin2 = st.columns([2, 1])
+
+        with col_pin1:
+            pin_actual = st.session_state.get("access_pin", "1254")
+            nuevo_pin_input = st.text_input("Nuevo Código PIN (4 dígitos):", value=pin_actual, max_chars=4, type="password", help="Código requerido para iniciar sesión en la app.")
+            
+            if st.button("Guardar Nuevo Código PIN", type="primary"):
+                if len(nuevo_pin_input.strip()) == 4 and nuevo_pin_input.strip().isdigit():
+                    st.session_state.access_pin = nuevo_pin_input.strip()
+                    save_persistent_db()
+                    st.success(f"¡Código PIN de acceso actualizado con éxito a: **{nuevo_pin_input.strip()}**!")
+                    st.rerun()
+                else:
+                    st.error("El PIN debe constar exactamente de 4 números.")
+
+        with col_pin2:
+            st.info(f"**PIN Actual Configurado:** `{st.session_state.get('access_pin', '1254')}`")
+
+        st.markdown("---")
 
         st.markdown("#### Gestión de Administradores de la Plataforma")
         col_adm1, col_adm2 = st.columns([2, 1])
@@ -1302,7 +1328,15 @@ if es_admin:
         st.markdown("---")
 
         st.markdown("#### Usuarios Activos en la Plataforma")
-        df_users = pd.DataFrame(st.session_state.db_usuarios)
+        
+        # PRIVACIDAD COMPLETA DE CONTRASEÑAS
+        db_usuarios_privados = []
+        for u in st.session_state.db_usuarios:
+            u_copy = u.copy()
+            u_copy["Password"] = "••••••••"
+            db_usuarios_privados.append(u_copy)
+
+        df_users = pd.DataFrame(db_usuarios_privados)
         st.dataframe(df_users, use_container_width=True)
 
         st.markdown("#### Resumen Global de Actividad por Usuario")
