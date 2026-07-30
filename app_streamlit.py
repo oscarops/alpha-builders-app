@@ -792,7 +792,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL
+# 5. BARRA LATERAL (CIERRE DE SESIÓN EXCLUSIVAMENTE MANUAL)
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
