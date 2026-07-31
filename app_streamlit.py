@@ -56,6 +56,13 @@ st.markdown(
         color: #5a5f6e !important;
     }
 
+    /* OCULTAR INSTRUCCIONES "PRESS ENTER TO SUBMIT FORM" EN MÓVILES Y DESKTOP */
+    [data-testid="stInputInstructions"],
+    div[data-testid="stInputInstructions"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
     [data-testid="stSidebarCollapseButton"] {
         display: block !important;
         visibility: visible !important;
