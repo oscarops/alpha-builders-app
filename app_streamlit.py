@@ -1407,6 +1407,9 @@ ACTIVIDADES_TARDE = [
 # ==========================================
 # 7. MÓDULO 1: CHECKLIST DIARIO
 # ==========================================
+tab_chk = tabs_app[0]
+tab_rend = tabs_app[1]
+
 with tab_chk:
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
