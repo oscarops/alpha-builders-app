@@ -358,36 +358,8 @@ def init_supabase():
 
 supabase = init_supabase()
 
-DEFAULT_TRABAJADORES = [
-    {"nombre": "ACHINA AGUAGUIÑA BYRON ALEXANDER", "cargo": "BODEGA"},
-    {"nombre": "AGUALONGO PILAMUNGA LUIS LENIN", "cargo": "GYPSERO/ALBAÑIL"},
-    {"nombre": "ALTAMIRANO GUALAN WILLIAM PATRICIO", "cargo": "GYPSERO"},
-    {"nombre": "BUNSHI CAYANCELA SANTIAGO EFRAIN", "cargo": "ALBAÑIL"},
-    {"nombre": "CAYAMBE SANDOVAL LUIS ANTONIO", "cargo": "ALBAÑIL"},
-    {"nombre": "CUASCOTA INLAGO JOSE LIZARDO", "cargo": "ALBAÑIL"},
-    {"nombre": "CUERO BAMONTES DEIBINZON ESTALIN", "cargo": "AYUDANTE"},
-    {"nombre": "GUANOLUISA VACA LUIS FERNANDO", "cargo": "ALBAÑIL"},
-    {"nombre": "LLUGLLUNA FARINANGO SEGUNDO MANUEL", "cargo": "ALBAÑIL"},
-    {"nombre": "MORALES OTUNA VERONICA JAQUELINE", "cargo": "AYUDANTE"},
-    {"nombre": "OCHOA MORAN MIGUEL BERNARDO", "cargo": "GYPSERO"},
-    {"nombre": "PAGUAY RAMOS DILAN ANDRES", "cargo": "GYPSERO"},
-    {"nombre": "ROMERO ANDRANGO LUIS ENRIQUE", "cargo": "GYPSERO"},
-    {"nombre": "SANGUCHO FONSECA EDGAR XAVIER", "cargo": "ALBAÑIL"},
-    {"nombre": "TARAPUES MONARCO CARLOS ANDRES", "cargo": "GYPSERO"},
-    {"nombre": "TONATO TACO LUIS EUCLIDES", "cargo": "ALBAÑIL"},
-    {"nombre": "TOSCANO ALTAMIRANO JEREMMY WENDLEY", "cargo": "AYUDANTE"},
-    {"nombre": "TRONCOSO COBEÑA CRISTOPHER GEOVANNY", "cargo": "AYUDANTE"},
-    {"nombre": "TUTASI CASILLAS JORGE GEOVANI", "cargo": "FIERRERO"},
-    {"nombre": "CHAVEZ GUITARRA JOSE GREGORIO", "cargo": "GYPSERO"},
-    {"nombre": "CORDOVA FLORES ERICK DARIO", "cargo": "GYPSERO / AYUDANTE"},
-    {"nombre": "CABRERA CAMPO ANNDY JEREMIAS", "cargo": "GYPSERO / OPERADOR"},
-    {"nombre": "CHELA OCHOA RAUL", "cargo": "GYPSERO/ALBAÑIL"},
-    {"nombre": "SEMBLANTES TIPANLUISA JAVIER PATRICIO", "cargo": "GYPSERO/ALBAÑIL"},
-    {"nombre": "FUEREZ COYAGO JOSE SANTOS", "cargo": "HERRAMIENTAS"},
-    {"nombre": "ALTAMIRANO CORDOVA HECTOR LUIS", "cargo": "PINTOR"},
-    {"nombre": "ACOSTA AGUILAR JORGE PATRICIO", "cargo": "SOLDADOR"},
-    {"nombre": "TARAPUES CASTRO JOAO ALEXANDER", "cargo": "SOLDADOR"},
-]
+# LISTA INICIAL VACÍA PARA AGREGAR OBREROS MANUALMENTE
+DEFAULT_TRABAJADORES = []
 
 def load_db_from_supabase():
     try:
@@ -1041,18 +1013,24 @@ with k1:
         st.markdown("---")
         st.markdown("#### 📋 Listado Actual")
         df_obs_actuales = pd.DataFrame(st.session_state.db_trabajadores)
+        if not df_obs_actuales.empty:
+            df_obs_actuales.index = range(1, len(df_obs_actuales) + 1)
         st.dataframe(df_obs_actuales, use_container_width=True, height=250)
 
         with st.expander("🗑️ Eliminar Obrero"):
-            obrero_a_borrar = st.selectbox("Seleccione obrero:", [t["nombre"] for t in st.session_state.db_trabajadores], key="del_obs_sel")
-            if st.button("Eliminar Obrero", type="secondary"):
-                try:
-                    supabase.table("trabajadores").delete().eq("nombre", obrero_a_borrar).execute()
-                    st.session_state.db_loaded = False
-                    st.success(f"Obrero {obrero_a_borrar} eliminado.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error al eliminar obrero: {e}")
+            obreros_lista = [t["nombre"] for t in st.session_state.db_trabajadores]
+            if len(obreros_lista) > 0:
+                obrero_a_borrar = st.selectbox("Seleccione obrero:", obreros_lista, key="del_obs_sel")
+                if st.button("Eliminar Obrero", type="secondary"):
+                    try:
+                        supabase.table("trabajadores").delete().eq("nombre", obrero_a_borrar).execute()
+                        st.session_state.db_loaded = False
+                        st.success(f"Obrero {obrero_a_borrar} eliminado.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al eliminar obrero: {e}")
+            else:
+                st.info("No hay obreros registrados actualmente.")
 
     st.markdown(
         f'<div class="kpi-card-studio" style="margin-top: -62px; pointer-events: none;"><div class="kpi-val-studio">{total_obreros}</div><div class="kpi-lbl-studio">Obreros Activos (Gestionar)</div></div>',
@@ -1494,7 +1472,7 @@ with tab_chk:
                                     img_evidencia = base64_to_image(row["Foto_B64"])
                                     if img_evidencia:
                                         with st.popover(f"📷 Vista previa de la imagen"):
-                                            st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_column_width=True)
+                                            st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_container_width=True)
 
                                 st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
@@ -1522,9 +1500,14 @@ with tab_rend:
     col1, col2 = st.columns(2)
     with col1:
         nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
-        trabajador_sel = st.selectbox(f"Seleccionar Trabajador ({len(nombres_obreros)} Activos):", nombres_obreros)
-        cargo_actual = next((t["cargo"] for t in st.session_state.db_trabajadores if t["nombre"] == trabajador_sel), "OBRERO")
-        st.info(f"**Cargo en obra:** {cargo_actual}")
+        if len(nombres_obreros) > 0:
+            trabajador_sel = st.selectbox(f"Seleccionar Trabajador ({len(nombres_obreros)} Activos):", nombres_obreros)
+            cargo_actual = next((t["cargo"] for t in st.session_state.db_trabajadores if t["nombre"] == trabajador_sel), "OBRERO")
+            st.info(f"**Cargo en obra:** {cargo_actual}")
+        else:
+            trabajador_sel = None
+            cargo_actual = "OBRERO"
+            st.warning("No hay obreros registrados. Agregue obreros en la plantilla superior.")
 
     with col2:
         rubros_opciones = ["Enlucidos", "Fijos", "Fajas", "Dinteles"]
@@ -1550,7 +1533,9 @@ with tab_rend:
     avance_cant = st.number_input(f"Cantidad ejecutada ({unidad_medida}):", min_value=0.0, step=0.1, format="%.2f")
 
     if st.button("Registrar Rendimiento", type="primary"):
-        if horas_acumuladas == 0:
+        if not trabajador_sel:
+            st.error("Debe seleccionar un trabajador.")
+        elif horas_acumuladas == 0:
             st.warning("Seleccione al menos un intervalo de horario.")
         elif avance_cant <= 0:
             st.warning("Ingrese un avance mayor a 0.")
@@ -1587,6 +1572,8 @@ with tab_rend:
     if len(mis_rendimientos) > 0:
         df_mis_r = pd.DataFrame(mis_rendimientos)
         df_display = df_mis_r.drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador"], errors="ignore")
+        if not df_display.empty:
+            df_display.index = range(1, len(df_display) + 1)
         st.dataframe(df_display, use_container_width=True)
 
         csv_bytes_r = export_dataframe_to_excel_csv(df_display)
@@ -1686,6 +1673,8 @@ if es_admin:
             db_usuarios_privados.append(u_copy)
 
         df_users = pd.DataFrame(db_usuarios_privados)
+        if not df_users.empty:
+            df_users.index = range(1, len(df_users) + 1)
         st.dataframe(df_users, use_container_width=True)
 
         st.markdown("#### Resumen Global de Actividad por Usuario")
@@ -1704,6 +1693,8 @@ if es_admin:
             })
 
         df_act = pd.DataFrame(resumen_actividad)
+        if not df_act.empty:
+            df_act.index = range(1, len(df_act) + 1)
         st.dataframe(df_act, use_container_width=True)
 
         csv_admin_bytes = export_dataframe_to_excel_csv(df_act)
