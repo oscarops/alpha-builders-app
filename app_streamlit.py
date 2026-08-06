@@ -1245,248 +1245,248 @@ with tab_chk:
 
     if len(mis_jornadas) > 0:
         fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
+        # Filtro estricto: únicamente jornadas de la fecha seleccionada
         jornadas_en_fecha = [j for j in mis_jornadas if j['Fecha'] == fecha_busqueda_str]
 
         st.info(f"**{len(jornadas_en_fecha)}** jornada(s) encontrada(s) para la fecha seleccionada ({fecha_busqueda_str}).")
 
-        jornadas_a_mostrar = jornadas_en_fecha if len(jornadas_en_fecha) > 0 else mis_jornadas
-        
-        meses_nombres = {
-            "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
-            "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
-            "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
-        }
+        if len(jornadas_en_fecha) > 0:
+            meses_nombres = {
+                "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
+                "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
+                "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
+            }
 
-        jornadas_con_index = []
-        for orig_idx, j_item in enumerate(mis_jornadas):
-            if j_item in jornadas_a_mostrar:
-                jornadas_con_index.append((orig_idx, j_item))
+            jornadas_con_index = []
+            for orig_idx, j_item in enumerate(mis_jornadas):
+                if j_item in jornadas_en_fecha:
+                    jornadas_con_index.append((orig_idx, j_item))
 
-        jornadas_con_index.sort(key=lambda x: x[1]['Fecha'], reverse=True)
+            jornadas_con_index.sort(key=lambda x: x[1]['Fecha'], reverse=True)
 
-        grupos_meses = {}
-        for orig_idx, j in jornadas_con_index:
-            f_str = j['Fecha']
-            try:
-                partes = f_str.split("-")
-                anio = partes[0]
-                mes_num = partes[1]
-                nombre_mes = f"{meses_nombres.get(mes_num, 'Mes')} {anio}"
-            except:
-                nombre_mes = "Otros"
-            
-            if nombre_mes not in grupos_meses:
-                grupos_meses[nombre_mes] = []
-            grupos_meses[nombre_mes].append((orig_idx, j))
+            grupos_meses = {}
+            for orig_idx, j in jornadas_con_index:
+                f_str = j['Fecha']
+                try:
+                    partes = f_str.split("-")
+                    anio = partes[0]
+                    mes_num = partes[1]
+                    nombre_mes = f"{meses_nombres.get(mes_num, 'Mes')} {anio}"
+                except:
+                    nombre_mes = "Otros"
+                
+                if nombre_mes not in grupos_meses:
+                    grupos_meses[nombre_mes] = []
+                grupos_meses[nombre_mes].append((orig_idx, j))
 
-        for mes_anio, lista_j in grupos_meses.items():
-            with st.expander(f"📅 {mes_anio} ({len(lista_j)} inspecciones)", expanded=True):
-                for idx_rel, (orig_idx, j) in enumerate(lista_j):
-                    col_j_info, col_j_del = st.columns([8, 1])
-                    
-                    with col_j_del:
-                        if st.button("🗑️", key=f"quick_del_{orig_idx}", help="Borrar jornada permanentemente"):
-                            try:
-                                supabase.table("checklists").delete().eq("id", j["db_id"]).execute()
-                                st.session_state.db_loaded = False
-                                st.success("¡Jornada eliminada de Supabase!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Error al eliminar: {e}")
+            for mes_anio, lista_j in grupos_meses.items():
+                with st.expander(f"📅 {mes_anio} ({len(lista_j)} inspecciones)", expanded=True):
+                    for idx_rel, (orig_idx, j) in enumerate(lista_j):
+                        col_j_info, col_j_del = st.columns([8, 1])
+                        
+                        with col_j_del:
+                            if st.button("🗑️", key=f"quick_del_{orig_idx}", help="Borrar jornada permanentemente"):
+                                try:
+                                    supabase.table("checklists").delete().eq("id", j["db_id"]).execute()
+                                    st.session_state.db_loaded = False
+                                    st.success("¡Jornada eliminada de Supabase!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error al eliminar: {e}")
 
-                    with col_j_info:
-                        with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})"):
-                            
-                            with st.expander("✏️ Editar Detalles de la Jornada y Cargar la Lista Completa de Actividades", expanded=False):
-                                with st.form(f"form_full_edit_{orig_idx}"):
-                                    st.markdown("##### 📍 Modificar Edificio, Fecha y Horas")
-                                    c_e1, c_e2, c_e3, c_e4 = st.columns([2, 2, 1.5, 1.5])
-                                    with c_e1:
-                                        nuevo_edificio = st.selectbox("Nombre / Edificio:", EDIFICIOS_ALPHA, index=EDIFICIOS_ALPHA.index(j['Edificio']) if j['Edificio'] in EDIFICIOS_ALPHA else 0, key=f"fe_ed_sel_{orig_idx}")
-                                    with c_e2:
-                                        try:
-                                            f_obj = datetime.datetime.strptime(j['Fecha'], "%Y-%m-%d").date()
-                                        except:
-                                            f_obj = datetime.date.today()
-                                        nueva_fecha = st.date_input("Fecha:", value=f_obj, key=f"fe_f_ed_{orig_idx}")
-                                    with c_e3:
-                                        try:
-                                            h_i_obj = datetime.datetime.strptime(j.get('Hora_Inicio', '07:00'), "%H:%M").time()
-                                        except:
-                                            h_i_obj = datetime.time(7, 0)
-                                        nueva_h_inicio = st.time_input("Hora Inicio:", value=h_i_obj, key=f"fe_hi_ed_{orig_idx}")
-                                    with c_e4:
-                                        try:
-                                            h_f_obj = datetime.datetime.strptime(j.get('Hora_Fin', '17:00'), "%H:%M").time()
-                                        except:
-                                            h_f_obj = datetime.time(17, 0)
-                                        nueva_h_fin = st.time_input("Hora Fin:", value=h_f_obj, key=f"fe_hf_ed_{orig_idx}")
+                        with col_j_info:
+                            with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})"):
+                                
+                                with st.expander("✏️ Editar Detalles de la Jornada y Cargar la Lista Completa de Actividades", expanded=False):
+                                    with st.form(f"form_full_edit_{orig_idx}"):
+                                        st.markdown("##### 📍 Modificar Edificio, Fecha y Horas")
+                                        c_e1, c_e2, c_e3, c_e4 = st.columns([2, 2, 1.5, 1.5])
+                                        with c_e1:
+                                            nuevo_edificio = st.selectbox("Nombre / Edificio:", EDIFICIOS_ALPHA, index=EDIFICIOS_ALPHA.index(j['Edificio']) if j['Edificio'] in EDIFICIOS_ALPHA else 0, key=f"fe_ed_sel_{orig_idx}")
+                                        with c_e2:
+                                            try:
+                                                f_obj = datetime.datetime.strptime(j['Fecha'], "%Y-%m-%d").date()
+                                            except:
+                                                f_obj = datetime.date.today()
+                                            nueva_fecha = st.date_input("Fecha:", value=f_obj, key=f"fe_f_ed_{orig_idx}")
+                                        with c_e3:
+                                            try:
+                                                h_i_obj = datetime.datetime.strptime(j.get('Hora_Inicio', '07:00'), "%H:%M").time()
+                                            except:
+                                                h_i_obj = datetime.time(7, 0)
+                                            nueva_h_inicio = st.time_input("Hora Inicio:", value=h_i_obj, key=f"fe_hi_ed_{orig_idx}")
+                                        with c_e4:
+                                            try:
+                                                h_f_obj = datetime.datetime.strptime(j.get('Hora_Fin', '17:00'), "%H:%M").time()
+                                            except:
+                                                h_f_obj = datetime.time(17, 0)
+                                            nueva_h_fin = st.time_input("Hora Fin:", value=h_f_obj, key=f"fe_hf_ed_{orig_idx}")
 
-                                    st.markdown("---")
-                                    st.markdown("##### 📋 Editar Lista Completa de Actividades de la Inspección")
+                                        st.markdown("---")
+                                        st.markdown("##### 📋 Editar Lista Completa de Actividades de la Inspección")
+                                        
+                                        saved_map = {}
+                                        for item_g in j.get("Datos", []):
+                                            key_map = f"{item_g['Jornada']}_{item_g['N°']}_{item_g['Actividad']}"
+                                            saved_map[key_map] = item_g
+
+                                        nuevos_datos_actualizados = []
+
+                                        st.markdown("###### 🌅 Jornada de la Mañana")
+                                        for idx_m, act_m in enumerate(ACTIVIDADES_MANANA, 1):
+                                            k_m = f"Mañana_{idx_m}_{act_m}"
+                                            exist_m = saved_map.get(k_m, {})
+
+                                            st.markdown(f"**[Mañana] N° {idx_m}. {act_m}**")
+                                            
+                                            sub_m_editadas = exist_m.get("Actividades_Especificas", [])
+                                            if act_m == "Supervisión de la ejecución de los trabajos":
+                                                st.caption("Actividades a realizar en la mañana:")
+                                                df_sub_edit_m = pd.DataFrame(sub_m_editadas if sub_m_editadas else [{"Actividad": ""}])
+                                                edited_sub_m_df = st.data_editor(
+                                                    df_sub_edit_m,
+                                                    num_rows="dynamic",
+                                                    column_config={
+                                                        "Actividad": st.column_config.TextColumn("Descripción de la Actividad")
+                                                    },
+                                                    key=f"fe_sub_m_{orig_idx}_{idx_m}"
+                                                )
+                                                sub_m_editadas = edited_sub_m_df.to_dict(orient="records")
+
+                                            c1_e, c2_e, c3_e = st.columns([2, 3, 3])
+                                            opciones_est = ["✓ Cumple", "✗ No Cumple", "N/A"]
+                                            st_val = exist_m.get("Estado", None)
+                                            idx_est = opciones_est.index(st_val) if st_val in opciones_est else None
+                                            
+                                            with c1_e:
+                                                n_est = st.radio("Estado General", opciones_est, index=idx_est, key=f"fe_st_m_{orig_idx}_{idx_m}", horizontal=True)
+                                            with c2_e:
+                                                n_obs = st.text_input("Observación", value=exist_m.get("Observaciones", ""), key=f"fe_ob_m_{orig_idx}_{idx_m}", placeholder="Observaciones...")
+                                            with c3_e:
+                                                n_foto_file = st.file_uploader("Actualizar Foto", type=["jpg", "jpeg", "png"], key=f"fe_ft_m_{orig_idx}_{idx_m}")
+
+                                            b64_foto_actual = exist_m.get("Foto_B64")
+                                            if n_foto_file is not None:
+                                                b64_foto_actual = image_to_base64(n_foto_file)
+
+                                            if n_est is not None:
+                                                nuevos_datos_actualizados.append({
+                                                    "Jornada": "Mañana",
+                                                    "N°": idx_m,
+                                                    "Actividad": act_m,
+                                                    "Estado": n_est,
+                                                    "Observaciones": n_obs,
+                                                    "Actividades_Especificas": sub_m_editadas,
+                                                    "Foto_B64": b64_foto_actual,
+                                                    "Foto_Adjunta": "Sí" if b64_foto_actual else "No"
+                                                })
+                                            st.markdown("<hr style='margin: 4px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
+
+                                        st.markdown("###### 🌆 Jornada de la Tarde")
+                                        for idx_t, act_t in enumerate(ACTIVIDADES_TARDE, 1):
+                                            k_t = f"Tarde_{idx_t}_{act_t}"
+                                            exist_t = saved_map.get(k_t, {})
+
+                                            st.markdown(f"**[Tarde] N° {idx_t}. {act_t}**")
+                                            
+                                            sub_t_editadas = exist_t.get("Actividades_Especificas", [])
+                                            if act_t == "Supervisión de la ejecución de los trabajos":
+                                                st.caption("Actividades a realizar en la tarde:")
+                                                df_sub_edit_t = pd.DataFrame(sub_t_editadas if sub_t_editadas else [{"Actividad": ""}])
+                                                edited_sub_t_df = st.data_editor(
+                                                    df_sub_edit_t,
+                                                    num_rows="dynamic",
+                                                    column_config={
+                                                        "Actividad": st.column_config.TextColumn("Descripción de la Actividad")
+                                                    },
+                                                    key=f"fe_sub_t_{orig_idx}_{idx_t}"
+                                                )
+                                                sub_t_editadas = edited_sub_t_df.to_dict(orient="records")
+
+                                            c1_e, c2_e, c3_e = st.columns([2, 3, 3])
+                                            opciones_est = ["✓ Cumple", "✗ No Cumple", "N/A"]
+                                            st_val_t = exist_t.get("Estado", None)
+                                            idx_est_t = opciones_est.index(st_val_t) if st_val_t in opciones_est else None
+                                            
+                                            with c1_e:
+                                                n_est_t = st.radio("Estado General", opciones_est, index=idx_est_t, key=f"fe_st_t_{orig_idx}_{idx_t}", horizontal=True)
+                                            with c2_e:
+                                                n_obs_t = st.text_input("Observación", value=exist_t.get("Observaciones", ""), key=f"fe_ob_t_{orig_idx}_{idx_t}", placeholder="Observaciones...")
+                                            with c3_e:
+                                                n_foto_file_t = st.file_uploader("Actualizar Foto", type=["jpg", "jpeg", "png"], key=f"fe_ft_t_{orig_idx}_{idx_t}")
+
+                                            b64_foto_actual_t = exist_t.get("Foto_B64")
+                                            if n_foto_file_t is not None:
+                                                b64_foto_actual_t = image_to_base64(n_foto_file_t)
+
+                                            if n_est_t is not None:
+                                                nuevos_datos_actualizados.append({
+                                                    "Jornada": "Tarde",
+                                                    "N°": idx_t,
+                                                    "Actividad": act_t,
+                                                    "Estado": n_est_t,
+                                                    "Observaciones": n_obs_t,
+                                                    "Actividades_Especificas": sub_t_editadas,
+                                                    "Foto_B64": b64_foto_actual_t,
+                                                    "Foto_Adjunta": "Sí" if b64_foto_actual_t else "No"
+                                                })
+                                            st.markdown("<hr style='margin: 4px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
+
+                                        st.markdown("##### 📝 Editar Observación General")
+                                        nueva_obs_general = st.text_area("Observación General:", value=j.get("Observacion_General", ""), key=f"fe_obs_gen_{orig_idx}")
+
+                                        if st.form_submit_button("💾 Guardar Todos los Cambios en Supabase", type="primary"):
+                                            try:
+                                                supabase.table("checklists").update({
+                                                    "edificio": nuevo_edificio,
+                                                    "fecha": nueva_fecha.strftime("%Y-%m-%d"),
+                                                    "hora_inicio": nueva_h_inicio.strftime("%H:%M"),
+                                                    "hora_fin": nueva_h_fin.strftime("%H:%M"),
+                                                    "observacion_general": nueva_obs_general.strip(),
+                                                    "datos": nuevos_datos_actualizados
+                                                }).eq("id", j["db_id"]).execute()
+
+                                                st.session_state.db_loaded = False
+                                                st.success("¡Jornada actualizada con éxito en Supabase!")
+                                                st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Error al actualizar checklist: {e}")
+
+                                st.markdown("#### Actividades Registradas y Evidencias:")
+                                df_data = pd.DataFrame(j["Datos"])
+                                for _, row in df_data.iterrows():
                                     
-                                    saved_map = {}
-                                    for item_g in j.get("Datos", []):
-                                        key_map = f"{item_g['Jornada']}_{item_g['N°']}_{item_g['Actividad']}"
-                                        saved_map[key_map] = item_g
+                                    estado_badge = render_estado_badge(row['Estado'])
+                                    st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: {estado_badge}", unsafe_allow_html=True)
+                                    
+                                    sub_tasks = row.get("Actividades_Especificas", [])
+                                    if sub_tasks:
+                                        for st_item in sub_tasks:
+                                            if st_item.get("Actividad"):
+                                                st.markdown(f"  * ▫️ *Actividad a realizar:* {st_item['Actividad']}")
 
-                                    nuevos_datos_actualizados = []
+                                    if row['Observaciones']:
+                                        st.caption(f"Obs: {row['Observaciones']}")
+                                    
+                                    if row.get("Foto_B64") is not None:
+                                        img_evidencia = base64_to_image(row["Foto_B64"])
+                                        if img_evidencia:
+                                            with st.popover(f"📷 Vista previa de la imagen"):
+                                                st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_container_width=True)
 
-                                    st.markdown("###### 🌅 Jornada de la Mañana")
-                                    for idx_m, act_m in enumerate(ACTIVIDADES_MANANA, 1):
-                                        k_m = f"Mañana_{idx_m}_{act_m}"
-                                        exist_m = saved_map.get(k_m, {})
+                                    st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
-                                        st.markdown(f"**[Mañana] N° {idx_m}. {act_m}**")
-                                        
-                                        sub_m_editadas = exist_m.get("Actividades_Especificas", [])
-                                        if act_m == "Supervisión de la ejecución de los trabajos":
-                                            st.caption("Actividades a realizar en la mañana:")
-                                            df_sub_edit_m = pd.DataFrame(sub_m_editadas if sub_m_editadas else [{"Actividad": ""}])
-                                            edited_sub_m_df = st.data_editor(
-                                                df_sub_edit_m,
-                                                num_rows="dynamic",
-                                                column_config={
-                                                    "Actividad": st.column_config.TextColumn("Descripción de la Actividad")
-                                                },
-                                                key=f"fe_sub_m_{orig_idx}_{idx_m}"
-                                            )
-                                            sub_m_editadas = edited_sub_m_df.to_dict(orient="records")
+                                if j.get("Observacion_General"):
+                                    st.info(f"**Observación General:** {j.get('Observacion_General')}")
 
-                                        c1_e, c2_e, c3_e = st.columns([2, 3, 3])
-                                        opciones_est = ["✓ Cumple", "✗ No Cumple", "N/A"]
-                                        st_val = exist_m.get("Estado", None)
-                                        idx_est = opciones_est.index(st_val) if st_val in opciones_est else None
-                                        
-                                        with c1_e:
-                                            n_est = st.radio("Estado General", opciones_est, index=idx_est, key=f"fe_st_m_{orig_idx}_{idx_m}", horizontal=True)
-                                        with c2_e:
-                                            n_obs = st.text_input("Observación", value=exist_m.get("Observaciones", ""), key=f"fe_ob_m_{orig_idx}_{idx_m}", placeholder="Observaciones...")
-                                        with c3_e:
-                                            n_foto_file = st.file_uploader("Actualizar Foto", type=["jpg", "jpeg", "png"], key=f"fe_ft_m_{orig_idx}_{idx_m}")
-
-                                        b64_foto_actual = exist_m.get("Foto_B64")
-                                        if n_foto_file is not None:
-                                            b64_foto_actual = image_to_base64(n_foto_file)
-
-                                        if n_est is not None:
-                                            nuevos_datos_actualizados.append({
-                                                "Jornada": "Mañana",
-                                                "N°": idx_m,
-                                                "Actividad": act_m,
-                                                "Estado": n_est,
-                                                "Observaciones": n_obs,
-                                                "Actividades_Especificas": sub_m_editadas,
-                                                "Foto_B64": b64_foto_actual,
-                                                "Foto_Adjunta": "Sí" if b64_foto_actual else "No"
-                                            })
-                                        st.markdown("<hr style='margin: 4px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
-
-                                    st.markdown("###### 🌆 Jornada de la Tarde")
-                                    for idx_t, act_t in enumerate(ACTIVIDADES_TARDE, 1):
-                                        k_t = f"Tarde_{idx_t}_{act_t}"
-                                        exist_t = saved_map.get(k_t, {})
-
-                                        st.markdown(f"**[Tarde] N° {idx_t}. {act_t}**")
-                                        
-                                        sub_t_editadas = exist_t.get("Actividades_Especificas", [])
-                                        if act_t == "Supervisión de la ejecución de los trabajos":
-                                            st.caption("Actividades a realizar en la tarde:")
-                                            df_sub_edit_t = pd.DataFrame(sub_t_editadas if sub_t_editadas else [{"Actividad": ""}])
-                                            edited_sub_t_df = st.data_editor(
-                                                df_sub_edit_t,
-                                                num_rows="dynamic",
-                                                column_config={
-                                                    "Actividad": st.column_config.TextColumn("Descripción de la Actividad")
-                                                },
-                                                key=f"fe_sub_t_{orig_idx}_{idx_t}"
-                                            )
-                                            sub_t_editadas = edited_sub_t_df.to_dict(orient="records")
-
-                                        c1_e, c2_e, c3_e = st.columns([2, 3, 3])
-                                        opciones_est = ["✓ Cumple", "✗ No Cumple", "N/A"]
-                                        st_val_t = exist_t.get("Estado", None)
-                                        idx_est_t = opciones_est.index(st_val_t) if st_val_t in opciones_est else None
-                                        
-                                        with c1_e:
-                                            n_est_t = st.radio("Estado General", opciones_est, index=idx_est_t, key=f"fe_st_t_{orig_idx}_{idx_t}", horizontal=True)
-                                        with c2_e:
-                                            n_obs_t = st.text_input("Observación", value=exist_t.get("Observaciones", ""), key=f"fe_ob_t_{orig_idx}_{idx_t}", placeholder="Observaciones...")
-                                        with c3_e:
-                                            n_foto_file_t = st.file_uploader("Actualizar Foto", type=["jpg", "jpeg", "png"], key=f"fe_ft_t_{orig_idx}_{idx_t}")
-
-                                        b64_foto_actual_t = exist_t.get("Foto_B64")
-                                        if n_foto_file_t is not None:
-                                            b64_foto_actual_t = image_to_base64(n_foto_file_t)
-
-                                        if n_est_t is not None:
-                                            nuevos_datos_actualizados.append({
-                                                "Jornada": "Tarde",
-                                                "N°": idx_t,
-                                                "Actividad": act_t,
-                                                "Estado": n_est_t,
-                                                "Observaciones": n_obs_t,
-                                                "Actividades_Especificas": sub_t_editadas,
-                                                "Foto_B64": b64_foto_actual_t,
-                                                "Foto_Adjunta": "Sí" if b64_foto_actual_t else "No"
-                                            })
-                                        st.markdown("<hr style='margin: 4px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
-
-                                    st.markdown("##### 📝 Editar Observación General")
-                                    nueva_obs_general = st.text_area("Observación General:", value=j.get("Observacion_General", ""), key=f"fe_obs_gen_{orig_idx}")
-
-                                    if st.form_submit_button("💾 Guardar Todos los Cambios en Supabase", type="primary"):
-                                        try:
-                                            supabase.table("checklists").update({
-                                                "edificio": nuevo_edificio,
-                                                "fecha": nueva_fecha.strftime("%Y-%m-%d"),
-                                                "hora_inicio": nueva_h_inicio.strftime("%H:%M"),
-                                                "hora_fin": nueva_h_fin.strftime("%H:%M"),
-                                                "observacion_general": nueva_obs_general.strip(),
-                                                "datos": nuevos_datos_actualizados
-                                            }).eq("id", j["db_id"]).execute()
-
-                                            st.session_state.db_loaded = False
-                                            st.success("¡Jornada actualizada con éxito en Supabase!")
-                                            st.rerun()
-                                        except Exception as e:
-                                            st.error(f"Error al actualizar checklist: {e}")
-
-                            st.markdown("#### Actividades Registradas y Evidencias:")
-                            df_data = pd.DataFrame(j["Datos"])
-                            for _, row in df_data.iterrows():
-                                
-                                estado_badge = render_estado_badge(row['Estado'])
-                                st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: {estado_badge}", unsafe_allow_html=True)
-                                
-                                sub_tasks = row.get("Actividades_Especificas", [])
-                                if sub_tasks:
-                                    for st_item in sub_tasks:
-                                        if st_item.get("Actividad"):
-                                            st.markdown(f"  * ▫️ *Actividad a realizar:* {st_item['Actividad']}")
-
-                                if row['Observaciones']:
-                                    st.caption(f"Obs: {row['Observaciones']}")
-                                
-                                if row.get("Foto_B64") is not None:
-                                    img_evidencia = base64_to_image(row["Foto_B64"])
-                                    if img_evidencia:
-                                        with st.popover(f"📷 Vista previa de la imagen"):
-                                            st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_container_width=True)
-
-                                st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
-
-                            if j.get("Observacion_General"):
-                                st.info(f"**Observación General:** {j.get('Observacion_General')}")
-
-                            excel_bytes = export_checklist_to_excel_file(j)
-                            st.download_button(
-                                label=f"📥 Descargar Excel con Imágenes - {j['Edificio']} ({j['Fecha']})",
-                                data=excel_bytes,
-                                file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                key=f"dl_xlsx_{orig_idx}"
-                            )
+                                excel_bytes = export_checklist_to_excel_file(j)
+                                st.download_button(
+                                    label=f"📥 Descargar Excel con Imágenes - {j['Edificio']} ({j['Fecha']})",
+                                    data=excel_bytes,
+                                    file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.xlsx",
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    key=f"dl_xlsx_{orig_idx}"
+                                )
     else:
         st.info("Aún no hay inspecciones guardadas en la base de datos.")
 
