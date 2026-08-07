@@ -1245,7 +1245,6 @@ with tab_chk:
 
     if len(mis_jornadas) > 0:
         fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
-        # Filtro estricto: únicamente jornadas de la fecha seleccionada
         jornadas_en_fecha = [j for j in mis_jornadas if j['Fecha'] == fecha_busqueda_str]
 
         st.info(f"**{len(jornadas_en_fecha)}** jornada(s) encontrada(s) para la fecha seleccionada ({fecha_busqueda_str}).")
@@ -1582,13 +1581,13 @@ with tab_rend:
         st.info("Aún no existen registros en su historial.")
 
 # ==========================================
-# 9. MÓDULO ADMINISTRADOR
+# 9. MÓDULO ADMINISTRADOR (MONITOREO GLOBAL DE PARTICIPANTES)
 # ==========================================
 if es_admin:
     tab_admin = tabs_app[2]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
-        st.caption("Módulo exclusivo para monitoreo de usuarios, permisos y configuración de seguridad.")
+        st.caption("Módulo exclusivo para supervisar inspecciones, rendimientos, usuarios y configuración.")
 
         st.markdown("#### 🔐 Código de Seguridad de Acceso y Registro (PIN)")
         col_pin1, col_pin2 = st.columns([2, 1])
@@ -1613,6 +1612,91 @@ if es_admin:
 
         with col_pin2:
             st.info(f"**PIN Actual Configurado:** `{st.session_state.get('access_pin', '1254')}`")
+
+        st.markdown("---")
+
+        st.markdown("#### 👁️ Inspecciones Subidas por Todos los Participantes")
+        st.caption("Filtre por usuario o revise el listado global de todas las inspecciones registradas.")
+
+        # Recopilar todos los checklists de todos los usuarios
+        todas_las_jornadas_admin = []
+        for u_mail, j_lista in st.session_state.db_checklists.items():
+            for j_item in j_lista:
+                j_copy = j_item.copy()
+                j_copy["Usuario_Correo"] = u_mail
+                todas_las_jornadas_admin.append(j_copy)
+
+        if len(todas_las_jornadas_admin) > 0:
+            usuarios_lista_chk = ["-- Todos los Usuarios --"] + sorted(list(set([j["Usuario_Correo"] for j in todas_las_jornadas_admin])))
+            filtro_usr_chk = st.selectbox("Filtrar inspecciones por participante:", usuarios_lista_chk, key="admin_filter_usr_chk")
+
+            if filtro_usr_chk != "-- Todos los Usuarios --":
+                jornadas_admin_filtradas = [j for j in todas_las_jornadas_admin if j["Usuario_Correo"] == filtro_usr_chk]
+            else:
+                jornadas_admin_filtradas = todas_las_jornadas_admin
+
+            jornadas_admin_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
+
+            for idx_adm, j_adm in enumerate(jornadas_admin_filtradas, 1):
+                resp_str = j_adm.get("Responsable", "") or j_adm["Usuario_Correo"]
+                with st.expander(f"📌 [{j_adm['Usuario_Correo']}] {j_adm['Edificio']} — {j_adm['Fecha']} ({resp_str})"):
+                    st.markdown(f"**Usuario:** `{j_adm['Usuario_Correo']}` | **Responsable:** {resp_str} ({j_adm.get('Cargo', '')})")
+                    st.markdown(f"**Edificio:** {j_adm['Edificio']} | **Horario:** {j_adm.get('Hora_Inicio', 'N/A')} - {j_adm.get('Hora_Fin', 'N/A')}")
+                    
+                    df_data_adm = pd.DataFrame(j_adm["Datos"])
+                    for _, r_adm in df_data_adm.iterrows():
+                        badge_adm = render_estado_badge(r_adm['Estado'])
+                        st.markdown(f"- **[{r_adm['Jornada']}] N° {r_adm['N°']}. {r_adm['Actividad']}**: {badge_adm}", unsafe_allow_html=True)
+                        if r_adm.get("Observaciones"):
+                            st.caption(f"Obs: {r_adm['Observaciones']}")
+                        if r_adm.get("Foto_B64"):
+                            img_ev_adm = base64_to_image(r_adm["Foto_B64"])
+                            if img_ev_adm:
+                                with st.popover("📷 Ver Foto Evidencia"):
+                                    st.image(img_ev_adm, caption=r_adm['Actividad'], use_container_width=True)
+
+                    if j_adm.get("Observacion_General"):
+                        st.info(f"**Observación General:** {j_adm.get('Observacion_General')}")
+
+                    excel_bytes_adm = export_checklist_to_excel_file(j_adm)
+                    st.download_button(
+                        label=f"📥 Descargar Excel de {resp_str} ({j_adm['Fecha']})",
+                        data=excel_bytes_adm,
+                        file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"dl_xlsx_adm_{idx_adm}"
+                    )
+        else:
+            st.info("Ningún participante ha registrado inspecciones aún.")
+
+        st.markdown("---")
+
+        st.markdown("#### 📊 Rendimientos Subidos por Todos los Participantes")
+        todos_los_rendimientos = []
+        for u_mail, r_lista in st.session_state.db_rendimientos.items():
+            for r_item in r_lista:
+                r_copy = r_item.copy()
+                r_copy["Usuario_Correo"] = u_mail
+                todos_los_rendimientos.append(r_copy)
+
+        if len(todos_los_rendimientos) > 0:
+            df_rend_admin = pd.DataFrame(todos_los_rendimientos)
+            cols_first = ["Usuario_Correo", "Fecha", "Trabajador", "Rubro", "Horas Trabajadas (HH)", "Avance", "Unidad", "Rend. Real (HH/Unid)", "Rend. Teórico", "Estado"]
+            df_rend_admin = df_rend_admin.reindex(columns=[c for c in cols_first if c in df_rend_admin.columns])
+            if not df_rend_admin.empty:
+                df_rend_admin.index = range(1, len(df_rend_admin) + 1)
+
+            st.dataframe(df_rend_admin, use_container_width=True)
+
+            csv_rend_admin_bytes = export_dataframe_to_excel_csv(df_rend_admin)
+            st.download_button(
+                label="📥 Descargar Todos los Rendimientos (Excel CSV)",
+                data=csv_rend_admin_bytes,
+                file_name=f"Rendimientos_Globales_{datetime.date.today().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("Ningún participante ha registrado rendimientos aún.")
 
         st.markdown("---")
 
