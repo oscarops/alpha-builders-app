@@ -3,3 +3,4 @@ pandas
 Pillow
 openpyxl
 supabase
+streamlit-local-storage
