@@ -1,0 +1,11 @@
+[server]
+enableCORS = false
+enableXsrfProtection = false
+maxUploadSize = 200
+
+[browser]
+gatherUsageStats = false
+
+# Eleva los límites de inactividad de los sockets al máximo
+websocketPingInterval = 10
+websocketPingTimeout = 600
