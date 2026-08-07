@@ -10,6 +10,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
+from streamlit_local_storage import LocalStorage
 
 # ==========================================
 # 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
@@ -358,7 +359,9 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# LISTA INICIAL VACÍA PARA AGREGAR OBREROS MANUALMENTE
+# INSTANCIA DE ALMACENAMIENTO LOCAL EN EL NAVEGADOR
+local_storage = LocalStorage()
+
 DEFAULT_TRABAJADORES = []
 
 def load_db_from_supabase():
@@ -473,6 +476,26 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     st.session_state.db_rendimientos = p_data["db_rendimientos"]
     st.session_state.db_trabajadores = p_data["db_trabajadores"]
     st.session_state.db_loaded = True
+
+# PERSISTENCIA DE SESIÓN INFINITA EN EL NAVEGADOR
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+    st.session_state.usuario_email = ""
+    st.session_state.usuario_nombres = ""
+    st.session_state.usuario_apellidos = ""
+    st.session_state.usuario_cargo = ""
+
+if not st.session_state.autenticado:
+    saved_token = local_storage.getItem("user_session_email")
+    if saved_token:
+        mail_clean = saved_token.strip().lower()
+        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
+        if u_match:
+            st.session_state.autenticado = True
+            st.session_state.usuario_email = mail_clean
+            st.session_state.usuario_nombres = u_match["Nombres"]
+            st.session_state.usuario_apellidos = u_match["Apellidos"]
+            st.session_state.usuario_cargo = u_match["Cargo"]
 
 def render_estado_badge(estado_str):
     if "Cumple" in estado_str and "No" not in estado_str:
@@ -622,13 +645,6 @@ def export_dataframe_to_excel_csv(df):
 # ==========================================
 # 3. BASE DE DATOS Y ESTADOS DE SESIÓN
 # ==========================================
-if "autenticado" not in st.session_state:
-    st.session_state.autenticado = False
-    st.session_state.usuario_email = ""
-    st.session_state.usuario_nombres = ""
-    st.session_state.usuario_apellidos = ""
-    st.session_state.usuario_cargo = ""
-
 EDIFICIOS_ALPHA = [
     "Tesla",
     "Lafuente",
@@ -716,6 +732,9 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_nombres = u_match["Nombres"]
                                 st.session_state.usuario_apellidos = u_match["Apellidos"]
                                 st.session_state.usuario_cargo = u_match["Cargo"]
+                                
+                                # GUARDADO PERMANENTE EN NAVEGADOR (LOCALSTORAGE)
+                                local_storage.setItem("user_session_email", mail_clean)
                                 st.rerun()
                             else:
                                 st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
@@ -780,6 +799,8 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = reg_cargo
                                 st.session_state.db_loaded = False
                                 
+                                # GUARDADO PERMANENTE EN NAVEGADOR (LOCALSTORAGE)
+                                local_storage.setItem("user_session_email", mail_clean)
                                 st.success("¡Registro completado exitosamente!")
                                 st.rerun()
                             except Exception as e:
@@ -925,8 +946,11 @@ with st.sidebar:
                 st.error(f"Error actualizando perfil: {e}")
 
     st.markdown("<hr>", unsafe_allow_html=True)
+    
+    # ELIMINA EL REGISTRO AL CERRAR SESIÓN MANUALMENTE
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
+        local_storage.deleteItem("user_session_email")
         st.rerun()
 
 # ==========================================
@@ -1245,6 +1269,7 @@ with tab_chk:
 
     if len(mis_jornadas) > 0:
         fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
+        # Filtro estricto: únicamente jornadas de la fecha seleccionada
         jornadas_en_fecha = [j for j in mis_jornadas if j['Fecha'] == fecha_busqueda_str]
 
         st.info(f"**{len(jornadas_en_fecha)}** jornada(s) encontrada(s) para la fecha seleccionada ({fecha_busqueda_str}).")
@@ -1618,7 +1643,6 @@ if es_admin:
         st.markdown("#### 👁️ Inspecciones Subidas por Todos los Participantes")
         st.caption("Filtre por usuario o revise el listado global de todas las inspecciones registradas.")
 
-        # Recopilar todos los checklists de todos los usuarios
         todas_las_jornadas_admin = []
         for u_mail, j_lista in st.session_state.db_checklists.items():
             for j_item in j_lista:
