@@ -1144,12 +1144,10 @@ with tab_chk:
                     c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
                     with c_sel:
-                        est = st.radio(
+                        est = st.segmented_control(
                             "Estado General",
                             ["✓ Cumple", "✗ No Cumple", "N/A"],
-                            index=None,
-                            key=f"m_st_{idx}",
-                            horizontal=True,
+                            key=f"m_st_{idx}"
                         )
                     with c_obs:
                         ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
@@ -1196,12 +1194,10 @@ with tab_chk:
                     c_sel, c_obs, c_foto = st.columns([2, 3, 3])
 
                     with c_sel:
-                        est = st.radio(
+                        est = st.segmented_control(
                             "Estado General",
                             ["✓ Cumple", "✗ No Cumple", "N/A"],
-                            index=None,
-                            key=f"t_st_{idx}",
-                            horizontal=True,
+                            key=f"t_st_{idx}"
                         )
                     with c_obs:
                         ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
@@ -1409,12 +1405,18 @@ with tab_didactico:
             with col_a3:
                 p_ejec = st.number_input(f"% Ejec. ({act})", min_value=0.0, max_value=100.0, step=1.0, key=f"ejec_{act}")
             with col_a4:
-                est_act = st.selectbox(f"Estado ({act})", ["En Proceso", "Completado", "Retrasado", "N/A"], key=f"est_{act}")
+                est_act = st.selectbox(
+                    f"Estado ({act})", 
+                    ["En Proceso", "Completado", "Retrasado", "N/A"], 
+                    index=None, 
+                    placeholder="Seleccionar...", 
+                    key=f"est_{act}"
+                )
             avance_datos.append({"Actividad": act, "% Prog": p_prog, "% Ejec": p_ejec, "Estado": est_act})
 
         st.markdown("---")
 
-        # 3. CHECK LIST GENERAL
+        # 3. CHECK LIST GENERAL (SELECCIÓN Y DESELECCIÓN MEDIANTE ST.SEGMENTED_CONTROL)
         st.markdown("#### 3. Check List General")
         
         tab_sec1, tab_sec2, tab_sec3, tab_sec4, tab_sec5 = st.tabs([
@@ -1429,7 +1431,12 @@ with tab_didactico:
                 with cs1:
                     st.write(f"• {item}")
                 with cs2:
-                    st_val = st.radio(f"Seg_{item}", ["Sí", "No", "N/A"], index=None, horizontal=True, key=f"seg_{item}", label_visibility="collapsed")
+                    st_val = st.segmented_control(
+                        f"Seg_{item}",
+                        ["Sí", "No", "N/A"],
+                        key=f"seg_{item}",
+                        label_visibility="collapsed"
+                    )
                 with cs3:
                     obs_val = st.text_input(f"Obs_{item}", placeholder="Observaciones...", key=f"seg_obs_{item}", label_visibility="collapsed")
                 seg_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
@@ -1442,7 +1449,12 @@ with tab_didactico:
                 with cm1:
                     st.write(f"• {item}")
                 with cm2:
-                    st_val = st.radio(f"Mamp_{item}", ["Sí", "No"], index=None, horizontal=True, key=f"mamp_{item}", label_visibility="collapsed")
+                    st_val = st.segmented_control(
+                        f"Mamp_{item}",
+                        ["Sí", "No"],
+                        key=f"mamp_{item}",
+                        label_visibility="collapsed"
+                    )
                 with cm3:
                     obs_val = st.text_input(f"Obs_mamp_{item}", placeholder="Observaciones...", key=f"mamp_obs_{item}", label_visibility="collapsed")
                 mamp_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
@@ -1455,7 +1467,12 @@ with tab_didactico:
                 with ch1:
                     st.write(f"• {item}")
                 with ch2:
-                    st_val = st.radio(f"Horm_{item}", ["Sí", "No"], index=None, horizontal=True, key=f"horm_{item}", label_visibility="collapsed")
+                    st_val = st.segmented_control(
+                        f"Horm_{item}",
+                        ["Sí", "No"],
+                        key=f"horm_{item}",
+                        label_visibility="collapsed"
+                    )
                 with ch3:
                     obs_val = st.text_input(f"Obs_horm_{item}", placeholder="Observaciones...", key=f"horm_obs_{item}", label_visibility="collapsed")
                 horm_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
@@ -1468,7 +1485,12 @@ with tab_didactico:
                 with ci1:
                     st.write(f"• {item}")
                 with ci2:
-                    st_val = st.radio(f"Inst_{item}", ["Sí", "No"], index=None, horizontal=True, key=f"inst_{item}", label_visibility="collapsed")
+                    st_val = st.segmented_control(
+                        f"Inst_{item}",
+                        ["Sí", "No"],
+                        key=f"inst_{item}",
+                        label_visibility="collapsed"
+                    )
                 with ci3:
                     obs_val = st.text_input(f"Obs_inst_{item}", placeholder="Observaciones...", key=f"inst_obs_{item}", label_visibility="collapsed")
                 inst_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
@@ -1481,7 +1503,12 @@ with tab_didactico:
                 with ca1:
                     st.write(f"• {item}")
                 with ca2:
-                    st_val = st.radio(f"Acab_{item}", ["Sí", "No"], index=None, horizontal=True, key=f"acab_{item}", label_visibility="collapsed")
+                    st_val = st.segmented_control(
+                        f"Acab_{item}",
+                        ["Sí", "No"],
+                        key=f"acab_{item}",
+                        label_visibility="collapsed"
+                    )
                 with ca3:
                     obs_val = st.text_input(f"Obs_acab_{item}", placeholder="Observaciones...", key=f"acab_obs_{item}", label_visibility="collapsed")
                 acab_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
@@ -1497,7 +1524,12 @@ with tab_didactico:
             with cp1:
                 st.write(f"• {item}")
             with cp2:
-                st_val = st.radio(f"Pers_{item}", ["Sí", "No"], index=None, horizontal=True, key=f"pers_{item}", label_visibility="collapsed")
+                st_val = st.segmented_control(
+                    f"Pers_{item}",
+                    ["Sí", "No"],
+                    key=f"pers_{item}",
+                    label_visibility="collapsed"
+                )
             with cp3:
                 obs_val = st.text_input(f"Obs_pers_{item}", placeholder="Observación...", key=f"pers_obs_{item}", label_visibility="collapsed")
             pers_resp.append({"Aspecto": item, "Cumple": st_val, "Observación": obs_val})
@@ -1513,7 +1545,12 @@ with tab_didactico:
             with cmat1:
                 st.write(f"• {item}")
             with cmat2:
-                st_val = st.radio(f"Mat_{item}", ["Sí", "No"], index=None, horizontal=True, key=f"mat_{item}", label_visibility="collapsed")
+                st_val = st.segmented_control(
+                    f"Mat_{item}",
+                    ["Sí", "No"],
+                    key=f"mat_{item}",
+                    label_visibility="collapsed"
+                )
             with cmat3:
                 obs_val = st.text_input(f"Obs_mat_{item}", placeholder="Observación...", key=f"mat_obs_{item}", label_visibility="collapsed")
             mat_resp.append({"Revisar": item, "Cumple": st_val, "Observación": obs_val})
@@ -1529,7 +1566,12 @@ with tab_didactico:
             with ceq1:
                 st.write(f"• {item}")
             with ceq2:
-                st_val = st.radio(f"Eq_{item}", ["Operativo", "Fuera de servicio"], index=None, horizontal=True, key=f"eq_{item}", label_visibility="collapsed")
+                st_val = st.segmented_control(
+                    f"Eq_{item}",
+                    ["Operativo", "Fuera de servicio"],
+                    key=f"eq_{item}",
+                    label_visibility="collapsed"
+                )
             with ceq3:
                 obs_val = st.text_input(f"Obs_eq_{item}", placeholder="Observación...", key=f"eq_obs_{item}", label_visibility="collapsed")
             eq_resp.append({"Equipo": item, "Estado": st_val, "Observación": obs_val})
