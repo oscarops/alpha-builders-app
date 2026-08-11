@@ -1257,21 +1257,49 @@ with tab_chk:
 
     st.markdown("---")
 
-    col_t_hist, col_t_cal = st.columns([3, 1], gap="large")
-    with col_t_hist:
-        st.markdown("### Historial de Jornadas e Inspecciones Creadas")
-    with col_t_cal:
-        fecha_busqueda = st.date_input("Filtrar por fecha:", datetime.date.today(), key="calendario_directo", label_visibility="collapsed")
+    # BUSCADOR GENERAL E HISTORIAL DE CHECKLISTS
+    st.markdown("### Historial General de Inspecciones Creadas")
+    
+    col_search_txt, col_search_date, col_search_clear = st.columns([3, 2, 1])
+    with col_search_txt:
+        query_busqueda = st.text_input("🔍 Buscador de Checklists:", placeholder="Buscar por proyecto, responsable u observaciones...", key="busqueda_txt_chk")
+    with col_search_date:
+        usar_filtro_fecha = st.checkbox("Filtrar por fecha exacta", value=False, key="chk_usar_fecha")
+        if usar_filtro_fecha:
+            fecha_busqueda = st.date_input("Fecha:", datetime.date.today(), key="calendario_directo", label_visibility="collapsed")
+        else:
+            fecha_busqueda = None
+    with col_search_clear:
+        st.write("")
+        st.write("")
+        if st.button("Limpiar Filtros", use_container_width=True):
+            st.session_state.busqueda_txt_chk = ""
+            st.session_state.chk_usar_fecha = False
+            st.rerun()
 
     mis_jornadas = st.session_state.db_checklists.get(user_email, [])
 
     if len(mis_jornadas) > 0:
-        fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
-        jornadas_en_fecha = [j for j in mis_jornadas if j['Fecha'] == fecha_busqueda_str]
+        # Filtrar por texto si hay búsqueda
+        jornadas_filtradas = mis_jornadas.copy()
+        
+        if query_busqueda.strip():
+            q_clean = query_busqueda.strip().lower()
+            jornadas_filtradas = [
+                j for j in jornadas_filtradas 
+                if q_clean in j.get("Edificio", "").lower() 
+                or q_clean in j.get("Responsable", "").lower() 
+                or q_clean in j.get("Observacion_General", "").lower()
+            ]
 
-        st.info(f"**{len(jornadas_en_fecha)}** jornada(s) encontrada(s) para la fecha seleccionada ({fecha_busqueda_str}).")
+        # Filtrar por fecha solo si la casilla está activada
+        if usar_filtro_fecha and fecha_busqueda is not None:
+            fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
+            jornadas_filtradas = [j for j in jornadas_filtradas if j['Fecha'] == fecha_busqueda_str]
 
-        if len(jornadas_en_fecha) > 0:
+        st.caption(f"Mostrando **{len(jornadas_filtradas)}** de **{len(mis_jornadas)}** inspección(es) en total.")
+
+        if len(jornadas_filtradas) > 0:
             meses_nombres = {
                 "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
                 "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
@@ -1280,7 +1308,7 @@ with tab_chk:
 
             jornadas_con_index = []
             for orig_idx, j_item in enumerate(mis_jornadas):
-                if j_item in jornadas_en_fecha:
+                if j_item in jornadas_filtradas:
                     jornadas_con_index.append((orig_idx, j_item))
 
             jornadas_con_index.sort(key=lambda x: x[1]['Fecha'], reverse=True)
@@ -1353,6 +1381,8 @@ with tab_chk:
                                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                     key=f"dl_xlsx_{orig_idx}"
                                 )
+        else:
+            st.warning("No se encontraron inspecciones que coincidan con la búsqueda.")
     else:
         st.info("Aún no hay inspecciones guardadas en la base de datos.")
 
@@ -1377,7 +1407,6 @@ with tab_didactico:
         c1, c2, c3 = st.columns(3)
         with c1:
             did_proyecto = st.selectbox("Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="did_proy")
-            # Sin clave fija en key para permitir la actualización dinámica inmediata al cambiar la fecha
             did_dia = st.text_input("Día:", value=dia_auto_es, disabled=True)
 
         with c2:
