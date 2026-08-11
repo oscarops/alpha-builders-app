@@ -1362,7 +1362,7 @@ with tab_chk:
         st.info("Aún no hay inspecciones guardadas en la base de datos.")
 
 # ------------------------------------------
-# MÓDULO DE INSPECCIÓN DIARIA (LITERALES 1 AL 6)
+# MÓDULO DE INSPECCIÓN DIARIA
 # ------------------------------------------
 with tab_didactico:
     st.markdown("### Formato de Inspección Diaria de Obra")
@@ -1376,9 +1376,10 @@ with tab_didactico:
             did_proyecto = st.selectbox("Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="did_proy")
             did_fecha = st.date_input("Fecha:", datetime.date.today(), key="did_fecha")
             
+            # Cálculo automático del día en español (bloqueado)
             dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-            idx_dia_auto = did_fecha.weekday()
-            did_dia = st.selectbox("Día:", dias_es, index=idx_dia_auto, key="did_dia")
+            dia_auto_es = dias_es[did_fecha.weekday()]
+            did_dia = st.text_input("Día:", value=dia_auto_es, disabled=True, key="did_dia")
 
         with c2:
             did_residente = st.text_input("Residente de Obra:", value=user_nombre_completo, key="did_res")
