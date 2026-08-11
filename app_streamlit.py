@@ -57,7 +57,7 @@ st.markdown(
         color: #5a5f6e !important;
     }
 
-    /* OCULTAR INSTRUCCIONES "PRESS ENTER TO SUBMIT FORM" EN MÓVILES Y DESKTOP */
+    /* OCULTAR INSTRUCCIONES EN MÓVILES Y DESKTOP */
     [data-testid="stInputInstructions"],
     div[data-testid="stInputInstructions"] {
         display: none !important;
@@ -685,693 +685,398 @@ ACTIVIDADES_TARDE = [
     "Revisión del cumplimiento de la meta diaria",
     "Cierre de actividades en campo",
 ]
-import base64
-import datetime
-import io
-import json
-import os
-import pandas as pd
-from PIL import Image, ImageOps
-import streamlit as st
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.drawing.image import Image as OpenpyxlImage
-from supabase import create_client, Client
-from streamlit_local_storage import LocalStorage
+# ==========================================
+# 4. MÓDULO DE LOGIN & REGISTRO
+# ==========================================
+if not st.session_state.autenticado:
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+
+    with col_l2:
+        if os.path.exists("images.png"):
+            with open("images.png", "rb") as image_file:
+                encoded_logo = base64.b64encode(image_file.read()).decode("utf-8")
+            st.markdown(
+                f"""
+                <div style="text-align: center; margin-top: 10px; margin-bottom: 10px;">
+                    <img src="data:image/png;base64,{encoded_logo}" style="width: 320px; max-width: 100%; pointer-events: none;">
+                </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+        tab_login, tab_register, tab_reset = st.tabs(["Iniciar Sesión", "Registrarse", "¿Olvidaste tu Contraseña?"])
+
+        with tab_login:
+            st.markdown("### Iniciar Sesión")
+            st.caption("Ingrese sus credenciales registradas y el código de acceso.")
+
+            with st.form("form_login_clean"):
+                login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
+                login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
+                login_pin = st.text_input("Código de Seguridad (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="log_pin")
+
+                btn_log = st.form_submit_button("Entrar al Portal", type="primary", use_container_width=True)
+
+            if btn_log:
+                if login_email and login_pass and login_pin:
+                    mail_clean = login_email.strip().lower()
+                    u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
+
+                    if u_match:
+                        if u_match["Password"] == login_pass:
+                            current_pin = st.session_state.get("access_pin", "1254")
+                            if login_pin.strip() == current_pin:
+                                st.session_state.autenticado = True
+                                st.session_state.usuario_email = mail_clean
+                                st.session_state.usuario_nombres = u_match["Nombres"]
+                                st.session_state.usuario_apellidos = u_match["Apellidos"]
+                                st.session_state.usuario_cargo = u_match["Cargo"]
+                                
+                                # GUARDADO PERMANENTE EN NAVEGADOR (LOCALSTORAGE)
+                                local_storage.setItem("user_session_email", mail_clean)
+                                st.rerun()
+                            else:
+                                st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
+                        else:
+                            st.error("Contraseña incorrecta.")
+                    else:
+                        st.error("El usuario no existe. Complete el registro.")
+                else:
+                    st.error("Por favor complete todos los campos, incluyendo el código PIN de 4 dígitos.")
+
+        with tab_register:
+            st.markdown("### Crear una Cuenta Nueva")
+            st.caption("Complete la información para habilitar su acceso.")
+
+            with st.form("form_register_clean"):
+                col_n, col_a = st.columns(2)
+                with col_n:
+                    reg_nombres = st.text_input("Nombres:", placeholder="Ej. Juan Carlos")
+                with col_a:
+                    reg_apellidos = st.text_input("Apellidos:", placeholder="Ej. Pérez Gómez")
+
+                reg_email = st.text_input("Correo electrónico:", placeholder="ejemplo@correo.com", key="reg_email")
+                
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    reg_pass = st.text_input("Crear contraseña:", type="password", key="reg_pass")
+                with col_p2:
+                    reg_pass_repeat = st.text_input("Repetir contraseña:", type="password", key="reg_pass_rep")
+
+                reg_cargo = st.selectbox("Cargo / Rol en Obra:", ["Residente", "Asistente", "Ayudante"])
+                reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="reg_pin")
+
+                btn_reg = st.form_submit_button("Completar Registro", type="primary", use_container_width=True)
+
+            if btn_reg:
+                if reg_nombres and reg_apellidos and reg_email and reg_pass and reg_pass_repeat and reg_pin:
+                    current_pin = st.session_state.get("access_pin", "1254")
+                    if reg_pin.strip() != current_pin:
+                        st.error("⚠️ Código de Seguridad (PIN) incorrecto. No se puede crear la cuenta.")
+                    elif reg_pass != reg_pass_repeat:
+                        st.error("Las contraseñas no coinciden.")
+                    else:
+                        mail_clean = reg_email.strip().lower()
+                        exists = any(u["Correo"] == mail_clean for u in st.session_state.db_usuarios)
+                        if exists:
+                            st.warning("Este correo ya se encuentra registrado.")
+                        else:
+                            try:
+                                supabase.table("usuarios").insert({
+                                    "correo": mail_clean,
+                                    "nombres": reg_nombres.strip(),
+                                    "apellidos": reg_apellidos.strip(),
+                                    "password": reg_pass,
+                                    "cargo": reg_cargo,
+                                    "es_admin": False
+                                }).execute()
+
+                                st.session_state.autenticado = True
+                                st.session_state.usuario_email = mail_clean
+                                st.session_state.usuario_nombres = reg_nombres.strip()
+                                st.session_state.usuario_apellidos = reg_apellidos.strip()
+                                st.session_state.usuario_cargo = reg_cargo
+                                st.session_state.db_loaded = False
+                                
+                                # GUARDADO PERMANENTE EN NAVEGADOR (LOCALSTORAGE)
+                                local_storage.setItem("user_session_email", mail_clean)
+                                st.success("¡Registro completado exitosamente!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al guardar usuario en Supabase: {e}")
+                else:
+                    st.error("Por favor complete todos los campos requeridos, incluyendo el código PIN.")
+
+        with tab_reset:
+            st.markdown("### Recuperación de Contraseña")
+            st.caption("Restablezca su acceso de forma segura.")
+
+            with st.form("form_reset_clean"):
+                reset_email = st.text_input("Ingrese su correo registrado:", placeholder="ejemplo@correo.com", key="rst_email")
+                
+                col_rp1, col_rp2 = st.columns(2)
+                with col_rp1:
+                    new_pass = st.text_input("Nueva contraseña:", type="password", key="rst_pass")
+                with col_rp2:
+                    new_pass_rep = st.text_input("Repetir nueva contraseña:", type="password", key="rst_pass_rep")
+
+                btn_reset = st.form_submit_button("Restablecer Contraseña", type="primary", use_container_width=True)
+
+            if btn_reset:
+                if reset_email and new_pass and new_pass_rep:
+                    if new_pass != new_pass_rep:
+                        st.error("Las contraseñas no coinciden.")
+                    else:
+                        mail_clean = reset_email.strip().lower()
+                        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
+
+                        if u_match:
+                            try:
+                                supabase.table("usuarios").update({"password": new_pass}).eq("correo", mail_clean).execute()
+                                st.session_state.db_loaded = False
+                                st.success(f"Contraseña actualizada con éxito para {mail_clean}.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error actualizando contraseña: {e}")
+                        else:
+                            st.error("El correo ingresado no está registrado.")
+                else:
+                    st.error("Complete todos los campos.")
+
+    st.stop()
 
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
+# 5. BARRA LATERAL (CIERRE DE SESIÓN MANUAL)
 # ==========================================
-st.set_page_config(
-    page_title="Alpha Builders | Portal Ejecutivo",
-    page_icon="🏗️",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+user_email = st.session_state.usuario_email
+user_nombres = st.session_state.usuario_nombres
+user_apellidos = st.session_state.usuario_apellidos
+user_cargo = st.session_state.usuario_cargo
+es_admin = user_email in st.session_state.admin_emails
+
+with st.sidebar:
+    logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
+    if not os.path.exists(logo_filename):
+        logo_filename = "images.png"
+
+    if os.path.exists(logo_filename):
+        ext = "webp" if logo_filename.endswith(".webp") else "png"
+        with open(logo_filename, "rb") as image_file:
+            encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
+        st.markdown(
+            f"""
+            <div class="sidebar-logo-card">
+                <img src="data:image/{ext};base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none; display: block; margin: 0 auto;">
+            </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+    b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
+    if not b64_foto:
+        b64_foto = get_repo_image_b64(["perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png"])
+
+    img_obj = base64_to_image(b64_foto)
+
+    if img_obj is not None:
+        st.image(img_obj, use_container_width=True)
+
+    st.markdown(
+        f"""
+        <div class="sidebar-profile-box">
+            <div class="sidebar-user-nombres">{user_nombres}</div>
+            <div class="sidebar-user-apellidos">{user_apellidos}</div>
+            <div class="sidebar-user-email">{user_email}</div>
+            <div class="sidebar-user-cargo">{user_cargo}</div>
+        </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    if es_admin:
+        st.markdown("<div style='text-align: center; margin-bottom: 4px; font-size: 0.65rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 3px; border-radius: 6px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    with st.expander("⚙️ Configuración de Cuenta", expanded=False):
+        edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
+        edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
+        
+        cargos_lista = ["Residente", "Asistente", "Ayudante"]
+        idx_c = cargos_lista.index(user_cargo) if user_cargo in cargos_lista else 0
+        edit_cargo = st.selectbox("Cargo:", cargos_lista, index=idx_c, key="sb_car")
+
+        edit_pass = st.text_input("Nueva Contraseña:", type="password", key="sb_pass")
+        edit_pass_rep = st.text_input("Repetir Contraseña:", type="password", key="sb_pass_rep")
+
+        nueva_foto_file = st.file_uploader("Actualizar Foto de Perfil", type=["jpg", "jpeg", "png"], key="sb_foto_file")
+
+        if st.button("Guardar Ajustes", type="primary", use_container_width=True):
+            if edit_pass.strip() or edit_pass_rep.strip():
+                if edit_pass != edit_pass_rep:
+                    st.error("Las nuevas contraseñas no coinciden.")
+                    st.stop()
+
+            update_data = {
+                "nombres": edit_nombres.strip(),
+                "apellidos": edit_apellidos.strip(),
+                "cargo": edit_cargo
+            }
+
+            if edit_pass.strip():
+                update_data["password"] = edit_pass.strip()
+
+            if nueva_foto_file is not None:
+                b64_str = image_to_base64(nueva_foto_file)
+                if b64_str:
+                    update_data["foto_b64"] = b64_str
+
+            try:
+                supabase.table("usuarios").update(update_data).eq("correo", user_email).execute()
+                
+                st.session_state.usuario_nombres = edit_nombres.strip()
+                st.session_state.usuario_apellidos = edit_apellidos.strip()
+                st.session_state.usuario_cargo = edit_cargo
+                st.session_state.db_loaded = False
+                
+                st.success("Configuración actualizada correctamente en Supabase.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error actualizando perfil: {e}")
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+    
+    if st.button("Cerrar Sesión", use_container_width=True):
+        st.session_state.autenticado = False
+        local_storage.deleteItem("user_session_email")
+        st.rerun()
+
+# ==========================================
+# 6. DASHBOARD PRINCIPAL Y PLANTILLA DE OBREROS
+# ==========================================
+user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
 st.markdown(
-    """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
-
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
-
-    h1, h2, h3, .brand-title {
-        font-family: 'Montserrat', sans-serif !important;
-        letter-spacing: -0.03em !important;
-    }
-
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1.5rem !important;
-        padding-left: 2.5rem !important;
-        padding-right: 2.5rem !important;
-        max-width: 100% !important;
-    }
-
-    .stApp {
-        background-color: #ffffff !important;
-        color: #121318 !important;
-    }
-
-    .stApp p, .stApp label, .stApp span, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
-        color: #121318;
-    }
-
-    .stCaption, caption, small, [data-testid="stCaptionContainer"] {
-        color: #5a5f6e !important;
-    }
-
-    /* OCULTAR INSTRUCCIONES "PRESS ENTER TO SUBMIT FORM" EN MÓVILES Y DESKTOP */
-    [data-testid="stInputInstructions"],
-    div[data-testid="stInputInstructions"] {
-        display: none !important;
-        visibility: hidden !important;
-    }
-
-    [data-testid="stSidebarCollapseButton"] {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        z-index: 999999 !important;
-    }
-
-    [data-testid="collapsedControl"] {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        position: fixed !important;
-        top: 15px !important;
-        left: 15px !important;
-        z-index: 999999 !important;
-    }
-
-    [data-testid="stSidebarCollapseButton"] button, 
-    [data-testid="collapsedControl"] button {
-        background-color: #1c1e26 !important;
-        border: 1px solid #323646 !important;
-        border-radius: 50% !important;
-        width: 36px !important;
-        height: 36px !important;
-        color: #ffffff !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-        transition: all 0.2s ease !important;
-    }
-
-    [data-testid="stSidebarCollapseButton"] button:hover, 
-    [data-testid="collapsedControl"] button:hover {
-        background-color: #ff8c00 !important;
-        border-color: #ff8c00 !important;
-        transform: scale(1.08);
-    }
-
-    [data-testid="stSidebarCollapseButton"] svg, 
-    [data-testid="collapsedControl"] svg {
-        fill: #ffffff !important;
-        color: #ffffff !important;
-    }
-
-    [data-testid="stSidebar"] {
-        background-color: #121318 !important;
-        border-right: 2px solid #282a36 !important;
-        padding-top: 0px !important;
-        padding-left: 12px !important;
-        padding-right: 12px !important;
-        padding-bottom: 15px !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.5rem !important;
-        padding-top: 0px !important;
-    }
-
-    [data-testid="stSidebar"] label, 
-    [data-testid="stSidebar"] p, 
-    [data-testid="stSidebar"] span, 
-    [data-testid="stSidebar"] h1, 
-    [data-testid="stSidebar"] h2, 
-    [data-testid="stSidebar"] h3, 
-    [data-testid="stSidebar"] div {
-        color: #ffffff !important;
-    }
-
-    .sidebar-logo-card {
-        background-color: #ffffff;
-        border-radius: 12px;
-        padding: 8px 10px;
-        margin-top: 0px !important;
-        margin-bottom: 20px !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        width: 100% !important;
-        box-sizing: border-box;
-        text-align: center;
-        display: block;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stImage"] {
-        width: 100% !important;
-        display: block !important;
-        margin-top: 6px !important;
-        margin-bottom: 10px !important;
-        clear: both !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stImage"] img {
-        border-radius: 12px !important;
-        width: 100% !important;
-        height: auto !important;
-        max-width: 100% !important;
-        object-fit: cover !important;
-        border: 1px solid #323646 !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        margin: 0 !important;
-        display: block !important;
-    }
-
-    .sidebar-profile-box {
-        background: #1c1e26;
-        border: 1px solid #323646;
-        border-radius: 12px;
-        padding: 10px 8px !important;
-        text-align: center;
-        margin-top: 4px;
-        margin-bottom: 8px;
-        width: 100% !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        box-sizing: border-box;
-    }
-
-    .sidebar-user-nombres {
-        font-size: 0.88rem;
-        font-weight: 800;
-        color: #ffffff !important;
-        line-height: 1.2;
-    }
-
-    .sidebar-user-apellidos {
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #e0e4ed !important;
-        margin-bottom: 4px !important;
-        line-height: 1.2;
-    }
-
-    .sidebar-user-email {
-        font-size: 0.68rem;
-        color: #72b2ff !important;
-        font-weight: 600;
-        margin-bottom: 6px !important;
-        word-break: break-all;
-    }
-
-    .sidebar-user-cargo {
-        display: inline-block;
-        background: #323646 !important;
-        color: #ffffff !important;
-        border: 1px solid #484e5e !important;
-        font-size: 0.60rem !important;
-        font-weight: 800 !important;
-        padding: 2px 8px !important;
-        border-radius: 14px !important;
-        text-transform: uppercase !important;
-    }
-
-    [data-testid="stSidebar"] hr {
-        margin: 6px 0 !important;
-        border-color: #282a36 !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stExpander"] {
-        background-color: #1c1e26 !important;
-        border: 1px solid #323646 !important;
-        border-radius: 10px !important;
-        margin-top: 2px !important;
-        margin-bottom: 6px !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stExpander"] summary {
-        background-color: #282c36 !important;
-        padding: 6px 8px !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
-        color: #ffffff !important;
-        font-weight: 700 !important;
-        font-size: 0.78rem !important;
-    }
-
-    .executive-card-studio {
-        background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
-        border: 1px solid #b8c4d8;
-        border-left: 7px solid #121318;
-        border-radius: 22px;
-        padding: 22px 28px;
-        box-shadow: 0 12px 35px rgba(0,0,0,0.06);
-        margin-bottom: 20px;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    .brand-title {
-        font-family: 'Montserrat', sans-serif !important;
-        font-weight: 700 !important;
-        font-size: 2.4rem !important;
-        background: linear-gradient(90deg, #121318 0%, #3a4256 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: 0 2px 12px rgba(0,0,0,0.08);
-        letter-spacing: -0.03em !important;
-    }
-
-    .kpi-card-studio {
-        background: linear-gradient(145deg, #eceff6 0%, #dbe2ef 100%);
-        border: 1px solid #aebacf;
-        border-radius: 20px;
-        padding: 18px;
-        text-align: center;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.06);
-        transition: all 0.3s ease;
-    }
-    .kpi-card-studio:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 14px 35px rgba(0,0,0,0.12);
-        filter: brightness(1.02);
-    }
-
-    .kpi-val-studio {
-        font-size: 2.5rem;
-        font-weight: 900;
-        color: #121318 !important;
-    }
-
-    .kpi-lbl-studio {
-        font-size: 0.72rem;
-        color: #4a5060 !important;
-        text-transform: uppercase;
-        font-weight: 800;
-    }
-
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: #e2e5ec !important;
-        padding: 6px;
-        border-radius: 16px;
-        border: 1px solid #c2c7d2;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 12px !important;
-        padding: 10px 24px !important;
-        background-color: transparent !important;
-    }
-
-    .stTabs [data-baseweb="tab"] p, 
-    .stTabs [data-baseweb="tab"] span {
-        color: #121318 !important;
-        font-weight: 700 !important;
-    }
-
-    .stTabs [aria-selected="true"] {
-        background-color: #121318 !important;
-        border-radius: 12px !important;
-    }
-
-    .stTabs [aria-selected="true"] p, 
-    .stTabs [aria-selected="true"] span,
-    .stTabs [aria-selected="true"] div {
-        color: #ffffff !important;
-        font-weight: 900 !important;
-    }
-
-    .stButton > button {
-        background-color: #121318 !important;
-        color: #ffffff !important;
-        border-radius: 980px !important;
-        border: none !important;
-        font-weight: 800 !important;
-        padding: 10px 22px !important;
-    }
-
-    .stButton > button p, .stButton > button span {
-        color: #ffffff !important;
-    }
-
-    .streamlit-expanderHeader {
-        background-color: #e8eaee !important;
-        border-radius: 12px !important;
-        border: 1px solid #c2c7d2 !important;
-        font-weight: 700 !important;
-    }
-
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    </style>
+    f"""
+    <div class="executive-card-studio">
+        <h1 class="brand-title" style="font-size: 2.5rem; font-weight: 700; margin: 0;">Portal de Control e Inspección</h1>
+        <p style="color: #5a5f6e; margin-top: 6px; font-size: 1.05rem;">{user_nombre_completo} — <b>{user_cargo}</b></p>
+    </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==========================================
-# 2. CONEXIÓN Y PERSISTENCIA PERMANENTE EN SUPABASE
-# ==========================================
-@st.cache_resource
-def init_supabase():
-    url = st.secrets.get("SUPABASE_URL", "")
-    key = st.secrets.get("SUPABASE_KEY", "")
-    if not url or not key:
-        st.error("⚠️ No se encontraron las credenciales SUPABASE_URL / SUPABASE_KEY en Secrets de Streamlit.")
-        st.stop()
-    return create_client(url, key)
+usr_chks = len(st.session_state.db_checklists.get(user_email, []))
+usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
+total_obreros = len(st.session_state.db_trabajadores)
 
-supabase = init_supabase()
+k1, k2, k3 = st.columns(3)
+with k1:
+    with st.popover(f"👷 {total_obreros} Activos", use_container_width=True):
+        st.markdown(f"### Plantilla de Obreros ({total_obreros} Activos)")
+        st.caption("Agregue trabajadores individualmente o cárguelos de forma masiva desde una tabla de Excel o CSV.")
 
-local_storage = LocalStorage()
+        with st.form("form_add_obrero_popover"):
+            st.markdown("#### ➕ Registrar Nuevo Obrero")
+            nom_obrero = st.text_input("Nombre completo:")
+            car_obrero = st.text_input("Cargo en obra (Ej. Albañil, Ayudante):")
+            btn_sub_obrero = st.form_submit_button("Guardar Obrero", type="primary")
 
-DEFAULT_TRABAJADORES = []
+            if btn_sub_obrero:
+                if nom_obrero and car_obrero:
+                    try:
+                        supabase.table("trabajadores").insert({
+                            "nombre": nom_obrero.strip().upper(),
+                            "cargo": car_obrero.strip().upper()
+                        }).execute()
+                        st.session_state.db_loaded = False
+                        st.success("¡Obrero registrado con éxito en Supabase!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al registrar obrero: {e}")
+                else:
+                    st.error("Complete todos los campos.")
 
-def load_db_from_supabase():
-    try:
-        res_pin = supabase.table("app_config").select("*").eq("key", "access_pin").execute()
-        access_pin = res_pin.data[0]["value"] if res_pin.data else "1254"
-    except Exception:
-        access_pin = "1254"
-
-    try:
-        res_usr = supabase.table("usuarios").select("*").execute()
-        db_usuarios = []
-        db_fotos = {}
-        admin_emails = []
-        for row in res_usr.data:
-            c = row["correo"].lower().strip()
-            db_usuarios.append({
-                "Nombres": row["nombres"],
-                "Apellidos": row["apellidos"],
-                "Correo": c,
-                "Password": row["password"],
-                "Cargo": row["cargo"],
-                "Fecha_Registro": str(row["fecha_registro"]),
-                "Estado": row.get("estado", "Activo")
-            })
-            if row.get("foto_b64"):
-                db_fotos[c] = row["foto_b64"]
-            if row.get("es_admin"):
-                admin_emails.append(c)
-    except Exception:
-        db_usuarios = []
-        db_fotos = {}
-        admin_emails = ["oscarsebitas2013@gmail.com"]
-
-    if "oscarsebitas2013@gmail.com" not in admin_emails:
-        admin_emails.append("oscarsebitas2013@gmail.com")
-
-    try:
-        res_trab = supabase.table("trabajadores").select("*").execute()
-        if res_trab.data and len(res_trab.data) > 0:
-            db_trabajadores = [{"nombre": r["nombre"], "cargo": r["cargo"]} for r in res_trab.data]
-        else:
-            db_trabajadores = DEFAULT_TRABAJADORES
-    except Exception:
-        db_trabajadores = DEFAULT_TRABAJADORES
-
-    db_checklists = {}
-    try:
-        res_chk = supabase.table("checklists").select("*").execute()
-        for r in res_chk.data:
-            c = r["usuario_email"].lower().strip()
-            if c not in db_checklists:
-                db_checklists[c] = []
-            
-            datos_parsed = r["datos"] if isinstance(r["datos"], list) else json.loads(r["datos"])
-            db_checklists[c].append({
-                "db_id": r["id"],
-                "Fecha": str(r["fecha"]),
-                "Hora_Inicio": r.get("hora_inicio", "07:00"),
-                "Hora_Fin": r.get("hora_fin", "17:00"),
-                "Edificio": r["edificio"],
-                "Responsable": r.get("responsable", ""),
-                "Cargo": r.get("cargo", ""),
-                "Observacion_General": r.get("observacion_general", ""),
-                "Datos": datos_parsed
-            })
-    except Exception:
-        pass
-
-    db_rendimientos = {}
-    try:
-        res_rnd = supabase.table("rendimientos").select("*").execute()
-        for r in res_rnd.data:
-            c = r["usuario_email"].lower().strip()
-            if c not in db_rendimientos:
-                db_rendimientos[c] = []
-            db_rendimientos[c].append({
-                "db_id": r["id"],
-                "Usuario_Registro": c,
-                "Cargo_Registrador": r.get("cargo_obrero", ""),
-                "Fecha": str(r["fecha"]),
-                "Trabajador": r["trabajador"],
-                "Cargo_Obrero": r.get("cargo_obrero", ""),
-                "Rubro": r["rubro"],
-                "Horas Trabajadas (HH)": float(r["horas_hh"]),
-                "Avance": float(r["avance"]),
-                "Unidad": r["unidad"],
-                "Rend. Real (HH/Unid)": float(r["rend_real"]),
-                "Rend. Teórico": float(r["rend_teorico"]),
-                "Estado": r["estado"]
-            })
-    except Exception:
-        pass
-
-    return {
-        "access_pin": access_pin,
-        "admin_emails": admin_emails,
-        "db_fotos_perfil_b64": db_fotos,
-        "db_usuarios": db_usuarios,
-        "db_checklists": db_checklists,
-        "db_rendimientos": db_rendimientos,
-        "db_trabajadores": db_trabajadores,
-    }
-
-if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
-    p_data = load_db_from_supabase()
-    st.session_state.access_pin = p_data["access_pin"]
-    st.session_state.admin_emails = p_data["admin_emails"]
-    st.session_state.db_fotos_perfil_b64 = p_data["db_fotos_perfil_b64"]
-    st.session_state.db_usuarios = p_data["db_usuarios"]
-    st.session_state.db_checklists = p_data["db_checklists"]
-    st.session_state.db_rendimientos = p_data["db_rendimientos"]
-    st.session_state.db_trabajadores = p_data["db_trabajadores"]
-    st.session_state.db_loaded = True
-
-# PERSISTENCIA DE SESIÓN INFINITA EN EL NAVEGADOR
-if "autenticado" not in st.session_state:
-    st.session_state.autenticado = False
-    st.session_state.usuario_email = ""
-    st.session_state.usuario_nombres = ""
-    st.session_state.usuario_apellidos = ""
-    st.session_state.usuario_cargo = ""
-
-if not st.session_state.autenticado:
-    saved_token = local_storage.getItem("user_session_email")
-    if saved_token:
-        mail_clean = saved_token.strip().lower()
-        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
-        if u_match:
-            st.session_state.autenticado = True
-            st.session_state.usuario_email = mail_clean
-            st.session_state.usuario_nombres = u_match["Nombres"]
-            st.session_state.usuario_apellidos = u_match["Apellidos"]
-            st.session_state.usuario_cargo = u_match["Cargo"]
-
-def render_estado_badge(estado_str):
-    if "Cumple" in estado_str and "No" not in estado_str:
-        return f'<span style="background-color: #dcfce7; color: #16a34a; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #bbf7d0; font-size: 0.82rem;">{estado_str}</span>'
-    elif "No Cumple" in estado_str:
-        return f'<span style="background-color: #fee2e2; color: #dc2626; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #fca5a5; font-size: 0.82rem;">{estado_str}</span>'
-    else:
-        return f'<span style="background-color: #f1f5f9; color: #121318; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.82rem;">{estado_str}</span>'
-
-def get_repo_image_b64(filenames):
-    for filename in filenames:
-        if os.path.exists(filename):
+        st.markdown("---")
+        st.markdown("#### 📂 Importación Masiva (Excel / CSV)")
+        archivo_excel_obreros = st.file_uploader("Subir archivo con Nombre y Cargo", type=["xlsx", "csv"], key="upl_obreros_pop")
+        
+        if archivo_excel_obreros is not None:
             try:
-                with open(filename, "rb") as f:
-                    return base64.b64encode(f.read()).decode("utf-8")
-            except Exception:
-                pass
-    return None
+                if archivo_excel_obreros.name.endswith(".csv"):
+                    df_subido = pd.read_csv(archivo_excel_obreros)
+                else:
+                    df_subido = pd.read_excel(archivo_excel_obreros)
+                
+                if len(df_subido.columns) >= 2:
+                    st.write("Vista previa:", df_subido.head(3))
+                    if st.button("Confirmar Importación", type="primary"):
+                        registrados = 0
+                        for _, row in df_subido.iterrows():
+                            n_nom = str(row.iloc[0]).strip().upper()
+                            n_car = str(row.iloc[1]).strip().upper()
+                            if n_nom and n_nom != "NAN":
+                                try:
+                                    supabase.table("trabajadores").insert({
+                                        "nombre": n_nom,
+                                        "cargo": n_car
+                                    }).execute()
+                                    registrados += 1
+                                except Exception:
+                                    pass
+                        st.session_state.db_loaded = False
+                        st.success(f"¡{registrados} obreros nuevos importados correctamente!")
+                        st.rerun()
+                else:
+                    st.error("El archivo debe tener al menos dos columnas (Nombre y Cargo).")
+            except Exception as e:
+                st.error(f"Error procesando el archivo: {e}")
 
-def image_to_base64(image_file):
-    if image_file is not None:
-        try:
-            img = Image.open(image_file)
-            img = ImageOps.exif_transpose(img)
-            buffered = io.BytesIO()
-            img.save(buffered, format="PNG")
-            return base64.b64encode(buffered.getvalue()).decode("utf-8")
-        except Exception:
-            return None
-    return None
+        st.markdown("---")
+        st.markdown("#### 📋 Listado Actual")
+        df_obs_actuales = pd.DataFrame(st.session_state.db_trabajadores)
+        if not df_obs_actuales.empty:
+            df_obs_actuales.index = range(1, len(df_obs_actuales) + 1)
+        st.dataframe(df_obs_actuales, use_container_width=True, height=250)
 
-def base64_to_image(b64_str):
-    if b64_str:
-        try:
-            img_data = base64.b64decode(b64_str)
-            img = Image.open(io.BytesIO(img_data))
-            img = ImageOps.exif_transpose(img)
-            return img
-        except Exception:
-            return None
-    return None
+        with st.expander("🗑️ Eliminar Obrero"):
+            obreros_lista = [t["nombre"] for t in st.session_state.db_trabajadores]
+            if len(obreros_lista) > 0:
+                obrero_a_borrar = st.selectbox("Seleccione obrero:", obreros_lista, key="del_obs_sel")
+                if st.button("Eliminar Obrero", type="secondary"):
+                    try:
+                        supabase.table("trabajadores").delete().eq("nombre", obrero_a_borrar).execute()
+                        st.session_state.db_loaded = False
+                        st.success(f"Obrero {obrero_a_borrar} eliminado.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al eliminar obrero: {e}")
+            else:
+                st.info("No hay obreros registrados actualmente.")
 
-def export_checklist_to_excel_file(jornada_dict):
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Checklist Obra"
-
-    ws.merge_cells("A1:F1")
-    ws["A1"] = f"INSPECCIÓN DE OBRA - {jornada_dict.get('Edificio', '')} ({jornada_dict.get('Fecha', '')})"
-    ws["A1"].font = Font(bold=True, color="FFFFFF", size=13)
-    ws["A1"].fill = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
-    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
-
-    ws["A2"] = f"Hora Inicio: {jornada_dict.get('Hora_Inicio', 'N/A')}"
-    ws["B2"] = f"Hora Fin: {jornada_dict.get('Hora_Fin', 'N/A')}"
-    ws["C2"] = f"Responsable: {jornada_dict.get('Responsable', '')}"
-
-    headers = ["Jornada", "N°", "Actividad", "Estado", "Observaciones", "Evidencia Fotográfica"]
-    ws.append([])
-    ws.append(headers)
-
-    thin_border = Border(
-        left=Side(style='thin', color='D3D3D3'),
-        right=Side(style='thin', color='D3D3D3'),
-        top=Side(style='thin', color='D3D3D3'),
-        bottom=Side(style='thin', color='D3D3D3')
+    st.markdown(
+        f'<div class="kpi-card-studio" style="margin-top: -62px; pointer-events: none;"><div class="kpi-val-studio">{total_obreros}</div><div class="kpi-lbl-studio">Obreros Activos (Gestionar)</div></div>',
+        unsafe_allow_html=True,
     )
 
-    for col in range(1, len(headers) + 1):
-        cell = ws.cell(row=4, column=col)
-        cell.font = Font(bold=True, color="FFFFFF", size=11)
-        cell.fill = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        cell.border = thin_border
+with k2:
+    st.markdown(
+        f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_chks}</div><div class="kpi-lbl-studio">Checklists Guardados</div></div>',
+        unsafe_allow_html=True,
+    )
+with k3:
+    st.markdown(
+        f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_rnds}</div><div class="kpi-lbl-studio">Reportes de Rendimiento</div></div>',
+        unsafe_allow_html=True,
+    )
 
-    ws.row_dimensions[4].height = 30
+st.markdown("<br>", unsafe_allow_html=True)
 
-    datos = jornada_dict.get("Datos", [])
-    start_row = 5
-    for row_idx, item in enumerate(datos, start=start_row):
-        obs_val = item.get("Observaciones", "")
-        if item.get("Actividades_Especificas"):
-            sub_acts = " | Actividades a realizar: " + ", ".join([f"• {a['Actividad']}" for a in item["Actividades_Especificas"] if a.get("Actividad")])
-            obs_val += sub_acts
+pestanas = ["Checklist Diario", "Inspección Diaria", "Control de Rendimiento"]
+if es_admin:
+    pestanas.append("Panel Admin")
 
-        ws.append([
-            item.get("Jornada", ""),
-            item.get("N°", ""),
-            item.get("Actividad", ""),
-            item.get("Estado", ""),
-            obs_val
-        ])
-
-        ws.row_dimensions[row_idx].height = 180
-
-        for c_i in range(1, 7):
-            cell_txt = ws.cell(row=row_idx, column=c_i)
-            cell_txt.border = thin_border
-            if c_i < 6:
-                cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
-
-        foto_b64 = item.get("Foto_B64")
-        if foto_b64:
-            try:
-                img_data = base64.b64decode(foto_b64)
-                img_pil = Image.open(io.BytesIO(img_data))
-                img_pil = ImageOps.exif_transpose(img_pil)
-                img_pil = img_pil.resize((600, 450), Image.Resampling.LANCZOS)
-                img_stream = io.BytesIO()
-                img_pil.save(img_stream, format="PNG", quality=100)
-                img_stream.seek(0)
-
-                img_xlsx = OpenpyxlImage(img_stream)
-                img_xlsx.width = 320
-                img_xlsx.height = 180
-
-                col_w_px = 350
-                row_h_px = 240
-                img_xlsx.left = max(2, (col_w_px - img_xlsx.width) / 2)
-                img_xlsx.top = max(2, (row_h_px - img_xlsx.height) / 2)
-
-                ws.add_image(img_xlsx, f"F{row_idx}")
-            except Exception:
-                pass
-
-    if jornada_dict.get("Observacion_General"):
-        last_r = len(datos) + start_row
-        ws.cell(row=last_r, column=1, value="OBSERVACIÓN GENERAL DE LA INSPECCIÓN:").font = Font(bold=True)
-        ws.cell(row=last_r, column=3, value=jornada_dict.get("Observacion_General"))
-
-    ws.column_dimensions['A'].width = 16
-    ws.column_dimensions['B'].width = 10
-    ws.column_dimensions['C'].width = 52
-    ws.column_dimensions['D'].width = 18
-    ws.column_dimensions['E'].width = 40
-    ws.column_dimensions['F'].width = 50
-
-    output = io.BytesIO()
-    wb.save(output)
-    output.seek(0)
-    return output.getvalue()
-
-def export_dataframe_to_excel_csv(df):
-    df_clean = df.drop(columns=["Foto_B64"], errors="ignore")
-    return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
-
-# ==========================================
-# 3. BASE DE DATOS Y ESTADOS DE SESIÓN
-# ==========================================
-EDIFICIOS_ALPHA = [
-    "Tesla",
-    "Lafuente",
-    "Imagine",
-    "Asimov",
-    "Rubik",
-    "Castle Rock",
-    "Musk",
-    "Wolf",
-    "Dablanc",
-    "Thomas Edison",
-    "Westinghouse",
-    "Smart",
-]
-
-UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
-RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
-
-ACTIVIDADES_MANANA = [
-    "Verificación de asistencia del personal",
-    "Distribución de cuadrillas por frente de trabajo",
-    "Recorrido inicial de obra",
-    "Supervisión de la ejecución de los trabajos",
-    "Verificación de los trabajos y la calidad",
-    "Coordinación con otras especialidades",
-    "Corrección de observaciones detectadas",
-]
-
-ACTIVIDADES_TARDE = [
-    "Recorrido de seguimiento de los frentes de trabajo",
-    "Verificación del avance físico de las actividades",
-    "Control del rendimiento de las cuadrillas",
-    "Supervisión de la ejecución de los trabajos",
-    "Verificación de los trabajos y la calidad",
-    "Revisión de observaciones pendientes",
-    "Verificación de trabajos corregidos",
-    "Verificación del orden y limpieza de los frentes de trabajo",
-    "Confirmación de materiales para el siguiente día",
-    "Revisión del cumplimiento de la meta diaria",
-    "Cierre de actividades en campo",
-]
+tabs_app = st.tabs(pestanas)
 # ==========================================
 # 7. ASIGNACIÓN DE PESTAÑAS
 # ==========================================
@@ -1662,11 +1367,14 @@ with tab_didactico:
     st.markdown("### Formato de Inspección Diaria de Obra")
     st.caption("Supervisión técnica paso a paso con tabuladores y control visual rápido.")
 
-    # Control de fecha fuera del form para refresco automático del Día
-    if "did_fecha_val" not in st.session_state:
-        st.session_state.did_fecha_val = datetime.date.today()
-
+    # Control de Fecha fuera del form para habilitar reactividad en vivo del Día
     dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    
+    col_f_out, _ = st.columns([1, 2])
+    with col_f_out:
+        did_fecha_fuera = st.date_input("Fecha de Inspección:", datetime.date.today(), key="did_fecha_live")
+    
+    dia_auto_es = dias_es[did_fecha_fuera.weekday()]
 
     with st.form("form_didactico_1_6"):
         # 1. INFORMACIÓN GENERAL
@@ -1674,11 +1382,6 @@ with tab_didactico:
         c1, c2, c3 = st.columns(3)
         with c1:
             did_proyecto = st.selectbox("Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="did_proy")
-            
-            did_fecha = st.date_input("Fecha:", value=st.session_state.did_fecha_val, key="did_fecha_input")
-            
-            # Cálculo dinámico del Día en español
-            dia_auto_es = dias_es[did_fecha.weekday()]
             did_dia = st.text_input("Día:", value=dia_auto_es, disabled=True, key="did_dia_txt")
 
         with c2:
@@ -1687,8 +1390,7 @@ with tab_didactico:
             did_frente = st.text_input("Frente Inspeccionado:", placeholder="Ej. Bloque A - Piso 3", key="did_fre")
 
         with c3:
-            # Clima de selección única (un solo valor) sin opción marcada por defecto
-            did_clima = st.selectbox("Clima:", ["Soleado", "Nublado", "Lluvia"], index=None, key="did_cli_single", placeholder="Seleccionar clima...")
+            did_clima = st.selectbox("Clima:", ["Soleado", "Nublado", "Lluvia"], index=None, placeholder="Seleccionar clima...", key="did_cli_single")
             did_h_ini = st.time_input("Hora inicio:", datetime.time(7, 0), key="did_hini")
             did_h_fin = st.time_input("Hora fin:", datetime.time(17, 0), key="did_hfin")
 
