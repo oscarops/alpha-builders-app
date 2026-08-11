@@ -1086,7 +1086,7 @@ tab_didactico = tabs_app[1]
 tab_rend = tabs_app[2]
 
 # ------------------------------------------
-# MÓDULO CHECKLIST DIARIO (EXISTENTE)
+# MÓDULO CHECKLIST DIARIO
 # ------------------------------------------
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -1317,7 +1317,7 @@ with tab_chk:
                                     st.session_state.db_loaded = False
                                     st.success("¡Jornada eliminada de Supabase!")
                                     st.rerun()
-                                mecept Exception as e:
+                                except Exception as e:
                                     st.error(f"Error al eliminar: {e}")
 
                         with col_j_info:
@@ -1362,22 +1362,20 @@ with tab_chk:
         st.info("Aún no hay inspecciones guardadas en la base de datos.")
 
 # ------------------------------------------
-# MÓDULO DE INSPECCIÓN DIARIA (LITERALES 1 AL 6 AJUSTADOS)
+# MÓDULO DE INSPECCIÓN DIARIA (LITERALES 1 AL 6)
 # ------------------------------------------
 with tab_didactico:
     st.markdown("### Formato de Inspección Diaria de Obra")
     st.caption("Supervisión técnica paso a paso con tabuladores y control visual rápido.")
 
     with st.form("form_didactico_1_6"):
-        # 1. INFORMACIÓN GENERAL (AJUSTADA)
+        # 1. INFORMACIÓN GENERAL
         st.markdown("#### 1. Información General")
         c1, c2, c3 = st.columns(3)
         with c1:
-            # Proyecto sin selección predeterminada
             did_proyecto = st.selectbox("Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="did_proy")
             did_fecha = st.date_input("Fecha:", datetime.date.today(), key="did_fecha")
             
-            # Cálculo de día en español dinámico
             dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
             idx_dia_auto = did_fecha.weekday()
             did_dia = st.selectbox("Día:", dias_es, index=idx_dia_auto, key="did_dia")
@@ -1388,7 +1386,6 @@ with tab_didactico:
             did_frente = st.text_input("Frente Inspeccionado:", placeholder="Ej. Bloque A - Piso 3", key="did_fre")
 
         with c3:
-            # Clima totalmente desmarcado por defecto
             did_clima = st.multiselect("Clima:", ["Soleado", "Nublado", "Lluvia"], default=[], key="did_cli")
             did_h_ini = st.time_input("Hora inicio:", datetime.time(7, 0), key="did_hini")
             did_h_fin = st.time_input("Hora fin:", datetime.time(17, 0), key="did_hfin")
@@ -1413,7 +1410,7 @@ with tab_didactico:
 
         st.markdown("---")
 
-        # 3. CHECK LIST GENERAL (ÍTEMS DESMARCADOS CON index=None)
+        # 3. CHECK LIST GENERAL
         st.markdown("#### 3. Check List General")
         
         tab_sec1, tab_sec2, tab_sec3, tab_sec4, tab_sec5 = st.tabs([
