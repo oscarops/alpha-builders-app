@@ -1317,7 +1317,7 @@ with tab_chk:
                                     st.session_state.db_loaded = False
                                     st.success("¡Jornada eliminada de Supabase!")
                                     st.rerun()
-                                except Exception as e:
+                                mecept Exception as e:
                                     st.error(f"Error al eliminar: {e}")
 
                         with col_j_info:
@@ -1362,26 +1362,34 @@ with tab_chk:
         st.info("Aún no hay inspecciones guardadas en la base de datos.")
 
 # ------------------------------------------
-# MÓDULO DE INSPECCIÓN DIARIA (LITERALES 1 AL 6 DESMARCADOS)
+# MÓDULO DE INSPECCIÓN DIARIA (LITERALES 1 AL 6 AJUSTADOS)
 # ------------------------------------------
 with tab_didactico:
     st.markdown("### Formato de Inspección Diaria de Obra")
     st.caption("Supervisión técnica paso a paso con tabuladores y control visual rápido.")
 
     with st.form("form_didactico_1_6"):
-        # 1. INFORMACIÓN GENERAL
+        # 1. INFORMACIÓN GENERAL (AJUSTADA)
         st.markdown("#### 1. Información General")
         c1, c2, c3 = st.columns(3)
         with c1:
-            did_proyecto = st.selectbox("Proyecto:", EDIFICIOS_ALPHA, key="did_proy")
+            # Proyecto sin selección predeterminada
+            did_proyecto = st.selectbox("Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="did_proy")
             did_fecha = st.date_input("Fecha:", datetime.date.today(), key="did_fecha")
-            did_dia = st.text_input("Día:", value=datetime.date.today().strftime("%A"), key="did_dia")
+            
+            # Cálculo de día en español dinámico
+            dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+            idx_dia_auto = did_fecha.weekday()
+            did_dia = st.selectbox("Día:", dias_es, index=idx_dia_auto, key="did_dia")
+
         with c2:
             did_residente = st.text_input("Residente de Obra:", value=user_nombre_completo, key="did_res")
             did_director = st.text_input("Director de Proyecto:", value="", placeholder="", key="did_dir")
             did_frente = st.text_input("Frente Inspeccionado:", placeholder="Ej. Bloque A - Piso 3", key="did_fre")
+
         with c3:
-            did_clima = st.multiselect("Clima:", ["Soleado", "Nublado", "Lluvia"], default=["Soleado"], key="did_cli")
+            # Clima totalmente desmarcado por defecto
+            did_clima = st.multiselect("Clima:", ["Soleado", "Nublado", "Lluvia"], default=[], key="did_cli")
             did_h_ini = st.time_input("Hora inicio:", datetime.time(7, 0), key="did_hini")
             did_h_fin = st.time_input("Hora fin:", datetime.time(17, 0), key="did_hfin")
 
@@ -1528,7 +1536,10 @@ with tab_didactico:
         btn_guardar_did = st.form_submit_button("💾 Guardar Formato de Inspección", type="primary")
 
         if btn_guardar_did:
-            st.success(f"¡Formato de inspección registrado exitosamente para el proyecto **{did_proyecto}**!")
+            if did_proyecto == "-- Seleccione --":
+                st.error("⚠️ Por favor seleccione un Proyecto.")
+            else:
+                st.success(f"¡Formato de inspección registrado exitosamente para el proyecto **{did_proyecto}**!")
 
 # ==========================================
 # 8. MÓDULO 2: CONTROL DE RENDIMIENTO
