@@ -1257,47 +1257,26 @@ with tab_chk:
 
     st.markdown("---")
 
-    # BUSCADOR GENERAL E HISTORIAL DE CHECKLISTS
+    # SELECCIÓN Y FILTRADO DE CHECKLISTS POR EDIFICIO
     st.markdown("### Historial General de Inspecciones Creadas")
-    
-    col_search_txt, col_search_date, col_search_clear = st.columns([3, 2, 1])
-    with col_search_txt:
-        query_busqueda = st.text_input("🔍 Buscador de Checklists:", placeholder="Buscar por proyecto, responsable u observaciones...", key="busqueda_txt_chk")
-    with col_search_date:
-        usar_filtro_fecha = st.checkbox("Filtrar por fecha exacta", value=False, key="chk_usar_fecha")
-        if usar_filtro_fecha:
-            fecha_busqueda = st.date_input("Fecha:", datetime.date.today(), key="calendario_directo", label_visibility="collapsed")
-        else:
-            fecha_busqueda = None
-    with col_search_clear:
-        st.write("")
-        st.write("")
-        if st.button("Limpiar Filtros", use_container_width=True):
-            st.session_state.busqueda_txt_chk = ""
-            st.session_state.chk_usar_fecha = False
-            st.rerun()
 
     mis_jornadas = st.session_state.db_checklists.get(user_email, [])
 
     if len(mis_jornadas) > 0:
-        # Filtrar por texto si hay búsqueda
-        jornadas_filtradas = mis_jornadas.copy()
-        
-        if query_busqueda.strip():
-            q_clean = query_busqueda.strip().lower()
-            jornadas_filtradas = [
-                j for j in jornadas_filtradas 
-                if q_clean in j.get("Edificio", "").lower() 
-                or q_clean in j.get("Responsable", "").lower() 
-                or q_clean in j.get("Observacion_General", "").lower()
-            ]
+        col_edif_sel, _ = st.columns([2, 2])
+        with col_edif_sel:
+            edificio_filtro = st.selectbox(
+                "🏢 Seleccionar Edificio / Proyecto:",
+                ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA,
+                key="filtro_edificio_historial"
+            )
 
-        # Filtrar por fecha solo si la casilla está activada
-        if usar_filtro_fecha and fecha_busqueda is not None:
-            fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
-            jornadas_filtradas = [j for j in jornadas_filtradas if j['Fecha'] == fecha_busqueda_str]
+        if edificio_filtro != "-- Todos los Edificios --":
+            jornadas_filtradas = [j for j in mis_jornadas if j.get("Edificio") == edificio_filtro]
+        else:
+            jornadas_filtradas = mis_jornadas.copy()
 
-        st.caption(f"Mostrando **{len(jornadas_filtradas)}** de **{len(mis_jornadas)}** inspección(es) en total.")
+        st.caption(f"Mostrando **{len(jornadas_filtradas)}** de **{len(mis_jornadas)}** inspección(es) registradas.")
 
         if len(jornadas_filtradas) > 0:
             meses_nombres = {
@@ -1382,7 +1361,7 @@ with tab_chk:
                                     key=f"dl_xlsx_{orig_idx}"
                                 )
         else:
-            st.warning("No se encontraron inspecciones que coincidan con la búsqueda.")
+            st.warning("No hay inspecciones registradas para el edificio seleccionado.")
     else:
         st.info("Aún no hay inspecciones guardadas en la base de datos.")
 
