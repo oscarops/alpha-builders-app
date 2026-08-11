@@ -1721,7 +1721,7 @@ if es_admin:
         st.markdown("---")
 
         st.markdown("#### 👁️ Inspecciones Subidas por Todos los Participantes")
-        st.caption("Filtre por usuario o revise el listado global de todas las inspecciones registradas.")
+        st.caption("Filtre por edificio/proyecto o por participante para consultar el historial global.")
 
         todas_las_jornadas_admin = []
         for u_mail, j_lista in st.session_state.db_checklists.items():
@@ -1731,45 +1731,60 @@ if es_admin:
                 todas_las_jornadas_admin.append(j_copy)
 
         if len(todas_las_jornadas_admin) > 0:
-            usuarios_lista_chk = ["-- Todos los Usuarios --"] + sorted(list(set([j["Usuario_Correo"] for j in todas_las_jornadas_admin])))
-            filtro_usr_chk = st.selectbox("Filtrar inspecciones por participante:", usuarios_lista_chk, key="admin_filter_usr_chk")
+            col_adm_f1, col_adm_f2 = st.columns(2)
+            
+            with col_adm_f1:
+                edificios_lista_admin = ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA
+                filtro_edif_admin = st.selectbox("Filtrar inspecciones por edificio / proyecto:", edificios_lista_admin, key="admin_filter_edif_chk")
+
+            with col_adm_f2:
+                usuarios_lista_chk = ["-- Todos los Usuarios --"] + sorted(list(set([j["Usuario_Correo"] for j in todas_las_jornadas_admin])))
+                filtro_usr_chk = st.selectbox("Filtrar inspecciones por participante:", usuarios_lista_chk, key="admin_filter_usr_chk")
+
+            jornadas_admin_filtradas = todas_las_jornadas_admin.copy()
+
+            if filtro_edif_admin != "-- Todos los Edificios --":
+                jornadas_admin_filtradas = [j for j in jornadas_admin_filtradas if j.get("Edificio") == filtro_edif_admin]
 
             if filtro_usr_chk != "-- Todos los Usuarios --":
-                jornadas_admin_filtradas = [j for j in todas_las_jornadas_admin if j["Usuario_Correo"] == filtro_usr_chk]
-            else:
-                jornadas_admin_filtradas = todas_las_jornadas_admin
+                jornadas_admin_filtradas = [j for j in jornadas_admin_filtradas if j["Usuario_Correo"] == filtro_usr_chk]
 
             jornadas_admin_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
 
-            for idx_adm, j_adm in enumerate(jornadas_admin_filtradas, 1):
-                resp_str = j_adm.get("Responsable", "") or j_adm["Usuario_Correo"]
-                with st.expander(f"📌 [{j_adm['Usuario_Correo']}] {j_adm['Edificio']} — {j_adm['Fecha']} ({resp_str})"):
-                    st.markdown(f"**Usuario:** `{j_adm['Usuario_Correo']}` | **Responsable:** {resp_str} ({j_adm.get('Cargo', '')})")
-                    st.markdown(f"**Edificio:** {j_adm['Edificio']} | **Horario:** {j_adm.get('Hora_Inicio', 'N/A')} - {j_adm.get('Hora_Fin', 'N/A')}")
-                    
-                    df_data_adm = pd.DataFrame(j_adm["Datos"])
-                    for _, r_adm in df_data_adm.iterrows():
-                        badge_adm = render_estado_badge(r_adm['Estado'])
-                        st.markdown(f"- **[{r_adm['Jornada']}] N° {r_adm['N°']}. {r_adm['Actividad']}**: {badge_adm}", unsafe_allow_html=True)
-                        if r_adm.get("Observaciones"):
-                            st.caption(f"Obs: {r_adm['Observaciones']}")
-                        if r_adm.get("Foto_B64"):
-                            img_ev_adm = base64_to_image(r_adm["Foto_B64"])
-                            if img_ev_adm:
-                                with st.popover("📷 Ver Foto Evidencia"):
-                                    st.image(img_ev_adm, caption=r_adm['Actividad'], use_container_width=True)
+            st.caption(f"Mostrando **{len(jornadas_admin_filtradas)}** de **{len(todas_las_jornadas_admin)}** inspección(es) registradas.")
 
-                    if j_adm.get("Observacion_General"):
-                        st.info(f"**Observación General:** {j_adm.get('Observacion_General')}")
+            if len(jornadas_admin_filtradas) > 0:
+                for idx_adm, j_adm in enumerate(jornadas_admin_filtradas, 1):
+                    resp_str = j_adm.get("Responsable", "") or j_adm["Usuario_Correo"]
+                    with st.expander(f"📌 [{j_adm.get('Edificio', 'N/A')}] {j_adm['Fecha']} — {resp_str} ({j_adm['Usuario_Correo']})"):
+                        st.markdown(f"**Usuario:** `{j_adm['Usuario_Correo']}` | **Responsable:** {resp_str} ({j_adm.get('Cargo', '')})")
+                        st.markdown(f"**Edificio:** {j_adm['Edificio']} | **Horario:** {j_adm.get('Hora_Inicio', 'N/A')} - {j_adm.get('Hora_Fin', 'N/A')}")
+                        
+                        df_data_adm = pd.DataFrame(j_adm["Datos"])
+                        for _, r_adm in df_data_adm.iterrows():
+                            badge_adm = render_estado_badge(r_adm['Estado'])
+                            st.markdown(f"- **[{r_adm['Jornada']}] N° {r_adm['N°']}. {r_adm['Actividad']}**: {badge_adm}", unsafe_allow_html=True)
+                            if r_adm.get("Observaciones"):
+                                st.caption(f"Obs: {r_adm['Observaciones']}")
+                            if r_adm.get("Foto_B64"):
+                                img_ev_adm = base64_to_image(r_adm["Foto_B64"])
+                                if img_ev_adm:
+                                    with st.popover("📷 Ver Foto Evidencia"):
+                                        st.image(img_ev_adm, caption=r_adm['Actividad'], use_container_width=True)
 
-                    excel_bytes_adm = export_checklist_to_excel_file(j_adm)
-                    st.download_button(
-                        label=f"📥 Descargar Excel de {resp_str} ({j_adm['Fecha']})",
-                        data=excel_bytes_adm,
-                        file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key=f"dl_xlsx_adm_{idx_adm}"
-                    )
+                        if j_adm.get("Observacion_General"):
+                            st.info(f"**Observación General:** {j_adm.get('Observacion_General')}")
+
+                        excel_bytes_adm = export_checklist_to_excel_file(j_adm)
+                        st.download_button(
+                            label=f"📥 Descargar Excel de {resp_str} ({j_adm['Fecha']})",
+                            data=excel_bytes_adm,
+                            file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key=f"dl_xlsx_adm_{idx_adm}"
+                        )
+            else:
+                st.warning("No se encontraron inspecciones para los filtros seleccionados.")
         else:
             st.info("Ningún participante ha registrado inspecciones aún.")
 
