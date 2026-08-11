@@ -1072,7 +1072,8 @@ with k3:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-pestanas = ["Checklist Diario", "Formato Didáctico (1-6)", "Control de Rendimiento"]
+# PESTAÑA RENOMBRADA A "Inspección Diaria"
+pestanas = ["Checklist Diario", "Inspección Diaria", "Control de Rendimiento"]
 if es_admin:
     pestanas.append("Panel Admin")
 
@@ -1361,10 +1362,10 @@ with tab_chk:
         st.info("Aún no hay inspecciones guardadas en la base de datos.")
 
 # ------------------------------------------
-# NUEVO MÓDULO DIDÁCTICO (LITERALES 1 AL 6)
+# MÓDULO DE INSPECCIÓN DIARIA (LITERALES 1 AL 6)
 # ------------------------------------------
 with tab_didactico:
-    st.markdown("### Formato de Inspección Diaria de Obra (Literales 1 al 6)")
+    st.markdown("### Formato de Inspección Diaria de Obra")
     st.caption("Supervisión técnica paso a paso con tabuladores y control visual rápido.")
 
     with st.form("form_didactico_1_6"):
@@ -1377,7 +1378,7 @@ with tab_didactico:
             did_dia = st.text_input("Día:", value=datetime.date.today().strftime("%A"), key="did_dia")
         with c2:
             did_residente = st.text_input("Residente de Obra:", value=user_nombre_completo, key="did_res")
-            did_director = st.text_input("Director de Proyecto:", placeholder="Arq. Carlos Silva", key="did_dir")
+            did_director = st.text_input("Director de Proyecto:", value="", placeholder="", key="did_dir")
             did_frente = st.text_input("Frente Inspeccionado:", placeholder="Ej. Bloque A - Piso 3", key="did_fre")
         with c3:
             did_clima = st.multiselect("Clima:", ["Soleado", "Nublado", "Lluvia"], default=["Soleado"], key="did_cli")
@@ -1524,10 +1525,10 @@ with tab_didactico:
                 obs_val = st.text_input(f"Obs_eq_{item}", placeholder="Observación...", key=f"eq_obs_{item}", label_visibility="collapsed")
             eq_resp.append({"Equipo": item, "Estado": st_val, "Observación": obs_val})
 
-        btn_guardar_did = st.form_submit_button("💾 Guardar Formato Didáctico (1-6)", type="primary")
+        btn_guardar_did = st.form_submit_button("💾 Guardar Formato de Inspección", type="primary")
 
         if btn_guardar_did:
-            st.success(f"¡Formato de inspección (1-6) registrado exitosamente para el proyecto **{did_proyecto}**!")
+            st.success(f"¡Formato de inspección registrado exitosamente para el proyecto **{did_proyecto}**!")
 
 # ==========================================
 # 8. MÓDULO 2: CONTROL DE RENDIMIENTO
@@ -1827,3 +1828,4 @@ if es_admin:
             file_name=f"Reporte_Usuarios_AlphaBuilders_{datetime.date.today().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
+        
