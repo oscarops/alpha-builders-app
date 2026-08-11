@@ -359,7 +359,6 @@ def init_supabase():
 
 supabase = init_supabase()
 
-# INSTANCIA DE ALMACENAMIENTO LOCAL EN EL NAVEGADOR
 local_storage = LocalStorage()
 
 DEFAULT_TRABAJADORES = []
@@ -947,7 +946,6 @@ with st.sidebar:
 
     st.markdown("<hr>", unsafe_allow_html=True)
     
-    # ELIMINA EL REGISTRO AL CERRAR SESIÓN MANUALMENTE
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         local_storage.deleteItem("user_session_email")
@@ -1074,17 +1072,21 @@ with k3:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-pestanas = ["Checklist Diario", "Control de Rendimiento"]
+pestanas = ["Checklist Diario", "Formato Didáctico (1-6)", "Control de Rendimiento"]
 if es_admin:
     pestanas.append("Panel Admin")
 
 tabs_app = st.tabs(pestanas)
 # ==========================================
-# 7. ASIGNACIÓN DE PESTAÑAS Y MÓDULO CHECKLIST DIARIO
+# 7. ASIGNACIÓN DE PESTAÑAS
 # ==========================================
 tab_chk = tabs_app[0]
-tab_rend = tabs_app[1]
+tab_didactico = tabs_app[1]
+tab_rend = tabs_app[2]
 
+# ------------------------------------------
+# MÓDULO CHECKLIST DIARIO (EXISTENTE)
+# ------------------------------------------
 with tab_chk:
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
@@ -1269,7 +1271,6 @@ with tab_chk:
 
     if len(mis_jornadas) > 0:
         fecha_busqueda_str = fecha_busqueda.strftime("%Y-%m-%d")
-        # Filtro estricto: únicamente jornadas de la fecha seleccionada
         jornadas_en_fecha = [j for j in mis_jornadas if j['Fecha'] == fecha_busqueda_str]
 
         st.info(f"**{len(jornadas_en_fecha)}** jornada(s) encontrada(s) para la fecha seleccionada ({fecha_busqueda_str}).")
@@ -1321,161 +1322,6 @@ with tab_chk:
                         with col_j_info:
                             with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})"):
                                 
-                                with st.expander("✏️ Editar Detalles de la Jornada y Cargar la Lista Completa de Actividades", expanded=False):
-                                    with st.form(f"form_full_edit_{orig_idx}"):
-                                        st.markdown("##### 📍 Modificar Edificio, Fecha y Horas")
-                                        c_e1, c_e2, c_e3, c_e4 = st.columns([2, 2, 1.5, 1.5])
-                                        with c_e1:
-                                            nuevo_edificio = st.selectbox("Nombre / Edificio:", EDIFICIOS_ALPHA, index=EDIFICIOS_ALPHA.index(j['Edificio']) if j['Edificio'] in EDIFICIOS_ALPHA else 0, key=f"fe_ed_sel_{orig_idx}")
-                                        with c_e2:
-                                            try:
-                                                f_obj = datetime.datetime.strptime(j['Fecha'], "%Y-%m-%d").date()
-                                            except:
-                                                f_obj = datetime.date.today()
-                                            nueva_fecha = st.date_input("Fecha:", value=f_obj, key=f"fe_f_ed_{orig_idx}")
-                                        with c_e3:
-                                            try:
-                                                h_i_obj = datetime.datetime.strptime(j.get('Hora_Inicio', '07:00'), "%H:%M").time()
-                                            except:
-                                                h_i_obj = datetime.time(7, 0)
-                                            nueva_h_inicio = st.time_input("Hora Inicio:", value=h_i_obj, key=f"fe_hi_ed_{orig_idx}")
-                                        with c_e4:
-                                            try:
-                                                h_f_obj = datetime.datetime.strptime(j.get('Hora_Fin', '17:00'), "%H:%M").time()
-                                            except:
-                                                h_f_obj = datetime.time(17, 0)
-                                            nueva_h_fin = st.time_input("Hora Fin:", value=h_f_obj, key=f"fe_hf_ed_{orig_idx}")
-
-                                        st.markdown("---")
-                                        st.markdown("##### 📋 Editar Lista Completa de Actividades de la Inspección")
-                                        
-                                        saved_map = {}
-                                        for item_g in j.get("Datos", []):
-                                            key_map = f"{item_g['Jornada']}_{item_g['N°']}_{item_g['Actividad']}"
-                                            saved_map[key_map] = item_g
-
-                                        nuevos_datos_actualizados = []
-
-                                        st.markdown("###### 🌅 Jornada de la Mañana")
-                                        for idx_m, act_m in enumerate(ACTIVIDADES_MANANA, 1):
-                                            k_m = f"Mañana_{idx_m}_{act_m}"
-                                            exist_m = saved_map.get(k_m, {})
-
-                                            st.markdown(f"**[Mañana] N° {idx_m}. {act_m}**")
-                                            
-                                            sub_m_editadas = exist_m.get("Actividades_Especificas", [])
-                                            if act_m == "Supervisión de la ejecución de los trabajos":
-                                                st.caption("Actividades a realizar en la mañana:")
-                                                df_sub_edit_m = pd.DataFrame(sub_m_editadas if sub_m_editadas else [{"Actividad": ""}])
-                                                edited_sub_m_df = st.data_editor(
-                                                    df_sub_edit_m,
-                                                    num_rows="dynamic",
-                                                    column_config={
-                                                        "Actividad": st.column_config.TextColumn("Descripción de la Actividad")
-                                                    },
-                                                    key=f"fe_sub_m_{orig_idx}_{idx_m}"
-                                                )
-                                                sub_m_editadas = edited_sub_m_df.to_dict(orient="records")
-
-                                            c1_e, c2_e, c3_e = st.columns([2, 3, 3])
-                                            opciones_est = ["✓ Cumple", "✗ No Cumple", "N/A"]
-                                            st_val = exist_m.get("Estado", None)
-                                            idx_est = opciones_est.index(st_val) if st_val in opciones_est else None
-                                            
-                                            with c1_e:
-                                                n_est = st.radio("Estado General", opciones_est, index=idx_est, key=f"fe_st_m_{orig_idx}_{idx_m}", horizontal=True)
-                                            with c2_e:
-                                                n_obs = st.text_input("Observación", value=exist_m.get("Observaciones", ""), key=f"fe_ob_m_{orig_idx}_{idx_m}", placeholder="Observaciones...")
-                                            with c3_e:
-                                                n_foto_file = st.file_uploader("Actualizar Foto", type=["jpg", "jpeg", "png"], key=f"fe_ft_m_{orig_idx}_{idx_m}")
-
-                                            b64_foto_actual = exist_m.get("Foto_B64")
-                                            if n_foto_file is not None:
-                                                b64_foto_actual = image_to_base64(n_foto_file)
-
-                                            if n_est is not None:
-                                                nuevos_datos_actualizados.append({
-                                                    "Jornada": "Mañana",
-                                                    "N°": idx_m,
-                                                    "Actividad": act_m,
-                                                    "Estado": n_est,
-                                                    "Observaciones": n_obs,
-                                                    "Actividades_Especificas": sub_m_editadas,
-                                                    "Foto_B64": b64_foto_actual,
-                                                    "Foto_Adjunta": "Sí" if b64_foto_actual else "No"
-                                                })
-                                            st.markdown("<hr style='margin: 4px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
-
-                                        st.markdown("###### 🌆 Jornada de la Tarde")
-                                        for idx_t, act_t in enumerate(ACTIVIDADES_TARDE, 1):
-                                            k_t = f"Tarde_{idx_t}_{act_t}"
-                                            exist_t = saved_map.get(k_t, {})
-
-                                            st.markdown(f"**[Tarde] N° {idx_t}. {act_t}**")
-                                            
-                                            sub_t_editadas = exist_t.get("Actividades_Especificas", [])
-                                            if act_t == "Supervisión de la ejecución de los trabajos":
-                                                st.caption("Actividades a realizar en la tarde:")
-                                                df_sub_edit_t = pd.DataFrame(sub_t_editadas if sub_t_editadas else [{"Actividad": ""}])
-                                                edited_sub_t_df = st.data_editor(
-                                                    df_sub_edit_t,
-                                                    num_rows="dynamic",
-                                                    column_config={
-                                                        "Actividad": st.column_config.TextColumn("Descripción de la Actividad")
-                                                    },
-                                                    key=f"fe_sub_t_{orig_idx}_{idx_t}"
-                                                )
-                                                sub_t_editadas = edited_sub_t_df.to_dict(orient="records")
-
-                                            c1_e, c2_e, c3_e = st.columns([2, 3, 3])
-                                            opciones_est = ["✓ Cumple", "✗ No Cumple", "N/A"]
-                                            st_val_t = exist_t.get("Estado", None)
-                                            idx_est_t = opciones_est.index(st_val_t) if st_val_t in opciones_est else None
-                                            
-                                            with c1_e:
-                                                n_est_t = st.radio("Estado General", opciones_est, index=idx_est_t, key=f"fe_st_t_{orig_idx}_{idx_t}", horizontal=True)
-                                            with c2_e:
-                                                n_obs_t = st.text_input("Observación", value=exist_t.get("Observaciones", ""), key=f"fe_ob_t_{orig_idx}_{idx_t}", placeholder="Observaciones...")
-                                            with c3_e:
-                                                n_foto_file_t = st.file_uploader("Actualizar Foto", type=["jpg", "jpeg", "png"], key=f"fe_ft_t_{orig_idx}_{idx_t}")
-
-                                            b64_foto_actual_t = exist_t.get("Foto_B64")
-                                            if n_foto_file_t is not None:
-                                                b64_foto_actual_t = image_to_base64(n_foto_file_t)
-
-                                            if n_est_t is not None:
-                                                nuevos_datos_actualizados.append({
-                                                    "Jornada": "Tarde",
-                                                    "N°": idx_t,
-                                                    "Actividad": act_t,
-                                                    "Estado": n_est_t,
-                                                    "Observaciones": n_obs_t,
-                                                    "Actividades_Especificas": sub_t_editadas,
-                                                    "Foto_B64": b64_foto_actual_t,
-                                                    "Foto_Adjunta": "Sí" if b64_foto_actual_t else "No"
-                                                })
-                                            st.markdown("<hr style='margin: 4px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
-
-                                        st.markdown("##### 📝 Editar Observación General")
-                                        nueva_obs_general = st.text_area("Observación General:", value=j.get("Observacion_General", ""), key=f"fe_obs_gen_{orig_idx}")
-
-                                        if st.form_submit_button("💾 Guardar Todos los Cambios en Supabase", type="primary"):
-                                            try:
-                                                supabase.table("checklists").update({
-                                                    "edificio": nuevo_edificio,
-                                                    "fecha": nueva_fecha.strftime("%Y-%m-%d"),
-                                                    "hora_inicio": nueva_h_inicio.strftime("%H:%M"),
-                                                    "hora_fin": nueva_h_fin.strftime("%H:%M"),
-                                                    "observacion_general": nueva_obs_general.strip(),
-                                                    "datos": nuevos_datos_actualizados
-                                                }).eq("id", j["db_id"]).execute()
-
-                                                st.session_state.db_loaded = False
-                                                st.success("¡Jornada actualizada con éxito en Supabase!")
-                                                st.rerun()
-                                            except Exception as e:
-                                                st.error(f"Error al actualizar checklist: {e}")
-
                                 st.markdown("#### Actividades Registradas y Evidencias:")
                                 df_data = pd.DataFrame(j["Datos"])
                                 for _, row in df_data.iterrows():
@@ -1513,6 +1359,175 @@ with tab_chk:
                                 )
     else:
         st.info("Aún no hay inspecciones guardadas en la base de datos.")
+
+# ------------------------------------------
+# NUEVO MÓDULO DIDÁCTICO (LITERALES 1 AL 6)
+# ------------------------------------------
+with tab_didactico:
+    st.markdown("### Formato de Inspección Diaria de Obra (Literales 1 al 6)")
+    st.caption("Supervisión técnica paso a paso con tabuladores y control visual rápido.")
+
+    with st.form("form_didactico_1_6"):
+        # 1. INFORMACIÓN GENERAL
+        st.markdown("#### 1. Información General")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            did_proyecto = st.selectbox("Proyecto:", EDIFICIOS_ALPHA, key="did_proy")
+            did_fecha = st.date_input("Fecha:", datetime.date.today(), key="did_fecha")
+            did_dia = st.text_input("Día:", value=datetime.date.today().strftime("%A"), key="did_dia")
+        with c2:
+            did_residente = st.text_input("Residente de Obra:", value=user_nombre_completo, key="did_res")
+            did_director = st.text_input("Director de Proyecto:", placeholder="Arq. Carlos Silva", key="did_dir")
+            did_frente = st.text_input("Frente Inspeccionado:", placeholder="Ej. Bloque A - Piso 3", key="did_fre")
+        with c3:
+            did_clima = st.multiselect("Clima:", ["Soleado", "Nublado", "Lluvia"], default=["Soleado"], key="did_cli")
+            did_h_ini = st.time_input("Hora inicio:", datetime.time(7, 0), key="did_hini")
+            did_h_fin = st.time_input("Hora fin:", datetime.time(17, 0), key="did_hfin")
+
+        st.markdown("---")
+
+        # 2. AVANCE GENERAL
+        st.markdown("#### 2. Avance General")
+        sub_actividades_pdf = ["Movimiento de tierras", "Estructura", "Mampostería", "Enlucidos", "Instalaciones", "Acabados"]
+        avance_datos = []
+        for act in sub_actividades_pdf:
+            col_a1, col_a2, col_a3, col_a4 = st.columns([3, 2, 2, 2])
+            with col_a1:
+                st.write(f"**{act}**")
+            with col_a2:
+                p_prog = st.number_input(f"% Prog. ({act})", min_value=0.0, max_value=100.0, step=1.0, key=f"prog_{act}")
+            with col_a3:
+                p_ejec = st.number_input(f"% Ejec. ({act})", min_value=0.0, max_value=100.0, step=1.0, key=f"ejec_{act}")
+            with col_a4:
+                est_act = st.selectbox(f"Estado ({act})", ["En Proceso", "Completado", "Retrasado", "N/A"], key=f"est_{act}")
+            avance_datos.append({"Actividad": act, "% Prog": p_prog, "% Ejec": p_ejec, "Estado": est_act})
+
+        st.markdown("---")
+
+        # 3. CHECK LIST GENERAL
+        st.markdown("#### 3. Check List General")
+        
+        tab_sec1, tab_sec2, tab_sec3, tab_sec4, tab_sec5 = st.tabs([
+            "🛡️ Seguridad Industrial", "🧱 Mampostería", "🏗️ Hormigón", "🔌 Instalaciones", "🎨 Acabados"
+        ])
+
+        with tab_sec1:
+            sec_seguridad = ["Personal con casco", "Uso correcto de EPP", "Arnés", "Andamios", "Señalización", "Orden y limpieza", "Extintores", "Botiquín"]
+            seg_resp = []
+            for item in sec_seguridad:
+                cs1, cs2, cs3 = st.columns([3, 2, 3])
+                with cs1:
+                    st.write(f"• {item}")
+                with cs2:
+                    st_val = st.radio(f"Seg_{item}", ["Sí", "No", "N/A"], horizontal=True, key=f"seg_{item}", label_visibility="collapsed")
+                with cs3:
+                    obs_val = st.text_input(f"Obs_{item}", placeholder="Observaciones...", key=f"seg_obs_{item}", label_visibility="collapsed")
+                seg_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
+
+        with tab_sec2:
+            sec_mamp = ["Muros aplomados", "Muros nivelados", "Chicotes", "Tensores", "Juntas", "Limpieza"]
+            mamp_resp = []
+            for item in sec_mamp:
+                cm1, cm2, cm3 = st.columns([3, 2, 3])
+                with cm1:
+                    st.write(f"• {item}")
+                with cm2:
+                    st_val = st.radio(f"Mamp_{item}", ["Sí", "No"], horizontal=True, key=f"mamp_{item}", label_visibility="collapsed")
+                with cm3:
+                    obs_val = st.text_input(f"Obs_mamp_{item}", placeholder="Observaciones...", key=f"mamp_obs_{item}", label_visibility="collapsed")
+                mamp_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
+
+        with tab_sec3:
+            sec_horm = ["Acero conforme planos", "Recubrimiento", "Vibrado", "Sin cangrejeras", "Sin juntas frías", "Curado"]
+            horm_resp = []
+            for item in sec_horm:
+                ch1, ch2, ch3 = st.columns([3, 2, 3])
+                with ch1:
+                    st.write(f"• {item}")
+                with ch2:
+                    st_val = st.radio(f"Horm_{item}", ["Sí", "No"], horizontal=True, key=f"horm_{item}", label_visibility="collapsed")
+                with ch3:
+                    obs_val = st.text_input(f"Obs_horm_{item}", placeholder="Observaciones...", key=f"horm_obs_{item}", label_visibility="collapsed")
+                horm_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
+
+        with tab_sec4:
+            sec_inst = ["Eléctrica", "Sanitaria", "Hidráulica", "Ductería", "Cajas niveladas"]
+            inst_resp = []
+            for item in sec_inst:
+                ci1, ci2, ci3 = st.columns([3, 2, 3])
+                with ci1:
+                    st.write(f"• {item}")
+                with ci2:
+                    st_val = st.radio(f"Inst_{item}", ["Sí", "No"], horizontal=True, key=f"inst_{item}", label_visibility="collapsed")
+                with ci3:
+                    obs_val = st.text_input(f"Obs_inst_{item}", placeholder="Observaciones...", key=f"inst_obs_{item}", label_visibility="collapsed")
+                inst_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
+
+        with tab_sec5:
+            sec_acab = ["Enlucidos", "Cerámica", "Pintura", "Puertas", "Ventanas"]
+            acab_resp = []
+            for item in sec_acab:
+                ca1, ca2, ca3 = st.columns([3, 2, 3])
+                with ca1:
+                    st.write(f"• {item}")
+                with ca2:
+                    st_val = st.radio(f"Acab_{item}", ["Sí", "No"], horizontal=True, key=f"acab_{item}", label_visibility="collapsed")
+                with ca3:
+                    obs_val = st.text_input(f"Obs_acab_{item}", placeholder="Observaciones...", key=f"acab_obs_{item}", label_visibility="collapsed")
+                acab_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
+
+        st.markdown("---")
+
+        # 4. CONTROL DE PERSONAL
+        st.markdown("#### 4. Control de Personal")
+        sec_pers = ["Personal completo", "Contratistas completos", "Rendimiento adecuado", "Retrasos"]
+        pers_resp = []
+        for item in sec_pers:
+            cp1, cp2, cp3 = st.columns([3, 2, 3])
+            with cp1:
+                st.write(f"• {item}")
+            with cp2:
+                st_val = st.radio(f"Pers_{item}", ["Sí", "No"], horizontal=True, key=f"pers_{item}", label_visibility="collapsed")
+            with cp3:
+                obs_val = st.text_input(f"Obs_pers_{item}", placeholder="Observación...", key=f"pers_obs_{item}", label_visibility="collapsed")
+            pers_resp.append({"Aspecto": item, "Cumple": st_val, "Observación": obs_val})
+
+        st.markdown("---")
+
+        # 5. MATERIALES
+        st.markdown("#### 5. Materiales")
+        sec_mat = ["Material suficiente", "Material conforme", "Material almacenado correctamente", "Material deteriorado"]
+        mat_resp = []
+        for item in sec_mat:
+            cmat1, cmat2, cmat3 = st.columns([3, 2, 3])
+            with cmat1:
+                st.write(f"• {item}")
+            with cmat2:
+                st_val = st.radio(f"Mat_{item}", ["Sí", "No"], horizontal=True, key=f"mat_{item}", label_visibility="collapsed")
+            with cmat3:
+                obs_val = st.text_input(f"Obs_mat_{item}", placeholder="Observación...", key=f"mat_obs_{item}", label_visibility="collapsed")
+            mat_resp.append({"Revisar": item, "Cumple": st_val, "Observación": obs_val})
+
+        st.markdown("---")
+
+        # 6. EQUIPOS
+        st.markdown("#### 6. Equipos")
+        sec_eq = ["Mezcladora", "Vibrador", "Cortadora", "Compresor", "Herramienta eléctrica"]
+        eq_resp = []
+        for item in sec_eq:
+            ceq1, ceq2, ceq3 = st.columns([3, 2, 3])
+            with ceq1:
+                st.write(f"• {item}")
+            with ceq2:
+                st_val = st.radio(f"Eq_{item}", ["Operativo", "Fuera de servicio"], horizontal=True, key=f"eq_{item}", label_visibility="collapsed")
+            with ceq3:
+                obs_val = st.text_input(f"Obs_eq_{item}", placeholder="Observación...", key=f"eq_obs_{item}", label_visibility="collapsed")
+            eq_resp.append({"Equipo": item, "Estado": st_val, "Observación": obs_val})
+
+        btn_guardar_did = st.form_submit_button("💾 Guardar Formato Didáctico (1-6)", type="primary")
+
+        if btn_guardar_did:
+            st.success(f"¡Formato de inspección (1-6) registrado exitosamente para el proyecto **{did_proyecto}**!")
 
 # ==========================================
 # 8. MÓDULO 2: CONTROL DE RENDIMIENTO
@@ -1609,7 +1624,7 @@ with tab_rend:
 # 9. MÓDULO ADMINISTRADOR (MONITOREO GLOBAL DE PARTICIPANTES)
 # ==========================================
 if es_admin:
-    tab_admin = tabs_app[2]
+    tab_admin = tabs_app[3]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
         st.caption("Módulo exclusivo para supervisar inspecciones, rendimientos, usuarios y configuración.")
