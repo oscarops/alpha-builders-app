@@ -1363,7 +1363,6 @@ with tab_didactico:
     st.markdown("### Formato de Inspección Diaria de Obra")
     st.caption("Supervisión técnica paso a paso con tabuladores y control visual rápido.")
 
-    # Control de Fecha fuera del form para habilitar reactividad en vivo del Día
     dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     
     col_f_out, _ = st.columns([1, 2])
@@ -1378,7 +1377,8 @@ with tab_didactico:
         c1, c2, c3 = st.columns(3)
         with c1:
             did_proyecto = st.selectbox("Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="did_proy")
-            did_dia = st.text_input("Día:", value=dia_auto_es, disabled=True, key="did_dia_txt")
+            # Sin clave fija en key para permitir la actualización dinámica inmediata al cambiar la fecha
+            did_dia = st.text_input("Día:", value=dia_auto_es, disabled=True)
 
         with c2:
             did_residente = st.text_input("Residente de Obra:", value=user_nombre_completo, key="did_res")
@@ -1416,7 +1416,7 @@ with tab_didactico:
 
         st.markdown("---")
 
-        # 3. CHECK LIST GENERAL (SELECCIÓN Y DESELECCIÓN MEDIANTE ST.SEGMENTED_CONTROL)
+        # 3. CHECK LIST GENERAL
         st.markdown("#### 3. Check List General")
         
         tab_sec1, tab_sec2, tab_sec3, tab_sec4, tab_sec5 = st.tabs([
