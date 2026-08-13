@@ -1,7 +1,325 @@
+import base64
+import datetime
+import io
+import json
+import os
+import pandas as pd
+from PIL import Image, ImageOps
+import streamlit as st
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.drawing.image import Image as OpenpyxlImage
+from supabase import create_client, Client
+from streamlit_local_storage import LocalStorage
+
+# Importaciones para generación de PDF profesional con ReportLab
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+# ==========================================
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS
+# ==========================================
+st.set_page_config(
+    page_title="Alpha Builders | Portal Ejecutivo",
+    page_icon="🏗️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+    h1, h2, h3, .brand-title { font-family: 'Montserrat', sans-serif !important; letter-spacing: -0.03em !important; }
+
+    .block-container { padding-top: 1rem !important; padding-bottom: 1.5rem !important; padding-left: 2.5rem !important; padding-right: 2.5rem !important; max-width: 100% !important; }
+    .stApp { background-color: #ffffff !important; color: #121318 !important; }
+    .stApp p, .stApp label, .stApp span, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: #121318; }
+    .stCaption, caption, small, [data-testid="stCaptionContainer"] { color: #5a5f6e !important; }
+
+    [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
+
+    [data-testid="stSidebarCollapseButton"] { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important; }
+    [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 15px !important; left: 15px !important; z-index: 999999 !important; }
+
+    [data-testid="stSidebarCollapseButton"] button, [data-testid="collapsedControl"] button {
+        background-color: #1c1e26 !important; border: 1px solid #323646 !important; border-radius: 50% !important; width: 36px !important; height: 36px !important; color: #ffffff !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important; transition: all 0.2s ease !important;
+    }
+    [data-testid="stSidebarCollapseButton"] button:hover, [data-testid="collapsedControl"] button:hover {
+        background-color: #ff8c00 !important; border-color: #ff8c00 !important; transform: scale(1.08);
+    }
+    [data-testid="stSidebarCollapseButton"] svg, [data-testid="collapsedControl"] svg { fill: #ffffff !important; color: #ffffff !important; }
+
+    [data-testid="stSidebar"] { background-color: #121318 !important; border-right: 2px solid #282a36 !important; padding-top: 0px !important; padding-left: 12px !important; padding-right: 12px !important; padding-bottom: 15px !important; }
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.5rem !important; padding-top: 0px !important; }
+    [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] div { color: #ffffff !important; }
+
+    .sidebar-logo-card { background-color: #ffffff; border-radius: 12px; padding: 8px 10px; margin-top: 0px !important; margin-bottom: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3); width: 100% !important; box-sizing: border-box; text-align: center; display: block; }
+    [data-testid="stSidebar"] [data-testid="stImage"] { width: 100% !important; display: block !important; margin-top: 6px !important; margin-bottom: 10px !important; clear: both !important; }
+    [data-testid="stSidebar"] [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
+
+    .sidebar-profile-box { background: #1c1e26; border: 1px solid #323646; border-radius: 12px; padding: 10px 8px !important; text-align: center; margin-top: 4px; margin-bottom: 8px; width: 100% !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); box-sizing: border-box; }
+    .sidebar-user-nombres { font-size: 0.88rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }
+    .sidebar-user-apellidos { font-size: 0.85rem; font-weight: 700; color: #e0e4ed !important; margin-bottom: 4px !important; line-height: 1.2; }
+    .sidebar-user-email { font-size: 0.68rem; color: #72b2ff !important; font-weight: 600; margin-bottom: 6px !important; word-break: break-all; }
+    .sidebar-user-cargo { display: inline-block; background: #323646 !important; color: #ffffff !important; border: 1px solid #484e5e !important; font-size: 0.60rem !important; font-weight: 800 !important; padding: 2px 8px !important; border-radius: 14px !important; text-transform: uppercase !important; }
+
+    [data-testid="stSidebar"] hr { margin: 6px 0 !important; border-color: #282a36 !important; }
+    [data-testid="stSidebar"] [data-testid="stExpander"] { background-color: #1c1e26 !important; border: 1px solid #323646 !important; border-radius: 10px !important; margin-top: 2px !important; margin-bottom: 6px !important; }
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #282c36 !important; padding: 6px 8px !important; }
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary * { color: #ffffff !important; font-weight: 700 !important; font-size: 0.78rem !important; }
+
+    .executive-card-studio { background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%); border: 1px solid #b8c4d8; border-left: 7px solid #121318; border-radius: 22px; padding: 22px 28px; box-shadow: 0 12px 35px rgba(0,0,0,0.06); margin-bottom: 20px; width: 100%; box-sizing: border-box; }
+    .brand-title { font-family: 'Montserrat', sans-serif !important; font-weight: 700 !important; font-size: 2.4rem !important; background: linear-gradient(90deg, #121318 0%, #3a4256 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 12px rgba(0,0,0,0.08); letter-spacing: -0.03em !important; }
+
+    .kpi-card-studio { background: linear-gradient(145deg, #eceff6 0%, #dbe2ef 100%); border: 1px solid #aebacf; border-radius: 20px; padding: 18px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.06); transition: all 0.3s ease; }
+    .kpi-card-studio:hover { transform: translateY(-3px); box-shadow: 0 14px 35px rgba(0,0,0,0.12); filter: brightness(1.02); }
+    .kpi-val-studio { font-size: 2.5rem; font-weight: 900; color: #121318 !important; }
+    .kpi-lbl-studio { font-size: 0.72rem; color: #4a5060 !important; text-transform: uppercase; font-weight: 800; }
+
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #e2e5ec !important; padding: 6px; border-radius: 16px; border: 1px solid #c2c7d2; }
+    .stTabs [data-baseweb="tab"] { border-radius: 12px !important; padding: 10px 24px !important; background-color: transparent !important; }
+    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: #121318 !important; font-weight: 700 !important; }
+    .stTabs [aria-selected="true"] { background-color: #121318 !important; border-radius: 12px !important; }
+    .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span, .stTabs [aria-selected="true"] div { color: #ffffff !important; font-weight: 900 !important; }
+
+    .stButton > button { background-color: #121318 !important; color: #ffffff !important; border-radius: 980px !important; border: none !important; font-weight: 800 !important; padding: 10px 22px !important; }
+    .stButton > button p, .stButton > button span { color: #ffffff !important; }
+
+    .streamlit-expanderHeader { background-color: #e8eaee !important; border-radius: 12px !important; border: 1px solid #c2c7d2 !important; font-weight: 700 !important; }
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;}
+    </style>
+""",
+    unsafe_allow_html=True,
+)
+
+# ==========================================
+# 2. CONEXIÓN Y CARGA SUPABASE
+# ==========================================
+@st.cache_resource
+def init_supabase():
+    url = st.secrets.get("SUPABASE_URL", "")
+    key = st.secrets.get("SUPABASE_KEY", "")
+    if not url or not key:
+        st.error("⚠️ Credenciales SUPABASE_URL / SUPABASE_KEY no configuradas.")
+        st.stop()
+    return create_client(url, key)
+
+supabase = init_supabase()
+local_storage = LocalStorage()
+
+DEFAULT_TRABAJADORES = []
+
+def load_db_from_supabase():
+    try:
+        res_pin = supabase.table("app_config").select("*").eq("key", "access_pin").execute()
+        access_pin = res_pin.data[0]["value"] if res_pin.data else "1254"
+    except Exception:
+        access_pin = "1254"
+
+    try:
+        res_usr = supabase.table("usuarios").select("*").execute()
+        db_usuarios = []
+        db_fotos = {}
+        admin_emails = []
+        for row in res_usr.data:
+            c = row["correo"].lower().strip()
+            db_usuarios.append({
+                "Nombres": row["nombres"],
+                "Apellidos": row["apellidos"],
+                "Correo": c,
+                "Password": row["password"],
+                "Cargo": row["cargo"],
+                "Fecha_Registro": str(row["fecha_registro"]),
+                "Estado": row.get("estado", "Activo")
+            })
+            if row.get("foto_b64"):
+                db_fotos[c] = row["foto_b64"]
+            if row.get("es_admin"):
+                admin_emails.append(c)
+    except Exception:
+        db_usuarios = []
+        db_fotos = {}
+        admin_emails = ["oscarsebitas2013@gmail.com"]
+
+    if "oscarsebitas2013@gmail.com" not in admin_emails:
+        admin_emails.append("oscarsebitas2013@gmail.com")
+
+    try:
+        res_trab = supabase.table("trabajadores").select("*").execute()
+        db_trabajadores = [{"nombre": r["nombre"], "cargo": r["cargo"]} for r in res_trab.data] if res_trab.data else DEFAULT_TRABAJADORES
+    except Exception:
+        db_trabajadores = DEFAULT_TRABAJADORES
+
+    # Carga Checklists
+    db_checklists = {}
+    try:
+        res_chk = supabase.table("checklists").select("*").execute()
+        for r in res_chk.data:
+            c = r["usuario_email"].lower().strip()
+            if c not in db_checklists:
+                db_checklists[c] = []
+            
+            datos_parsed = r["datos"] if isinstance(r["datos"], list) else json.loads(r["datos"])
+            db_checklists[c].append({
+                "db_id": r["id"],
+                "Fecha": str(r["fecha"]),
+                "Hora_Inicio": r.get("hora_inicio", "07:00"),
+                "Hora_Fin": r.get("hora_fin", "17:00"),
+                "Edificio": r["edificio"],
+                "Responsable": r.get("responsable", ""),
+                "Cargo": r.get("cargo", ""),
+                "Observacion_General": r.get("observacion_general", ""),
+                "Datos": datos_parsed
+            })
+    except Exception:
+        pass
+
+    # Carga Formato de Inspección
+    db_inspecciones = {}
+    try:
+        res_insp = supabase.table("inspecciones").select("*").execute()
+        for r in res_insp.data:
+            c = r["usuario_email"].lower().strip()
+            if c not in db_inspecciones:
+                db_inspecciones[c] = []
+            
+            datos_parsed = r["datos"] if isinstance(r["datos"], dict) else json.loads(r["datos"])
+            db_inspecciones[c].append({
+                "db_id": r["id"],
+                "Fecha": str(r["fecha"]),
+                "Dia": r.get("dia", ""),
+                "Proyecto": r["proyecto"],
+                "Residente": r.get("residente", ""),
+                "Director": r.get("director", ""),
+                "Frente": r.get("frente", ""),
+                "Clima": r.get("clima", ""),
+                "Hora_Inicio": r.get("hora_inicio", "07:00"),
+                "Hora_Fin": r.get("hora_fin", "17:00"),
+                "Datos": datos_parsed
+            })
+    except Exception:
+        pass
+
+    # Carga Rendimientos
+    db_rendimientos = {}
+    try:
+        res_rnd = supabase.table("rendimientos").select("*").execute()
+        for r in res_rnd.data:
+            c = r["usuario_email"].lower().strip()
+            if c not in db_rendimientos:
+                db_rendimientos[c] = []
+            db_rendimientos[c].append({
+                "db_id": r["id"],
+                "Usuario_Registro": c,
+                "Cargo_Registrador": r.get("cargo_obrero", ""),
+                "Fecha": str(r["fecha"]),
+                "Trabajador": r["trabajador"],
+                "Cargo_Obrero": r.get("cargo_obrero", ""),
+                "Rubro": r["rubro"],
+                "Horas Trabajadas (HH)": float(r["horas_hh"]),
+                "Avance": float(r["avance"]),
+                "Unidad": r["unidad"],
+                "Rend. Real (HH/Unid)": float(r["rend_real"]),
+                "Rend. Teórico": float(r["rend_teorico"]),
+                "Estado": r["estado"]
+            })
+    except Exception:
+        pass
+
+    return {
+        "access_pin": access_pin,
+        "admin_emails": admin_emails,
+        "db_fotos_perfil_b64": db_fotos,
+        "db_usuarios": db_usuarios,
+        "db_checklists": db_checklists,
+        "db_inspecciones": db_inspecciones,
+        "db_rendimientos": db_rendimientos,
+        "db_trabajadores": db_trabajadores,
+    }
+
+if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
+    p_data = load_db_from_supabase()
+    st.session_state.access_pin = p_data["access_pin"]
+    st.session_state.admin_emails = p_data["admin_emails"]
+    st.session_state.db_fotos_perfil_b64 = p_data["db_fotos_perfil_b64"]
+    st.session_state.db_usuarios = p_data["db_usuarios"]
+    st.session_state.db_checklists = p_data["db_checklists"]
+    st.session_state.db_inspecciones = p_data["db_inspecciones"]
+    st.session_state.db_rendimientos = p_data["db_rendimientos"]
+    st.session_state.db_trabajadores = p_data["db_trabajadores"]
+    st.session_state.db_loaded = True
+
+# PERSISTENCIA DE SESIÓN
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+    st.session_state.usuario_email = ""
+    st.session_state.usuario_nombres = ""
+    st.session_state.usuario_apellidos = ""
+    st.session_state.usuario_cargo = ""
+
+if not st.session_state.autenticado:
+    saved_token = local_storage.getItem("user_session_email")
+    if saved_token:
+        mail_clean = saved_token.strip().lower()
+        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
+        if u_match:
+            st.session_state.autenticado = True
+            st.session_state.usuario_email = mail_clean
+            st.session_state.usuario_nombres = u_match["Nombres"]
+            st.session_state.usuario_apellidos = u_match["Apellidos"]
+            st.session_state.usuario_cargo = u_match["Cargo"]
+
+def render_estado_badge(estado_str):
+    if not estado_str:
+        return '<span style="color: #64748b; font-weight: 600;">Sin Responder</span>'
+    if "Cumple" in estado_str or estado_str in ["Sí", "Operativo", "Completado"]:
+        return f'<span style="background-color: #dcfce7; color: #16a34a; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #bbf7d0; font-size: 0.82rem;">{estado_str}</span>'
+    elif "No" in estado_str or estado_str in ["Fuera de servicio", "Retrasado"]:
+        return f'<span style="background-color: #fee2e2; color: #dc2626; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #fca5a5; font-size: 0.82rem;">{estado_str}</span>'
+    else:
+        return f'<span style="background-color: #f1f5f9; color: #121318; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.82rem;">{estado_str}</span>'
+
+def image_to_base64(image_file):
+    if image_file is not None:
+        try:
+            img = Image.open(image_file)
+            img = ImageOps.exif_transpose(img)
+            buffered = io.BytesIO()
+            img.save(buffered, format="PNG")
+            return base64.b64encode(buffered.getvalue()).decode("utf-8")
+        except Exception:
+            return None
+    return None
+
+def base64_to_image(b64_str):
+    if b64_str:
+        try:
+            img_data = base64.b64decode(b64_str)
+            img = Image.open(io.BytesIO(img_data))
+            img = ImageOps.exif_transpose(img)
+            return img
+        except Exception:
+            return None
+    return None
+
+def get_repo_image_b64(filenames):
+    for filename in filenames:
+        if os.path.exists(filename):
+            try:
+                with open(filename, "rb") as f:
+                    return base64.b64encode(f.read()).decode("utf-8")
+            except Exception:
+                pass
+    return None
+
 # ==========================================
 # GENERADORES DE REPORTES EXCEL Y PDF (CORREGIDOS)
 # ==========================================
-
 def export_checklist_to_excel_file(jornada_dict):
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -103,7 +421,6 @@ def export_checklist_to_pdf_file(jornada_dict):
     story.append(Paragraph(f"CHECKLIST DIARIO DE OBRA — {jornada_dict.get('Edificio', '').upper()}", title_style))
     story.append(Paragraph(f"<b>Fecha:</b> {jornada_dict.get('Fecha', '')} | <b>Horario:</b> {jornada_dict.get('Hora_Inicio', '')} - {jornada_dict.get('Hora_Fin', '')} | <b>Responsable:</b> {jornada_dict.get('Responsable', '')}", sub_style))
 
-    # Títulos con estilo de texto en Blanco
     data = [[
         Paragraph("<b>Jornada</b>", header_style),
         Paragraph("<b>N°</b>", header_style),
@@ -162,7 +479,6 @@ def export_inspeccion_to_excel_file(insp_dict):
     font_bold = Font(name="Arial", bold=True, color="121318", size=9.5)
     font_regular = Font(name="Arial", size=9)
 
-    # Título Principal
     ws.merge_cells("A1:D1")
     ws["A1"] = f"FORMATO DE INSPECCIÓN DIARIA - {insp_dict.get('Proyecto', '').upper()}"
     ws["A1"].font = Font(name="Arial", bold=True, color="FFFFFF", size=12)
@@ -242,7 +558,6 @@ def export_inspeccion_to_excel_file(insp_dict):
                 cell.border = thin_border
                 cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    # Ajuste automático de ancho de columnas para evitar textos cortados
     ws.column_dimensions['A'].width = 26
     ws.column_dimensions['B'].width = 38
     ws.column_dimensions['C'].width = 22
@@ -264,7 +579,6 @@ def export_inspeccion_to_pdf_file(insp_dict):
     
     header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=1)
     cell_style = ParagraphStyle('CellStyle', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'))
-    cell_bold = ParagraphStyle('CellBold', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.HexColor('#121318'))
 
     story.append(Paragraph(f"FORMATO DE INSPECCIÓN DIARIA DE OBRA", title_style))
     
@@ -331,6 +645,33 @@ def export_inspeccion_to_pdf_file(insp_dict):
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
+
+# ==========================================
+# 3. CONSTANTES
+# ==========================================
+EDIFICIOS_ALPHA = [
+    "Tesla", "Lafuente", "Imagine", "Asimov", "Rubik", "Castle Rock",
+    "Musk", "Wolf", "Dablanc", "Thomas Edison", "Westinghouse", "Smart",
+]
+
+UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
+RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
+
+ACTIVIDADES_MANANA = [
+    "Verificación de asistencia del personal", "Distribución de cuadrillas por frente de trabajo",
+    "Recorrido inicial de obra", "Supervisión de la ejecución de los trabajos",
+    "Verificación de los trabajos y la calidad", "Coordinación con otras especialidades",
+    "Corrección de observaciones detectadas",
+]
+
+ACTIVIDADES_TARDE = [
+    "Recorrido de seguimiento de los frentes de trabajo", "Verificación del avance físico de las actividades",
+    "Control del rendimiento de las cuadrillas", "Supervisión de la ejecución de los trabajos",
+    "Verificación de los trabajos y la calidad", "Revisión de observaciones pendientes",
+    "Verificación de trabajos corregidos", "Verificación del orden y limpieza de los frentes de trabajo",
+    "Confirmación de materiales para el siguiente día", "Revisión del cumplimiento de la meta diaria",
+    "Cierre de actividades en campo",
+]
 # ==========================================
 # 4. MÓDULO DE LOGIN & REGISTRO
 # ==========================================
