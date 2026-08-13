@@ -12,7 +12,7 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
-# Importaciones para generación de PDF profesional con ReportLab
+# Importaciones de ReportLab para generación de PDFs
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -318,8 +318,14 @@ def get_repo_image_b64(filenames):
     return None
 
 # ==========================================
-# GENERADORES DE REPORTES EXCEL Y PDF (CORREGIDOS)
+# GENERADORES DE REPORTES EXCEL, PDF Y CSV
 # ==========================================
+def export_dataframe_to_excel_csv(df):
+    """Exportación en CSV delimitado por punto y coma (para compatibilidad total con Excel)."""
+    df_clean = df.drop(columns=["Foto_B64", "db_id"], errors="ignore")
+    return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
+
+
 def export_checklist_to_excel_file(jornada_dict):
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -414,7 +420,6 @@ def export_checklist_to_pdf_file(jornada_dict):
 
     title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=8)
     sub_style = ParagraphStyle('SubStyle', fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#333333'), spaceAfter=10)
-    
     header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.white, alignment=1)
     cell_style = ParagraphStyle('CellStyle', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#121318'))
 
@@ -576,7 +581,6 @@ def export_inspeccion_to_pdf_file(insp_dict):
 
     title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=6)
     sub_title = ParagraphStyle('SubTitle', fontName='Helvetica-Bold', fontSize=9.5, textColor=colors.HexColor('#121318'), spaceBefore=8, spaceAfter=4)
-    
     header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=1)
     cell_style = ParagraphStyle('CellStyle', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'))
 
