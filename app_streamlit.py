@@ -195,7 +195,6 @@ def load_db_from_supabase():
                 "Dia": r.get("dia", ""),
                 "Proyecto": r["proyecto"],
                 "Residente": r.get("residente", ""),
-                "Director": r.get("director", ""),
                 "Frente": r.get("frente", ""),
                 "Clima": r.get("clima", ""),
                 "Hora_Inicio": r.get("hora_inicio", "07:00"),
@@ -321,10 +320,9 @@ def get_repo_image_b64(filenames):
 # GENERADORES DE REPORTES EXCEL, PDF Y CSV
 # ==========================================
 def export_dataframe_to_excel_csv(df):
-    """Exportación en CSV delimitado por punto y coma (para compatibilidad total con Excel)."""
+    """Exportación en CSV delimitado por punto y coma."""
     df_clean = df.drop(columns=["Foto_B64", "db_id"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
-
 
 def export_checklist_to_excel_file(jornada_dict):
     wb = openpyxl.Workbook()
@@ -493,9 +491,8 @@ def export_inspeccion_to_excel_file(insp_dict):
 
     meta_info = [
         ["Fecha:", insp_dict.get("Fecha", ""), "Día:", insp_dict.get("Dia", "")],
-        ["Residente de Obra:", insp_dict.get("Residente", ""), "Director de Proyecto:", insp_dict.get("Director", "")],
-        ["Frente Inspeccionado:", insp_dict.get("Frente", ""), "Clima:", insp_dict.get("Clima", "")],
-        ["Hora Inicio:", insp_dict.get("Hora_Inicio", ""), "Hora Fin:", insp_dict.get("Hora_Fin", "")]
+        ["Residente de Obra:", insp_dict.get("Residente", ""), "Frente Inspeccionado:", insp_dict.get("Frente", "")],
+        ["Clima:", insp_dict.get("Clima", ""), "Horario:", f"{insp_dict.get('Hora_Inicio', '')} - {insp_dict.get('Hora_Fin', '')}"]
     ]
     for r in meta_info:
         ws.append(r)
@@ -509,11 +506,11 @@ def export_inspeccion_to_excel_file(insp_dict):
     datos = insp_dict.get("Datos", {})
 
     # 1. Avance General
-    ws.merge_cells("A7:D7")
-    ws["A7"] = "1. AVANCE GENERAL"
-    ws["A7"].font = font_header
-    ws["A7"].fill = fill_sub
-    ws["A7"].alignment = Alignment(vertical="center", indent=1)
+    ws.merge_cells("A6:D6")
+    ws["A6"] = "1. AVANCE GENERAL"
+    ws["A6"].font = font_header
+    ws["A6"].fill = fill_sub
+    ws["A6"].alignment = Alignment(vertical="center", indent=1)
 
     ws.append(["Actividad", "% Programado", "% Ejecutado", "Estado"])
     r_hdr1 = ws.max_row
@@ -579,15 +576,16 @@ def export_inspeccion_to_pdf_file(insp_dict):
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=25)
     story = []
 
-    title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=6)
-    sub_title = ParagraphStyle('SubTitle', fontName='Helvetica-Bold', fontSize=9.5, textColor=colors.HexColor('#121318'), spaceBefore=8, spaceAfter=4)
+    title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=6)
+    sub_title = ParagraphStyle('SubTitle', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#121318'), spaceBefore=8, spaceAfter=4)
+    sec_header_style = ParagraphStyle('SecHeaderStyle', fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#1e293b'), spaceBefore=6, spaceAfter=2)
     header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=1)
     cell_style = ParagraphStyle('CellStyle', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'))
 
     story.append(Paragraph(f"FORMATO DE INSPECCIÓN DIARIA DE OBRA", title_style))
     
     meta_text = f"<b>Proyecto:</b> {insp_dict.get('Proyecto', '')} | <b>Fecha:</b> {insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})<br/>" \
-                f"<b>Residente:</b> {insp_dict.get('Residente', '')} | <b>Director:</b> {insp_dict.get('Director', '')} | <b>Frente:</b> {insp_dict.get('Frente', '')}<br/>" \
+                f"<b>Residente:</b> {insp_dict.get('Residente', '')} | <b>Frente:</b> {insp_dict.get('Frente', '')}<br/>" \
                 f"<b>Clima:</b> {insp_dict.get('Clima', '')} | <b>Horario:</b> {insp_dict.get('Hora_Inicio', '')} - {insp_dict.get('Hora_Fin', '')}"
     
     story.append(Paragraph(meta_text, cell_style))
@@ -595,7 +593,6 @@ def export_inspeccion_to_pdf_file(insp_dict):
 
     datos = insp_dict.get("Datos", {})
 
-    # 1. Avance General
     story.append(Paragraph("1. AVANCE GENERAL", sub_title))
     av_data = [[
         Paragraph("<b>Actividad</b>", header_style),
@@ -610,7 +607,7 @@ def export_inspeccion_to_pdf_file(insp_dict):
             Paragraph(str(av.get("% Ejec", 0)), cell_style),
             Paragraph(str(av.get("Estado", "") or "N/A"), cell_style)
         ])
-    t_av = Table(av_data, colWidths=[200, 75, 75, 200])
+    t_av = Table(av_data, colWidths=[190, 75, 75, 210])
     t_av.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
@@ -619,32 +616,40 @@ def export_inspeccion_to_pdf_file(insp_dict):
     ]))
     story.append(t_av)
 
-    # 2. Check List General
     story.append(Spacer(1, 6))
-    story.append(Paragraph("2. CHECK LIST Y CONTROL GENERAL", sub_title))
-    chk_data = [[
-        Paragraph("<b>Sección</b>", header_style),
-        Paragraph("<b>Ítem / Aspecto</b>", header_style),
-        Paragraph("<b>Cumple / Estado</b>", header_style),
-        Paragraph("<b>Observación</b>", header_style)
-    ]]
-    
-    for sec_name, items in datos.get("Checklist", {}).items():
-        for it in items:
-            chk_data.append([
-                Paragraph(sec_name, cell_style),
-                Paragraph(str(it.get("Item") or it.get("Aspecto") or it.get("Revisar") or it.get("Equipo", "")), cell_style),
-                Paragraph(str(it.get("Cumple") or it.get("Estado", "") or "N/A"), cell_style),
-                Paragraph(str(it.get("Observación", "")), cell_style)
-            ])
-    t_chk = Table(chk_data, colWidths=[110, 160, 90, 190])
-    t_chk.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-    ]))
-    story.append(t_chk)
+    story.append(Paragraph("2. CHECK LIST Y CONTROL GENERAL DE OBRA", sub_title))
+
+    checklist_groups = datos.get("Checklist", {})
+
+    for sec_name, items in checklist_groups.items():
+        if items:
+            story.append(Paragraph(f"📌 <b>{sec_name.upper()}</b>", sec_header_style))
+            chk_data = [[
+                Paragraph("<b>Ítem / Aspecto Inspeccionado</b>", header_style),
+                Paragraph("<b>Cumple / Estado</b>", header_style),
+                Paragraph("<b>Observación</b>", header_style)
+            ]]
+
+            for it in items:
+                it_nombre = it.get("Item") or it.get("Aspecto") or it.get("Revisar") or it.get("Equipo", "")
+                it_estado = it.get("Cumple") or it.get("Estado", "") or "N/A"
+                it_obs = it.get("Observación", "")
+
+                chk_data.append([
+                    Paragraph(str(it_nombre), cell_style),
+                    Paragraph(str(it_estado), cell_style),
+                    Paragraph(str(it_obs), cell_style)
+                ])
+
+            t_sec = Table(chk_data, colWidths=[240, 100, 210])
+            t_sec.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+                ('TOPPADDING', (0,0), (-1,-1), 3),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+            ]))
+            story.append(t_sec)
+            story.append(Spacer(1, 4))
 
     doc.build(story)
     buffer.seek(0)
@@ -1368,20 +1373,20 @@ with tab_didactico:
 
     with st.form("form_didactico_1_6"):
         st.markdown("#### 1. Información General")
-        c1, c2, c3 = st.columns(3)
+        c1, c2 = st.columns(2)
         with c1:
             did_proyecto = st.selectbox("Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="did_proy")
             did_dia = st.text_input("Día:", value=dia_auto_es, disabled=True)
+            did_residente = st.text_input("Residente de Obra:", value=user_nombre_completo, key="did_res")
 
         with c2:
-            did_residente = st.text_input("Residente de Obra:", value=user_nombre_completo, key="did_res")
-            did_director = st.text_input("Director de Proyecto:", value="", placeholder="", key="did_dir")
             did_frente = st.text_input("Frente Inspeccionado:", placeholder="Ej. Bloque A - Piso 3", key="did_fre")
-
-        with c3:
             did_clima = st.selectbox("Clima:", ["Soleado", "Nublado", "Lluvia"], index=None, placeholder="Seleccionar clima...", key="did_cli_single")
-            did_h_ini = st.time_input("Hora inicio:", datetime.time(7, 0), key="did_hini")
-            did_h_fin = st.time_input("Hora fin:", datetime.time(17, 0), key="did_hfin")
+            c_h1, c_h2 = st.columns(2)
+            with c_h1:
+                did_h_ini = st.time_input("Hora inicio:", datetime.time(7, 0), key="did_hini")
+            with c_h2:
+                did_h_fin = st.time_input("Hora fin:", datetime.time(17, 0), key="did_hfin")
 
         st.markdown("---")
 
@@ -1557,7 +1562,6 @@ with tab_didactico:
                         "fecha": did_fecha_fuera.strftime("%Y-%m-%d"),
                         "dia": dia_auto_es,
                         "residente": did_residente,
-                        "director": did_director,
                         "frente": did_frente,
                         "clima": did_clima,
                         "hora_inicio": did_h_ini.strftime("%H:%M"),
@@ -1573,7 +1577,7 @@ with tab_didactico:
 
     st.markdown("---")
 
-    # HISTORIAL DE FORMATOS DE INSPECCIÓN DIARIA
+    # HISTORIAL DE FORMATOS DE INSPECCIÓN DIARIA (CON EDICIÓN Y ELIMINACIÓN)
     st.markdown("### Historial General de Formatos de Inspección Creados")
 
     mis_inspecciones = st.session_state.db_inspecciones.get(user_email, [])
@@ -1605,13 +1609,59 @@ with tab_didactico:
 
                 with col_i_info:
                     with st.expander(f"📌 {insp['Proyecto']} — {insp['Fecha']} ({insp['Dia']}) | Frente: {insp.get('Frente', 'N/A')}"):
-                        st.markdown(f"**Residente:** {insp.get('Residente', '')} | **Director:** {insp.get('Director', '')} | **Clima:** {insp.get('Clima', '')}")
+                        st.markdown(f"**Residente:** {insp.get('Residente', '')} | **Clima:** {insp.get('Clima', '')}")
                         st.markdown(f"**Horario:** {insp.get('Hora_Inicio', '')} - {insp.get('Hora_Fin', '')}")
                         
                         st.markdown("##### Avance General de Actividades:")
                         df_av = pd.DataFrame(insp.get("Datos", {}).get("Avance", []))
                         if not df_av.empty:
                             st.dataframe(df_av, use_container_width=True)
+
+                        # BOTÓN Y FORMULARIO DE EDICIÓN
+                        with st.popover("✏️ Editar Inspección"):
+                            st.markdown(f"#### Modificar Inspección — {insp['Proyecto']} ({insp['Fecha']})")
+                            with st.form(f"form_edit_insp_{insp['db_id']}"):
+                                e_frente = st.text_input("Frente Inspeccionado:", value=insp.get("Frente", ""))
+                                e_clima = st.selectbox("Clima:", ["Soleado", "Nublado", "Lluvia"], index=["Soleado", "Nublado", "Lluvia"].index(insp.get("Clima", "Soleado")) if insp.get("Clima") in ["Soleado", "Nublado", "Lluvia"] else 0)
+                                e_residente = st.text_input("Residente:", value=insp.get("Residente", ""))
+
+                                st.markdown("##### Actualizar Avance General")
+                                e_avance_datos = []
+                                current_avance = insp.get("Datos", {}).get("Avance", [])
+                                for item_av in current_avance:
+                                    c_e1, c_e2, c_e3, c_e4 = st.columns([3, 2, 2, 2])
+                                    act_n = item_av.get("Actividad", "")
+                                    with c_e1:
+                                        st.write(f"**{act_n}**")
+                                    with c_e2:
+                                        p_p = st.number_input(f"% Prog ({act_n})", min_value=0.0, max_value=100.0, value=float(item_av.get("% Prog", 0)), key=f"e_prog_{insp['db_id']}_{act_n}")
+                                    with c_e3:
+                                        p_e = st.number_input(f"% Ejec ({act_n})", min_value=0.0, max_value=100.0, value=float(item_av.get("% Ejec", 0)), key=f"e_ejec_{insp['db_id']}_{act_n}")
+                                    with c_e4:
+                                        e_st = st.selectbox(f"Estado ({act_n})", ["En Proceso", "Completado", "Retrasado", "N/A"], index=["En Proceso", "Completado", "Retrasado", "N/A"].index(item_av.get("Estado", "En Proceso")) if item_av.get("Estado") in ["En Proceso", "Completado", "Retrasado", "N/A"] else 0, key=f"e_est_{insp['db_id']}_{act_n}")
+                                    e_avance_datos.append({"Actividad": act_n, "% Prog": p_p, "% Ejec": p_e, "Estado": e_st})
+
+                                btn_save_edit = st.form_submit_button("💾 Guardar Cambios en Inspección", type="primary")
+
+                                if btn_save_edit:
+                                    updated_payload = insp.get("Datos", {})
+                                    updated_payload["Avance"] = e_avance_datos
+
+                                    try:
+                                        supabase.table("inspecciones").update({
+                                            "frente": e_frente,
+                                            "clima": e_clima,
+                                            "residente": e_residente,
+                                            "datos": updated_payload
+                                        }).eq("id", insp["db_id"]).execute()
+
+                                        st.session_state.db_loaded = False
+                                        st.success("¡Inspección actualizada correctamente!")
+                                        st.rerun()
+                                    except Exception as err:
+                                        st.error(f"Error al actualizar inspección: {err}")
+
+                        st.markdown("<br>", unsafe_allow_html=True)
 
                         c_dl_i1, c_dl_i2 = st.columns(2)
                         with c_dl_i1:
@@ -1847,7 +1897,7 @@ if es_admin:
 
             for idx_i_adm, i_adm in enumerate(insps_admin_filtradas, 1):
                 with st.expander(f"📌 [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} ({i_adm['Dia']}) — Usuario: {i_adm['Usuario_Correo']}"):
-                    st.markdown(f"**Residente:** {i_adm.get('Residente', '')} | **Director:** {i_adm.get('Director', '')} | **Clima:** {i_adm.get('Clima', '')}")
+                    st.markdown(f"**Residente:** {i_adm.get('Residente', '')} | **Clima:** {i_adm.get('Clima', '')}")
                     
                     c_ad_idl1, c_ad_idl2 = st.columns(2)
                     with c_ad_idl1:
