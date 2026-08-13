@@ -1,6 +1,7 @@
 streamlit
 pandas
-Pillow
 openpyxl
+pillow
 supabase
 streamlit-local-storage
+reportlab
