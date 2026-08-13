@@ -12,8 +12,14 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
+# Importaciones para generación de PDF profesional con ReportLab
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
 # ==========================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS TRÍCROMAS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS
 # ==========================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -27,338 +33,83 @@ st.markdown(
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+    h1, h2, h3, .brand-title { font-family: 'Montserrat', sans-serif !important; letter-spacing: -0.03em !important; }
 
-    h1, h2, h3, .brand-title {
-        font-family: 'Montserrat', sans-serif !important;
-        letter-spacing: -0.03em !important;
-    }
+    .block-container { padding-top: 1rem !important; padding-bottom: 1.5rem !important; padding-left: 2.5rem !important; padding-right: 2.5rem !important; max-width: 100% !important; }
+    .stApp { background-color: #ffffff !important; color: #121318 !important; }
+    .stApp p, .stApp label, .stApp span, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: #121318; }
+    .stCaption, caption, small, [data-testid="stCaptionContainer"] { color: #5a5f6e !important; }
 
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1.5rem !important;
-        padding-left: 2.5rem !important;
-        padding-right: 2.5rem !important;
-        max-width: 100% !important;
-    }
+    [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
 
-    .stApp {
-        background-color: #ffffff !important;
-        color: #121318 !important;
-    }
+    [data-testid="stSidebarCollapseButton"] { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important; }
+    [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 15px !important; left: 15px !important; z-index: 999999 !important; }
 
-    .stApp p, .stApp label, .stApp span, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
-        color: #121318;
+    [data-testid="stSidebarCollapseButton"] button, [data-testid="collapsedControl"] button {
+        background-color: #1c1e26 !important; border: 1px solid #323646 !important; border-radius: 50% !important; width: 36px !important; height: 36px !important; color: #ffffff !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important; transition: all 0.2s ease !important;
     }
+    [data-testid="stSidebarCollapseButton"] button:hover, [data-testid="collapsedControl"] button:hover {
+        background-color: #ff8c00 !important; border-color: #ff8c00 !important; transform: scale(1.08);
+    }
+    [data-testid="stSidebarCollapseButton"] svg, [data-testid="collapsedControl"] svg { fill: #ffffff !important; color: #ffffff !important; }
 
-    .stCaption, caption, small, [data-testid="stCaptionContainer"] {
-        color: #5a5f6e !important;
-    }
+    [data-testid="stSidebar"] { background-color: #121318 !important; border-right: 2px solid #282a36 !important; padding-top: 0px !important; padding-left: 12px !important; padding-right: 12px !important; padding-bottom: 15px !important; }
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.5rem !important; padding-top: 0px !important; }
+    [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] div { color: #ffffff !important; }
 
-    /* OCULTAR INSTRUCCIONES EN MÓVILES Y DESKTOP */
-    [data-testid="stInputInstructions"],
-    div[data-testid="stInputInstructions"] {
-        display: none !important;
-        visibility: hidden !important;
-    }
+    .sidebar-logo-card { background-color: #ffffff; border-radius: 12px; padding: 8px 10px; margin-top: 0px !important; margin-bottom: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3); width: 100% !important; box-sizing: border-box; text-align: center; display: block; }
+    [data-testid="stSidebar"] [data-testid="stImage"] { width: 100% !important; display: block !important; margin-top: 6px !important; margin-bottom: 10px !important; clear: both !important; }
+    [data-testid="stSidebar"] [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
 
-    [data-testid="stSidebarCollapseButton"] {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        z-index: 999999 !important;
-    }
+    .sidebar-profile-box { background: #1c1e26; border: 1px solid #323646; border-radius: 12px; padding: 10px 8px !important; text-align: center; margin-top: 4px; margin-bottom: 8px; width: 100% !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); box-sizing: border-box; }
+    .sidebar-user-nombres { font-size: 0.88rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }
+    .sidebar-user-apellidos { font-size: 0.85rem; font-weight: 700; color: #e0e4ed !important; margin-bottom: 4px !important; line-height: 1.2; }
+    .sidebar-user-email { font-size: 0.68rem; color: #72b2ff !important; font-weight: 600; margin-bottom: 6px !important; word-break: break-all; }
+    .sidebar-user-cargo { display: inline-block; background: #323646 !important; color: #ffffff !important; border: 1px solid #484e5e !important; font-size: 0.60rem !important; font-weight: 800 !important; padding: 2px 8px !important; border-radius: 14px !important; text-transform: uppercase !important; }
 
-    [data-testid="collapsedControl"] {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        position: fixed !important;
-        top: 15px !important;
-        left: 15px !important;
-        z-index: 999999 !important;
-    }
+    [data-testid="stSidebar"] hr { margin: 6px 0 !important; border-color: #282a36 !important; }
+    [data-testid="stSidebar"] [data-testid="stExpander"] { background-color: #1c1e26 !important; border: 1px solid #323646 !important; border-radius: 10px !important; margin-top: 2px !important; margin-bottom: 6px !important; }
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #282c36 !important; padding: 6px 8px !important; }
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary * { color: #ffffff !important; font-weight: 700 !important; font-size: 0.78rem !important; }
 
-    [data-testid="stSidebarCollapseButton"] button, 
-    [data-testid="collapsedControl"] button {
-        background-color: #1c1e26 !important;
-        border: 1px solid #323646 !important;
-        border-radius: 50% !important;
-        width: 36px !important;
-        height: 36px !important;
-        color: #ffffff !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-        transition: all 0.2s ease !important;
-    }
+    .executive-card-studio { background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%); border: 1px solid #b8c4d8; border-left: 7px solid #121318; border-radius: 22px; padding: 22px 28px; box-shadow: 0 12px 35px rgba(0,0,0,0.06); margin-bottom: 20px; width: 100%; box-sizing: border-box; }
+    .brand-title { font-family: 'Montserrat', sans-serif !important; font-weight: 700 !important; font-size: 2.4rem !important; background: linear-gradient(90deg, #121318 0%, #3a4256 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 12px rgba(0,0,0,0.08); letter-spacing: -0.03em !important; }
 
-    [data-testid="stSidebarCollapseButton"] button:hover, 
-    [data-testid="collapsedControl"] button:hover {
-        background-color: #ff8c00 !important;
-        border-color: #ff8c00 !important;
-        transform: scale(1.08);
-    }
+    .kpi-card-studio { background: linear-gradient(145deg, #eceff6 0%, #dbe2ef 100%); border: 1px solid #aebacf; border-radius: 20px; padding: 18px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.06); transition: all 0.3s ease; }
+    .kpi-card-studio:hover { transform: translateY(-3px); box-shadow: 0 14px 35px rgba(0,0,0,0.12); filter: brightness(1.02); }
+    .kpi-val-studio { font-size: 2.5rem; font-weight: 900; color: #121318 !important; }
+    .kpi-lbl-studio { font-size: 0.72rem; color: #4a5060 !important; text-transform: uppercase; font-weight: 800; }
 
-    [data-testid="stSidebarCollapseButton"] svg, 
-    [data-testid="collapsedControl"] svg {
-        fill: #ffffff !important;
-        color: #ffffff !important;
-    }
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #e2e5ec !important; padding: 6px; border-radius: 16px; border: 1px solid #c2c7d2; }
+    .stTabs [data-baseweb="tab"] { border-radius: 12px !important; padding: 10px 24px !important; background-color: transparent !important; }
+    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: #121318 !important; font-weight: 700 !important; }
+    .stTabs [aria-selected="true"] { background-color: #121318 !important; border-radius: 12px !important; }
+    .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span, .stTabs [aria-selected="true"] div { color: #ffffff !important; font-weight: 900 !important; }
 
-    [data-testid="stSidebar"] {
-        background-color: #121318 !important;
-        border-right: 2px solid #282a36 !important;
-        padding-top: 0px !important;
-        padding-left: 12px !important;
-        padding-right: 12px !important;
-        padding-bottom: 15px !important;
-    }
+    .stButton > button { background-color: #121318 !important; color: #ffffff !important; border-radius: 980px !important; border: none !important; font-weight: 800 !important; padding: 10px 22px !important; }
+    .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        gap: 0.5rem !important;
-        padding-top: 0px !important;
-    }
-
-    [data-testid="stSidebar"] label, 
-    [data-testid="stSidebar"] p, 
-    [data-testid="stSidebar"] span, 
-    [data-testid="stSidebar"] h1, 
-    [data-testid="stSidebar"] h2, 
-    [data-testid="stSidebar"] h3, 
-    [data-testid="stSidebar"] div {
-        color: #ffffff !important;
-    }
-
-    .sidebar-logo-card {
-        background-color: #ffffff;
-        border-radius: 12px;
-        padding: 8px 10px;
-        margin-top: 0px !important;
-        margin-bottom: 20px !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        width: 100% !important;
-        box-sizing: border-box;
-        text-align: center;
-        display: block;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stImage"] {
-        width: 100% !important;
-        display: block !important;
-        margin-top: 6px !important;
-        margin-bottom: 10px !important;
-        clear: both !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stImage"] img {
-        border-radius: 12px !important;
-        width: 100% !important;
-        height: auto !important;
-        max-width: 100% !important;
-        object-fit: cover !important;
-        border: 1px solid #323646 !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        margin: 0 !important;
-        display: block !important;
-    }
-
-    .sidebar-profile-box {
-        background: #1c1e26;
-        border: 1px solid #323646;
-        border-radius: 12px;
-        padding: 10px 8px !important;
-        text-align: center;
-        margin-top: 4px;
-        margin-bottom: 8px;
-        width: 100% !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        box-sizing: border-box;
-    }
-
-    .sidebar-user-nombres {
-        font-size: 0.88rem;
-        font-weight: 800;
-        color: #ffffff !important;
-        line-height: 1.2;
-    }
-
-    .sidebar-user-apellidos {
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #e0e4ed !important;
-        margin-bottom: 4px !important;
-        line-height: 1.2;
-    }
-
-    .sidebar-user-email {
-        font-size: 0.68rem;
-        color: #72b2ff !important;
-        font-weight: 600;
-        margin-bottom: 6px !important;
-        word-break: break-all;
-    }
-
-    .sidebar-user-cargo {
-        display: inline-block;
-        background: #323646 !important;
-        color: #ffffff !important;
-        border: 1px solid #484e5e !important;
-        font-size: 0.60rem !important;
-        font-weight: 800 !important;
-        padding: 2px 8px !important;
-        border-radius: 14px !important;
-        text-transform: uppercase !important;
-    }
-
-    [data-testid="stSidebar"] hr {
-        margin: 6px 0 !important;
-        border-color: #282a36 !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stExpander"] {
-        background-color: #1c1e26 !important;
-        border: 1px solid #323646 !important;
-        border-radius: 10px !important;
-        margin-top: 2px !important;
-        margin-bottom: 6px !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stExpander"] summary {
-        background-color: #282c36 !important;
-        padding: 6px 8px !important;
-    }
-
-    [data-testid="stSidebar"] [data-testid="stExpander"] summary * {
-        color: #ffffff !important;
-        font-weight: 700 !important;
-        font-size: 0.78rem !important;
-    }
-
-    .executive-card-studio {
-        background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%);
-        border: 1px solid #b8c4d8;
-        border-left: 7px solid #121318;
-        border-radius: 22px;
-        padding: 22px 28px;
-        box-shadow: 0 12px 35px rgba(0,0,0,0.06);
-        margin-bottom: 20px;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    .brand-title {
-        font-family: 'Montserrat', sans-serif !important;
-        font-weight: 700 !important;
-        font-size: 2.4rem !important;
-        background: linear-gradient(90deg, #121318 0%, #3a4256 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: 0 2px 12px rgba(0,0,0,0.08);
-        letter-spacing: -0.03em !important;
-    }
-
-    .kpi-card-studio {
-        background: linear-gradient(145deg, #eceff6 0%, #dbe2ef 100%);
-        border: 1px solid #aebacf;
-        border-radius: 20px;
-        padding: 18px;
-        text-align: center;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.06);
-        transition: all 0.3s ease;
-    }
-    .kpi-card-studio:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 14px 35px rgba(0,0,0,0.12);
-        filter: brightness(1.02);
-    }
-
-    .kpi-val-studio {
-        font-size: 2.5rem;
-        font-weight: 900;
-        color: #121318 !important;
-    }
-
-    .kpi-lbl-studio {
-        font-size: 0.72rem;
-        color: #4a5060 !important;
-        text-transform: uppercase;
-        font-weight: 800;
-    }
-
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: #e2e5ec !important;
-        padding: 6px;
-        border-radius: 16px;
-        border: 1px solid #c2c7d2;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 12px !important;
-        padding: 10px 24px !important;
-        background-color: transparent !important;
-    }
-
-    .stTabs [data-baseweb="tab"] p, 
-    .stTabs [data-baseweb="tab"] span {
-        color: #121318 !important;
-        font-weight: 700 !important;
-    }
-
-    .stTabs [aria-selected="true"] {
-        background-color: #121318 !important;
-        border-radius: 12px !important;
-    }
-
-    .stTabs [aria-selected="true"] p, 
-    .stTabs [aria-selected="true"] span,
-    .stTabs [aria-selected="true"] div {
-        color: #ffffff !important;
-        font-weight: 900 !important;
-    }
-
-    .stButton > button {
-        background-color: #121318 !important;
-        color: #ffffff !important;
-        border-radius: 980px !important;
-        border: none !important;
-        font-weight: 800 !important;
-        padding: 10px 22px !important;
-    }
-
-    .stButton > button p, .stButton > button span {
-        color: #ffffff !important;
-    }
-
-    .streamlit-expanderHeader {
-        background-color: #e8eaee !important;
-        border-radius: 12px !important;
-        border: 1px solid #c2c7d2 !important;
-        font-weight: 700 !important;
-    }
-
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    .streamlit-expanderHeader { background-color: #e8eaee !important; border-radius: 12px !important; border: 1px solid #c2c7d2 !important; font-weight: 700 !important; }
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;}
     </style>
 """,
     unsafe_allow_html=True,
 )
 
 # ==========================================
-# 2. CONEXIÓN Y PERSISTENCIA PERMANENTE EN SUPABASE
+# 2. CONEXIÓN Y CARGA SUPABASE
 # ==========================================
 @st.cache_resource
 def init_supabase():
     url = st.secrets.get("SUPABASE_URL", "")
     key = st.secrets.get("SUPABASE_KEY", "")
     if not url or not key:
-        st.error("⚠️ No se encontraron las credenciales SUPABASE_URL / SUPABASE_KEY en Secrets de Streamlit.")
+        st.error("⚠️ Credenciales SUPABASE_URL / SUPABASE_KEY no configuradas.")
         st.stop()
     return create_client(url, key)
 
 supabase = init_supabase()
-
 local_storage = LocalStorage()
 
 DEFAULT_TRABAJADORES = []
@@ -400,13 +151,11 @@ def load_db_from_supabase():
 
     try:
         res_trab = supabase.table("trabajadores").select("*").execute()
-        if res_trab.data and len(res_trab.data) > 0:
-            db_trabajadores = [{"nombre": r["nombre"], "cargo": r["cargo"]} for r in res_trab.data]
-        else:
-            db_trabajadores = DEFAULT_TRABAJADORES
+        db_trabajadores = [{"nombre": r["nombre"], "cargo": r["cargo"]} for r in res_trab.data] if res_trab.data else DEFAULT_TRABAJADORES
     except Exception:
         db_trabajadores = DEFAULT_TRABAJADORES
 
+    # Carga Checklists
     db_checklists = {}
     try:
         res_chk = supabase.table("checklists").select("*").execute()
@@ -430,6 +179,33 @@ def load_db_from_supabase():
     except Exception:
         pass
 
+    # Carga Formato de Inspección
+    db_inspecciones = {}
+    try:
+        res_insp = supabase.table("inspecciones").select("*").execute()
+        for r in res_insp.data:
+            c = r["usuario_email"].lower().strip()
+            if c not in db_inspecciones:
+                db_inspecciones[c] = []
+            
+            datos_parsed = r["datos"] if isinstance(r["datos"], dict) else json.loads(r["datos"])
+            db_inspecciones[c].append({
+                "db_id": r["id"],
+                "Fecha": str(r["fecha"]),
+                "Dia": r.get("dia", ""),
+                "Proyecto": r["proyecto"],
+                "Residente": r.get("residente", ""),
+                "Director": r.get("director", ""),
+                "Frente": r.get("frente", ""),
+                "Clima": r.get("clima", ""),
+                "Hora_Inicio": r.get("hora_inicio", "07:00"),
+                "Hora_Fin": r.get("hora_fin", "17:00"),
+                "Datos": datos_parsed
+            })
+    except Exception:
+        pass
+
+    # Carga Rendimientos
     db_rendimientos = {}
     try:
         res_rnd = supabase.table("rendimientos").select("*").execute()
@@ -461,6 +237,7 @@ def load_db_from_supabase():
         "db_fotos_perfil_b64": db_fotos,
         "db_usuarios": db_usuarios,
         "db_checklists": db_checklists,
+        "db_inspecciones": db_inspecciones,
         "db_rendimientos": db_rendimientos,
         "db_trabajadores": db_trabajadores,
     }
@@ -472,11 +249,12 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     st.session_state.db_fotos_perfil_b64 = p_data["db_fotos_perfil_b64"]
     st.session_state.db_usuarios = p_data["db_usuarios"]
     st.session_state.db_checklists = p_data["db_checklists"]
+    st.session_state.db_inspecciones = p_data["db_inspecciones"]
     st.session_state.db_rendimientos = p_data["db_rendimientos"]
     st.session_state.db_trabajadores = p_data["db_trabajadores"]
     st.session_state.db_loaded = True
 
-# PERSISTENCIA DE SESIÓN INFINITA EN EL NAVEGADOR
+# PERSISTENCIA DE SESIÓN
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
@@ -497,22 +275,14 @@ if not st.session_state.autenticado:
             st.session_state.usuario_cargo = u_match["Cargo"]
 
 def render_estado_badge(estado_str):
-    if "Cumple" in estado_str and "No" not in estado_str:
+    if not estado_str:
+        return '<span style="color: #64748b; font-weight: 600;">Sin Responder</span>'
+    if "Cumple" in estado_str or estado_str in ["Sí", "Operativo", "Completado"]:
         return f'<span style="background-color: #dcfce7; color: #16a34a; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #bbf7d0; font-size: 0.82rem;">{estado_str}</span>'
-    elif "No Cumple" in estado_str:
+    elif "No" in estado_str or estado_str in ["Fuera de servicio", "Retrasado"]:
         return f'<span style="background-color: #fee2e2; color: #dc2626; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #fca5a5; font-size: 0.82rem;">{estado_str}</span>'
     else:
         return f'<span style="background-color: #f1f5f9; color: #121318; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.82rem;">{estado_str}</span>'
-
-def get_repo_image_b64(filenames):
-    for filename in filenames:
-        if os.path.exists(filename):
-            try:
-                with open(filename, "rb") as f:
-                    return base64.b64encode(f.read()).decode("utf-8")
-            except Exception:
-                pass
-    return None
 
 def image_to_base64(image_file):
     if image_file is not None:
@@ -537,6 +307,19 @@ def base64_to_image(b64_str):
             return None
     return None
 
+def get_repo_image_b64(filenames):
+    for filename in filenames:
+        if os.path.exists(filename):
+            try:
+                with open(filename, "rb") as f:
+                    return base64.b64encode(f.read()).decode("utf-8")
+            except Exception:
+                pass
+    return None
+
+# ==========================================
+# GENERADORES DE REPORTES EXCEL Y PDF
+# ==========================================
 def export_checklist_to_excel_file(jornada_dict):
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -557,10 +340,8 @@ def export_checklist_to_excel_file(jornada_dict):
     ws.append(headers)
 
     thin_border = Border(
-        left=Side(style='thin', color='D3D3D3'),
-        right=Side(style='thin', color='D3D3D3'),
-        top=Side(style='thin', color='D3D3D3'),
-        bottom=Side(style='thin', color='D3D3D3')
+        left=Side(style='thin', color='D3D3D3'), right=Side(style='thin', color='D3D3D3'),
+        top=Side(style='thin', color='D3D3D3'), bottom=Side(style='thin', color='D3D3D3')
     )
 
     for col in range(1, len(headers) + 1):
@@ -571,23 +352,16 @@ def export_checklist_to_excel_file(jornada_dict):
         cell.border = thin_border
 
     ws.row_dimensions[4].height = 30
-
     datos = jornada_dict.get("Datos", [])
     start_row = 5
+
     for row_idx, item in enumerate(datos, start=start_row):
         obs_val = item.get("Observaciones", "")
         if item.get("Actividades_Especificas"):
-            sub_acts = " | Actividades a realizar: " + ", ".join([f"• {a['Actividad']}" for a in item["Actividades_Especificas"] if a.get("Actividad")])
+            sub_acts = " | Actividades: " + ", ".join([f"• {a['Actividad']}" for a in item["Actividades_Especificas"] if a.get("Actividad")])
             obs_val += sub_acts
 
-        ws.append([
-            item.get("Jornada", ""),
-            item.get("N°", ""),
-            item.get("Actividad", ""),
-            item.get("Estado", ""),
-            obs_val
-        ])
-
+        ws.append([item.get("Jornada", ""), item.get("N°", ""), item.get("Actividad", ""), item.get("Estado", ""), obs_val])
         ws.row_dimensions[row_idx].height = 180
 
         for c_i in range(1, 7):
@@ -610,19 +384,13 @@ def export_checklist_to_excel_file(jornada_dict):
                 img_xlsx = OpenpyxlImage(img_stream)
                 img_xlsx.width = 320
                 img_xlsx.height = 180
-
-                col_w_px = 350
-                row_h_px = 240
-                img_xlsx.left = max(2, (col_w_px - img_xlsx.width) / 2)
-                img_xlsx.top = max(2, (row_h_px - img_xlsx.height) / 2)
-
                 ws.add_image(img_xlsx, f"F{row_idx}")
             except Exception:
                 pass
 
     if jornada_dict.get("Observacion_General"):
         last_r = len(datos) + start_row
-        ws.cell(row=last_r, column=1, value="OBSERVACIÓN GENERAL DE LA INSPECCIÓN:").font = Font(bold=True)
+        ws.cell(row=last_r, column=1, value="OBSERVACIÓN GENERAL:").font = Font(bold=True)
         ws.cell(row=last_r, column=3, value=jornada_dict.get("Observacion_General"))
 
     ws.column_dimensions['A'].width = 16
@@ -637,52 +405,190 @@ def export_checklist_to_excel_file(jornada_dict):
     output.seek(0)
     return output.getvalue()
 
+def export_checklist_to_pdf_file(jornada_dict):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    story = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=10)
+    sub_style = ParagraphStyle('SubStyle', fontName='Helvetica', fontSize=9, textColor=colors.HexColor('#333333'), spaceAfter=4)
+    cell_style = ParagraphStyle('CellStyle', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#121318'))
+    cell_bold = ParagraphStyle('CellBold', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor('#121318'))
+
+    story.append(Paragraph(f"CHECKLIST DIARIO DE OBRA — {jornada_dict.get('Edificio', '').upper()}", title_style))
+    story.append(Paragraph(f"<b>Fecha:</b> {jornada_dict.get('Fecha', '')} | <b>Horario:</b> {jornada_dict.get('Hora_Inicio', '')} - {jornada_dict.get('Hora_Fin', '')} | <b>Responsable:</b> {jornada_dict.get('Responsable', '')}", sub_style))
+    story.append(Spacer(1, 10))
+
+    data = [[Paragraph("Jornada", cell_bold), Paragraph("N°", cell_bold), Paragraph("Actividad", cell_bold), Paragraph("Estado", cell_bold), Paragraph("Observaciones", cell_bold)]]
+    
+    for item in jornada_dict.get("Datos", []):
+        obs = item.get("Observaciones", "")
+        if item.get("Actividades_Especificas"):
+            sub_acts = ", ".join([a['Actividad'] for a in item["Actividades_Especificas"] if a.get("Actividad")])
+            if sub_acts:
+                obs += f" (Específicas: {sub_acts})"
+
+        data.append([
+            Paragraph(str(item.get("Jornada", "")), cell_style),
+            Paragraph(str(item.get("N°", "")), cell_style),
+            Paragraph(str(item.get("Actividad", "")), cell_style),
+            Paragraph(str(item.get("Estado", "") or "N/A"), cell_style),
+            Paragraph(str(obs), cell_style)
+        ])
+
+    table = Table(data, colWidths=[60, 25, 200, 70, 195])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    story.append(table)
+
+    if jornada_dict.get("Observacion_General"):
+        story.append(Spacer(1, 10))
+        story.append(Paragraph(f"<b>Observación General:</b> {jornada_dict.get('Observacion_General')}", sub_style))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+def export_inspeccion_to_excel_file(insp_dict):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Inspección Diaria"
+
+    ws.merge_cells("A1:D1")
+    ws["A1"] = f"FORMATO DE INSPECCIÓN DIARIA - {insp_dict.get('Proyecto', '')}"
+    ws["A1"].font = Font(bold=True, color="FFFFFF", size=13)
+    ws["A1"].fill = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+
+    meta_info = [
+        ["Fecha:", insp_dict.get("Fecha", ""), "Día:", insp_dict.get("Dia", "")],
+        ["Residente de Obra:", insp_dict.get("Residente", ""), "Director de Proyecto:", insp_dict.get("Director", "")],
+        ["Frente Inspeccionado:", insp_dict.get("Frente", ""), "Clima:", insp_dict.get("Clima", "")],
+        ["Hora Inicio:", insp_dict.get("Hora_Inicio", ""), "Hora Fin:", insp_dict.get("Hora_Fin", "")]
+    ]
+    for row in meta_info:
+        ws.append(row)
+
+    ws.append([])
+    datos = insp_dict.get("Datos", {})
+
+    # Avance General
+    ws.append(["1. AVANCE GENERAL", "", "", ""])
+    ws.append(["Actividad", "% Programado", "% Ejecutado", "Estado"])
+    for av in datos.get("Avance", []):
+        ws.append([av.get("Actividad", ""), av.get("% Prog", 0), av.get("% Ejec", 0), av.get("Estado", "")])
+
+    ws.append([])
+    # Check List
+    ws.append(["2. CHECK LIST GENERAL", "", "", ""])
+    ws.append(["Sección", "Item / Aspecto", "Cumple / Estado", "Observación"])
+    for sec_name, items in datos.get("Checklist", {}).items():
+        for it in items:
+            ws.append([sec_name, it.get("Item") or it.get("Aspecto") or it.get("Revisar") or it.get("Equipo", ""), it.get("Cumple") or it.get("Estado", ""), it.get("Observación", "")])
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+def export_inspeccion_to_pdf_file(insp_dict):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    story = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=8)
+    sub_title = ParagraphStyle('SubTitle', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#121318'), spaceBefore=8, spaceAfter=4)
+    cell_style = ParagraphStyle('CellStyle', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#121318'))
+    cell_bold = ParagraphStyle('CellBold', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor('#121318'))
+
+    story.append(Paragraph(f"FORMATO DE INSPECCIÓN DIARIA DE OBRA", title_style))
+    story.append(Paragraph(f"<b>Proyecto:</b> {insp_dict.get('Proyecto', '')} | <b>Fecha:</b> {insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})", cell_style))
+    story.append(Paragraph(f"<b>Residente:</b> {insp_dict.get('Residente', '')} | <b>Director:</b> {insp_dict.get('Director', '')} | <b>Frente:</b> {insp_dict.get('Frente', '')}", cell_style))
+    story.append(Paragraph(f"<b>Clima:</b> {insp_dict.get('Clima', '')} | <b>Horario:</b> {insp_dict.get('Hora_Inicio', '')} - {insp_dict.get('Hora_Fin', '')}", cell_style))
+    story.append(Spacer(1, 8))
+
+    datos = insp_dict.get("Datos", {})
+
+    # Avance General
+    story.append(Paragraph("1. AVANCE GENERAL", sub_title))
+    av_data = [[Paragraph("Actividad", cell_bold), Paragraph("% Prog", cell_bold), Paragraph("% Ejec", cell_bold), Paragraph("Estado", cell_bold)]]
+    for av in datos.get("Avance", []):
+        av_data.append([
+            Paragraph(av.get("Actividad", ""), cell_style),
+            Paragraph(str(av.get("% Prog", 0)), cell_style),
+            Paragraph(str(av.get("% Ejec", 0)), cell_style),
+            Paragraph(str(av.get("Estado", "") or "N/A"), cell_style)
+        ])
+    t_av = Table(av_data, colWidths=[200, 80, 80, 190])
+    t_av.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#e2e8f0')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_av)
+
+    # Check List
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("2. CHECK LIST Y CONTROL GENERAL", sub_title))
+    chk_data = [[Paragraph("Sección", cell_bold), Paragraph("Ítem", cell_bold), Paragraph("Cumple / Estado", cell_bold), Paragraph("Observación", cell_bold)]]
+    
+    for sec_name, items in datos.get("Checklist", {}).items():
+        for it in items:
+            chk_data.append([
+                Paragraph(sec_name, cell_style),
+                Paragraph(str(it.get("Item") or it.get("Aspecto") or it.get("Revisar") or it.get("Equipo", "")), cell_style),
+                Paragraph(str(it.get("Cumple") or it.get("Estado", "") or "N/A"), cell_style),
+                Paragraph(str(it.get("Observación", "")), cell_style)
+            ])
+    t_chk = Table(chk_data, colWidths=[110, 170, 90, 180])
+    t_chk.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#e2e8f0')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_chk)
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
 def export_dataframe_to_excel_csv(df):
     df_clean = df.drop(columns=["Foto_B64"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 # ==========================================
-# 3. BASE DE DATOS Y ESTADOS DE SESIÓN
+# 3. CONSTANTES
 # ==========================================
 EDIFICIOS_ALPHA = [
-    "Tesla",
-    "Lafuente",
-    "Imagine",
-    "Asimov",
-    "Rubik",
-    "Castle Rock",
-    "Musk",
-    "Wolf",
-    "Dablanc",
-    "Thomas Edison",
-    "Westinghouse",
-    "Smart",
+    "Tesla", "Lafuente", "Imagine", "Asimov", "Rubik", "Castle Rock",
+    "Musk", "Wolf", "Dablanc", "Thomas Edison", "Westinghouse", "Smart",
 ]
 
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
 RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
 
 ACTIVIDADES_MANANA = [
-    "Verificación de asistencia del personal",
-    "Distribución de cuadrillas por frente de trabajo",
-    "Recorrido inicial de obra",
-    "Supervisión de la ejecución de los trabajos",
-    "Verificación de los trabajos y la calidad",
-    "Coordinación con otras especialidades",
+    "Verificación de asistencia del personal", "Distribución de cuadrillas por frente de trabajo",
+    "Recorrido inicial de obra", "Supervisión de la ejecución de los trabajos",
+    "Verificación de los trabajos y la calidad", "Coordinación con otras especialidades",
     "Corrección de observaciones detectadas",
 ]
 
 ACTIVIDADES_TARDE = [
-    "Recorrido de seguimiento de los frentes de trabajo",
-    "Verificación del avance físico de las actividades",
-    "Control del rendimiento de las cuadrillas",
-    "Supervisión de la ejecución de los trabajos",
-    "Verificación de los trabajos y la calidad",
-    "Revisión de observaciones pendientes",
-    "Verificación de trabajos corregidos",
-    "Verificación del orden y limpieza de los frentes de trabajo",
-    "Confirmación de materiales para el siguiente día",
-    "Revisión del cumplimiento de la meta diaria",
+    "Recorrido de seguimiento de los frentes de trabajo", "Verificación del avance físico de las actividades",
+    "Control del rendimiento de las cuadrillas", "Supervisión de la ejecución de los trabajos",
+    "Verificación de los trabajos y la calidad", "Revisión de observaciones pendientes",
+    "Verificación de trabajos corregidos", "Verificación del orden y limpieza de los frentes de trabajo",
+    "Confirmación de materiales para el siguiente día", "Revisión del cumplimiento de la meta diaria",
     "Cierre de actividades en campo",
 ]
 # ==========================================
@@ -732,7 +638,6 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_apellidos = u_match["Apellidos"]
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 
-                                # GUARDADO PERMANENTE EN NAVEGADOR (LOCALSTORAGE)
                                 local_storage.setItem("user_session_email", mail_clean)
                                 st.rerun()
                             else:
@@ -798,7 +703,6 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = reg_cargo
                                 st.session_state.db_loaded = False
                                 
-                                # GUARDADO PERMANENTE EN NAVEGADOR (LOCALSTORAGE)
                                 local_storage.setItem("user_session_email", mail_clean)
                                 st.success("¡Registro completado exitosamente!")
                                 st.rerun()
@@ -846,7 +750,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==========================================
-# 5. BARRA LATERAL (CIERRE DE SESIÓN MANUAL)
+# 5. BARRA LATERAL
 # ==========================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -952,7 +856,7 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 6. DASHBOARD PRINCIPAL Y PLANTILLA DE OBREROS
+# 6. DASHBOARD PRINCIPAL Y OBREROS
 # ==========================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
@@ -967,10 +871,11 @@ st.markdown(
 )
 
 usr_chks = len(st.session_state.db_checklists.get(user_email, []))
+usr_insps = len(st.session_state.db_inspecciones.get(user_email, []))
 usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 total_obreros = len(st.session_state.db_trabajadores)
 
-k1, k2, k3 = st.columns(3)
+k1, k2, k3, k4 = st.columns(4)
 with k1:
     with st.popover(f"👷 {total_obreros} Activos", use_container_width=True):
         st.markdown(f"### Plantilla de Obreros ({total_obreros} Activos)")
@@ -1055,20 +960,16 @@ with k1:
                 st.info("No hay obreros registrados actualmente.")
 
     st.markdown(
-        f'<div class="kpi-card-studio" style="margin-top: -62px; pointer-events: none;"><div class="kpi-val-studio">{total_obreros}</div><div class="kpi-lbl-studio">Obreros Activos (Gestionar)</div></div>',
+        f'<div class="kpi-card-studio" style="margin-top: -62px; pointer-events: none;"><div class="kpi-val-studio">{total_obreros}</div><div class="kpi-lbl-studio">Obreros Activos</div></div>',
         unsafe_allow_html=True,
     )
 
 with k2:
-    st.markdown(
-        f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_chks}</div><div class="kpi-lbl-studio">Checklists Guardados</div></div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_chks}</div><div class="kpi-lbl-studio">Checklists Guardados</div></div>', unsafe_allow_html=True)
 with k3:
-    st.markdown(
-        f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_rnds}</div><div class="kpi-lbl-studio">Reportes de Rendimiento</div></div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_insps}</div><div class="kpi-lbl-studio">Inspecciones Diarias</div></div>', unsafe_allow_html=True)
+with k4:
+    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_rnds}</div><div class="kpi-lbl-studio">Reportes Rendimiento</div></div>', unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1257,8 +1158,8 @@ with tab_chk:
 
     st.markdown("---")
 
-    # SELECCIÓN Y FILTRADO DE CHECKLISTS POR EDIFICIO
-    st.markdown("### Historial General de Inspecciones Creadas")
+    # HISTORIAL DE CHECKLISTS FILTRADO POR EDIFICIO CON OPCIÓN PDF Y EXCEL
+    st.markdown("### Historial General de Checklists Creados")
 
     mis_jornadas = st.session_state.db_checklists.get(user_email, [])
 
@@ -1271,12 +1172,9 @@ with tab_chk:
                 key="filtro_edificio_historial"
             )
 
-        if edificio_filtro != "-- Todos los Edificios --":
-            jornadas_filtradas = [j for j in mis_jornadas if j.get("Edificio") == edificio_filtro]
-        else:
-            jornadas_filtradas = mis_jornadas.copy()
+        jornadas_filtradas = [j for j in mis_jornadas if j.get("Edificio") == edificio_filtro] if edificio_filtro != "-- Todos los Edificios --" else mis_jornadas.copy()
 
-        st.caption(f"Mostrando **{len(jornadas_filtradas)}** de **{len(mis_jornadas)}** inspección(es) registradas.")
+        st.caption(f"Mostrando **{len(jornadas_filtradas)}** de **{len(mis_jornadas)}** checklist(s) registrados.")
 
         if len(jornadas_filtradas) > 0:
             meses_nombres = {
@@ -1285,11 +1183,7 @@ with tab_chk:
                 "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
             }
 
-            jornadas_con_index = []
-            for orig_idx, j_item in enumerate(mis_jornadas):
-                if j_item in jornadas_filtradas:
-                    jornadas_con_index.append((orig_idx, j_item))
-
+            jornadas_con_index = [(orig_idx, j_item) for orig_idx, j_item in enumerate(mis_jornadas) if j_item in jornadas_filtradas]
             jornadas_con_index.sort(key=lambda x: x[1]['Fecha'], reverse=True)
 
             grupos_meses = {}
@@ -1297,10 +1191,8 @@ with tab_chk:
                 f_str = j['Fecha']
                 try:
                     partes = f_str.split("-")
-                    anio = partes[0]
-                    mes_num = partes[1]
-                    nombre_mes = f"{meses_nombres.get(mes_num, 'Mes')} {anio}"
-                except:
+                    nombre_mes = f"{meses_nombres.get(partes[1], 'Mes')} {partes[0]}"
+                except Exception:
                     nombre_mes = "Otros"
                 
                 if nombre_mes not in grupos_meses:
@@ -1308,27 +1200,25 @@ with tab_chk:
                 grupos_meses[nombre_mes].append((orig_idx, j))
 
             for mes_anio, lista_j in grupos_meses.items():
-                with st.expander(f"📅 {mes_anio} ({len(lista_j)} inspecciones)", expanded=True):
+                with st.expander(f"📅 {mes_anio} ({len(lista_j)} checklists)", expanded=True):
                     for idx_rel, (orig_idx, j) in enumerate(lista_j):
                         col_j_info, col_j_del = st.columns([8, 1])
                         
                         with col_j_del:
-                            if st.button("🗑️", key=f"quick_del_{orig_idx}", help="Borrar jornada permanentemente"):
+                            if st.button("🗑️", key=f"quick_del_{orig_idx}", help="Borrar checklist permanentemente"):
                                 try:
                                     supabase.table("checklists").delete().eq("id", j["db_id"]).execute()
                                     st.session_state.db_loaded = False
-                                    st.success("¡Jornada eliminada de Supabase!")
+                                    st.success("¡Checklist eliminado!")
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Error al eliminar: {e}")
 
                         with col_j_info:
                             with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})"):
-                                
                                 st.markdown("#### Actividades Registradas y Evidencias:")
                                 df_data = pd.DataFrame(j["Datos"])
                                 for _, row in df_data.iterrows():
-                                    
                                     estado_badge = render_estado_badge(row['Estado'])
                                     st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: {estado_badge}", unsafe_allow_html=True)
                                     
@@ -1336,7 +1226,7 @@ with tab_chk:
                                     if sub_tasks:
                                         for st_item in sub_tasks:
                                             if st_item.get("Actividad"):
-                                                st.markdown(f"  * ▫️ *Actividad a realizar:* {st_item['Actividad']}")
+                                                st.markdown(f"  * ▫️ *Actividad:* {st_item['Actividad']}")
 
                                     if row['Observaciones']:
                                         st.caption(f"Obs: {row['Observaciones']}")
@@ -1344,33 +1234,44 @@ with tab_chk:
                                     if row.get("Foto_B64") is not None:
                                         img_evidencia = base64_to_image(row["Foto_B64"])
                                         if img_evidencia:
-                                            with st.popover(f"📷 Vista previa de la imagen"):
-                                                st.image(img_evidencia, caption=f"Evidencia: {row['Actividad']}", use_container_width=True)
+                                            with st.popover("📷 Vista previa"):
+                                                st.image(img_evidencia, caption=row['Actividad'], use_container_width=True)
 
                                     st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
                                 if j.get("Observacion_General"):
                                     st.info(f"**Observación General:** {j.get('Observacion_General')}")
 
-                                excel_bytes = export_checklist_to_excel_file(j)
-                                st.download_button(
-                                    label=f"📥 Descargar Excel con Imágenes - {j['Edificio']} ({j['Fecha']})",
-                                    data=excel_bytes,
-                                    file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.xlsx",
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                    key=f"dl_xlsx_{orig_idx}"
-                                )
+                                c_dl1, c_dl2 = st.columns(2)
+                                with c_dl1:
+                                    excel_bytes = export_checklist_to_excel_file(j)
+                                    st.download_button(
+                                        label="📊 Descargar Excel (.xlsx)",
+                                        data=excel_bytes,
+                                        file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.xlsx",
+                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                        key=f"dl_xlsx_{orig_idx}"
+                                    )
+                                with c_dl2:
+                                    pdf_bytes = export_checklist_to_pdf_file(j)
+                                    st.download_button(
+                                        label="📄 Descargar PDF (.pdf)",
+                                        data=pdf_bytes,
+                                        file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.pdf",
+                                        mime="application/pdf",
+                                        key=f"dl_pdf_{orig_idx}"
+                                    )
         else:
-            st.warning("No hay inspecciones registradas para el edificio seleccionado.")
+            st.warning("No hay checklists registrados para el edificio seleccionado.")
     else:
-        st.info("Aún no hay inspecciones guardadas en la base de datos.")
+        st.info("Aún no hay checklists guardados.")
 
 # ------------------------------------------
-# MÓDULO DE INSPECCIÓN DIARIA
+# MÓDULO DE INSPECCIÓN DIARIA (PERSISTENTE)
 # ------------------------------------------
 with tab_didactico:
     st.markdown("### Formato de Inspección Diaria de Obra")
-    st.caption("Supervisión técnica paso a paso con tabuladores y control visual rápido.")
+    st.caption("Supervisión técnica paso a paso con tabuladores y registro permanente.")
 
     dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     
@@ -1381,7 +1282,6 @@ with tab_didactico:
     dia_auto_es = dias_es[did_fecha_fuera.weekday()]
 
     with st.form("form_didactico_1_6"):
-        # 1. INFORMACIÓN GENERAL
         st.markdown("#### 1. Información General")
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -1439,12 +1339,7 @@ with tab_didactico:
                 with cs1:
                     st.write(f"• {item}")
                 with cs2:
-                    st_val = st.segmented_control(
-                        f"Seg_{item}",
-                        ["Sí", "No", "N/A"],
-                        key=f"seg_{item}",
-                        label_visibility="collapsed"
-                    )
+                    st_val = st.segmented_control(f"Seg_{item}", ["Sí", "No", "N/A"], key=f"seg_{item}", label_visibility="collapsed")
                 with cs3:
                     obs_val = st.text_input(f"Obs_{item}", placeholder="Observaciones...", key=f"seg_obs_{item}", label_visibility="collapsed")
                 seg_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
@@ -1457,12 +1352,7 @@ with tab_didactico:
                 with cm1:
                     st.write(f"• {item}")
                 with cm2:
-                    st_val = st.segmented_control(
-                        f"Mamp_{item}",
-                        ["Sí", "No"],
-                        key=f"mamp_{item}",
-                        label_visibility="collapsed"
-                    )
+                    st_val = st.segmented_control(f"Mamp_{item}", ["Sí", "No"], key=f"mamp_{item}", label_visibility="collapsed")
                 with cm3:
                     obs_val = st.text_input(f"Obs_mamp_{item}", placeholder="Observaciones...", key=f"mamp_obs_{item}", label_visibility="collapsed")
                 mamp_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
@@ -1475,12 +1365,7 @@ with tab_didactico:
                 with ch1:
                     st.write(f"• {item}")
                 with ch2:
-                    st_val = st.segmented_control(
-                        f"Horm_{item}",
-                        ["Sí", "No"],
-                        key=f"horm_{item}",
-                        label_visibility="collapsed"
-                    )
+                    st_val = st.segmented_control(f"Horm_{item}", ["Sí", "No"], key=f"horm_{item}", label_visibility="collapsed")
                 with ch3:
                     obs_val = st.text_input(f"Obs_horm_{item}", placeholder="Observaciones...", key=f"horm_obs_{item}", label_visibility="collapsed")
                 horm_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
@@ -1493,12 +1378,7 @@ with tab_didactico:
                 with ci1:
                     st.write(f"• {item}")
                 with ci2:
-                    st_val = st.segmented_control(
-                        f"Inst_{item}",
-                        ["Sí", "No"],
-                        key=f"inst_{item}",
-                        label_visibility="collapsed"
-                    )
+                    st_val = st.segmented_control(f"Inst_{item}", ["Sí", "No"], key=f"inst_{item}", label_visibility="collapsed")
                 with ci3:
                     obs_val = st.text_input(f"Obs_inst_{item}", placeholder="Observaciones...", key=f"inst_obs_{item}", label_visibility="collapsed")
                 inst_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
@@ -1511,12 +1391,7 @@ with tab_didactico:
                 with ca1:
                     st.write(f"• {item}")
                 with ca2:
-                    st_val = st.segmented_control(
-                        f"Acab_{item}",
-                        ["Sí", "No"],
-                        key=f"acab_{item}",
-                        label_visibility="collapsed"
-                    )
+                    st_val = st.segmented_control(f"Acab_{item}", ["Sí", "No"], key=f"acab_{item}", label_visibility="collapsed")
                 with ca3:
                     obs_val = st.text_input(f"Obs_acab_{item}", placeholder="Observaciones...", key=f"acab_obs_{item}", label_visibility="collapsed")
                 acab_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
@@ -1532,12 +1407,7 @@ with tab_didactico:
             with cp1:
                 st.write(f"• {item}")
             with cp2:
-                st_val = st.segmented_control(
-                    f"Pers_{item}",
-                    ["Sí", "No"],
-                    key=f"pers_{item}",
-                    label_visibility="collapsed"
-                )
+                st_val = st.segmented_control(f"Pers_{item}", ["Sí", "No"], key=f"pers_{item}", label_visibility="collapsed")
             with cp3:
                 obs_val = st.text_input(f"Obs_pers_{item}", placeholder="Observación...", key=f"pers_obs_{item}", label_visibility="collapsed")
             pers_resp.append({"Aspecto": item, "Cumple": st_val, "Observación": obs_val})
@@ -1553,12 +1423,7 @@ with tab_didactico:
             with cmat1:
                 st.write(f"• {item}")
             with cmat2:
-                st_val = st.segmented_control(
-                    f"Mat_{item}",
-                    ["Sí", "No"],
-                    key=f"mat_{item}",
-                    label_visibility="collapsed"
-                )
+                st_val = st.segmented_control(f"Mat_{item}", ["Sí", "No"], key=f"mat_{item}", label_visibility="collapsed")
             with cmat3:
                 obs_val = st.text_input(f"Obs_mat_{item}", placeholder="Observación...", key=f"mat_obs_{item}", label_visibility="collapsed")
             mat_resp.append({"Revisar": item, "Cumple": st_val, "Observación": obs_val})
@@ -1574,12 +1439,7 @@ with tab_didactico:
             with ceq1:
                 st.write(f"• {item}")
             with ceq2:
-                st_val = st.segmented_control(
-                    f"Eq_{item}",
-                    ["Operativo", "Fuera de servicio"],
-                    key=f"eq_{item}",
-                    label_visibility="collapsed"
-                )
+                st_val = st.segmented_control(f"Eq_{item}", ["Operativo", "Fuera de servicio"], key=f"eq_{item}", label_visibility="collapsed")
             with ceq3:
                 obs_val = st.text_input(f"Obs_eq_{item}", placeholder="Observación...", key=f"eq_obs_{item}", label_visibility="collapsed")
             eq_resp.append({"Equipo": item, "Estado": st_val, "Observación": obs_val})
@@ -1592,7 +1452,105 @@ with tab_didactico:
             elif not did_clima:
                 st.error("⚠️ Por favor seleccione las condiciones del clima.")
             else:
-                st.success(f"¡Formato de inspección registrado exitosamente para el proyecto **{did_proyecto}**!")
+                payload_insp = {
+                    "Avance": avance_datos,
+                    "Checklist": {
+                        "Seguridad Industrial": seg_resp,
+                        "Mampostería": mamp_resp,
+                        "Hormigón": horm_resp,
+                        "Instalaciones": inst_resp,
+                        "Acabados": acab_resp,
+                        "Control de Personal": pers_resp,
+                        "Materiales": mat_resp,
+                        "Equipos": eq_resp
+                    }
+                }
+                try:
+                    supabase.table("inspecciones").insert({
+                        "usuario_email": user_email,
+                        "proyecto": did_proyecto,
+                        "fecha": did_fecha_fuera.strftime("%Y-%m-%d"),
+                        "dia": dia_auto_es,
+                        "residente": did_residente,
+                        "director": did_director,
+                        "frente": did_frente,
+                        "clima": did_clima,
+                        "hora_inicio": did_h_ini.strftime("%H:%M"),
+                        "hora_fin": did_h_fin.strftime("%H:%M"),
+                        "datos": payload_insp
+                    }).execute()
+
+                    st.session_state.db_loaded = False
+                    st.success(f"¡Formato de inspección registrado y guardado permanentemente para **{did_proyecto}**!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al guardar inspección en Supabase: {e}")
+
+    st.markdown("---")
+
+    # HISTORIAL DE FORMATOS DE INSPECCIÓN DIARIA
+    st.markdown("### Historial General de Formatos de Inspección Creados")
+
+    mis_inspecciones = st.session_state.db_inspecciones.get(user_email, [])
+
+    if len(mis_inspecciones) > 0:
+        col_edif_insp, _ = st.columns([2, 2])
+        with col_edif_insp:
+            edif_insp_filtro = st.selectbox("🏢 Seleccionar Proyecto para consultar:", ["-- Todos los Proyectos --"] + EDIFICIOS_ALPHA, key="filtro_edif_inspecciones")
+
+        insps_filtradas = [i for i in mis_inspecciones if i.get("Proyecto") == edif_insp_filtro] if edif_insp_filtro != "-- Todos los Proyectos --" else mis_inspecciones.copy()
+
+        st.caption(f"Mostrando **{len(insps_filtradas)}** de **{len(mis_inspecciones)}** inspección(es) registradas.")
+
+        if len(insps_filtradas) > 0:
+            insps_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
+
+            for idx_insp, insp in enumerate(insps_filtradas, 1):
+                col_i_info, col_i_del = st.columns([8, 1])
+
+                with col_i_del:
+                    if st.button("🗑️", key=f"del_insp_{idx_insp}", help="Borrar inspección permanentemente"):
+                        try:
+                            supabase.table("inspecciones").delete().eq("id", insp["db_id"]).execute()
+                            st.session_state.db_loaded = False
+                            st.success("¡Inspección eliminada!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al eliminar: {e}")
+
+                with col_i_info:
+                    with st.expander(f"📌 {insp['Proyecto']} — {insp['Fecha']} ({insp['Dia']}) | Frente: {insp.get('Frente', 'N/A')}"):
+                        st.markdown(f"**Residente:** {insp.get('Residente', '')} | **Director:** {insp.get('Director', '')} | **Clima:** {insp.get('Clima', '')}")
+                        st.markdown(f"**Horario:** {insp.get('Hora_Inicio', '')} - {insp.get('Hora_Fin', '')}")
+                        
+                        st.markdown("##### Avance General de Actividades:")
+                        df_av = pd.DataFrame(insp.get("Datos", {}).get("Avance", []))
+                        if not df_av.empty:
+                            st.dataframe(df_av, use_container_width=True)
+
+                        c_dl_i1, c_dl_i2 = st.columns(2)
+                        with c_dl_i1:
+                            excel_insp_bytes = export_inspeccion_to_excel_file(insp)
+                            st.download_button(
+                                label="📊 Descargar Excel (.xlsx)",
+                                data=excel_insp_bytes,
+                                file_name=f"Inspeccion_{insp['Proyecto'].replace(' ', '_')}_{insp['Fecha']}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key=f"dl_insp_xlsx_{idx_insp}"
+                            )
+                        with c_dl_i2:
+                            pdf_insp_bytes = export_inspeccion_to_pdf_file(insp)
+                            st.download_button(
+                                label="📄 Descargar PDF (.pdf)",
+                                data=pdf_insp_bytes,
+                                file_name=f"Inspeccion_{insp['Proyecto'].replace(' ', '_')}_{insp['Fecha']}.pdf",
+                                mime="application/pdf",
+                                key=f"dl_insp_pdf_{idx_insp}"
+                            )
+        else:
+            st.warning("No hay formatos de inspección para el proyecto seleccionado.")
+    else:
+        st.info("Aún no hay formatos de inspección guardados.")
 
 # ==========================================
 # 8. MÓDULO 2: CONTROL DE RENDIMIENTO
@@ -1686,7 +1644,7 @@ with tab_rend:
         st.info("Aún no existen registros en su historial.")
 
 # ==========================================
-# 9. MÓDULO ADMINISTRADOR (MONITOREO GLOBAL DE PARTICIPANTES)
+# 9. MÓDULO ADMINISTRADOR
 # ==========================================
 if es_admin:
     tab_admin = tabs_app[3]
@@ -1720,9 +1678,7 @@ if es_admin:
 
         st.markdown("---")
 
-        st.markdown("#### 👁️ Inspecciones Subidas por Todos los Participantes")
-        st.caption("Filtre por edificio/proyecto o por participante para consultar el historial global.")
-
+        st.markdown("#### 👁️ Checklists Subidos por Todos los Participantes")
         todas_las_jornadas_admin = []
         for u_mail, j_lista in st.session_state.db_checklists.items():
             for j_item in j_lista:
@@ -1732,61 +1688,103 @@ if es_admin:
 
         if len(todas_las_jornadas_admin) > 0:
             col_adm_f1, col_adm_f2 = st.columns(2)
-            
             with col_adm_f1:
-                edificios_lista_admin = ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA
-                filtro_edif_admin = st.selectbox("Filtrar inspecciones por edificio / proyecto:", edificios_lista_admin, key="admin_filter_edif_chk")
-
+                filtro_edif_admin = st.selectbox("Filtrar por edificio / proyecto:", ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA, key="admin_filter_edif_chk")
             with col_adm_f2:
                 usuarios_lista_chk = ["-- Todos los Usuarios --"] + sorted(list(set([j["Usuario_Correo"] for j in todas_las_jornadas_admin])))
-                filtro_usr_chk = st.selectbox("Filtrar inspecciones por participante:", usuarios_lista_chk, key="admin_filter_usr_chk")
+                filtro_usr_chk = st.selectbox("Filtrar por participante:", usuarios_lista_chk, key="admin_filter_usr_chk")
 
             jornadas_admin_filtradas = todas_las_jornadas_admin.copy()
-
             if filtro_edif_admin != "-- Todos los Edificios --":
                 jornadas_admin_filtradas = [j for j in jornadas_admin_filtradas if j.get("Edificio") == filtro_edif_admin]
-
             if filtro_usr_chk != "-- Todos los Usuarios --":
                 jornadas_admin_filtradas = [j for j in jornadas_admin_filtradas if j["Usuario_Correo"] == filtro_usr_chk]
 
             jornadas_admin_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
 
-            st.caption(f"Mostrando **{len(jornadas_admin_filtradas)}** de **{len(todas_las_jornadas_admin)}** inspección(es) registradas.")
+            for idx_adm, j_adm in enumerate(jornadas_admin_filtradas, 1):
+                resp_str = j_adm.get("Responsable", "") or j_adm["Usuario_Correo"]
+                with st.expander(f"📌 [{j_adm.get('Edificio', 'N/A')}] {j_adm['Fecha']} — {resp_str} ({j_adm['Usuario_Correo']})"):
+                    st.markdown(f"**Usuario:** `{j_adm['Usuario_Correo']}` | **Responsable:** {resp_str}")
+                    
+                    df_data_adm = pd.DataFrame(j_adm["Datos"])
+                    for _, r_adm in df_data_adm.iterrows():
+                        badge_adm = render_estado_badge(r_adm['Estado'])
+                        st.markdown(f"- **[{r_adm['Jornada']}] N° {r_adm['N°']}. {r_adm['Actividad']}**: {badge_adm}", unsafe_allow_html=True)
 
-            if len(jornadas_admin_filtradas) > 0:
-                for idx_adm, j_adm in enumerate(jornadas_admin_filtradas, 1):
-                    resp_str = j_adm.get("Responsable", "") or j_adm["Usuario_Correo"]
-                    with st.expander(f"📌 [{j_adm.get('Edificio', 'N/A')}] {j_adm['Fecha']} — {resp_str} ({j_adm['Usuario_Correo']})"):
-                        st.markdown(f"**Usuario:** `{j_adm['Usuario_Correo']}` | **Responsable:** {resp_str} ({j_adm.get('Cargo', '')})")
-                        st.markdown(f"**Edificio:** {j_adm['Edificio']} | **Horario:** {j_adm.get('Hora_Inicio', 'N/A')} - {j_adm.get('Hora_Fin', 'N/A')}")
-                        
-                        df_data_adm = pd.DataFrame(j_adm["Datos"])
-                        for _, r_adm in df_data_adm.iterrows():
-                            badge_adm = render_estado_badge(r_adm['Estado'])
-                            st.markdown(f"- **[{r_adm['Jornada']}] N° {r_adm['N°']}. {r_adm['Actividad']}**: {badge_adm}", unsafe_allow_html=True)
-                            if r_adm.get("Observaciones"):
-                                st.caption(f"Obs: {r_adm['Observaciones']}")
-                            if r_adm.get("Foto_B64"):
-                                img_ev_adm = base64_to_image(r_adm["Foto_B64"])
-                                if img_ev_adm:
-                                    with st.popover("📷 Ver Foto Evidencia"):
-                                        st.image(img_ev_adm, caption=r_adm['Actividad'], use_container_width=True)
-
-                        if j_adm.get("Observacion_General"):
-                            st.info(f"**Observación General:** {j_adm.get('Observacion_General')}")
-
+                    c_ad_dl1, c_ad_dl2 = st.columns(2)
+                    with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label=f"📥 Descargar Excel de {resp_str} ({j_adm['Fecha']})",
+                            label=f"📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             key=f"dl_xlsx_adm_{idx_adm}"
                         )
-            else:
-                st.warning("No se encontraron inspecciones para los filtros seleccionados.")
+                    with c_ad_dl2:
+                        pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
+                        st.download_button(
+                            label=f"📄 Descargar PDF",
+                            data=pdf_bytes_adm,
+                            file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
+                            mime="application/pdf",
+                            key=f"dl_pdf_adm_{idx_adm}"
+                        )
         else:
-            st.info("Ningún participante ha registrado inspecciones aún.")
+            st.info("Ningún participante ha registrado checklists aún.")
+
+        st.markdown("---")
+
+        st.markdown("#### 📑 Formatos de Inspección Subidos por Todos los Participantes")
+        todas_las_inspecciones_admin = []
+        for u_mail, i_lista in st.session_state.db_inspecciones.items():
+            for i_item in i_lista:
+                i_copy = i_item.copy()
+                i_copy["Usuario_Correo"] = u_mail
+                todas_las_inspecciones_admin.append(i_copy)
+
+        if len(todas_las_inspecciones_admin) > 0:
+            col_adm_i1, col_adm_i2 = st.columns(2)
+            with col_adm_i1:
+                filtro_edif_insp_adm = st.selectbox("Filtrar inspecciones por edificio:", ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA, key="admin_filter_edif_insp")
+            with col_adm_i2:
+                usuarios_lista_insp = ["-- Todos los Usuarios --"] + sorted(list(set([i["Usuario_Correo"] for i in todas_las_inspecciones_admin])))
+                filtro_usr_insp_adm = st.selectbox("Filtrar inspecciones por usuario:", usuarios_lista_insp, key="admin_filter_usr_insp")
+
+            insps_admin_filtradas = todas_las_inspecciones_admin.copy()
+            if filtro_edif_insp_adm != "-- Todos los Edificios --":
+                insps_admin_filtradas = [i for i in insps_admin_filtradas if i.get("Proyecto") == filtro_edif_insp_adm]
+            if filtro_usr_insp_adm != "-- Todos los Usuarios --":
+                insps_admin_filtradas = [i for i in insps_admin_filtradas if i["Usuario_Correo"] == filtro_usr_insp_adm]
+
+            insps_admin_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
+
+            for idx_i_adm, i_adm in enumerate(insps_admin_filtradas, 1):
+                with st.expander(f"📌 [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} ({i_adm['Dia']}) — Usuario: {i_adm['Usuario_Correo']}"):
+                    st.markdown(f"**Residente:** {i_adm.get('Residente', '')} | **Director:** {i_adm.get('Director', '')} | **Clima:** {i_adm.get('Clima', '')}")
+                    
+                    c_ad_idl1, c_ad_idl2 = st.columns(2)
+                    with c_ad_idl1:
+                        excel_insp_bytes_adm = export_inspeccion_to_excel_file(i_adm)
+                        st.download_button(
+                            label="📊 Descargar Excel (.xlsx)",
+                            data=excel_insp_bytes_adm,
+                            file_name=f"Inspeccion_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key=f"dl_insp_xlsx_adm_{idx_i_adm}"
+                        )
+                    with c_ad_idl2:
+                        pdf_insp_bytes_adm = export_inspeccion_to_pdf_file(i_adm)
+                        st.download_button(
+                            label="📄 Descargar PDF (.pdf)",
+                            data=pdf_insp_bytes_adm,
+                            file_name=f"Inspeccion_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf",
+                            mime="application/pdf",
+                            key=f"dl_insp_pdf_adm_{idx_i_adm}"
+                        )
+        else:
+            st.info("Ningún participante ha registrado formatos de inspección aún.")
 
         st.markdown("---")
 
@@ -1885,13 +1883,15 @@ if es_admin:
         for u in st.session_state.db_usuarios:
             e = u["Correo"]
             num_c = len(st.session_state.db_checklists.get(e, []))
+            num_i = len(st.session_state.db_inspecciones.get(e, []))
             num_r = len(st.session_state.db_rendimientos.get(e, []))
             resumen_actividad.append({
                 "Usuario": f"{u['Nombres']} {u['Apellidos']}".strip() or e,
                 "Correo": e,
                 "Cargo": u["Cargo"],
-                "Checklists Guardados": num_c,
-                "Rendimientos Registrados": num_r,
+                "Checklists": num_c,
+                "Inspecciones": num_i,
+                "Rendimientos": num_r,
                 "Estado": u["Estado"]
             })
 
