@@ -204,6 +204,46 @@ def load_db_from_supabase():
     except Exception:
         pass
 
+    # Carga Supervisión Unificada
+    db_unificadas = {}
+    try:
+        res_uni = supabase.table("supervisiones_unificadas").select("*").execute()
+        for r in res_uni.data:
+            c = r["usuario_email"].lower().strip()
+            if c not in db_unificadas:
+                db_unificadas[c] = []
+            datos_parsed = r["datos"] if isinstance(r["datos"], dict) else json.loads(r["datos"])
+            db_unificadas[c].append({
+                "db_id": r["id"],
+                "Fecha": str(r["fecha"]),
+                "Proyecto": r["proyecto"],
+                "Frente": r.get("frente", ""),
+                "Residente": r.get("residente", ""),
+                "Clima": r.get("clima", ""),
+                "Datos": datos_parsed
+            })
+    except Exception:
+        pass
+
+    # Carga Incidencias
+    db_incidencias = []
+    try:
+        res_inc = supabase.table("incidencias").select("*").execute()
+        for r in res_inc.data:
+            db_incidencias.append({
+                "db_id": r["id"],
+                "Area": r["area"],
+                "Descripcion": r["descripcion"],
+                "Responsable": r["responsable"],
+                "Prioridad": r["prioridad"],
+                "Fecha_Compromiso": str(r["fecha_compromiso"]),
+                "Estado": r["estado"],
+                "Proyecto": r.get("proyecto", ""),
+                "Usuario": r.get("usuario_email", "")
+            })
+    except Exception:
+        pass
+
     # Carga Rendimientos
     db_rendimientos = {}
     try:
@@ -237,6 +277,8 @@ def load_db_from_supabase():
         "db_usuarios": db_usuarios,
         "db_checklists": db_checklists,
         "db_inspecciones": db_inspecciones,
+        "db_unificadas": db_unificadas,
+        "db_incidencias": db_incidencias,
         "db_rendimientos": db_rendimientos,
         "db_trabajadores": db_trabajadores,
     }
@@ -249,6 +291,8 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     st.session_state.db_usuarios = p_data["db_usuarios"]
     st.session_state.db_checklists = p_data["db_checklists"]
     st.session_state.db_inspecciones = p_data["db_inspecciones"]
+    st.session_state.db_unificadas = p_data["db_unificadas"]
+    st.session_state.db_incidencias = p_data["db_incidencias"]
     st.session_state.db_rendimientos = p_data["db_rendimientos"]
     st.session_state.db_trabajadores = p_data["db_trabajadores"]
     st.session_state.db_loaded = True
@@ -276,9 +320,9 @@ if not st.session_state.autenticado:
 def render_estado_badge(estado_str):
     if not estado_str:
         return '<span style="color: #64748b; font-weight: 600;">Sin Responder</span>'
-    if "Cumple" in estado_str or estado_str in ["Sí", "Operativo", "Completado"]:
+    if "Cumple" in estado_str or estado_str in ["Sí", "Operativo", "Completado", "Cerrada", "EFICIENTE"]:
         return f'<span style="background-color: #dcfce7; color: #16a34a; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #bbf7d0; font-size: 0.82rem;">{estado_str}</span>'
-    elif "No" in estado_str or estado_str in ["Fuera de servicio", "Retrasado"]:
+    elif "No" in estado_str or estado_str in ["Fuera de servicio", "Retrasado", "Abierta", "EXCESO DE HH"]:
         return f'<span style="background-color: #fee2e2; color: #dc2626; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #fca5a5; font-size: 0.82rem;">{estado_str}</span>'
     else:
         return f'<span style="background-color: #f1f5f9; color: #121318; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.82rem;">{estado_str}</span>'
@@ -320,7 +364,6 @@ def get_repo_image_b64(filenames):
 # GENERADORES DE REPORTES EXCEL, PDF Y CSV
 # ==========================================
 def export_dataframe_to_excel_csv(df):
-    """Exportación en CSV delimitado por punto y coma (para compatibilidad con Excel)."""
     df_clean = df.drop(columns=["Foto_B64", "db_id"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
@@ -472,7 +515,6 @@ def export_inspeccion_to_excel_file(insp_dict):
     ws = wb.active
     ws.title = "Inspección Diaria"
 
-    # Estilos visuales
     thin_border = Border(
         left=Side(style='thin', color='CBD5E1'), 
         right=Side(style='thin', color='CBD5E1'),
@@ -495,7 +537,6 @@ def export_inspeccion_to_excel_file(insp_dict):
     font_bold = Font(name="Arial", bold=True, color="121318", size=9.5)
     font_regular = Font(name="Arial", size=9)
 
-    # 1. Título Principal
     ws.merge_cells("A1:C1")
     ws["A1"] = f"FORMATO DE INSPECCIÓN DIARIA - {insp_dict.get('Proyecto', '').upper()}"
     ws["A1"].font = font_main_title
@@ -503,7 +544,6 @@ def export_inspeccion_to_excel_file(insp_dict):
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 28
 
-    # Meta Información
     meta_info = [
         ["Fecha:", f"{insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})", ""],
         ["Residente de Obra:", insp_dict.get("Residente", ""), ""],
@@ -520,7 +560,6 @@ def export_inspeccion_to_excel_file(insp_dict):
     ws.append([])
     datos = insp_dict.get("Datos", {})
 
-    # 2. Avance General
     r_av_head = ws.max_row + 1
     ws.merge_cells(f"A{r_av_head}:C{r_av_head}")
     ws[f"A{r_av_head}"] = "1. AVANCE GENERAL"
@@ -548,14 +587,11 @@ def export_inspeccion_to_excel_file(insp_dict):
             if col_i in [2, 3]:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    # 3. Check List General Delimitado por Categorías
     checklist_groups = datos.get("Checklist", {})
 
     for sec_name, items in checklist_groups.items():
         if items:
-            ws.append([])  # Espacio entre bloques
-            
-            # BARRA DE SUBTÍTULO DELIMITADORA (Ej. ■ HORMIGÓN)
+            ws.append([])
             r_sec = ws.max_row + 1
             ws.merge_cells(f"A{r_sec}:C{r_sec}")
             ws[f"A{r_sec}"] = f"■  {sec_name.upper()}"
@@ -564,7 +600,6 @@ def export_inspeccion_to_excel_file(insp_dict):
             ws[f"A{r_sec}"].alignment = Alignment(vertical="center", indent=1)
             ws.row_dimensions[r_sec].height = 24
             
-            # CABECERA NEGRA DIRECTA (Sin fila vacía intermedia)
             ws.append(["Ítem / Aspecto Inspeccionado", "Cumple / Estado", "Observación"])
             r_hdr_sub = ws.max_row
             ws.row_dimensions[r_hdr_sub].height = 20
@@ -575,7 +610,6 @@ def export_inspeccion_to_excel_file(insp_dict):
                 c.fill = fill_main_header
                 c.alignment = Alignment(horizontal="center", vertical="center")
 
-            # FILAS DE CADA CATEGORÍA
             total_items = len(items)
             for idx_it, it in enumerate(items, 1):
                 it_nombre = it.get("Item") or it.get("Aspecto") or it.get("Revisar") or it.get("Equipo", "")
@@ -593,7 +627,6 @@ def export_inspeccion_to_excel_file(insp_dict):
                 c2.font = font_regular
                 c3.font = font_regular
 
-                # Borde más pronunciado al final del cuadro para cerrarlo perfectamente
                 b_style = thick_bottom if idx_it == total_items else thin_border
                 c1.border = b_style
                 c2.border = b_style
@@ -603,7 +636,6 @@ def export_inspeccion_to_excel_file(insp_dict):
                 c2.alignment = Alignment(horizontal="center", vertical="center")
                 c3.alignment = Alignment(vertical="center", wrap_text=True)
 
-    # Anchos de columna optimizados
     ws.column_dimensions['A'].width = 38
     ws.column_dimensions['B'].width = 24
     ws.column_dimensions['C'].width = 45
@@ -1005,10 +1037,12 @@ st.markdown(
 
 usr_chks = len(st.session_state.db_checklists.get(user_email, []))
 usr_insps = len(st.session_state.db_inspecciones.get(user_email, []))
+usr_unis = len(st.session_state.db_unificadas.get(user_email, []))
+usr_incs = len(st.session_state.db_incidencias)
 usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 total_obreros = len(st.session_state.db_trabajadores)
 
-k1, k2, k3, k4 = st.columns(4)
+k1, k2, k3, k4, k5 = st.columns(5)
 with k1:
     with st.popover(f"👷 {total_obreros} Activos", use_container_width=True):
         st.markdown(f"### Plantilla de Obreros ({total_obreros} Activos)")
@@ -1098,15 +1132,23 @@ with k1:
     )
 
 with k2:
-    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_chks}</div><div class="kpi-lbl-studio">Checklists Guardados</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_chks}</div><div class="kpi-lbl-studio">Checklists</div></div>', unsafe_allow_html=True)
 with k3:
-    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_insps}</div><div class="kpi-lbl-studio">Inspecciones Diarias</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_unis}</div><div class="kpi-lbl-studio">Supervisión Unificada</div></div>', unsafe_allow_html=True)
 with k4:
-    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_rnds}</div><div class="kpi-lbl-studio">Reportes Rendimiento</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_incs}</div><div class="kpi-lbl-studio">Incidencias</div></div>', unsafe_allow_html=True)
+with k5:
+    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_rnds}</div><div class="kpi-lbl-studio">Rendimientos</div></div>', unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-pestanas = ["Checklist Diario", "Inspección Diaria", "Control de Rendimiento"]
+pestanas = [
+    "Checklist Diario", 
+    "Inspección Diaria", 
+    "📋 Supervisión Unificada", 
+    "🚨 Levantamiento de Incidencias", 
+    "Control de Rendimiento"
+]
 if es_admin:
     pestanas.append("Panel Admin")
 
@@ -1116,7 +1158,9 @@ tabs_app = st.tabs(pestanas)
 # ==========================================
 tab_chk = tabs_app[0]
 tab_didactico = tabs_app[1]
-tab_rend = tabs_app[2]
+tab_unificada = tabs_app[2]
+tab_incidencias = tabs_app[3]
+tab_rend = tabs_app[4]
 
 # ------------------------------------------
 # MÓDULO 1: CHECKLIST DIARIO
@@ -1291,9 +1335,7 @@ with tab_chk:
 
     st.markdown("---")
 
-    # HISTORIAL DE CHECKLISTS POR EDIFICIO
     st.markdown("### Historial General de Checklists Creados")
-
     mis_jornadas = st.session_state.db_checklists.get(user_email, [])
 
     if len(mis_jornadas) > 0:
@@ -1310,90 +1352,58 @@ with tab_chk:
         st.caption(f"Mostrando **{len(jornadas_filtradas)}** de **{len(mis_jornadas)}** checklist(s) registrados.")
 
         if len(jornadas_filtradas) > 0:
-            meses_nombres = {
-                "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
-                "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
-                "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
-            }
+            jornadas_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
 
-            jornadas_con_index = [(orig_idx, j_item) for orig_idx, j_item in enumerate(mis_jornadas) if j_item in jornadas_filtradas]
-            jornadas_con_index.sort(key=lambda x: x[1]['Fecha'], reverse=True)
-
-            grupos_meses = {}
-            for orig_idx, j in jornadas_con_index:
-                f_str = j['Fecha']
-                try:
-                    partes = f_str.split("-")
-                    nombre_mes = f"{meses_nombres.get(partes[1], 'Mes')} {partes[0]}"
-                except Exception:
-                    nombre_mes = "Otros"
+            for orig_idx, j in enumerate(jornadas_filtradas):
+                col_j_info, col_j_del = st.columns([8, 1])
                 
-                if nombre_mes not in grupos_meses:
-                    grupos_meses[nombre_mes] = []
-                grupos_meses[nombre_mes].append((orig_idx, j))
+                with col_j_del:
+                    if st.button("🗑️", key=f"quick_del_{orig_idx}", help="Borrar checklist permanentemente"):
+                        try:
+                            supabase.table("checklists").delete().eq("id", j["db_id"]).execute()
+                            st.session_state.db_loaded = False
+                            st.success("¡Checklist eliminado!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al eliminar: {e}")
 
-            for mes_anio, lista_j in grupos_meses.items():
-                with st.expander(f"📅 {mes_anio} ({len(lista_j)} checklists)", expanded=True):
-                    for idx_rel, (orig_idx, j) in enumerate(lista_j):
-                        col_j_info, col_j_del = st.columns([8, 1])
-                        
-                        with col_j_del:
-                            if st.button("🗑️", key=f"quick_del_{orig_idx}", help="Borrar checklist permanentemente"):
-                                try:
-                                    supabase.table("checklists").delete().eq("id", j["db_id"]).execute()
-                                    st.session_state.db_loaded = False
-                                    st.success("¡Checklist eliminado!")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error al eliminar: {e}")
+                with col_j_info:
+                    with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})"):
+                        df_data = pd.DataFrame(j["Datos"])
+                        for _, row in df_data.iterrows():
+                            estado_badge = render_estado_badge(row['Estado'])
+                            st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: {estado_badge}", unsafe_allow_html=True)
+                            
+                            sub_tasks = row.get("Actividades_Especificas", [])
+                            if sub_tasks:
+                                for st_item in sub_tasks:
+                                    if st_item.get("Actividad"):
+                                        st.markdown(f"  * ▫️ *Actividad:* {st_item['Actividad']}")
 
-                        with col_j_info:
-                            with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})"):
-                                st.markdown("#### Actividades Registradas y Evidencias:")
-                                df_data = pd.DataFrame(j["Datos"])
-                                for _, row in df_data.iterrows():
-                                    estado_badge = render_estado_badge(row['Estado'])
-                                    st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: {estado_badge}", unsafe_allow_html=True)
-                                    
-                                    sub_tasks = row.get("Actividades_Especificas", [])
-                                    if sub_tasks:
-                                        for st_item in sub_tasks:
-                                            if st_item.get("Actividad"):
-                                                st.markdown(f"  * ▫️ *Actividad:* {st_item['Actividad']}")
+                            if row['Observaciones']:
+                                st.caption(f"Obs: {row['Observaciones']}")
 
-                                    if row['Observaciones']:
-                                        st.caption(f"Obs: {row['Observaciones']}")
-                                    
-                                    if row.get("Foto_B64") is not None:
-                                        img_evidencia = base64_to_image(row["Foto_B64"])
-                                        if img_evidencia:
-                                            with st.popover("📷 Vista previa"):
-                                                st.image(img_evidencia, caption=row['Actividad'], use_container_width=True)
+                            st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
-                                    st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
-
-                                if j.get("Observacion_General"):
-                                    st.info(f"**Observación General:** {j.get('Observacion_General')}")
-
-                                c_dl1, c_dl2 = st.columns(2)
-                                with c_dl1:
-                                    excel_bytes = export_checklist_to_excel_file(j)
-                                    st.download_button(
-                                        label="📊 Descargar Excel (.xlsx)",
-                                        data=excel_bytes,
-                                        file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.xlsx",
-                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                        key=f"dl_xlsx_{orig_idx}"
-                                    )
-                                with c_dl2:
-                                    pdf_bytes = export_checklist_to_pdf_file(j)
-                                    st.download_button(
-                                        label="📄 Descargar PDF (.pdf)",
-                                        data=pdf_bytes,
-                                        file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.pdf",
-                                        mime="application/pdf",
-                                        key=f"dl_pdf_{orig_idx}"
-                                    )
+                        c_dl1, c_dl2 = st.columns(2)
+                        with c_dl1:
+                            excel_bytes = export_checklist_to_excel_file(j)
+                            st.download_button(
+                                label="📊 Descargar Excel (.xlsx)",
+                                data=excel_bytes,
+                                file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key=f"dl_xlsx_{orig_idx}"
+                            )
+                        with c_dl2:
+                            pdf_bytes = export_checklist_to_pdf_file(j)
+                            st.download_button(
+                                label="📄 Descargar PDF (.pdf)",
+                                data=pdf_bytes,
+                                file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.pdf",
+                                mime="application/pdf",
+                                key=f"dl_pdf_{orig_idx}"
+                            )
         else:
             st.warning("No hay checklists registrados para el edificio seleccionado.")
     else:
@@ -1433,7 +1443,6 @@ with tab_didactico:
 
         st.markdown("---")
 
-        # 2. AVANCE GENERAL
         st.markdown("#### 2. Avance General")
         sub_actividades_pdf = ["Movimiento de tierras", "Estructura", "Mampostería", "Enlucidos", "Instalaciones", "Acabados"]
         avance_datos = []
@@ -1457,9 +1466,7 @@ with tab_didactico:
 
         st.markdown("---")
 
-        # 3. CHECK LIST GENERAL
         st.markdown("#### 3. Check List General")
-        
         tab_sec1, tab_sec2, tab_sec3, tab_sec4, tab_sec5 = st.tabs([
             "🛡️ Seguridad Industrial", "🧱 Mampostería", "🏗️ Hormigón", "🔌 Instalaciones", "🎨 Acabados"
         ])
@@ -1529,54 +1536,6 @@ with tab_didactico:
                     obs_val = st.text_input(f"Obs_acab_{item}", placeholder="Observaciones...", key=f"acab_obs_{item}", label_visibility="collapsed")
                 acab_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
 
-        st.markdown("---")
-
-        # 4. CONTROL DE PERSONAL
-        st.markdown("#### 4. Control de Personal")
-        sec_pers = ["Personal completo", "Contratistas completos", "Rendimiento adecuado", "Retrasos"]
-        pers_resp = []
-        for item in sec_pers:
-            cp1, cp2, cp3 = st.columns([3, 2, 3])
-            with cp1:
-                st.write(f"• {item}")
-            with cp2:
-                st_val = st.segmented_control(f"Pers_{item}", ["Sí", "No"], key=f"pers_{item}", label_visibility="collapsed")
-            with cp3:
-                obs_val = st.text_input(f"Obs_pers_{item}", placeholder="Observación...", key=f"pers_obs_{item}", label_visibility="collapsed")
-            pers_resp.append({"Aspecto": item, "Cumple": st_val, "Observación": obs_val})
-
-        st.markdown("---")
-
-        # 5. MATERIALES
-        st.markdown("#### 5. Materiales")
-        sec_mat = ["Material suficiente", "Material conforme", "Material almacenado correctamente", "Material deteriorado"]
-        mat_resp = []
-        for item in sec_mat:
-            cmat1, cmat2, cmat3 = st.columns([3, 2, 3])
-            with cmat1:
-                st.write(f"• {item}")
-            with cmat2:
-                st_val = st.segmented_control(f"Mat_{item}", ["Sí", "No"], key=f"mat_{item}", label_visibility="collapsed")
-            with cmat3:
-                obs_val = st.text_input(f"Obs_mat_{item}", placeholder="Observación...", key=f"mat_obs_{item}", label_visibility="collapsed")
-            mat_resp.append({"Revisar": item, "Cumple": st_val, "Observación": obs_val})
-
-        st.markdown("---")
-
-        # 6. EQUIPOS
-        st.markdown("#### 6. Equipos")
-        sec_eq = ["Mezcladora", "Vibrador", "Cortadora", "Compresor", "Herramienta eléctrica"]
-        eq_resp = []
-        for item in sec_eq:
-            ceq1, ceq2, ceq3 = st.columns([3, 2, 3])
-            with ceq1:
-                st.write(f"• {item}")
-            with ceq2:
-                st_val = st.segmented_control(f"Eq_{item}", ["Operativo", "Fuera de servicio"], key=f"eq_{item}", label_visibility="collapsed")
-            with ceq3:
-                obs_val = st.text_input(f"Obs_eq_{item}", placeholder="Observación...", key=f"eq_obs_{item}", label_visibility="collapsed")
-            eq_resp.append({"Equipo": item, "Estado": st_val, "Observación": obs_val})
-
         btn_guardar_did = st.form_submit_button("💾 Guardar Formato de Inspección", type="primary")
 
         if btn_guardar_did:
@@ -1592,10 +1551,7 @@ with tab_didactico:
                         "Mampostería": mamp_resp,
                         "Hormigón": horm_resp,
                         "Instalaciones": inst_resp,
-                        "Acabados": acab_resp,
-                        "Control de Personal": pers_resp,
-                        "Materiales": mat_resp,
-                        "Equipos": eq_resp
+                        "Acabados": acab_resp
                     }
                 }
                 try:
@@ -1618,120 +1574,259 @@ with tab_didactico:
                 except Exception as e:
                     st.error(f"Error al guardar inspección en Supabase: {e}")
 
+# ------------------------------------------
+# MÓDULO 3: SUPERVISIÓN UNIFICADA (INGENIERÍA)
+# ------------------------------------------
+with tab_unificada:
+    st.markdown("### 📋 Supervisión Unificada de Obra")
+    st.caption("Síntesis ejecutiva del checklist operativo y la verificación técnica de ingeniería por frentes de trabajo.")
+
+    with st.form("form_supervision_unificada"):
+        st.markdown("#### 1. Datos del Frente de Obra")
+        col_u1, col_u2, col_u3, col_u4 = st.columns(4)
+        with col_u1:
+            u_proyecto = st.selectbox("Proyecto / Edificio:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, key="u_proy")
+        with col_u2:
+            u_frente = st.text_input("Frente / Nivel:", placeholder="Ej. Losa Piso 4 - Eje B", key="u_fre")
+        with col_u3:
+            u_clima = st.selectbox("Condición Climática:", ["Soleado", "Nublado", "Lluvia"], key="u_cli")
+        with col_u4:
+            u_fecha = st.date_input("Fecha:", datetime.date.today(), key="u_fec")
+
+        st.markdown("---")
+        st.markdown("#### 2. Avance Físico del Frente (% Programado vs. Ejecutado)")
+        
+        col_av1, col_av2 = st.columns(2)
+        rubros_unificados = ["Estructura / Hormigón", "Mampostería / Paredes", "Instalaciones MEP", "Enlucidos y Acabados"]
+        u_avance_resp = []
+
+        for idx_r, rub in enumerate(rubros_unificados, 1):
+            col_target = col_av1 if idx_r <= 2 else col_av2
+            with col_target:
+                st.markdown(f"**{rub}**")
+                c_p, c_e, c_st = st.columns([2, 2, 3])
+                with c_p:
+                    p_p = st.number_input(f"% Prog.", min_value=0.0, max_value=100.0, key=f"u_prog_{idx_r}")
+                with c_e:
+                    p_e = st.number_input(f"% Ejec.", min_value=0.0, max_value=100.0, key=f"u_ejec_{idx_r}")
+                with c_st:
+                    e_st = st.selectbox("Estado", ["En Proceso", "Completado", "Retrasado", "N/A"], key=f"u_est_{idx_r}")
+                u_avance_resp.append({"Rubro": rub, "% Prog": p_p, "% Ejec": p_e, "Estado": e_st})
+
+        st.markdown("---")
+        st.markdown("#### 3. Control Técnico y Proceso Constructivo")
+        
+        tab_u_calidad, tab_u_sst, tab_u_recursos = st.tabs([
+            "🛠️ Calidad Constructiva", "🛡️ Seguridad y Salud (SST)", "🚜 Maquinaria y Materiales"
+        ])
+
+        with tab_u_calidad:
+            items_calidad = [
+                "Verificación de plomos, niveles y alineamiento",
+                "Calidad de armaduras de acero y recubrimientos",
+                "Compactación / Vibrado de hormigón y curado",
+                "Tratamiento de juntas de construcción y dilivio",
+                "Pruebas de estanqueidad / tuberías embebidas"
+            ]
+            u_calidad_resp = []
+            for item in items_calidad:
+                c1, c2, c3 = st.columns([4, 2, 4])
+                with c1:
+                    st.write(f"• {item}")
+                with c2:
+                    c_val = st.segmented_control(f"C_{item}", ["Conforme", "No Conforme", "N/A"], key=f"uc_{item}", label_visibility="collapsed")
+                with c3:
+                    c_obs = st.text_input(f"Obs_{item}", placeholder="Observaciones técnicas...", key=f"uc_obs_{item}", label_visibility="collapsed")
+                u_calidad_resp.append({"Item": item, "Estado": c_val, "Observacion": c_obs})
+
+        with tab_u_sst:
+            items_sst = [
+                "Uso obligatorio de EPP completo en cuadrilla",
+                "Líneas de vida, arnés y andamios normados",
+                "Señalización de riesgo y delimitación de frentes",
+                "Orden, aseo y acopio limpio de escombros"
+            ]
+            u_sst_resp = []
+            for item in items_sst:
+                c1, c2, c3 = st.columns([4, 2, 4])
+                with c1:
+                    st.write(f"• {item}")
+                with c2:
+                    s_val = st.segmented_control(f"S_{item}", ["Cumple", "No Cumple", "N/A"], key=f"us_{item}", label_visibility="collapsed")
+                with c3:
+                    s_obs = st.text_input(f"Obs_SST_{item}", placeholder="Novedades SST...", key=f"us_obs_{item}", label_visibility="collapsed")
+                u_sst_resp.append({"Aspecto": item, "Estado": s_val, "Observacion": s_obs})
+
+        with tab_u_recursos:
+            items_recursos = [
+                "Rendimiento y asistencia adecuada de personal", "Stock suficiente de materiales en frente", "Maquinaria y herramientas operativas"
+            ]
+            u_recursos_resp = []
+            for item in items_recursos:
+                c1, c2, c3 = st.columns([4, 2, 4])
+                with c1:
+                    st.write(f"• {item}")
+                with c2:
+                    r_val = st.segmented_control(f"R_{item}", ["Operativo", "Deficiente", "N/A"], key=f"ur_{item}", label_visibility="collapsed")
+                with c3:
+                    r_obs = st.text_input(f"Obs_Rec_{item}", placeholder="Novedades insumos/equipos...", key=f"ur_obs_{item}", label_visibility="collapsed")
+                u_recursos_resp.append({"Recurso": item, "Estado": r_val, "Observacion": r_obs})
+
+        btn_sub_unificada = st.form_submit_button("💾 Guardar Supervisión Unificada", type="primary")
+
+        if btn_sub_unificada:
+            if u_proyecto == "-- Seleccione --":
+                st.error("⚠️ Seleccione un Proyecto o Edificio.")
+            else:
+                payload_u = {
+                    "Avance": u_avance_resp,
+                    "Calidad": u_calidad_resp,
+                    "SST": u_sst_resp,
+                    "Recursos": u_recursos_resp
+                }
+                try:
+                    supabase.table("supervisiones_unificadas").insert({
+                        "usuario_email": user_email,
+                        "proyecto": u_proyecto,
+                        "frente": u_frente,
+                        "residente": user_nombre_completo,
+                        "clima": u_clima,
+                        "fecha": u_fecha.strftime("%Y-%m-%d"),
+                        "datos": payload_u
+                    }).execute()
+
+                    st.session_state.db_loaded = False
+                    st.success("¡Supervisión unificada registrada con éxito!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al guardar reporte unificado: {e}")
+
     st.markdown("---")
+    st.markdown("### Historial de Supervisiones Unificadas")
+    mis_unis = st.session_state.db_unificadas.get(user_email, [])
 
-    # HISTORIAL DE FORMATOS DE INSPECCIÓN DIARIA (CON EDICIÓN Y ELIMINACIÓN)
-    st.markdown("### Historial General de Formatos de Inspección Creados")
+    if len(mis_unis) > 0:
+        for idx_u, uni in enumerate(mis_unis, 1):
+            with st.expander(f"📋 {uni['Proyecto']} — {uni['Fecha']} | Frente: {uni.get('Frente', 'N/A')}"):
+                st.markdown(f"**Residente:** {uni.get('Residente', '')} | **Clima:** {uni.get('Clima', '')}")
+                st.markdown("##### Avance Físico Sintetizado:")
+                st.dataframe(pd.DataFrame(uni.get("Datos", {}).get("Avance", [])), use_container_width=True)
+    else:
+        st.info("Aún no hay reportes unificados registrados.")
 
-    mis_inspecciones = st.session_state.db_inspecciones.get(user_email, [])
+# ------------------------------------------
+# MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS
+# ------------------------------------------
+with tab_incidencias:
+    st.markdown("### 🚨 Levantamiento de Incidencias en Obra")
+    st.caption("Registro de hallazgos, no conformidades y compromisos con seguimiento de estado.")
 
-    if len(mis_inspecciones) > 0:
-        col_edif_insp, _ = st.columns([2, 2])
-        with col_edif_insp:
-            edif_insp_filtro = st.selectbox("🏢 Seleccionar Proyecto para consultar:", ["-- Todos los Proyectos --"] + EDIFICIOS_ALPHA, key="filtro_edif_inspecciones")
+    with st.expander("➕ Registrar Nueva Incidencia", expanded=True):
+        with st.form("form_nueva_incidencia"):
+            col_inc1, col_inc2 = st.columns(2)
+            with col_inc1:
+                inc_proyecto = st.selectbox("Proyecto / Edificio:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, key="inc_proy")
+                inc_area = st.text_input("Área / Ubicación:", placeholder="Ej. Losa Piso 2 / Cuarto de Bombas", key="inc_area")
+                inc_resp = st.text_input("Responsable del Compromiso:", placeholder="Ej. Contratista de Mampostería / Ing. Juan Pérez", key="inc_resp")
 
-        insps_filtradas = [i for i in mis_inspecciones if i.get("Proyecto") == edif_insp_filtro] if edif_insp_filtro != "-- Todos los Proyectos --" else mis_inspecciones.copy()
+            with col_inc2:
+                inc_desc = st.text_area("Descripción de la Incidencia / Hallazgo:", placeholder="Describa la no conformidad detectada...", key="inc_desc")
+                inc_prio = st.select_slider("Prioridad:", options=["Baja", "Media", "Alta"], value="Media", key="inc_prio")
+                inc_f_comp = st.date_input("Fecha Compromiso de Solución:", datetime.date.today() + datetime.timedelta(days=3), key="inc_fcomp")
 
-        st.caption(f"Mostrando **{len(insps_filtradas)}** de **{len(mis_inspecciones)}** inspección(es) registradas.")
+            btn_sub_inc = st.form_submit_button("🚨 Registrar Incidencia", type="primary")
 
-        if len(insps_filtradas) > 0:
-            insps_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
+            if btn_sub_inc:
+                if inc_proyecto == "-- Seleccione --" or not inc_area or not inc_desc:
+                    st.error("⚠️ Complete los campos requeridos (Proyecto, Área y Descripción).")
+                else:
+                    try:
+                        supabase.table("incidencias").insert({
+                            "usuario_email": user_email,
+                            "proyecto": inc_proyecto,
+                            "area": inc_area.strip(),
+                            "descripcion": inc_desc.strip(),
+                            "responsable": inc_resp.strip(),
+                            "prioridad": inc_prio,
+                            "fecha_compromiso": inc_f_comp.strftime("%Y-%m-%d"),
+                            "estado": "Abierta"
+                        }).execute()
 
-            for idx_insp, insp in enumerate(insps_filtradas, 1):
-                col_i_info, col_i_del = st.columns([8, 1])
+                        st.session_state.db_loaded = False
+                        st.success("¡Incidencia registrada correctamente!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al registrar incidencia: {e}")
 
-                with col_i_del:
-                    if st.button("🗑️", key=f"del_insp_{idx_insp}", help="Borrar inspección permanentemente"):
+    st.markdown("---")
+    st.markdown("### Matriz de Seguimiento de Incidencias")
+
+    todas_incidencias = st.session_state.db_incidencias
+
+    if len(todas_incidencias) > 0:
+        df_inc = pd.DataFrame(todas_incidencias)
+        
+        # Filtros rápidos
+        f_col1, f_col2 = st.columns(2)
+        with f_col1:
+            filtro_est_inc = st.selectbox("Filtrar por Estado:", ["-- Todos --", "Abierta", "Cerrada"], key="flt_est_inc")
+        with f_col2:
+            filtro_prio_inc = st.selectbox("Filtrar por Prioridad:", ["-- Todas --", "Alta", "Media", "Baja"], key="flt_prio_inc")
+
+        if filtro_est_inc != "-- Todos --":
+            df_inc = df_inc[df_inc["Estado"] == filtro_est_inc]
+        if filtro_prio_inc != "-- Todas --":
+            df_inc = df_inc[df_inc["Prioridad"] == filtro_prio_inc]
+
+        st.caption(f"Mostrando **{len(df_inc)}** incidencia(s) registradas.")
+
+        # Tabla Ejecutiva de Incidencias con Botones de Cambio de Estado
+        for idx_row, row_inc in df_inc.iterrows():
+            c_badge = "🔴" if row_inc["Prioridad"] == "Alta" else ("🟡" if row_inc["Prioridad"] == "Media" else "🟢")
+            st_badge = render_estado_badge(row_inc["Estado"])
+
+            with st.container():
+                c_i1, c_i2, c_i3 = st.columns([6, 2, 2])
+                with c_i1:
+                    st.markdown(f"**N° {idx_row+1} | [{row_inc.get('Proyecto', 'Obra')}] Area:** {row_inc['Area']}")
+                    st.write(f"**Descripción:** {row_inc['Descripcion']}")
+                    st.caption(f"Responsable: **{row_inc['Responsable']}** | Fecha Compromiso: `{row_inc['Fecha_Compromiso']}`")
+
+                with c_i2:
+                    st.markdown(f"**Prioridad:** {c_badge} {row_inc['Prioridad']}")
+                    st.markdown(f"**Estado:** {st_badge}", unsafe_allow_html=True)
+
+                with c_i3:
+                    nuevo_est = "Cerrada" if row_inc["Estado"] == "Abierta" else "Abierta"
+                    lbl_btn = "✅ Cerrar" if row_inc["Estado"] == "Abierta" else "🔓 Reabrir"
+                    
+                    if st.button(lbl_btn, key=f"btn_st_inc_{row_inc['db_id']}"):
                         try:
-                            supabase.table("inspecciones").delete().eq("id", insp["db_id"]).execute()
+                            supabase.table("incidencias").update({"estado": nuevo_est}).eq("id", row_inc["db_id"]).execute()
                             st.session_state.db_loaded = False
-                            st.success("¡Inspección eliminada!")
+                            st.success(f"Incidencia marcada como {nuevo_est}.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al cambiar estado: {e}")
+
+                    if st.button("🗑️", key=f"btn_del_inc_{row_inc['db_id']}", help="Eliminar incidencia"):
+                        try:
+                            supabase.table("incidencias").delete().eq("id", row_inc["db_id"]).execute()
+                            st.session_state.db_loaded = False
+                            st.success("Incidencia eliminada.")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al eliminar: {e}")
 
-                with col_i_info:
-                    with st.expander(f"📌 {insp['Proyecto']} — {insp['Fecha']} ({insp['Dia']}) | Frente: {insp.get('Frente', 'N/A')}"):
-                        st.markdown(f"**Residente:** {insp.get('Residente', '')} | **Clima:** {insp.get('Clima', '')}")
-                        st.markdown(f"**Horario:** {insp.get('Hora_Inicio', '')} - {insp.get('Hora_Fin', '')}")
-                        
-                        st.markdown("##### Avance General de Actividades:")
-                        df_av = pd.DataFrame(insp.get("Datos", {}).get("Avance", []))
-                        if not df_av.empty:
-                            st.dataframe(df_av, use_container_width=True)
+                st.markdown("<hr style='margin: 8px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
 
-                        # BOTÓN Y FORMULARIO DE EDICIÓN
-                        with st.popover("✏️ Editar Inspección"):
-                            st.markdown(f"#### Modificar Inspección — {insp['Proyecto']} ({insp['Fecha']})")
-                            with st.form(f"form_edit_insp_{insp['db_id']}"):
-                                e_frente = st.text_input("Frente Inspeccionado:", value=insp.get("Frente", ""))
-                                e_clima = st.selectbox("Clima:", ["Soleado", "Nublado", "Lluvia"], index=["Soleado", "Nublado", "Lluvia"].index(insp.get("Clima", "Soleado")) if insp.get("Clima") in ["Soleado", "Nublado", "Lluvia"] else 0)
-                                e_residente = st.text_input("Residente:", value=insp.get("Residente", ""))
-
-                                st.markdown("##### Actualizar Avance General")
-                                e_avance_datos = []
-                                current_avance = insp.get("Datos", {}).get("Avance", [])
-                                for item_av in current_avance:
-                                    c_e1, c_e2, c_e3, c_e4 = st.columns([3, 2, 2, 2])
-                                    act_n = item_av.get("Actividad", "")
-                                    with c_e1:
-                                        st.write(f"**{act_n}**")
-                                    with c_e2:
-                                        p_p = st.number_input(f"% Prog ({act_n})", min_value=0.0, max_value=100.0, value=float(item_av.get("% Prog", 0)), key=f"e_prog_{insp['db_id']}_{act_n}")
-                                    with c_e3:
-                                        p_e = st.number_input(f"% Ejec ({act_n})", min_value=0.0, max_value=100.0, value=float(item_av.get("% Ejec", 0)), key=f"e_ejec_{insp['db_id']}_{act_n}")
-                                    with c_e4:
-                                        e_st = st.selectbox(f"Estado ({act_n})", ["En Proceso", "Completado", "Retrasado", "N/A"], index=["En Proceso", "Completado", "Retrasado", "N/A"].index(item_av.get("Estado", "En Proceso")) if item_av.get("Estado") in ["En Proceso", "Completado", "Retrasado", "N/A"] else 0, key=f"e_est_{insp['db_id']}_{act_n}")
-                                    e_avance_datos.append({"Actividad": act_n, "% Prog": p_p, "% Ejec": p_e, "Estado": e_st})
-
-                                btn_save_edit = st.form_submit_button("💾 Guardar Cambios en Inspección", type="primary")
-
-                                if btn_save_edit:
-                                    updated_payload = insp.get("Datos", {})
-                                    updated_payload["Avance"] = e_avance_datos
-
-                                    try:
-                                        supabase.table("inspecciones").update({
-                                            "frente": e_frente,
-                                            "clima": e_clima,
-                                            "residente": e_residente,
-                                            "datos": updated_payload
-                                        }).eq("id", insp["db_id"]).execute()
-
-                                        st.session_state.db_loaded = False
-                                        st.success("¡Inspección actualizada correctamente!")
-                                        st.rerun()
-                                    except Exception as err:
-                                        st.error(f"Error al actualizar inspección: {err}")
-
-                        st.markdown("<br>", unsafe_allow_html=True)
-
-                        c_dl_i1, c_dl_i2 = st.columns(2)
-                        with c_dl_i1:
-                            excel_insp_bytes = export_inspeccion_to_excel_file(insp)
-                            st.download_button(
-                                label="📊 Descargar Excel (.xlsx)",
-                                data=excel_insp_bytes,
-                                file_name=f"Inspeccion_{insp['Proyecto'].replace(' ', '_')}_{insp['Fecha']}.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                key=f"dl_insp_xlsx_{idx_insp}"
-                            )
-                        with c_dl_i2:
-                            pdf_insp_bytes = export_inspeccion_to_pdf_file(insp)
-                            st.download_button(
-                                label="📄 Descargar PDF (.pdf)",
-                                data=pdf_insp_bytes,
-                                file_name=f"Inspeccion_{insp['Proyecto'].replace(' ', '_')}_{insp['Fecha']}.pdf",
-                                mime="application/pdf",
-                                key=f"dl_insp_pdf_{idx_insp}"
-                            )
-        else:
-            st.warning("No hay formatos de inspección para el proyecto seleccionado.")
+        csv_inc_bytes = export_dataframe_to_excel_csv(df_inc)
+        st.download_button("📥 Descargar Tabla de Incidencias (Excel/CSV)", data=csv_inc_bytes, file_name=f"Incidencias_Obra_{datetime.date.today().strftime('%Y%m%d')}.csv", mime="text/csv")
     else:
-        st.info("Aún no hay formatos de inspección guardados.")
+        st.info("No hay incidencias registradas en la obra actualmente.")
 
 # ==========================================
-# 8. MÓDULO 3: CONTROL DE RENDIMIENTO
+# 8. MÓDULO 5: CONTROL DE RENDIMIENTO
 # ==========================================
 with tab_rend:
     st.markdown("### Control de Rendimiento por Trabajador")
@@ -1825,7 +1920,7 @@ with tab_rend:
 # 9. MÓDULO ADMINISTRADOR
 # ==========================================
 if es_admin:
-    tab_admin = tabs_app[3]
+    tab_admin = tabs_app[5]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
         st.caption("Módulo exclusivo para supervisar inspecciones, rendimientos, usuarios y configuración.")
@@ -1855,213 +1950,13 @@ if es_admin:
             st.info(f"**PIN Actual Configurado:** `{st.session_state.get('access_pin', '1254')}`")
 
         st.markdown("---")
-
-        st.markdown("#### 👁️ Checklists Subidos por Todos los Participantes")
-        todas_las_jornadas_admin = []
-        for u_mail, j_lista in st.session_state.db_checklists.items():
-            for j_item in j_lista:
-                j_copy = j_item.copy()
-                j_copy["Usuario_Correo"] = u_mail
-                todas_las_jornadas_admin.append(j_copy)
-
-        if len(todas_las_jornadas_admin) > 0:
-            col_adm_f1, col_adm_f2 = st.columns(2)
-            with col_adm_f1:
-                filtro_edif_admin = st.selectbox("Filtrar por edificio / proyecto:", ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA, key="admin_filter_edif_chk")
-            with col_adm_f2:
-                usuarios_lista_chk = ["-- Todos los Usuarios --"] + sorted(list(set([j["Usuario_Correo"] for j in todas_las_jornadas_admin])))
-                filtro_usr_chk = st.selectbox("Filtrar por participante:", usuarios_lista_chk, key="admin_filter_usr_chk")
-
-            jornadas_admin_filtradas = todas_las_jornadas_admin.copy()
-            if filtro_edif_admin != "-- Todos los Edificios --":
-                jornadas_admin_filtradas = [j for j in jornadas_admin_filtradas if j.get("Edificio") == filtro_edif_admin]
-            if filtro_usr_chk != "-- Todos los Usuarios --":
-                jornadas_admin_filtradas = [j for j in jornadas_admin_filtradas if j["Usuario_Correo"] == filtro_usr_chk]
-
-            jornadas_admin_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
-
-            for idx_adm, j_adm in enumerate(jornadas_admin_filtradas, 1):
-                resp_str = j_adm.get("Responsable", "") or j_adm["Usuario_Correo"]
-                with st.expander(f"📌 [{j_adm.get('Edificio', 'N/A')}] {j_adm['Fecha']} — {resp_str} ({j_adm['Usuario_Correo']})"):
-                    st.markdown(f"**Usuario:** `{j_adm['Usuario_Correo']}` | **Responsable:** {resp_str}")
-                    
-                    df_data_adm = pd.DataFrame(j_adm["Datos"])
-                    for _, r_adm in df_data_adm.iterrows():
-                        badge_adm = render_estado_badge(r_adm['Estado'])
-                        st.markdown(f"- **[{r_adm['Jornada']}] N° {r_adm['N°']}. {r_adm['Actividad']}**: {badge_adm}", unsafe_allow_html=True)
-
-                    c_ad_dl1, c_ad_dl2 = st.columns(2)
-                    with c_ad_dl1:
-                        excel_bytes_adm = export_checklist_to_excel_file(j_adm)
-                        st.download_button(
-                            label=f"📊 Descargar Excel",
-                            data=excel_bytes_adm,
-                            file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key=f"dl_xlsx_adm_{idx_adm}"
-                        )
-                    with c_ad_dl2:
-                        pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
-                        st.download_button(
-                            label=f"📄 Descargar PDF",
-                            data=pdf_bytes_adm,
-                            file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
-                            mime="application/pdf",
-                            key=f"dl_pdf_adm_{idx_adm}"
-                        )
-        else:
-            st.info("Ningún participante ha registrado checklists aún.")
-
-        st.markdown("---")
-
-        st.markdown("#### 📑 Formatos de Inspección Subidos por Todos los Participantes")
-        todas_las_inspecciones_admin = []
-        for u_mail, i_lista in st.session_state.db_inspecciones.items():
-            for i_item in i_lista:
-                i_copy = i_item.copy()
-                i_copy["Usuario_Correo"] = u_mail
-                todas_las_inspecciones_admin.append(i_copy)
-
-        if len(todas_las_inspecciones_admin) > 0:
-            col_adm_i1, col_adm_i2 = st.columns(2)
-            with col_adm_i1:
-                filtro_edif_insp_adm = st.selectbox("Filtrar inspecciones por edificio:", ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA, key="admin_filter_edif_insp")
-            with col_adm_i2:
-                usuarios_lista_insp = ["-- Todos los Usuarios --"] + sorted(list(set([i["Usuario_Correo"] for i in todas_las_inspecciones_admin])))
-                filtro_usr_insp_adm = st.selectbox("Filtrar inspecciones por usuario:", usuarios_lista_insp, key="admin_filter_usr_insp")
-
-            insps_admin_filtradas = todas_las_inspecciones_admin.copy()
-            if filtro_edif_insp_adm != "-- Todos los Edificios --":
-                insps_admin_filtradas = [i for i in insps_admin_filtradas if i.get("Proyecto") == filtro_edif_insp_adm]
-            if filtro_usr_insp_adm != "-- Todos los Usuarios --":
-                insps_admin_filtradas = [i for i in insps_admin_filtradas if i["Usuario_Correo"] == filtro_usr_insp_adm]
-
-            insps_admin_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
-
-            for idx_i_adm, i_adm in enumerate(insps_admin_filtradas, 1):
-                with st.expander(f"📌 [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} ({i_adm['Dia']}) — Usuario: {i_adm['Usuario_Correo']}"):
-                    st.markdown(f"**Residente:** {i_adm.get('Residente', '')} | **Clima:** {i_adm.get('Clima', '')}")
-                    
-                    c_ad_idl1, c_ad_idl2 = st.columns(2)
-                    with c_ad_idl1:
-                        excel_insp_bytes_adm = export_inspeccion_to_excel_file(i_adm)
-                        st.download_button(
-                            label="📊 Descargar Excel (.xlsx)",
-                            data=excel_insp_bytes_adm,
-                            file_name=f"Inspeccion_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key=f"dl_insp_xlsx_adm_{idx_i_adm}"
-                        )
-                    with c_ad_idl2:
-                        pdf_insp_bytes_adm = export_inspeccion_to_pdf_file(i_adm)
-                        st.download_button(
-                            label="📄 Descargar PDF (.pdf)",
-                            data=pdf_insp_bytes_adm,
-                            file_name=f"Inspeccion_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf",
-                            mime="application/pdf",
-                            key=f"dl_insp_pdf_adm_{idx_i_adm}"
-                        )
-        else:
-            st.info("Ningún participante ha registrado formatos de inspección aún.")
-
-        st.markdown("---")
-
-        st.markdown("#### 📊 Rendimientos Subidos por Todos los Participantes")
-        todos_los_rendimientos = []
-        for u_mail, r_lista in st.session_state.db_rendimientos.items():
-            for r_item in r_lista:
-                r_copy = r_item.copy()
-                r_copy["Usuario_Correo"] = u_mail
-                todos_los_rendimientos.append(r_copy)
-
-        if len(todos_los_rendimientos) > 0:
-            df_rend_admin = pd.DataFrame(todos_los_rendimientos)
-            cols_first = ["Usuario_Correo", "Fecha", "Trabajador", "Rubro", "Horas Trabajadas (HH)", "Avance", "Unidad", "Rend. Real (HH/Unid)", "Rend. Teórico", "Estado"]
-            df_rend_admin = df_rend_admin.reindex(columns=[c for c in cols_first if c in df_rend_admin.columns])
-            if not df_rend_admin.empty:
-                df_rend_admin.index = range(1, len(df_rend_admin) + 1)
-
-            st.dataframe(df_rend_admin, use_container_width=True)
-
-            csv_rend_admin_bytes = export_dataframe_to_excel_csv(df_rend_admin)
-            st.download_button(
-                label="📥 Descargar Todos los Rendimientos (Excel CSV)",
-                data=csv_rend_admin_bytes,
-                file_name=f"Rendimientos_Globales_{datetime.date.today().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
-            )
-        else:
-            st.info("Ningún participante ha registrado rendimientos aún.")
-
-        st.markdown("---")
-
-        st.markdown("#### Gestión de Administradores de la Plataforma")
-        col_adm1, col_adm2 = st.columns([2, 1])
-
-        with col_adm1:
-            with st.form("form_admin_add_clean"):
-                nuevo_admin_mail = st.text_input("Ingrese correo para conceder permisos de Administrador:", placeholder="usuario@correo.com")
-                btn_admin_add = st.form_submit_button("Otorgar Acceso Administrador")
-
-            if btn_admin_add:
-                if nuevo_admin_mail:
-                    mail_clean = nuevo_admin_mail.strip().lower()
-                    try:
-                        supabase.table("usuarios").update({"es_admin": True}).eq("correo", mail_clean).execute()
-                        st.session_state.db_loaded = False
-                        st.success(f"Se otorgaron permisos de administrador en Supabase a: {mail_clean}")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error actualizando administrador: {e}")
-
-        with col_adm2:
-            st.markdown("**Administradores Actuales:**")
-            for adm in st.session_state.admin_emails:
-                st.write(f"- `{adm}`")
-
-        st.markdown("---")
-
-        st.markdown("#### Usuarios Activos y Gestión de Cuentas")
-        
-        lista_correos = [u["Correo"] for u in st.session_state.db_usuarios]
-        
-        col_del_usr1, col_del_usr2 = st.columns([2, 1])
-        with col_del_usr1:
-            usuario_a_eliminar = st.selectbox("Seleccionar cuenta de usuario a eliminar:", lista_correos, key="sel_user_del")
-        with col_del_usr2:
-            st.write("") 
-            st.write("")
-            if st.button("🗑️ Eliminar Cuenta Seleccionada", type="secondary"):
-                if usuario_a_eliminar == user_email:
-                    st.error("No puedes eliminar la cuenta activa con la que estás con sesión iniciada.")
-                else:
-                    try:
-                        supabase.table("usuarios").delete().eq("correo", usuario_a_eliminar).execute()
-                        st.session_state.db_loaded = False
-                        st.success(f"Cuenta de usuario **{usuario_a_eliminar}** eliminada correctamente de Supabase.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al eliminar usuario: {e}")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        db_usuarios_privados = []
-        for u in st.session_state.db_usuarios:
-            u_copy = u.copy()
-            u_copy["Password"] = "••••••••"
-            db_usuarios_privados.append(u_copy)
-
-        df_users = pd.DataFrame(db_usuarios_privados)
-        if not df_users.empty:
-            df_users.index = range(1, len(df_users) + 1)
-        st.dataframe(df_users, use_container_width=True)
-
-        st.markdown("#### Resumen Global de Actividad por Usuario")
+        st.markdown("#### 👁️ Resumen Global de Actividad")
         resumen_actividad = []
         for u in st.session_state.db_usuarios:
             e = u["Correo"]
             num_c = len(st.session_state.db_checklists.get(e, []))
             num_i = len(st.session_state.db_inspecciones.get(e, []))
+            num_u = len(st.session_state.db_unificadas.get(e, []))
             num_r = len(st.session_state.db_rendimientos.get(e, []))
             resumen_actividad.append({
                 "Usuario": f"{u['Nombres']} {u['Apellidos']}".strip() or e,
@@ -2069,6 +1964,7 @@ if es_admin:
                 "Cargo": u["Cargo"],
                 "Checklists": num_c,
                 "Inspecciones": num_i,
+                "Unificadas": num_u,
                 "Rendimientos": num_r,
                 "Estado": u["Estado"]
             })
