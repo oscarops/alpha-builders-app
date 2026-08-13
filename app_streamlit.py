@@ -479,12 +479,19 @@ def export_inspeccion_to_excel_file(insp_dict):
         top=Side(style='thin', color='CBD5E1'), 
         bottom=Side(style='thin', color='CBD5E1')
     )
-    fill_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
-    fill_section = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    thick_bottom = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='medium', color='1E293B')
+    )
+    
+    fill_main_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
+    fill_sub_header = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    fill_category_bar = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
     
     font_main_title = Font(name="Arial", bold=True, color="FFFFFF", size=12)
-    font_section_title = Font(name="Arial", bold=True, color="1E293B", size=10)
-    font_tbl_header = Font(name="Arial", bold=True, color="FFFFFF", size=9.5)
+    font_category_title = Font(name="Arial", bold=True, color="FFFFFF", size=10)
+    font_tbl_header = Font(name="Arial", bold=True, color="FFFFFF", size=9)
     font_bold = Font(name="Arial", bold=True, color="121318", size=9.5)
     font_regular = Font(name="Arial", size=9)
 
@@ -492,7 +499,7 @@ def export_inspeccion_to_excel_file(insp_dict):
     ws.merge_cells("A1:C1")
     ws["A1"] = f"FORMATO DE INSPECCIÓN DIARIA - {insp_dict.get('Proyecto', '').upper()}"
     ws["A1"].font = font_main_title
-    ws["A1"].fill = fill_header
+    ws["A1"].fill = fill_main_header
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 28
 
@@ -517,16 +524,17 @@ def export_inspeccion_to_excel_file(insp_dict):
     r_av_head = ws.max_row + 1
     ws.merge_cells(f"A{r_av_head}:C{r_av_head}")
     ws[f"A{r_av_head}"] = "1. AVANCE GENERAL"
-    ws[f"A{r_av_head}"].font = font_section_title
-    ws[f"A{r_av_head}"].fill = fill_section
+    ws[f"A{r_av_head}"].font = font_category_title
+    ws[f"A{r_av_head}"].fill = fill_category_bar
     ws[f"A{r_av_head}"].alignment = Alignment(vertical="center", indent=1)
+    ws.row_dimensions[r_av_head].height = 22
 
     ws.append(["Actividad", "% Prog / % Ejec", "Estado"])
     r_hdr1 = ws.max_row
     for col_i in range(1, 4):
         c = ws.cell(row=r_hdr1, column=col_i)
         c.font = font_tbl_header
-        c.fill = fill_header
+        c.fill = fill_sub_header
         c.alignment = Alignment(horizontal="center", vertical="center")
 
     for av in datos.get("Avance", []):
@@ -540,39 +548,36 @@ def export_inspeccion_to_excel_file(insp_dict):
             if col_i in [2, 3]:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    ws.append([])
-
-    # 3. Check List General Agrupado por Secciones (Formato estructurado por módulos)
-    r_chk_main = ws.max_row + 1
-    ws.merge_cells(f"A{r_chk_main}:C{r_chk_main}")
-    ws[f"A{r_chk_main}"] = "2. CHECK LIST Y CONTROL GENERAL DE OBRA"
-    ws[f"A{r_chk_main}"].font = font_section_title
-    ws[f"A{r_chk_main}"].fill = fill_section
-    ws[f"A{r_chk_main}"].alignment = Alignment(vertical="center", indent=1)
-
+    # 3. Check List General Delimitado por Categorías
     checklist_groups = datos.get("Checklist", {})
 
     for sec_name, items in checklist_groups.items():
         if items:
-            ws.append([])
-            r_sec = ws.max_row
-            ws.merge_cells(f"A{r_sec}:C{r_sec}")
-            ws[f"A{r_sec}"] = f"■ {sec_name.upper()}"
-            ws[f"A{r_sec}"].font = font_bold
+            ws.append([])  # Espacio entre bloques
             
-            # Cabecera de la sub-tabla
+            # BARRA DE SUBTÍTULO DELIMITADORA (Ej. ■ HORMIGÓN)
+            r_sec = ws.max_row + 1
+            ws.merge_cells(f"A{r_sec}:C{r_sec}")
+            ws[f"A{r_sec}"] = f"■  {sec_name.upper()}"
+            ws[f"A{r_sec}"].font = font_category_title
+            ws[f"A{r_sec}"].fill = fill_category_bar
+            ws[f"A{r_sec}"].alignment = Alignment(vertical="center", indent=1)
+            ws.row_dimensions[r_sec].height = 24
+            
+            # CABECERA NEGRA DIRECTA (Sin fila vacía intermedia)
             ws.append(["Ítem / Aspecto Inspeccionado", "Cumple / Estado", "Observación"])
             r_hdr_sub = ws.max_row
-            ws.row_dimensions[r_hdr_sub].height = 22
+            ws.row_dimensions[r_hdr_sub].height = 20
             
             for col_i in range(1, 4):
                 c = ws.cell(row=r_hdr_sub, column=col_i)
                 c.font = font_tbl_header
-                c.fill = fill_header
+                c.fill = fill_main_header
                 c.alignment = Alignment(horizontal="center", vertical="center")
 
-            # Filas de la sección
-            for it in items:
+            # FILAS DE CADA CATEGORÍA
+            total_items = len(items)
+            for idx_it, it in enumerate(items, 1):
                 it_nombre = it.get("Item") or it.get("Aspecto") or it.get("Revisar") or it.get("Equipo", "")
                 it_estado = it.get("Cumple") or it.get("Estado", "") or "N/A"
                 it_obs = it.get("Observación", "")
@@ -588,14 +593,17 @@ def export_inspeccion_to_excel_file(insp_dict):
                 c2.font = font_regular
                 c3.font = font_regular
 
-                c1.border = thin_border
-                c2.border = thin_border
-                c3.border = thin_border
+                # Borde más pronunciado al final del cuadro para cerrarlo perfectamente
+                b_style = thick_bottom if idx_it == total_items else thin_border
+                c1.border = b_style
+                c2.border = b_style
+                c3.border = b_style
 
                 c1.alignment = Alignment(vertical="center", wrap_text=True)
                 c2.alignment = Alignment(horizontal="center", vertical="center")
                 c3.alignment = Alignment(vertical="center", wrap_text=True)
 
+    # Anchos de columna optimizados
     ws.column_dimensions['A'].width = 38
     ws.column_dimensions['B'].width = 24
     ws.column_dimensions['C'].width = 45
@@ -716,7 +724,6 @@ ACTIVIDADES_TARDE = [
     "Confirmación de materiales para el siguiente día", "Revisión del cumplimiento de la meta diaria",
     "Cierre de actividades en campo",
 ]
-
 # ==========================================
 # 4. MÓDULO DE LOGIN & REGISTRO
 # ==========================================
@@ -1104,7 +1111,6 @@ if es_admin:
     pestanas.append("Panel Admin")
 
 tabs_app = st.tabs(pestanas)
-
 # ==========================================
 # 7. ASIGNACIÓN DE PESTAÑAS Y MÓDULOS
 # ==========================================
