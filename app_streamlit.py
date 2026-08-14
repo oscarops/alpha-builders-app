@@ -60,7 +60,7 @@ st.markdown(
 
     .sidebar-logo-card { background-color: #ffffff; border-radius: 12px; padding: 8px 10px; margin-top: 0px !important; margin-bottom: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3); width: 100% !important; box-sizing: border-box; text-align: center; display: block; }
     [data-testid="stSidebar"] [data-testid="stImage"] { width: 100% !important; display: block !important; margin-top: 6px !important; margin-bottom: 10px !important; clear: both !important; }
-    [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
+    [data-testid="stSidebar"] [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
 
     .sidebar-profile-box { background: #1c1e26; border: 1px solid #323646; border-radius: 12px; padding: 10px 8px !important; text-align: center; margin-top: 4px; margin-bottom: 8px; width: 100% !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); box-sizing: border-box; }
     .sidebar-user-nombres { font-size: 0.88rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }
@@ -341,7 +341,6 @@ def get_repo_image_b64(filenames):
 # GENERADORES DE REPORTES EXCEL, PDF Y CSV
 # ==========================================
 def export_dataframe_to_excel_csv(df):
-    """Exportación en CSV delimitado por punto y coma (para compatibilidad con Excel)."""
     df_clean = df.drop(columns=["Foto_B64", "db_id"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
@@ -493,7 +492,6 @@ def export_inspeccion_to_excel_file(insp_dict):
     ws = wb.active
     ws.title = "Inspección Diaria"
 
-    # Estilos visuales
     thin_border = Border(
         left=Side(style='thin', color='CBD5E1'), 
         right=Side(style='thin', color='CBD5E1'),
@@ -516,7 +514,6 @@ def export_inspeccion_to_excel_file(insp_dict):
     font_bold = Font(name="Arial", bold=True, color="121318", size=9.5)
     font_regular = Font(name="Arial", size=9)
 
-    # 1. Título Principal
     ws.merge_cells("A1:C1")
     ws["A1"] = f"FORMATO DE INSPECCIÓN DIARIA - {insp_dict.get('Proyecto', '').upper()}"
     ws["A1"].font = font_main_title
@@ -524,7 +521,6 @@ def export_inspeccion_to_excel_file(insp_dict):
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 28
 
-    # Meta Información
     meta_info = [
         ["Fecha:", f"{insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})", ""],
         ["Residente de Obra:", insp_dict.get("Residente", ""), ""],
@@ -541,7 +537,6 @@ def export_inspeccion_to_excel_file(insp_dict):
     ws.append([])
     datos = insp_dict.get("Datos", {})
 
-    # 2. Avance General
     r_av_head = ws.max_row + 1
     ws.merge_cells(f"A{r_av_head}:C{r_av_head}")
     ws[f"A{r_av_head}"] = "1. AVANCE GENERAL"
@@ -569,14 +564,11 @@ def export_inspeccion_to_excel_file(insp_dict):
             if col_i in [2, 3]:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    # 3. Check List General Delimitado por Categorías
     checklist_groups = datos.get("Checklist", {})
 
     for sec_name, items in checklist_groups.items():
         if items:
             ws.append([])
-            
-            # BARRA DE SUBTÍTULO DELIMITADORA
             r_sec = ws.max_row + 1
             ws.merge_cells(f"A{r_sec}:C{r_sec}")
             ws[f"A{r_sec}"] = f"■  {sec_name.upper()}"
@@ -585,7 +577,6 @@ def export_inspeccion_to_excel_file(insp_dict):
             ws[f"A{r_sec}"].alignment = Alignment(vertical="center", indent=1)
             ws.row_dimensions[r_sec].height = 24
             
-            # CABECERA DIRECTA
             ws.append(["Ítem / Aspecto Inspeccionado", "Cumple / Estado", "Observación"])
             r_hdr_sub = ws.max_row
             ws.row_dimensions[r_hdr_sub].height = 20
@@ -717,7 +708,7 @@ def export_inspeccion_to_pdf_file(insp_dict):
     return buffer.getvalue()
 
 
-# GENERADORES DE INCIDENCIAS (Sin el número "7.")
+# GENERADORES DE REPORTES DE INCIDENCIAS
 def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1446,11 +1437,11 @@ with tab_chk:
                             }).execute()
 
                             st.session_state.db_loaded = False
-                            st.success(f"¡Jornada guardada permanentemente en Supabase para **{edificio_val}**!")
+                            st.success(f"¡Jornada guardada permanentemente para **{edificio_val}**!")
                             st.session_state.creando_jornada = False
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Error al guardar checklist en Supabase: {e}")
+                            st.error(f"Error al guardar checklist: {e}")
 
     st.markdown("---")
 
@@ -1779,7 +1770,7 @@ with tab_didactico:
                     st.success(f"¡Formato de inspección registrado y guardado permanentemente para **{did_proyecto}**!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error al guardar inspección en Supabase: {e}")
+                    st.error(f"Error al guardar inspección: {e}")
 
     st.markdown("---")
 
@@ -1938,7 +1929,7 @@ with tab_incidencias:
 
             desc_nueva = st.text_area("Descripción de la Incidencia / No Conformidad:*", placeholder="Describa a detalle el problema o trabajo por corregir...", key="f_inc_desc")
 
-            btn_guardar_inc = st.form_submit_button("💾 Guardar Incidencia en Supabase", type="primary", use_container_width=True)
+            btn_guardar_inc = st.form_submit_button("💾 Guardar Incidencia", type="primary", use_container_width=True)
 
             if btn_guardar_inc:
                 if not area_nueva.strip() or not desc_nueva.strip() or not resp_nuevo.strip():
@@ -1957,10 +1948,10 @@ with tab_incidencias:
                         }
                         supabase.table("incidencias").insert(nueva_data).execute()
                         st.session_state.db_loaded = False
-                        st.success("¡Incidencia registrada correctamente!")
+                        st.success("¡Incidencia registrada exitosamente!")
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error al guardar la incidencia en Supabase: {e}")
+                        st.error(f"Error al registrar la incidencia: {e}")
 
     # 3. Filtrado de Incidencias
     lista_incs = st.session_state.db_incidencias.copy()
@@ -1971,7 +1962,7 @@ with tab_incidencias:
     if filtro_estado_vista != "Todos":
         lista_incs = [i for i in lista_incs if i.get("Estado") == filtro_estado_vista]
 
-    # 4. Matriz de Incidencias Visual Delimitada (Idéntica a la tabla física)
+    # 4. Matriz de Incidencias Visual Delimitada (Idéntica al formato físico)
     st.markdown(f"#### Matriz de Incidencias ({len(lista_incs)} registros)")
 
     if len(lista_incs) > 0:
@@ -2136,7 +2127,7 @@ with tab_rend:
                 }).execute()
 
                 st.session_state.db_loaded = False
-                st.success(f"Rendimiento registrado correctamente en Supabase para {trabajador_sel}.")
+                st.success(f"Rendimiento registrado exitosamente para {trabajador_sel}.")
                 st.rerun()
             except Exception as e:
                 st.error(f"Error registrando rendimiento: {e}")
@@ -2180,7 +2171,7 @@ if es_admin:
                     try:
                         supabase.table("app_config").update({"value": nuevo_pin_input.strip()}).eq("key", "access_pin").execute()
                         st.session_state.access_pin = nuevo_pin_input.strip()
-                        st.success(f"¡Código PIN de acceso actualizado con éxito en Supabase a: **{nuevo_pin_input.strip()}**!")
+                        st.success(f"¡Código PIN de acceso actualizado exitosamente a: **{nuevo_pin_input.strip()}**!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al actualizar PIN: {e}")
@@ -2363,7 +2354,7 @@ if es_admin:
                     try:
                         supabase.table("usuarios").update({"es_admin": True}).eq("correo", mail_clean).execute()
                         st.session_state.db_loaded = False
-                        st.success(f"Se otorgaron permisos de administrador en Supabase a: {mail_clean}")
+                        st.success(f"Se otorgaron permisos de administrador a: {mail_clean}")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error actualizando administrador: {e}")
@@ -2391,7 +2382,7 @@ if es_admin:
                     try:
                         supabase.table("usuarios").delete().eq("correo", usuario_a_eliminar).execute()
                         st.session_state.db_loaded = False
-                        st.success(f"Cuenta de usuario **{usuario_a_eliminar}** eliminada correctamente de Supabase.")
+                        st.success(f"Cuenta de usuario **{usuario_a_eliminar}** eliminada correctamente.")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al eliminar usuario: {e}")
