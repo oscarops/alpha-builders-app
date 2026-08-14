@@ -60,7 +60,7 @@ st.markdown(
 
     .sidebar-logo-card { background-color: #ffffff; border-radius: 12px; padding: 8px 10px; margin-top: 0px !important; margin-bottom: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3); width: 100% !important; box-sizing: border-box; text-align: center; display: block; }
     [data-testid="stSidebar"] [data-testid="stImage"] { width: 100% !important; display: block !important; margin-top: 6px !important; margin-bottom: 10px !important; clear: both !important; }
-    [data-testid="stSidebar"] [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
+    [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
 
     .sidebar-profile-box { background: #1c1e26; border: 1px solid #323646; border-radius: 12px; padding: 10px 8px !important; text-align: center; margin-top: 4px; margin-bottom: 8px; width: 100% !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); box-sizing: border-box; }
     .sidebar-user-nombres { font-size: 0.88rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }
@@ -204,7 +204,7 @@ def load_db_from_supabase():
     except Exception:
         pass
 
-    # Carga Incidencias (Tabla dedicada)
+    # Carga Incidencias
     db_incidencias = []
     try:
         res_inc = supabase.table("incidencias").select("*").execute()
@@ -574,9 +574,9 @@ def export_inspeccion_to_excel_file(insp_dict):
 
     for sec_name, items in checklist_groups.items():
         if items:
-            ws.append([])  # Espacio entre bloques
+            ws.append([])
             
-            # BARRA DE SUBTÍTULO DELIMITADORA (Ej. ■ HORMIGÓN)
+            # BARRA DE SUBTÍTULO DELIMITADORA
             r_sec = ws.max_row + 1
             ws.merge_cells(f"A{r_sec}:C{r_sec}")
             ws[f"A{r_sec}"] = f"■  {sec_name.upper()}"
@@ -585,7 +585,7 @@ def export_inspeccion_to_excel_file(insp_dict):
             ws[f"A{r_sec}"].alignment = Alignment(vertical="center", indent=1)
             ws.row_dimensions[r_sec].height = 24
             
-            # CABECERA NEGRA DIRECTA (Sin fila vacía intermedia)
+            # CABECERA DIRECTA
             ws.append(["Ítem / Aspecto Inspeccionado", "Cumple / Estado", "Observación"])
             r_hdr_sub = ws.max_row
             ws.row_dimensions[r_hdr_sub].height = 20
@@ -596,7 +596,6 @@ def export_inspeccion_to_excel_file(insp_dict):
                 c.fill = fill_main_header
                 c.alignment = Alignment(horizontal="center", vertical="center")
 
-            # FILAS DE CADA CATEGORÍA
             total_items = len(items)
             for idx_it, it in enumerate(items, 1):
                 it_nombre = it.get("Item") or it.get("Aspecto") or it.get("Revisar") or it.get("Equipo", "")
@@ -718,6 +717,7 @@ def export_inspeccion_to_pdf_file(insp_dict):
     return buffer.getvalue()
 
 
+# GENERADORES DE INCIDENCIAS (Sin el número "7.")
 def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -737,7 +737,7 @@ def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
     font_left = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
     ws.merge_cells("A1:G1")
-    ws["A1"] = f"7. LEVANTAMIENTO DE INCIDENCIAS - {proyecto_nombre.upper()}"
+    ws["A1"] = f"LEVANTAMIENTO DE INCIDENCIAS - {proyecto_nombre.upper()}"
     ws["A1"].font = font_title
     ws["A1"].fill = fill_header
     ws["A1"].alignment = Alignment(horizontal="left", vertical="center", indent=1)
@@ -804,7 +804,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     cell_style = ParagraphStyle('IncCell', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'))
     cell_center = ParagraphStyle('IncCenter', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'), alignment=1)
 
-    story.append(Paragraph(f"<b>7. LEVANTAMIENTO DE INCIDENCIAS — {proyecto_nombre.upper()}</b>", title_style))
+    story.append(Paragraph(f"<b>LEVANTAMIENTO DE INCIDENCIAS — {proyecto_nombre.upper()}</b>", title_style))
     story.append(Spacer(1, 6))
 
     table_data = [[
@@ -1266,7 +1266,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 pestanas = [
     "Checklist Diario", 
     "Inspección Diaria", 
-    "7. Levantamiento de Incidencias", 
+    "Levantamiento de Incidencias", 
     "Control de Rendimiento"
 ]
 if es_admin:
@@ -1893,10 +1893,10 @@ with tab_didactico:
     else:
         st.info("Aún no hay formatos de inspección guardados.")
 # ----------------------------------------------------
-# MÓDULO 3: 7. LEVANTAMIENTO DE INCIDENCIAS
+# MÓDULO 3: LEVANTAMIENTO DE INCIDENCIAS
 # ----------------------------------------------------
 with tab_incidencias:
-    st.markdown("### 7. LEVANTAMIENTO DE INCIDENCIAS")
+    st.markdown("### Levantamiento de Incidencias")
     st.caption("Control de no conformidades, responsables, plazos de atención y seguimiento de cierre en obra.")
 
     # 1. Filtros superiores
@@ -1971,7 +1971,7 @@ with tab_incidencias:
     if filtro_estado_vista != "Todos":
         lista_incs = [i for i in lista_incs if i.get("Estado") == filtro_estado_vista]
 
-    # 4. Matriz de Incidencias Visual Delimitada (Idéntica al formato físico)
+    # 4. Matriz de Incidencias Visual Delimitada (Idéntica a la tabla física)
     st.markdown(f"#### Matriz de Incidencias ({len(lista_incs)} registros)")
 
     if len(lista_incs) > 0:
