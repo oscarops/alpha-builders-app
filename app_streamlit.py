@@ -204,6 +204,25 @@ def load_db_from_supabase():
     except Exception:
         pass
 
+    # Carga Incidencias (Tabla dedicada)
+    db_incidencias = []
+    try:
+        res_inc = supabase.table("incidencias").select("*").execute()
+        for r in res_inc.data:
+            db_incidencias.append({
+                "db_id": r["id"],
+                "Area": r["area"],
+                "Descripcion": r["descripcion"],
+                "Responsable": r["responsable"],
+                "Prioridad": r["prioridad"],
+                "Fecha_Compromiso": str(r["fecha_compromiso"]),
+                "Estado": r["estado"],
+                "Proyecto": r.get("proyecto", ""),
+                "Usuario": r.get("usuario_email", "")
+            })
+    except Exception:
+        pass
+
     # Carga Rendimientos
     db_rendimientos = {}
     try:
@@ -237,6 +256,7 @@ def load_db_from_supabase():
         "db_usuarios": db_usuarios,
         "db_checklists": db_checklists,
         "db_inspecciones": db_inspecciones,
+        "db_incidencias": db_incidencias,
         "db_rendimientos": db_rendimientos,
         "db_trabajadores": db_trabajadores,
     }
@@ -249,6 +269,7 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     st.session_state.db_usuarios = p_data["db_usuarios"]
     st.session_state.db_checklists = p_data["db_checklists"]
     st.session_state.db_inspecciones = p_data["db_inspecciones"]
+    st.session_state.db_incidencias = p_data["db_incidencias"]
     st.session_state.db_rendimientos = p_data["db_rendimientos"]
     st.session_state.db_trabajadores = p_data["db_trabajadores"]
     st.session_state.db_loaded = True
@@ -276,9 +297,9 @@ if not st.session_state.autenticado:
 def render_estado_badge(estado_str):
     if not estado_str:
         return '<span style="color: #64748b; font-weight: 600;">Sin Responder</span>'
-    if "Cumple" in estado_str or estado_str in ["Sí", "Operativo", "Completado"]:
+    if "Cumple" in estado_str or estado_str in ["Sí", "Operativo", "Completado", "Cerrada", "EFICIENTE"]:
         return f'<span style="background-color: #dcfce7; color: #16a34a; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #bbf7d0; font-size: 0.82rem;">{estado_str}</span>'
-    elif "No" in estado_str or estado_str in ["Fuera de servicio", "Retrasado"]:
+    elif "No" in estado_str or estado_str in ["Fuera de servicio", "Retrasado", "Abierta", "EXCESO DE HH"]:
         return f'<span style="background-color: #fee2e2; color: #dc2626; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #fca5a5; font-size: 0.82rem;">{estado_str}</span>'
     else:
         return f'<span style="background-color: #f1f5f9; color: #121318; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.82rem;">{estado_str}</span>'
@@ -593,7 +614,6 @@ def export_inspeccion_to_excel_file(insp_dict):
                 c2.font = font_regular
                 c3.font = font_regular
 
-                # Borde más pronunciado al final del cuadro para cerrarlo perfectamente
                 b_style = thick_bottom if idx_it == total_items else thin_border
                 c1.border = b_style
                 c2.border = b_style
@@ -603,7 +623,6 @@ def export_inspeccion_to_excel_file(insp_dict):
                 c2.alignment = Alignment(horizontal="center", vertical="center")
                 c3.alignment = Alignment(vertical="center", wrap_text=True)
 
-    # Anchos de columna optimizados
     ws.column_dimensions['A'].width = 38
     ws.column_dimensions['B'].width = 24
     ws.column_dimensions['C'].width = 45
@@ -694,6 +713,141 @@ def export_inspeccion_to_pdf_file(insp_dict):
             story.append(t_sec)
             story.append(Spacer(1, 4))
 
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Incidencias"
+
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'), 
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'), 
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+    fill_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
+    font_title = Font(name="Arial", bold=True, color="FFFFFF", size=11)
+    font_tbl_header = Font(name="Arial", bold=True, color="FFFFFF", size=9)
+    font_regular = Font(name="Arial", size=9)
+    font_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    font_left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+    ws.merge_cells("A1:G1")
+    ws["A1"] = f"7. LEVANTAMIENTO DE INCIDENCIAS - {proyecto_nombre.upper()}"
+    ws["A1"].font = font_title
+    ws["A1"].fill = fill_header
+    ws["A1"].alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[1].height = 28
+
+    headers = ["N°", "Área", "Descripción", "Responsable", "Prioridad", "Fecha compromiso", "Estado"]
+    ws.append(headers)
+    ws.row_dimensions[2].height = 24
+
+    for col_i in range(1, 8):
+        c = ws.cell(row=2, column=col_i)
+        c.font = font_tbl_header
+        c.fill = fill_header
+        c.alignment = font_center
+        c.border = thin_border
+
+    for idx, inc in enumerate(incidencias_list, 1):
+        prio_str = f"Alta {'[X]' if inc.get('Prioridad')=='Alta' else '[ ]'}\nMedia {'[X]' if inc.get('Prioridad')=='Media' else '[ ]'}\nBaja {'[X]' if inc.get('Prioridad')=='Baja' else '[ ]'}"
+        est_str = f"Abierta {'[X]' if inc.get('Estado')=='Abierta' else '[ ]'}\nCerrada {'[X]' if inc.get('Estado')=='Cerrada' else '[ ]'}"
+        
+        ws.append([
+            idx,
+            inc.get("Area", ""),
+            inc.get("Descripcion", ""),
+            inc.get("Responsable", ""),
+            prio_str,
+            str(inc.get("Fecha_Compromiso", "")),
+            est_str
+        ])
+        
+        r_i = ws.max_row
+        ws.row_dimensions[r_i].height = 55
+        
+        for c_idx in range(1, 8):
+            cell = ws.cell(row=r_i, column=c_idx)
+            cell.font = font_regular
+            cell.border = thin_border
+            if c_idx in [1, 5, 6, 7]:
+                cell.alignment = font_center
+            else:
+                cell.alignment = font_left
+
+    ws.column_dimensions['A'].width = 6
+    ws.column_dimensions['B'].width = 20
+    ws.column_dimensions['C'].width = 38
+    ws.column_dimensions['D'].width = 22
+    ws.column_dimensions['E'].width = 16
+    ws.column_dimensions['F'].width = 18
+    ws.column_dimensions['G'].width = 16
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+
+def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
+    story = []
+
+    title_style = ParagraphStyle('IncTitle', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#121318'), spaceAfter=8)
+    header_style = ParagraphStyle('IncHeader', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=1)
+    cell_style = ParagraphStyle('IncCell', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'))
+    cell_center = ParagraphStyle('IncCenter', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'), alignment=1)
+
+    story.append(Paragraph(f"<b>7. LEVANTAMIENTO DE INCIDENCIAS — {proyecto_nombre.upper()}</b>", title_style))
+    story.append(Spacer(1, 6))
+
+    table_data = [[
+        Paragraph("<b>N°</b>", header_style),
+        Paragraph("<b>Área</b>", header_style),
+        Paragraph("<b>Descripción</b>", header_style),
+        Paragraph("<b>Responsable</b>", header_style),
+        Paragraph("<b>Prioridad</b>", header_style),
+        Paragraph("<b>Fecha compromiso</b>", header_style),
+        Paragraph("<b>Estado</b>", header_style)
+    ]]
+
+    for idx, item in enumerate(incidencias_list, 1):
+        prio_alta = "☑ Alta" if item.get("Prioridad") == "Alta" else "☐ Alta"
+        prio_media = "☑ Media" if item.get("Prioridad") == "Media" else "☐ Media"
+        prio_baja = "☑ Baja" if item.get("Prioridad") == "Baja" else "☐ Baja"
+        prio_text = f"{prio_alta}<br/>{prio_media}<br/>{prio_baja}"
+
+        est_abierta = "☑ Abierta" if item.get("Estado") == "Abierta" else "☐ Abierta"
+        est_cerrada = "☑ Cerrada" if item.get("Estado") == "Cerrada" else "☐ Cerrada"
+        est_text = f"{est_abierta}<br/>{est_cerrada}"
+
+        table_data.append([
+            Paragraph(str(idx), cell_center),
+            Paragraph(str(item.get("Area", "")), cell_style),
+            Paragraph(str(item.get("Descripcion", "")), cell_style),
+            Paragraph(str(item.get("Responsable", "")), cell_style),
+            Paragraph(prio_text, cell_style),
+            Paragraph(str(item.get("Fecha_Compromiso", "")), cell_center),
+            Paragraph(est_text, cell_style)
+        ])
+
+    table = Table(table_data, colWidths=[25, 85, 175, 95, 65, 75, 65])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+
+    story.append(table)
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
@@ -1005,10 +1159,11 @@ st.markdown(
 
 usr_chks = len(st.session_state.db_checklists.get(user_email, []))
 usr_insps = len(st.session_state.db_inspecciones.get(user_email, []))
+usr_incs = len(st.session_state.db_incidencias)
 usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 total_obreros = len(st.session_state.db_trabajadores)
 
-k1, k2, k3, k4 = st.columns(4)
+k1, k2, k3, k4, k5 = st.columns(5)
 with k1:
     with st.popover(f"👷 {total_obreros} Activos", use_container_width=True):
         st.markdown(f"### Plantilla de Obreros ({total_obreros} Activos)")
@@ -1102,11 +1257,18 @@ with k2:
 with k3:
     st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_insps}</div><div class="kpi-lbl-studio">Inspecciones Diarias</div></div>', unsafe_allow_html=True)
 with k4:
+    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_incs}</div><div class="kpi-lbl-studio">Incidencias Registradas</div></div>', unsafe_allow_html=True)
+with k5:
     st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_rnds}</div><div class="kpi-lbl-studio">Reportes Rendimiento</div></div>', unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-pestanas = ["Checklist Diario", "Inspección Diaria", "Control de Rendimiento"]
+pestanas = [
+    "Checklist Diario", 
+    "Inspección Diaria", 
+    "7. Levantamiento de Incidencias", 
+    "Control de Rendimiento"
+]
 if es_admin:
     pestanas.append("Panel Admin")
 
@@ -1116,7 +1278,8 @@ tabs_app = st.tabs(pestanas)
 # ==========================================
 tab_chk = tabs_app[0]
 tab_didactico = tabs_app[1]
-tab_rend = tabs_app[2]
+tab_incidencias = tabs_app[2]
+tab_rend = tabs_app[3]
 
 # ------------------------------------------
 # MÓDULO 1: CHECKLIST DIARIO
@@ -1729,10 +1892,183 @@ with tab_didactico:
             st.warning("No hay formatos de inspección para el proyecto seleccionado.")
     else:
         st.info("Aún no hay formatos de inspección guardados.")
+# ----------------------------------------------------
+# MÓDULO 3: 7. LEVANTAMIENTO DE INCIDENCIAS
+# ----------------------------------------------------
+with tab_incidencias:
+    st.markdown("### 7. LEVANTAMIENTO DE INCIDENCIAS")
+    st.caption("Control de no conformidades, responsables, plazos de atención y seguimiento de cierre en obra.")
 
-# ==========================================
-# 8. MÓDULO 3: CONTROL DE RENDIMIENTO
-# ==========================================
+    # 1. Filtros superiores
+    col_fil_inc1, col_fil_inc2 = st.columns([2, 2])
+    with col_fil_inc1:
+        proy_inc_sel = st.selectbox(
+            "🏢 Seleccionar Proyecto / Edificio:",
+            ["-- Todos los Proyectos --"] + EDIFICIOS_ALPHA,
+            key="sel_proy_incidencias"
+        )
+    with col_fil_inc2:
+        filtro_estado_vista = st.segmented_control(
+            "Filtrar por Estado:",
+            ["Todos", "Abierta", "Cerrada"],
+            default="Todos",
+            key="filtro_estado_inc_view"
+        )
+
+    st.markdown("---")
+
+    # 2. Formulario para Registrar Nueva Incidencia
+    with st.expander("➕ Registrar Nueva Incidencia / Hallazgo en Obra", expanded=False):
+        with st.form("form_nueva_incidencia"):
+            c_i1, c_i2 = st.columns(2)
+            with c_i1:
+                proy_nuevo = st.selectbox(
+                    "Proyecto / Edificio:*",
+                    EDIFICIOS_ALPHA,
+                    index=0 if proy_inc_sel == "-- Todos los Proyectos --" else EDIFICIOS_ALPHA.index(proy_inc_sel) if proy_inc_sel in EDIFICIOS_ALPHA else 0,
+                    key="f_inc_proy"
+                )
+                area_nueva = st.text_input("Área / Ubicación:*", placeholder="Ej. Losa Piso 3 / Eje B-4", key="f_inc_area")
+                resp_nuevo = st.text_input("Responsable:*", placeholder="Ej. Cuadrilla Estructura / Ing. Residente", key="f_inc_resp")
+
+            with c_i2:
+                prio_nueva = st.segmented_control("Prioridad:*", ["Alta", "Media", "Baja"], default="Media", key="f_inc_prio")
+                f_comp_nueva = st.date_input("Fecha Compromiso:*", datetime.date.today() + datetime.timedelta(days=3), key="f_inc_fcomp")
+                est_nuevo = st.segmented_control("Estado Inicial:*", ["Abierta", "Cerrada"], default="Abierta", key="f_inc_est")
+
+            desc_nueva = st.text_area("Descripción de la Incidencia / No Conformidad:*", placeholder="Describa a detalle el problema o trabajo por corregir...", key="f_inc_desc")
+
+            btn_guardar_inc = st.form_submit_button("💾 Guardar Incidencia en Supabase", type="primary", use_container_width=True)
+
+            if btn_guardar_inc:
+                if not area_nueva.strip() or not desc_nueva.strip() or not resp_nuevo.strip():
+                    st.error("⚠️ Por favor complete todos los campos obligatorios (*).")
+                else:
+                    try:
+                        nueva_data = {
+                            "usuario_email": user_email,
+                            "proyecto": proy_nuevo,
+                            "area": area_nueva.strip(),
+                            "descripcion": desc_nueva.strip(),
+                            "responsable": resp_nuevo.strip(),
+                            "prioridad": prio_nueva,
+                            "fecha_compromiso": f_comp_nueva.strftime("%Y-%m-%d"),
+                            "estado": est_nuevo
+                        }
+                        supabase.table("incidencias").insert(nueva_data).execute()
+                        st.session_state.db_loaded = False
+                        st.success("¡Incidencia registrada correctamente!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al guardar la incidencia en Supabase: {e}")
+
+    # 3. Filtrado de Incidencias
+    lista_incs = st.session_state.db_incidencias.copy()
+
+    if proy_inc_sel != "-- Todos los Proyectos --":
+        lista_incs = [i for i in lista_incs if i.get("Proyecto") == proy_inc_sel]
+
+    if filtro_estado_vista != "Todos":
+        lista_incs = [i for i in lista_incs if i.get("Estado") == filtro_estado_vista]
+
+    # 4. Matriz de Incidencias Visual Delimitada (Idéntica al formato físico)
+    st.markdown(f"#### Matriz de Incidencias ({len(lista_incs)} registros)")
+
+    if len(lista_incs) > 0:
+        # Cabecera estructurada
+        st.markdown(
+            """
+            <div style="display: grid; grid-template-columns: 45px 140px 1.8fr 140px 100px 110px 100px 70px; background-color: #121318; color: #ffffff; padding: 10px 8px; border-radius: 8px 8px 0 0; font-weight: 800; font-size: 0.80rem; text-align: center; align-items: center;">
+                <div>N°</div>
+                <div style="text-align: left;">Área</div>
+                <div style="text-align: left;">Descripción</div>
+                <div style="text-align: left;">Responsable</div>
+                <div>Prioridad</div>
+                <div>Fecha Comp.</div>
+                <div>Estado</div>
+                <div>Acción</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        for idx, inc in enumerate(lista_incs, 1):
+            prio_badge = f"""
+            <div style="font-size: 0.72rem; text-align: left; line-height: 1.3;">
+                <span style="font-weight: {'800' if inc.get('Prioridad')=='Alta' else '400'}; color: {'#dc2626' if inc.get('Prioridad')=='Alta' else '#64748b'};">{'☒' if inc.get('Prioridad')=='Alta' else '☐'} Alta</span><br/>
+                <span style="font-weight: {'800' if inc.get('Prioridad')=='Media' else '400'}; color: {'#d97706' if inc.get('Prioridad')=='Media' else '#64748b'};">{'☒' if inc.get('Prioridad')=='Media' else '☐'} Media</span><br/>
+                <span style="font-weight: {'800' if inc.get('Prioridad')=='Baja' else '400'}; color: {'#16a34a' if inc.get('Prioridad')=='Baja' else '#64748b'};">{'☒' if inc.get('Prioridad')=='Baja' else '☐'} Baja</span>
+            </div>
+            """
+
+            est_badge = f"""
+            <div style="font-size: 0.72rem; text-align: left; line-height: 1.3;">
+                <span style="font-weight: {'800' if inc.get('Estado')=='Abierta' else '400'}; color: {'#dc2626' if inc.get('Estado')=='Abierta' else '#64748b'};">{'☒' if inc.get('Estado')=='Abierta' else '☐'} Abierta</span><br/>
+                <span style="font-weight: {'800' if inc.get('Estado')=='Cerrada' else '400'}; color: {'#16a34a' if inc.get('Estado')=='Cerrada' else '#64748b'};">{'☒' if inc.get('Estado')=='Cerrada' else '☐'} Cerrada</span>
+            </div>
+            """
+
+            c_row1, c_row2, c_row3, c_row4, c_row5, c_row6, c_row7, c_row8 = st.columns([0.45, 1.4, 3.2, 1.4, 1.1, 1.1, 1.1, 0.7])
+            
+            with c_row1:
+                st.markdown(f"<div style='text-align: center; font-weight: 700; padding-top: 8px;'>{idx}</div>", unsafe_allow_html=True)
+            with c_row2:
+                st.markdown(f"<div style='font-weight: 600; font-size: 0.85rem; padding-top: 8px;'>{inc.get('Area', '')}<br/><small style='color: #64748b;'>{inc.get('Proyecto', '')}</small></div>", unsafe_allow_html=True)
+            with c_row3:
+                st.markdown(f"<div style='font-size: 0.85rem; padding-top: 8px;'>{inc.get('Descripcion', '')}</div>", unsafe_allow_html=True)
+            with c_row4:
+                st.markdown(f"<div style='font-size: 0.85rem; padding-top: 8px;'>{inc.get('Responsable', '')}</div>", unsafe_allow_html=True)
+            with c_row5:
+                st.markdown(prio_badge, unsafe_allow_html=True)
+            with c_row6:
+                st.markdown(f"<div style='text-align: center; font-size: 0.80rem; font-weight: 700; padding-top: 8px;'>{inc.get('Fecha_Compromiso', '')}</div>", unsafe_allow_html=True)
+            with c_row7:
+                st.markdown(est_badge, unsafe_allow_html=True)
+            with c_row8:
+                with st.popover("⚙️"):
+                    st.markdown(f"**Gestión N° {idx}**")
+                    nuevo_est_toggle = "Cerrada" if inc.get("Estado") == "Abierta" else "Abierta"
+                    if st.button(f"Marcar como {nuevo_est_toggle}", key=f"tog_st_{inc['db_id']}"):
+                        supabase.table("incidencias").update({"estado": nuevo_est_toggle}).eq("id", inc["db_id"]).execute()
+                        st.session_state.db_loaded = False
+                        st.rerun()
+
+                    if st.button("🗑️ Eliminar", key=f"del_inc_{inc['db_id']}", type="secondary"):
+                        supabase.table("incidencias").delete().eq("id", inc["db_id"]).execute()
+                        st.session_state.db_loaded = False
+                        st.rerun()
+
+            st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+
+        # Descargas en Excel y PDF
+        st.markdown("<br>", unsafe_allow_html=True)
+        c_exp1, c_exp2 = st.columns(2)
+        nombre_proy_rep = proy_inc_sel if proy_inc_sel != "-- Todos los Proyectos --" else "Alpha_Builders_General"
+        
+        with c_exp1:
+            excel_inc_bytes = export_incidencias_to_excel(lista_incs, nombre_proy_rep)
+            st.download_button(
+                label="📊 Descargar Incidencias en Excel (.xlsx)",
+                data=excel_inc_bytes,
+                file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{datetime.date.today().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_excel_incidencias_tab"
+            )
+        with c_exp2:
+            pdf_inc_bytes = export_incidencias_to_pdf(lista_incs, nombre_proy_rep)
+            st.download_button(
+                label="📄 Descargar Incidencias en PDF (.pdf)",
+                data=pdf_inc_bytes,
+                file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{datetime.date.today().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+                key="dl_pdf_incidencias_tab"
+            )
+    else:
+        st.info("No se encontraron incidencias registradas con los filtros seleccionados.")
+
+# ------------------------------------------
+# MÓDULO 4: CONTROL DE RENDIMIENTO
+# ------------------------------------------
 with tab_rend:
     st.markdown("### Control de Rendimiento por Trabajador")
     st.caption("Asignación de rubros, cálculo de Horas-Hombre (HH) y diagnóstico de productividad.")
@@ -1825,10 +2161,10 @@ with tab_rend:
 # 9. MÓDULO ADMINISTRADOR
 # ==========================================
 if es_admin:
-    tab_admin = tabs_app[3]
+    tab_admin = tabs_app[4]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
-        st.caption("Módulo exclusivo para supervisar inspecciones, rendimientos, usuarios y configuración.")
+        st.caption("Módulo exclusivo para supervisar inspecciones, checklists, incidencias, rendimientos, usuarios y configuración.")
 
         st.markdown("#### 🔐 Código de Seguridad de Acceso y Registro (PIN)")
         col_pin1, col_pin2 = st.columns([2, 1])
@@ -1966,6 +2302,24 @@ if es_admin:
 
         st.markdown("---")
 
+        st.markdown("#### 🚨 Levantamiento de Incidencias - Vista Administrador")
+        todas_las_incidencias_admin = st.session_state.db_incidencias
+        if len(todas_las_incidencias_admin) > 0:
+            df_inc_admin = pd.DataFrame(todas_las_incidencias_admin)
+            st.dataframe(df_inc_admin, use_container_width=True)
+            csv_inc_admin_bytes = export_dataframe_to_excel_csv(df_inc_admin)
+            st.download_button(
+                label="📥 Descargar Todas las Incidencias (CSV)",
+                data=csv_inc_admin_bytes,
+                file_name=f"Incidencias_Globales_{datetime.date.today().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                key="dl_csv_inc_admin_all"
+            )
+        else:
+            st.info("No hay incidencias registradas en la obra actualmente.")
+
+        st.markdown("---")
+
         st.markdown("#### 📊 Rendimientos Subidos por Todos los Participantes")
         todos_los_rendimientos = []
         for u_mail, r_lista in st.session_state.db_rendimientos.items():
@@ -2022,7 +2376,6 @@ if es_admin:
         st.markdown("---")
 
         st.markdown("#### Usuarios Activos y Gestión de Cuentas")
-        
         lista_correos = [u["Correo"] for u in st.session_state.db_usuarios]
         
         col_del_usr1, col_del_usr2 = st.columns([2, 1])
@@ -2062,6 +2415,7 @@ if es_admin:
             e = u["Correo"]
             num_c = len(st.session_state.db_checklists.get(e, []))
             num_i = len(st.session_state.db_inspecciones.get(e, []))
+            num_inc = len([inc for inc in st.session_state.db_incidencias if inc.get("Usuario") == e])
             num_r = len(st.session_state.db_rendimientos.get(e, []))
             resumen_actividad.append({
                 "Usuario": f"{u['Nombres']} {u['Apellidos']}".strip() or e,
@@ -2069,6 +2423,7 @@ if es_admin:
                 "Cargo": u["Cargo"],
                 "Checklists": num_c,
                 "Inspecciones": num_i,
+                "Incidencias": num_inc,
                 "Rendimientos": num_r,
                 "Estado": u["Estado"]
             })
