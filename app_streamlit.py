@@ -12,14 +12,14 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
-# ReportLab para PDFs
+# ReportLab para exportación en PDF
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES DE CUADRÍCULA CONTINUA
 # ==============================================================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -39,8 +39,8 @@ st.markdown(
     .block-container { 
         padding-top: 1rem !important; 
         padding-bottom: 1.5rem !important; 
-        padding-left: 2.5rem !important; 
-        padding-right: 2.5rem !important; 
+        padding-left: 2rem !important; 
+        padding-right: 2rem !important; 
         max-width: 100% !important; 
     }
     .stApp { background-color: #ffffff !important; color: #121318 !important; }
@@ -49,7 +49,7 @@ st.markdown(
 
     [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
 
-    /* SIDEBAR TOGGLE */
+    /* SIDEBAR TOGGLE & CONTROLS */
     [data-testid="stSidebarCollapseButton"] { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important; }
     [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 15px !important; left: 15px !important; z-index: 999999 !important; }
 
@@ -151,7 +151,7 @@ st.markdown(
     [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #282c36 !important; padding: 6px 8px !important; }
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * { color: #ffffff !important; font-weight: 700 !important; font-size: 0.78rem !important; }
 
-    /* CARDS Y DASHBOARD */
+    /* DASHBOARD Y CARDS */
     .executive-card-studio { 
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%); 
         border: 1px solid #b8c4d8; 
@@ -209,12 +209,72 @@ st.markdown(
     }
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    /* ESTILOS DE TABLAS DE ALTA PRECISIÓN: DELIMITACIÓN CONTINUA Y SIN ESPACIOS */
+    /* ==========================================================
+       DELIMITACIÓN DE CUADRÍCULA CONTINUA Y ELIMINACIÓN DE GAPS
+       ========================================================== */
+    .grid-table-container {
+        width: 100%;
+        border: 1px solid #94a3b8;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-top: 6px;
+        margin-bottom: 12px;
+        background: #ffffff;
+    }
+
+    .grid-header-row {
+        display: flex;
+        background-color: #121318;
+        color: #ffffff;
+        font-size: 0.82rem;
+        font-weight: 800;
+        border-bottom: 1px solid #334155;
+    }
+
+    .grid-header-cell {
+        padding: 10px 8px;
+        border-right: 1px solid #334155;
+        box-sizing: border-box;
+    }
+    .grid-header-cell:last-child {
+        border-right: none;
+    }
+
+    /* FILA DE CONTENIDO INTERACTIVO CON BORDES CONTINUOS */
+    div.grid-row-interactive {
+        border-bottom: 1px solid #cbd5e1 !important;
+        background-color: #ffffff;
+        transition: background 0.15s ease;
+    }
+    div.grid-row-interactive:nth-child(even) {
+        background-color: #f8fafc;
+    }
+    div.grid-row-interactive:hover {
+        background-color: #f1f5f9;
+    }
+
+    div.grid-row-interactive > [data-testid="stHorizontalBlock"] {
+        gap: 0rem !important;
+    }
+
+    div.grid-row-interactive [data-testid="column"] {
+        border-right: 1px solid #cbd5e1 !important;
+        padding: 8px 8px !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        margin: 0 !important;
+    }
+    div.grid-row-interactive [data-testid="column"]:last-child {
+        border-right: none !important;
+    }
+
+    /* TABLAS ESTÁTICAS DE RESULTADOS / MATRICES */
     .incidencias-table, .supervision-table, .checklist-table {
         width: 100%;
         border-collapse: collapse !important;
-        margin-top: 6px;
-        margin-bottom: 14px;
+        margin-top: 4px;
+        margin-bottom: 12px;
         font-family: 'Inter', sans-serif;
     }
     .incidencias-table th, .supervision-table th, .checklist-table th {
@@ -239,25 +299,6 @@ st.markdown(
     }
     .incidencias-table tr:nth-child(even) td, .supervision-table tr:nth-child(even) td, .checklist-table tr:nth-child(even) td {
         background-color: #f8fafc !important;
-    }
-
-    /* FILA INTERACTIVA DE FORMULARIO SIN ESPACIOS DESFASADOS */
-    .form-grid-row {
-        display: flex;
-        align-items: stretch;
-        border: 1px solid #cbd5e1;
-        border-top: none;
-        background: #ffffff;
-    }
-    .form-grid-cell {
-        padding: 6px 8px;
-        border-right: 1px solid #cbd5e1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-    .form-grid-cell:last-child {
-        border-right: none;
     }
 
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
@@ -661,7 +702,7 @@ def export_checklist_to_pdf_file(jornada_dict):
             Paragraph(str(item.get("Jornada", "")), cell_style),
             Paragraph(str(item.get("N°", "")), cell_style),
             Paragraph(str(item.get("Actividad", "")), cell_style),
-            Paragraph(str(item.get("Estado", "") or "N/A"), cell_style),
+            Paragraph(str(item.get("Estado", "") or "Sin Responder"), cell_style),
             Paragraph(obs_str, cell_style)
         ])
 
@@ -1481,7 +1522,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# 8. MÓDULO 1: CHECKLIST DIARIO (TABLAS CONTINUAS DELIMITADAS Y ALINEADAS)
+# 8. MÓDULO 1: CHECKLIST DIARIO (CUADRÍCULA CONTINUA DELIMITADA SIN N/A)
 # ==============================================================================
 tab_chk = tabs_app[0]
 tab_didactico = tabs_app[1]
@@ -1498,12 +1539,12 @@ with tab_chk:
             {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
         ]
 
-    # Conteo dinámico de observaciones integradas por actividad
+    # Conteo dinámico de observaciones por actividad (+)
     if "chk_obs_counts" not in st.session_state:
         st.session_state.chk_obs_counts = {}
 
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión técnica diaria estructurada en tablas delimitadas continuas sin desfases.")
+    st.caption("Supervisión técnica diaria con cuadrícula continua delimitada y observaciones integradas por actividad.")
 
     if not st.session_state.creando_jornada:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -1534,22 +1575,25 @@ with tab_chk:
             st.markdown("---")
 
             # ------------------------------------------------------------------
-            # 1. JORNADA DE LA MAÑANA (TABLA CONTINUA DELIMITADA)
+            # 1. JORNADA DE LA MAÑANA (CUADRÍCULA CONTINUA DELIMITADA SIN N/A)
             # ------------------------------------------------------------------
             st.markdown("#### 🌅 Jornada de la Mañana")
             
             # Cabecera continua unificada
-            m_h1, m_h2, m_h3, m_h4, m_h5 = st.columns([0.5, 3.2, 2.0, 3.2, 2.1])
-            with m_h1:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 4px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>N°</div>", unsafe_allow_html=True)
-            with m_h2:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Actividad / Verificación</div>", unsafe_allow_html=True)
-            with m_h3:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Estado General</div>", unsafe_allow_html=True)
-            with m_h4:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Observaciones del Ítem</div>", unsafe_allow_html=True)
-            with m_h5:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Foto Evidencia</div>", unsafe_allow_html=True)
+            st.markdown(
+                """
+                <div class="grid-table-container" style="margin-bottom: 0px; border-bottom: none; border-radius: 6px 6px 0 0;">
+                    <div class="grid-header-row">
+                        <div class="grid-header-cell" style="width: 5%; text-align: center;">N°</div>
+                        <div class="grid-header-cell" style="width: 32%;">Actividad / Verificación</div>
+                        <div class="grid-header-cell" style="width: 22%; text-align: center;">Estado General</div>
+                        <div class="grid-header-cell" style="width: 25%;">Observaciones del Ítem</div>
+                        <div class="grid-header-cell" style="width: 16%; text-align: center;">Foto Evidencia</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
             resp_manana = []
 
@@ -1558,14 +1602,22 @@ with tab_chk:
                 if item_key not in st.session_state.chk_obs_counts:
                     st.session_state.chk_obs_counts[item_key] = 1
 
-                mc1, mc2, mc3, mc4, mc5 = st.columns([0.5, 3.2, 2.0, 3.2, 2.1])
+                # Fila interactiva delimitada sin gaps
+                st.markdown('<div class="grid-row-interactive">', unsafe_allow_html=True)
+                mc1, mc2, mc3, mc4, mc5 = st.columns([0.5, 3.2, 2.2, 2.5, 1.6])
 
                 with mc1:
-                    st.markdown(f"<div style='text-align:center; font-weight:800; font-size:0.88rem; padding-top:12px;'>{idx}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='text-align:center; font-weight:800; font-size:0.88rem; padding-top:10px;'>{idx}</div>", unsafe_allow_html=True)
                 with mc2:
-                    st.markdown(f"<div style='font-size:0.84rem; font-weight:600; padding-top:8px; line-height:1.3;'>{act}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size:0.83rem; font-weight:600; padding-top:6px; line-height:1.3;'>{act}</div>", unsafe_allow_html=True)
                 with mc3:
-                    est = st.segmented_control(f"M_Est_{idx}", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"m_st_{idx}", label_visibility="collapsed")
+                    # Sin opción N/A: Solamente Cumple y No Cumple
+                    est = st.segmented_control(
+                        f"M_Est_{idx}", 
+                        ["✓ Cumple", "✗ No Cumple"], 
+                        key=f"m_st_{idx}", 
+                        label_visibility="collapsed"
+                    )
                 with mc4:
                     obs_vals_item = []
                     for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
@@ -1584,13 +1636,13 @@ with tab_chk:
 
                 with mc5:
                     if idx in [1, 2]:
-                        st.markdown("<div style='text-align:center; color:#94a3b8; font-size:0.75rem; padding-top:10px;'>No requerida</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='text-align:center; color:#94a3b8; font-size:0.75rem; padding-top:8px;'>No requerida</div>", unsafe_allow_html=True)
                         ft_b64 = None
                     else:
                         ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
                         ft_b64 = image_to_base64(ft) if ft is not None else None
 
-                st.markdown("<hr style='margin: 3px 0 6px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 resp_manana.append({
                     "Jornada": "Mañana",
@@ -1604,21 +1656,24 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 2. JORNADA DE LA TARDE (TABLA CONTINUA DELIMITADA)
+            # 2. JORNADA DE LA TARDE (CUADRÍCULA CONTINUA DELIMITADA SIN N/A)
             # ------------------------------------------------------------------
             st.markdown("#### 🌆 Jornada de la Tarde")
             
-            t_h1, t_h2, t_h3, t_h4, t_h5 = st.columns([0.5, 3.2, 2.0, 3.2, 2.1])
-            with t_h1:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 4px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>N°</div>", unsafe_allow_html=True)
-            with t_h2:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Actividad / Verificación</div>", unsafe_allow_html=True)
-            with t_h3:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Estado General</div>", unsafe_allow_html=True)
-            with t_h4:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Observaciones del Ítem</div>", unsafe_allow_html=True)
-            with t_h5:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Foto Evidencia</div>", unsafe_allow_html=True)
+            st.markdown(
+                """
+                <div class="grid-table-container" style="margin-bottom: 0px; border-bottom: none; border-radius: 6px 6px 0 0;">
+                    <div class="grid-header-row">
+                        <div class="grid-header-cell" style="width: 5%; text-align: center;">N°</div>
+                        <div class="grid-header-cell" style="width: 32%;">Actividad / Verificación</div>
+                        <div class="grid-header-cell" style="width: 22%; text-align: center;">Estado General</div>
+                        <div class="grid-header-cell" style="width: 25%;">Observaciones del Ítem</div>
+                        <div class="grid-header-cell" style="width: 16%; text-align: center;">Foto Evidencia</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
             resp_tarde = []
 
@@ -1627,14 +1682,21 @@ with tab_chk:
                 if item_key not in st.session_state.chk_obs_counts:
                     st.session_state.chk_obs_counts[item_key] = 1
 
-                tc1, tc2, tc3, tc4, tc5 = st.columns([0.5, 3.2, 2.0, 3.2, 2.1])
+                st.markdown('<div class="grid-row-interactive">', unsafe_allow_html=True)
+                tc1, tc2, tc3, tc4, tc5 = st.columns([0.5, 3.2, 2.2, 2.5, 1.6])
 
                 with tc1:
-                    st.markdown(f"<div style='text-align:center; font-weight:800; font-size:0.88rem; padding-top:12px;'>{idx}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='text-align:center; font-weight:800; font-size:0.88rem; padding-top:10px;'>{idx}</div>", unsafe_allow_html=True)
                 with tc2:
-                    st.markdown(f"<div style='font-size:0.84rem; font-weight:600; padding-top:8px; line-height:1.3;'>{act}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size:0.83rem; font-weight:600; padding-top:6px; line-height:1.3;'>{act}</div>", unsafe_allow_html=True)
                 with tc3:
-                    est = st.segmented_control(f"T_Est_{idx}", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"t_st_{idx}", label_visibility="collapsed")
+                    # Sin opción N/A: Solamente Cumple y No Cumple
+                    est = st.segmented_control(
+                        f"T_Est_{idx}", 
+                        ["✓ Cumple", "✗ No Cumple"], 
+                        key=f"t_st_{idx}", 
+                        label_visibility="collapsed"
+                    )
                 with tc4:
                     obs_vals_item = []
                     for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
@@ -1655,7 +1717,7 @@ with tab_chk:
                     ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
                     ft_b64 = image_to_base64(ft) if ft is not None else None
 
-                st.markdown("<hr style='margin: 3px 0 6px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 resp_tarde.append({
                     "Jornada": "Tarde",
@@ -1669,34 +1731,36 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 3. SUPERVISIÓN DE TRABAJOS (TABLA CONTINUA SIN ESPACIOS DESFASADOS)
+            # 3. SUPERVISIÓN DE TRABAJOS (CUADRÍCULA CONTINUA DELIMITADA)
             # ------------------------------------------------------------------
             st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.filas_supervision)} registros)")
             st.caption("Agregue actividades ejecutadas en campo, seleccione a los trabajadores encargados de la plantilla y adjunte evidencia fotográfica.")
 
             lista_nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
-            col_widths = [0.45, 2.5, 2.3, 2.4, 2.2, 0.45]
+            
+            st.markdown(
+                """
+                <div class="grid-table-container" style="margin-bottom: 0px; border-bottom: none; border-radius: 6px 6px 0 0;">
+                    <div class="grid-header-row">
+                        <div class="grid-header-cell" style="width: 5%; text-align: center;">N°</div>
+                        <div class="grid-header-cell" style="width: 27%;">Actividad / Trabajo a Ejecutar</div>
+                        <div class="grid-header-cell" style="width: 25%;">Trabajadores Encargados</div>
+                        <div class="grid-header-cell" style="width: 24%;">Observaciones del Trabajo</div>
+                        <div class="grid-header-cell" style="width: 14%; text-align: center;">Foto Evidencia Propia</div>
+                        <div class="grid-header-cell" style="width: 5%; text-align: center;">Acción</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-            # Cabecera continua de la tabla
-            sh1, sh2, sh3, sh4, sh5, sh6 = st.columns(col_widths)
-            with sh1:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 4px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>N°</div>", unsafe_allow_html=True)
-            with sh2:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Actividad / Trabajo a Ejecutar</div>", unsafe_allow_html=True)
-            with sh3:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Trabajadores Encargados</div>", unsafe_allow_html=True)
-            with sh4:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Observaciones del Trabajo</div>", unsafe_allow_html=True)
-            with sh5:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Foto Evidencia Propia</div>", unsafe_allow_html=True)
-            with sh6:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 4px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Acción</div>", unsafe_allow_html=True)
-
+            col_widths = [0.5, 2.7, 2.5, 2.4, 1.4, 0.5]
             indices_a_eliminar = []
             supervision_payload_data = []
 
             for idx_f, f_data in enumerate(st.session_state.filas_supervision, 1):
                 f_id = f_data["id"]
+                st.markdown('<div class="grid-row-interactive">', unsafe_allow_html=True)
                 r1, r2, r3, r4, r5, r6 = st.columns(col_widths)
 
                 with r1:
@@ -1757,7 +1821,7 @@ with tab_chk:
                     if st.button("🗑️", key=f"btn_del_row_{f_id}", help="Eliminar esta fila"):
                         indices_a_eliminar.append(idx_f - 1)
 
-                st.markdown("<hr style='margin: 3px 0 6px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 supervision_payload_data.append({
                     "N°": idx_f,
@@ -2042,7 +2106,7 @@ with tab_didactico:
                 with cs1:
                     st.write(f"• {item}")
                 with cs2:
-                    st_val = st.segmented_control(f"Seg_{item}", ["Sí", "No", "N/A"], key=f"seg_{item}", label_visibility="collapsed")
+                    st_val = st.segmented_control(f"Seg_{item}", ["Sí", "No"], key=f"seg_{item}", label_visibility="collapsed")
                 with cs3:
                     obs_val = st.text_input(f"Obs_{item}", placeholder="Observaciones...", key=f"seg_obs_{item}", label_visibility="collapsed")
                 seg_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
