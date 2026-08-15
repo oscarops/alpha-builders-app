@@ -90,48 +90,41 @@ st.markdown(
     .stButton > button { background-color: #121318 !important; color: #ffffff !important; border-radius: 980px !important; border: none !important; font-weight: 800 !important; padding: 10px 22px !important; }
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    .grid-table {
+    /* ESTILOS DE TABLAS DE ALTA PRECISIÓN */
+    .incidencias-table, .grid-table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 6px;
+        margin-top: 4px;
         margin-bottom: 12px;
         font-family: 'Inter', sans-serif;
     }
-    .grid-table th {
+    .incidencias-table th, .grid-table th {
         background-color: #121318;
         color: #ffffff;
-        padding: 9px 8px;
+        padding: 10px 8px;
         font-size: 0.82rem;
         font-weight: 700;
         border: 1px solid #334155;
         text-align: left;
     }
-    .grid-table th.center, .grid-table td.center {
+    .incidencias-table th.center, .grid-table th.center, .incidencias-table td.center, .grid-table td.center {
         text-align: center;
     }
-    .grid-table td {
+    .incidencias-table td, .grid-table td {
         padding: 8px;
         font-size: 0.83rem;
         border: 1px solid #cbd5e1;
         vertical-align: middle;
         background-color: #ffffff;
     }
-    .grid-table tr:nth-child(even) td {
+    .incidencias-table tr:nth-child(even) td, .grid-table tr:nth-child(even) td {
         background-color: #f8fafc;
     }
-    
-    .table-grid-row {
-        border-left: 1px solid #cbd5e1;
-        border-right: 1px solid #cbd5e1;
-        border-bottom: 1px solid #cbd5e1;
-        padding: 6px 8px;
-        background: #ffffff;
-    }
 
-    .table-grid-header {
-        border: 1px solid #121318;
-        background-color: #121318;
-        border-radius: 6px 6px 0 0;
+    .table-cell-container {
+        border-right: 1px solid #cbd5e1;
+        padding: 4px 6px;
+        height: 100%;
     }
 
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
@@ -936,7 +929,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     return buffer.getvalue()
 
 # ==========================================
-# 3. CONSTANTES
+# 3. CONSTANTES Y LISTAS REVISADAS
 # ==========================================
 EDIFICIOS_ALPHA = [
     "Tesla", "Lafuente", "Imagine", "Asimov", "Rubik", "Castle Rock",
@@ -955,17 +948,14 @@ ACTIVIDADES_MANANA_CLEAN = [
     "Corrección de observaciones detectadas",
 ]
 
+# TARDE: Se quitaron 1 (Recorrido seguimiento), 5 (Observaciones pendientes), 7 (Limpieza) y 10 (Cierre en campo)
 ACTIVIDADES_TARDE_CLEAN = [
-    "Recorrido de seguimiento de los frentes de trabajo",
     "Verificación del avance físico de las actividades",
     "Control del rendimiento de las cuadrillas",
     "Verificación de los trabajos y la calidad",
-    "Revisión de observaciones pendientes",
     "Verificación de trabajos corregidos",
-    "Verificación del orden y limpieza de los frentes de trabajo",
     "Confirmación de materiales para el siguiente día",
     "Revisión del cumplimiento de la meta diaria",
-    "Cierre de actividades en campo",
 ]
 # ==========================================
 # 4. MÓDULO DE LOGIN & REGISTRO
@@ -1380,12 +1370,12 @@ with tab_chk:
     if "num_supervisiones" not in st.session_state:
         st.session_state.num_supervisiones = 1
 
-    # Diccionario de sesión para observaciones dinámicas integradas por ítem
+    # Conteo dinámico de observaciones integradas por actividad
     if "chk_obs_counts" not in st.session_state:
         st.session_state.chk_obs_counts = {}
 
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión diaria con observaciones integradas por actividad y tabla unificada de cuadrillas.")
+    st.caption("Supervisión técnica diaria con observaciones integradas por actividad y tabla unificada de cuadrillas.")
 
     if not st.session_state.creando_jornada:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -1413,7 +1403,7 @@ with tab_chk:
 
             st.markdown("---")
 
-            # 1. JORNADA DE LA MAÑANA (Sin fotos en 1 y 2, con observaciones integradas dinámicas)
+            # 1. JORNADA DE LA MAÑANA (Sin fotos en 1 y 2, con observaciones integradas dinámicas con '+')
             st.markdown("#### 🌅 Jornada de la Mañana")
             resp_manana = []
 
@@ -1466,7 +1456,7 @@ with tab_chk:
                     "Foto_B64": ft_b64
                 })
 
-            # 2. JORNADA DE LA TARDE (Con observaciones integradas dinámicas)
+            # 2. JORNADA DE LA TARDE (Depurada de 1, 5, 7 y 10, con observaciones integradas dinámicas con '+')
             st.markdown("#### 🌆 Jornada de la Tarde")
             resp_tarde = []
 
@@ -1504,44 +1494,52 @@ with tab_chk:
                     "Foto_B64": ft_b64
                 })
 
-            # 3. SECCIÓN UNIFICADA: SUPERVISIÓN DE TRABAJOS (TABLA CON LÍNEAS DELIMITADAS)
+            # 3. SECCIÓN UNIFICADA: SUPERVISIÓN DE TRABAJOS (TABLA UNIFICADA CON CUADRÍCULA Y DELIMITACIÓN CONTINUA)
             st.markdown("---")
             st.markdown("#### 🏗️ Supervisión de la Ejecución de los Trabajos (Tabla Unificada)")
             st.caption("Registre las actividades ejecutadas en campo, los trabajadores encargados y la evidencia fotográfica correspondiente.")
 
             lista_nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
-            sup_col_ratios = [0.6, 2.4, 2.2, 2.4, 2.4]
+            sup_col_ratios = [0.55, 2.4, 2.2, 2.4, 2.45]
 
-            # Cabecera continua de la tabla
+            # Cabecera continua de la tabla sin separaciones
             h_s1, h_s2, h_s3, h_s4, h_s5 = st.columns(sup_col_ratios)
             with h_s1:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:center; font-weight:800; font-size:0.80rem; border:1px solid #121318;'>N°</div>", unsafe_allow_html=True)
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:9px 4px; text-align:center; font-weight:800; font-size:0.80rem; border:1px solid #334155;'>N°</div>", unsafe_allow_html=True)
             with h_s2:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 6px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #121318;'>Actividad / Trabajo a Ejecutar</div>", unsafe_allow_html=True)
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:9px 8px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #334155;'>Actividad / Trabajo a Ejecutar</div>", unsafe_allow_html=True)
             with h_s3:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 6px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #121318;'>Trabajadores Encargados</div>", unsafe_allow_html=True)
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:9px 8px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #334155;'>Trabajadores Encargados</div>", unsafe_allow_html=True)
             with h_s4:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 6px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #121318;'>Observaciones del Trabajo</div>", unsafe_allow_html=True)
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:9px 8px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #334155;'>Observaciones del Trabajo</div>", unsafe_allow_html=True)
             with h_s5:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 6px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #121318;'>Foto Evidencia Propia</div>", unsafe_allow_html=True)
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:9px 8px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #334155;'>Foto Evidencia Propia</div>", unsafe_allow_html=True)
 
             resp_supervision = []
             for s_idx in range(1, st.session_state.num_supervisiones + 1):
                 sc1, sc2, sc3, sc4, sc5 = st.columns(sup_col_ratios)
                 with sc1:
-                    st.markdown(f"<div style='text-align:center; font-weight:800; font-size:0.90rem; padding-top:14px; border-left:1px solid #cbd5e1; height:100%;'>{s_idx}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='text-align:center; font-weight:800; font-size:0.90rem; padding-top:14px; border-left:1px solid #cbd5e1; border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; min-height:68px; background-color:#ffffff;'>{s_idx}</div>", unsafe_allow_html=True)
                 with sc2:
+                    st.markdown("<div style='border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:6px; min-height:68px; background-color:#ffffff;'>", unsafe_allow_html=True)
                     sup_actividad = st.text_input(f"Actividad {s_idx}", placeholder="Ej. Enlucido fachada...", key=f"sup_act_{s_idx}", label_visibility="collapsed")
+                    st.markdown("</div>", unsafe_allow_html=True)
                 with sc3:
+                    st.markdown("<div style='border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:6px; min-height:68px; background-color:#ffffff;'>", unsafe_allow_html=True)
                     if lista_nombres_obreros:
                         sup_obreros = st.multiselect(f"Obreros {s_idx}", options=lista_nombres_obreros, key=f"sup_obs_{s_idx}", label_visibility="collapsed", placeholder="Elegir...")
                         sup_obreros_str = ", ".join(sup_obreros) if sup_obreros else ""
                     else:
                         sup_obreros_str = st.text_input(f"Obreros manual {s_idx}", placeholder="Nombres...", key=f"sup_obs_man_{s_idx}", label_visibility="collapsed")
+                    st.markdown("</div>", unsafe_allow_html=True)
                 with sc4:
+                    st.markdown("<div style='border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:6px; min-height:68px; background-color:#ffffff;'>", unsafe_allow_html=True)
                     sup_obs = st.text_input(f"Obs {s_idx}", placeholder="Observación...", key=f"sup_det_obs_{s_idx}", label_visibility="collapsed")
+                    st.markdown("</div>", unsafe_allow_html=True)
                 with sc5:
+                    st.markdown("<div style='border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:6px; min-height:68px; background-color:#ffffff;'>", unsafe_allow_html=True)
                     sup_foto = st.file_uploader(f"Foto {s_idx}", type=["jpg", "jpeg", "png"], key=f"sup_ft_{s_idx}", label_visibility="collapsed")
+                    st.markdown("</div>", unsafe_allow_html=True)
 
                 sup_foto_b64 = image_to_base64(sup_foto) if sup_foto is not None else None
                 
@@ -1552,8 +1550,8 @@ with tab_chk:
                     "Observaciones": sup_obs.strip(),
                     "Foto_B64": sup_foto_b64
                 })
-                st.markdown("<hr style='margin: 2px 0 6px 0; border-color: #cbd5e1; border-width: 1px;'>", unsafe_allow_html=True)
 
+            st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
             col_btn_sup1, _ = st.columns([2.5, 5])
             with col_btn_sup1:
                 if st.button("➕ Agregar Fila de Trabajo", key="btn_add_sup_row"):
@@ -1688,7 +1686,6 @@ with tab_chk:
 
                                 if s_list:
                                     st.markdown("##### 2. Supervisión de Trabajos (Tabla Histórica):")
-                                    # Renderizado de tabla histórica con cuadrícula completa
                                     hist_rows_html = ""
                                     for idx_sup, sup_r in enumerate(s_list, 1):
                                         hist_rows_html += (
