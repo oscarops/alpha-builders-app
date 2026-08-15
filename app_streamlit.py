@@ -12,7 +12,7 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
-# ReportLab para exportación en PDF
+# ReportLab para exportaciones en PDF
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -37,10 +37,10 @@ st.markdown(
     h1, h2, h3, .brand-title { font-family: 'Montserrat', sans-serif !important; letter-spacing: -0.03em !important; }
 
     .block-container { 
-        padding-top: 0.8rem !important; 
+        padding-top: 0.6rem !important; 
         padding-bottom: 1.5rem !important; 
-        padding-left: 1.5rem !important; 
-        padding-right: 1.5rem !important; 
+        padding-left: 1.2rem !important; 
+        padding-right: 1.2rem !important; 
         max-width: 100% !important; 
     }
     .stApp { background-color: #ffffff !important; color: #121318 !important; }
@@ -151,40 +151,81 @@ st.markdown(
     [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #282c36 !important; padding: 6px 8px !important; }
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * { color: #ffffff !important; font-weight: 700 !important; font-size: 0.78rem !important; }
 
-    /* DASHBOARD CARD & KPIS */
-    .executive-card-studio { 
-        background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%); 
-        border: 1px solid #b8c4d8; 
-        border-left: 6px solid #121318; 
-        border-radius: 16px; 
-        padding: 14px 20px; 
-        box-shadow: 0 6px 20px rgba(0,0,0,0.04); 
-        margin-bottom: 12px; 
-        width: 100%; 
-        box-sizing: border-box; 
-    }
-    .brand-title { 
-        font-family: 'Montserrat', sans-serif !important; 
-        font-weight: 700 !important; 
-        font-size: 1.8rem !important; 
-        background: linear-gradient(90deg, #121318 0%, #3a4256 100%); 
-        -webkit-background-clip: text; 
-        -webkit-text-fill-color: transparent; 
-        letter-spacing: -0.02em !important; 
-    }
-
-    .kpi-card-studio { 
-        background: linear-gradient(145deg, #eceff6 0%, #dbe2ef 100%); 
-        border: 1px solid #aebacf; 
-        border-radius: 12px; 
-        padding: 8px 6px; 
-        text-align: center; 
-        box-shadow: 0 4px 12px rgba(0,0,0,0.04); 
+    /* WIDGET DASHBOARD UNIFICADO TODO-EN-UNO */
+    .unified-dashboard-widget {
+        background: linear-gradient(135deg, #111827 0%, #1e293b 50%, #0f172a 100%);
+        border: 1px solid #334155;
+        border-radius: 16px;
+        padding: 14px 18px;
+        color: #ffffff !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        margin-bottom: 12px;
+        width: 100%;
         box-sizing: border-box;
     }
-    .kpi-val-studio { font-size: 1.5rem; font-weight: 900; color: #121318 !important; line-height: 1.1; }
-    .kpi-lbl-studio { font-size: 0.65rem; color: #4a5060 !important; text-transform: uppercase; font-weight: 800; margin-top: 2px; }
+    .unified-dashboard-widget * {
+        color: #ffffff !important;
+    }
+    .ud-top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+    }
+    .ud-title {
+        font-family: 'Montserrat', sans-serif !important;
+        font-size: 1.35rem !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.02em;
+        margin: 0;
+        line-height: 1.2;
+    }
+    .ud-badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+    .ud-metrics-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
+        gap: 8px;
+        text-align: center;
+    }
+    .ud-metric-item {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 6px 4px;
+        transition: transform 0.15s ease;
+    }
+    .ud-metric-item:hover {
+        transform: translateY(-2px);
+        background: rgba(255, 255, 255, 0.12);
+    }
+    .ud-m-val {
+        font-size: 1.25rem;
+        font-weight: 900;
+        line-height: 1.1;
+    }
+    .ud-m-lbl {
+        font-size: 0.60rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        opacity: 0.85;
+        margin-top: 2px;
+    }
 
+    /* PESTAÑAS Y BOTONES */
     .stTabs [data-baseweb="tab-list"] { 
         gap: 6px; 
         background-color: #e2e5ec !important; 
@@ -208,13 +249,14 @@ st.markdown(
     }
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    /* CABECERAS DE ÍTEMS CON ALTA VISIBILIDAD (TEXTO BLANCO FORZADO) */
+    /* CABECERAS DE ÍTEMS EN CHECKLIST CON LÍNEA DE CORTE LIMPIA */
     .banner-item-header {
         background-color: #0f172a !important;
         border: 1px solid #334155 !important;
+        border-bottom: 2px solid #ffffff !important;
         border-radius: 8px 8px 0 0 !important;
         padding: 8px 12px !important;
-        margin-top: 4px !important;
+        margin-top: 6px !important;
         margin-bottom: 0px !important;
     }
     .banner-item-header p, .banner-item-header span, .banner-item-header b {
@@ -224,22 +266,21 @@ st.markdown(
         letter-spacing: 0.01em !important;
     }
 
-    .card-item-body {
+    .card-item-body-compact {
         border: 1px solid #cbd5e1;
         border-top: none;
         border-radius: 0 0 8px 8px;
-        padding: 10px 12px;
+        padding: 8px 10px 4px 10px;
         background-color: #ffffff;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
     }
 
     /* RESPONSIVIDAD MÓVIL */
     @media (max-width: 768px) {
-        .block-container { padding-left: 0.6rem !important; padding-right: 0.6rem !important; }
-        .brand-title { font-size: 1.4rem !important; }
-        .executive-card-studio { padding: 10px 12px !important; }
-        .kpi-val-studio { font-size: 1.2rem !important; }
-        .kpi-lbl-studio { font-size: 0.58rem !important; }
+        .block-container { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+        .ud-title { font-size: 1.1rem !important; }
+        .ud-m-val { font-size: 1.05rem !important; }
+        .ud-m-lbl { font-size: 0.52rem !important; }
     }
 
     /* TABLAS ESTÁTICAS DE RESULTADOS / MATRICES */
@@ -1090,7 +1131,7 @@ ACTIVIDADES_MANANA_CLEAN = [
     "Corrección de observaciones detectadas",
 ]
 
-# LISTA TARDE (Depurada de 1, 5, 7 y 10)
+# LISTA TARDE
 ACTIVIDADES_TARDE_CLEAN = [
     "Verificación del avance físico de las actividades",
     "Control del rendimiento de las cuadrillas",
@@ -1364,19 +1405,30 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 7. DASHBOARD PRINCIPAL, KPIS ULTRA-COMPACTOS Y PESTAÑAS
+# 7. DASHBOARD UNIFICADO TODO-EN-UNO (WIDGET CON CLIMA, FECHA Y MÉTRICAS)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
-st.markdown(
-    f"""
-    <div class="executive-card-studio">
-        <h1 class="brand-title" style="margin: 0;">Portal de Control e Inspección</h1>
-        <p style="color: #5a5f6e; margin-top: 4px; margin-bottom: 0px; font-size: 0.95rem;">{user_nombre_completo} — <b>{user_cargo}</b></p>
-    </div>
-""",
-    unsafe_allow_html=True,
-)
+# Obtención y formateo dinámico de fecha y día en español
+now_dt = datetime.datetime.now()
+dias_nombre_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+meses_nombre_es = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+
+dia_semana_actual = dias_nombre_es[now_dt.weekday()]
+mes_actual = meses_nombre_es[now_dt.month - 1]
+fecha_widget_texto = f"{dia_semana_actual}, {now_dt.day} de {mes_actual} de {now_dt.year}"
+
+# Determinación horaria de saludo y clima
+hora_actual = now_dt.hour
+if 6 <= hora_actual < 12:
+    icono_clima = "☀️"
+    desc_clima = "Mañana Despejada"
+elif 12 <= hora_actual < 18:
+    icono_clima = "⛅"
+    desc_clima = "Tarde Templada"
+else:
+    icono_clima = "🌙"
+    desc_clima = "Noche Fresca"
 
 usr_chks = len(st.session_state.db_checklists.get(user_email, []))
 usr_insps = len(st.session_state.db_inspecciones.get(user_email, []))
@@ -1384,38 +1436,76 @@ usr_incs = len(st.session_state.db_incidencias)
 usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 total_obreros = len(st.session_state.db_trabajadores)
 
-# Cuadros de mando optimizados con menor altura y espacio reducido
-k1, k2, k3, k4, k5 = st.columns(5)
-with k1:
-    with st.popover(f"👷 {total_obreros} Obreros", use_container_width=True):
-        st.markdown(f"### Plantilla de Obreros ({total_obreros} Activos)")
-        st.caption("Gestione el personal activo para seleccionarlo en la supervisión de trabajos.")
+# Renderizado del Widget Unificado Todo-en-Uno
+st.markdown(
+    f"""
+    <div class="unified-dashboard-widget">
+        <div class="ud-top-bar">
+            <div>
+                <div class="ud-title">Alpha Builders | Portal de Obra</div>
+                <div style="font-size: 0.85rem; opacity: 0.85; margin-top: 2px;">{user_nombre_completo} — <b>{user_cargo}</b></div>
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <div class="ud-badge-pill">📅 {fecha_widget_texto}</div>
+                <div class="ud-badge-pill">{icono_clima} {desc_clima}</div>
+            </div>
+        </div>
+        <div class="ud-metrics-row">
+            <div class="ud-metric-item">
+                <div class="ud-m-val">{total_obreros}</div>
+                <div class="ud-m-lbl">Obreros</div>
+            </div>
+            <div class="ud-metric-item">
+                <div class="ud-m-val">{usr_chks}</div>
+                <div class="ud-m-lbl">Checklists</div>
+            </div>
+            <div class="ud-metric-item">
+                <div class="ud-m-val">{usr_insps}</div>
+                <div class="ud-m-lbl">Inspecciones</div>
+            </div>
+            <div class="ud-metric-item">
+                <div class="ud-m-val">{usr_incs}</div>
+                <div class="ud-m-lbl">Incidencias</div>
+            </div>
+            <div class="ud-metric-item">
+                <div class="ud-m-val">{usr_rnds}</div>
+                <div class="ud-m-lbl">Rendimiento</div>
+            </div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-        with st.form("form_add_obrero_popover"):
-            st.markdown("#### ➕ Registrar Nuevo Obrero")
+# Acceso rápido para administrar plantilla de obreros
+with st.expander("👷 Administrar Plantilla de Obreros Activos", expanded=False):
+    st.caption("Agregue trabajadores individualmente, cárguelos masivamente o elimine registros de la cuadrilla.")
+    with st.form("form_add_obrero_popover"):
+        c_ob1, c_ob2 = st.columns(2)
+        with c_ob1:
             nom_obrero = st.text_input("Nombre completo:")
+        with c_ob2:
             car_obrero = st.text_input("Cargo en obra (Ej. Albañil, Ayudante):")
-            btn_sub_obrero = st.form_submit_button("Guardar Obrero", type="primary")
+        btn_sub_obrero = st.form_submit_button("➕ Guardar Obrero", type="primary")
 
-            if btn_sub_obrero:
-                if nom_obrero and car_obrero:
-                    try:
-                        supabase.table("trabajadores").insert({
-                            "nombre": nom_obrero.strip().upper(),
-                            "cargo": car_obrero.strip().upper()
-                        }).execute()
-                        st.session_state.db_loaded = False
-                        st.success("¡Obrero registrado con éxito!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al registrar obrero: {e}")
-                else:
-                    st.error("Complete todos los campos.")
+        if btn_sub_obrero:
+            if nom_obrero and car_obrero:
+                try:
+                    supabase.table("trabajadores").insert({
+                        "nombre": nom_obrero.strip().upper(),
+                        "cargo": car_obrero.strip().upper()
+                    }).execute()
+                    st.session_state.db_loaded = False
+                    st.success("¡Obrero registrado con éxito!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al registrar obrero: {e}")
+            else:
+                st.error("Complete todos los campos.")
 
-        st.markdown("---")
-        st.markdown("#### 📂 Importación Masiva (Excel / CSV)")
-        archivo_excel_obreros = st.file_uploader("Subir archivo", type=["xlsx", "csv"], key="upl_obreros_pop")
-        
+    c_imp1, c_imp2 = st.columns([2, 1])
+    with c_imp1:
+        archivo_excel_obreros = st.file_uploader("📂 Importar archivo masivo (.xlsx / .csv):", type=["xlsx", "csv"], key="upl_obreros_pop")
         if archivo_excel_obreros is not None:
             try:
                 if archivo_excel_obreros.name.endswith(".csv"):
@@ -1424,8 +1514,7 @@ with k1:
                     df_subido = pd.read_excel(archivo_excel_obreros)
                 
                 if len(df_subido.columns) >= 2:
-                    st.write("Vista previa:", df_subido.head(3))
-                    if st.button("Confirmar Importación", type="primary"):
+                    if st.button("Confirmar Importación Masiva", type="primary"):
                         registrados = 0
                         for _, row in df_subido.iterrows():
                             n_nom = str(row.iloc[0]).strip().upper()
@@ -1440,50 +1529,29 @@ with k1:
                                 except Exception:
                                     pass
                         st.session_state.db_loaded = False
-                        st.success(f"¡{registrados} obreros importados!")
+                        st.success(f"¡{registrados} obreros importados exitosamente!")
                         st.rerun()
                 else:
                     st.error("El archivo debe tener al menos dos columnas (Nombre y Cargo).")
             except Exception as e:
                 st.error(f"Error procesando el archivo: {e}")
 
-        st.markdown("---")
-        st.markdown("#### 📋 Listado Actual")
-        df_obs_actuales = pd.DataFrame(st.session_state.db_trabajadores)
-        if not df_obs_actuales.empty:
-            df_obs_actuales.index = range(1, len(df_obs_actuales) + 1)
-        st.dataframe(df_obs_actuales, use_container_width=True, height=200)
+    with c_imp2:
+        obreros_lista = [t["nombre"] for t in st.session_state.db_trabajadores]
+        if len(obreros_lista) > 0:
+            obrero_a_borrar = st.selectbox("Seleccione obrero a eliminar:", obreros_lista, key="del_obs_sel")
+            if st.button("🗑️ Eliminar Obrero", type="secondary", use_container_width=True):
+                try:
+                    supabase.table("trabajadores").delete().eq("nombre", obrero_a_borrar).execute()
+                    st.session_state.db_loaded = False
+                    st.success(f"Obrero {obrero_a_borrar} eliminado.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al eliminar obrero: {e}")
+        else:
+            st.info("No hay obreros registrados.")
 
-        with st.expander("🗑️ Eliminar Obrero"):
-            obreros_lista = [t["nombre"] for t in st.session_state.db_trabajadores]
-            if len(obreros_lista) > 0:
-                obrero_a_borrar = st.selectbox("Seleccione obrero:", obreros_lista, key="del_obs_sel")
-                if st.button("Eliminar Obrero", type="secondary"):
-                    try:
-                        supabase.table("trabajadores").delete().eq("nombre", obrero_a_borrar).execute()
-                        st.session_state.db_loaded = False
-                        st.success(f"Obrero {obrero_a_borrar} eliminado.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al eliminar obrero: {e}")
-            else:
-                st.info("No hay obreros registrados actualmente.")
-
-    st.markdown(
-        f'<div class="kpi-card-studio" style="margin-top: -52px; pointer-events: none;"><div class="kpi-val-studio">{total_obreros}</div><div class="kpi-lbl-studio">Obreros Activos</div></div>',
-        unsafe_allow_html=True,
-    )
-
-with k2:
-    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_chks}</div><div class="kpi-lbl-studio">Checklists</div></div>', unsafe_allow_html=True)
-with k3:
-    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_insps}</div><div class="kpi-lbl-studio">Inspecciones</div></div>', unsafe_allow_html=True)
-with k4:
-    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_incs}</div><div class="kpi-lbl-studio">Incidencias</div></div>', unsafe_allow_html=True)
-with k5:
-    st.markdown(f'<div class="kpi-card-studio"><div class="kpi-val-studio">{usr_rnds}</div><div class="kpi-lbl-studio">Rendimiento</div></div>', unsafe_allow_html=True)
-
-st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
 
 pestanas = [
     "Checklist Diario", 
@@ -1496,7 +1564,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# 8. MÓDULO 1: CHECKLIST DIARIO (ALTA VISIBILIDAD, FOTOS A LA DERECHA, SIN N/A)
+# 8. MÓDULO 1: CHECKLIST DIARIO (CUADROS COMPACTOS, LÍNEA BLANCA, FOTO A LA DERECHA)
 # ==============================================================================
 tab_chk = tabs_app[0]
 tab_didactico = tabs_app[1]
@@ -1518,7 +1586,7 @@ with tab_chk:
         st.session_state.chk_obs_counts = {}
 
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión técnica diaria con formato optimizado, texto de alta visibilidad, foto a la derecha y sin opción N/A.")
+    st.caption("Supervisión técnica diaria con formato ultra-compacto, alta visibilidad, foto a la derecha y sin opción N/A.")
 
     if not st.session_state.creando_jornada:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -1549,7 +1617,7 @@ with tab_chk:
             st.markdown("---")
 
             # ------------------------------------------------------------------
-            # 1. JORNADA DE LA MAÑANA (FOTO A LA DERECHA, TEXTO 100% VISIBLE)
+            # 1. JORNADA DE LA MAÑANA (COMPACTO, LÍNEA BLANCA, FOTO A LA DERECHA)
             # ------------------------------------------------------------------
             st.markdown("#### 🌅 Jornada de la Mañana")
             resp_manana = []
@@ -1559,18 +1627,18 @@ with tab_chk:
                 if item_key not in st.session_state.chk_obs_counts:
                     st.session_state.chk_obs_counts[item_key] = 1
 
-                # Cabecera oscura con texto blanco forzado
+                # Cabecera azul oscuro con texto blanco visible y línea divisoria
                 st.markdown(
                     f"""
                     <div class="banner-item-header">
-                        <span style="color:#ffffff !important; font-weight:800; font-size:0.88rem;">N° {idx} — {act}</span>
+                        <span style="color:#ffffff !important; font-weight:800; font-size:0.86rem;">N° {idx} — {act}</span>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
 
-                # Cuerpo de la tarjeta con 3 columnas balanceadas
-                st.markdown('<div class="card-item-body">', unsafe_allow_html=True)
+                # Cuerpo compacto con foto a la derecha y sin fondos blancos gigantes
+                st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                 c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
 
                 with c_col1:
@@ -1589,7 +1657,7 @@ with tab_chk:
                         o_txt = st.text_input(
                             f"Obs {idx}_{sub_o}",
                             key=f"m_ob_{idx}_{sub_o}",
-                            placeholder=f"Escribir observación {sub_o}...",
+                            placeholder=f"Observación {sub_o}...",
                             label_visibility="collapsed"
                         )
                         if o_txt.strip():
@@ -1625,7 +1693,7 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 2. JORNADA DE LA TARDE (FOTO A LA DERECHA, TEXTO 100% VISIBLE)
+            # 2. JORNADA DE LA TARDE (COMPACTO, LÍNEA BLANCA, FOTO A LA DERECHA)
             # ------------------------------------------------------------------
             st.markdown("#### 🌆 Jornada de la Tarde")
             resp_tarde = []
@@ -1638,13 +1706,13 @@ with tab_chk:
                 st.markdown(
                     f"""
                     <div class="banner-item-header">
-                        <span style="color:#ffffff !important; font-weight:800; font-size:0.88rem;">N° {idx} — {act}</span>
+                        <span style="color:#ffffff !important; font-weight:800; font-size:0.86rem;">N° {idx} — {act}</span>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
 
-                st.markdown('<div class="card-item-body">', unsafe_allow_html=True)
+                st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                 c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
 
                 with c_col1:
@@ -1663,7 +1731,7 @@ with tab_chk:
                         o_txt = st.text_input(
                             f"Obs T_{idx}_{sub_o}",
                             key=f"t_ob_{idx}_{sub_o}",
-                            placeholder=f"Escribir observación {sub_o}...",
+                            placeholder=f"Observación {sub_o}...",
                             label_visibility="collapsed"
                         )
                         if o_txt.strip():
@@ -1694,10 +1762,10 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 3. SUPERVISIÓN DE TRABAJOS (CUADRÍCULA BALACEADA Y RESPONSIVA)
+            # 3. SUPERVISIÓN DE TRABAJOS (COMPACTO Y BALANCEADO)
             # ------------------------------------------------------------------
             st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.filas_supervision)} registros)")
-            st.caption("Agregue actividades ejecutadas en campo, seleccione los trabajadores encargados de la plantilla y cargue la foto a la derecha.")
+            st.caption("Agregue actividades ejecutadas en campo, asigne personal de la cuadrilla y adjunte fotos a la derecha.")
 
             lista_nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
             indices_a_eliminar = []
@@ -1709,13 +1777,13 @@ with tab_chk:
                 st.markdown(
                     f"""
                     <div class="banner-item-header" style="background-color:#1e293b !important; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="color:#ffffff !important; font-weight:800; font-size:0.88rem;">Fila de Supervisión N° {idx_f}</span>
+                        <span style="color:#ffffff !important; font-weight:800; font-size:0.86rem;">Fila de Supervisión N° {idx_f}</span>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
 
-                st.markdown('<div class="card-item-body">', unsafe_allow_html=True)
+                st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                 s1, s2, s3, s4 = st.columns([1.6, 1.4, 1.4, 0.4])
 
                 with s1:
