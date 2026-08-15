@@ -1992,7 +1992,7 @@ with tab_incidencias:
     if filtro_estado_vista != "Todos":
         lista_incs = [i for i in lista_incs if i.get("Estado") == filtro_estado_vista]
 
-    # 4. Matriz de Incidencias con Cuadrícula Continua (Sin huecos ni espacios intermedios)
+# 4. Matriz de Incidencias con Cuadrícula Continua (Renderizado HTML limpio sin código plano)
     st.markdown(f"#### Matriz de Incidencias ({len(lista_incs)} registros)")
 
     if len(lista_incs) > 0:
@@ -2001,51 +2001,51 @@ with tab_incidencias:
             prio_val = inc.get('Prioridad', 'Media')
             est_val = inc.get('Estado', 'Abierta')
             
-            prio_html = f"""
-                <div style="font-size:0.75rem; line-height:1.3;">
-                    <span style="font-weight:{'800' if prio_val=='Alta' else '400'}; color:{'#dc2626' if prio_val=='Alta' else '#64748b'};">{'☒' if prio_val=='Alta' else '☐'} Alta</span><br/>
-                    <span style="font-weight:{'800' if prio_val=='Media' else '400'}; color:{'#d97706' if prio_val=='Media' else '#64748b'};">{'☒' if prio_val=='Media' else '☐'} Media</span><br/>
-                    <span style="font-weight:{'800' if prio_val=='Baja' else '400'}; color:{'#16a34a' if prio_val=='Baja' else '#64748b'};">{'☒' if prio_val=='Baja' else '☐'} Baja</span>
-                </div>
-            """
+            p_alta_st = "font-weight:800; color:#dc2626;" if prio_val == 'Alta' else "font-weight:400; color:#64748b;"
+            p_alta_ck = "☒ Alta" if prio_val == 'Alta' else "☐ Alta"
+            p_med_st = "font-weight:800; color:#d97706;" if prio_val == 'Media' else "font-weight:400; color:#64748b;"
+            p_med_ck = "☒ Media" if prio_val == 'Media' else "☐ Media"
+            p_baj_st = "font-weight:800; color:#16a34a;" if prio_val == 'Baja' else "font-weight:400; color:#64748b;"
+            p_baj_ck = "☒ Baja" if prio_val == 'Baja' else "☐ Baja"
             
-            est_html = f"""
-                <div style="font-size:0.75rem; line-height:1.3;">
-                    <span style="font-weight:{'800' if est_val=='Abierta' else '400'}; color:{'#dc2626' if est_val=='Abierta' else '#64748b'};">{'☒' if est_val=='Abierta' else '☐'} Abierta</span><br/>
-                    <span style="font-weight:{'800' if est_val=='Cerrada' else '400'}; color:{'#16a34a' if est_val=='Cerrada' else '#64748b'};">{'☒' if est_val=='Cerrada' else '☐'} Cerrada</span>
-                </div>
-            """
+            prio_cell = f'<div style="font-size:0.75rem; line-height:1.3;"><span style="{p_alta_st}">{p_alta_ck}</span><br/><span style="{p_med_st}">{p_med_ck}</span><br/><span style="{p_baj_st}">{p_baj_ck}</span></div>'
             
-            table_rows_html += f"""
-                <tr>
-                    <td class="center" style="font-weight:700; width:45px;">{idx}</td>
-                    <td style="width:140px;"><b>{inc.get('Area', '')}</b><br/><small style="color:#64748b;">{inc.get('Proyecto', '')}</small></td>
-                    <td>{inc.get('Descripcion', '')}</td>
-                    <td style="width:130px;">{inc.get('Responsable', '')}</td>
-                    <td style="width:90px;">{prio_html}</td>
-                    <td class="center" style="font-weight:700; width:100px;">{inc.get('Fecha_Compromiso', '')}</td>
-                    <td style="width:95px;">{est_html}</td>
-                </tr>
-            """
+            e_ab_st = "font-weight:800; color:#dc2626;" if est_val == 'Abierta' else "font-weight:400; color:#64748b;"
+            e_ab_ck = "☒ Abierta" if est_val == 'Abierta' else "☐ Abierta"
+            e_ce_st = "font-weight:800; color:#16a34a;" if est_val == 'Cerrada' else "font-weight:400; color:#64748b;"
+            e_ce_ck = "☒ Cerrada" if est_val == 'Cerrada' else "☐ Cerrada"
+            
+            est_cell = f'<div style="font-size:0.75rem; line-height:1.3;"><span style="{e_ab_st}">{e_ab_ck}</span><br/><span style="{e_ce_st}">{e_ce_ck}</span></div>'
+            
+            row_html = (
+                f'<tr>'
+                f'<td class="center" style="font-weight:700; width:45px;">{idx}</td>'
+                f'<td style="width:140px;"><b>{inc.get("Area", "")}</b><br/><small style="color:#64748b;">{inc.get("Proyecto", "")}</small></td>'
+                f'<td>{inc.get("Descripcion", "")}</td>'
+                f'<td style="width:130px;">{inc.get("Responsable", "")}</td>'
+                f'<td style="width:90px;">{prio_cell}</td>'
+                f'<td class="center" style="font-weight:700; width:100px;">{inc.get("Fecha_Compromiso", "")}</td>'
+                f'<td style="width:95px;">{est_cell}</td>'
+                f'</tr>'
+            )
+            table_rows_html += row_html
 
-        full_table_html = f"""
-            <table class="incidencias-table">
-                <thead>
-                    <tr>
-                        <th class="center" style="width:45px;">N°</th>
-                        <th style="width:140px;">Área</th>
-                        <th>Descripción</th>
-                        <th style="width:130px;">Responsable</th>
-                        <th style="width:90px;">Prioridad</th>
-                        <th class="center" style="width:100px;">Fecha Comp.</th>
-                        <th style="width:95px;">Estado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {table_rows_html}
-                </tbody>
-            </table>
-        """
+        full_table_html = (
+            '<table class="incidencias-table">'
+            '<thead>'
+            '<tr>'
+            '<th class="center" style="width:45px;">N°</th>'
+            '<th style="width:140px;">Área</th>'
+            '<th>Descripción</th>'
+            '<th style="width:130px;">Responsable</th>'
+            '<th style="width:90px;">Prioridad</th>'
+            '<th class="center" style="width:100px;">Fecha Comp.</th>'
+            '<th style="width:95px;">Estado</th>'
+            '</tr>'
+            '</thead>'
+            f'<tbody>{table_rows_html}</tbody>'
+            '</table>'
+        )
         st.markdown(full_table_html, unsafe_allow_html=True)
 
         # Barra de gestión individual rápida
