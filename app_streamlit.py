@@ -985,7 +985,7 @@ if not st.session_state.autenticado:
                                 st.success("¡Registro completado exitosamente!")
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"Error al guardar usuario en Supabase: {e}")
+                                st.error(f"Error al guardar usuario: {e}")
                 else:
                     st.error("Por favor complete todos los campos requeridos, incluyendo el código PIN.")
 
@@ -1121,7 +1121,7 @@ with st.sidebar:
                 st.session_state.usuario_cargo = edit_cargo
                 st.session_state.db_loaded = False
                 
-                st.success("Configuración actualizada correctamente en Supabase.")
+                st.success("Configuración actualizada correctamente.")
                 st.rerun()
             except Exception as e:
                 st.error(f"Error actualizando perfil: {e}")
@@ -1174,7 +1174,7 @@ with k1:
                             "cargo": car_obrero.strip().upper()
                         }).execute()
                         st.session_state.db_loaded = False
-                        st.success("¡Obrero registrado con éxito en Supabase!")
+                        st.success("¡Obrero registrado con éxito!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al registrar obrero: {e}")
@@ -1962,57 +1962,64 @@ with tab_incidencias:
     if filtro_estado_vista != "Todos":
         lista_incs = [i for i in lista_incs if i.get("Estado") == filtro_estado_vista]
 
-    # 4. Matriz de Incidencias Visual Delimitada (Idéntica al formato físico)
+    # 4. Matriz de Incidencias Visual Delimitada (Alineación Perfecta)
     st.markdown(f"#### Matriz de Incidencias ({len(lista_incs)} registros)")
 
     if len(lista_incs) > 0:
-        # Cabecera estructurada
-        st.markdown(
-            """
-            <div style="display: grid; grid-template-columns: 45px 140px 1.8fr 140px 100px 110px 100px 70px; background-color: #121318; color: #ffffff; padding: 10px 8px; border-radius: 8px 8px 0 0; font-weight: 800; font-size: 0.80rem; text-align: center; align-items: center;">
-                <div>N°</div>
-                <div style="text-align: left;">Área</div>
-                <div style="text-align: left;">Descripción</div>
-                <div style="text-align: left;">Responsable</div>
-                <div>Prioridad</div>
-                <div>Fecha Comp.</div>
-                <div>Estado</div>
-                <div>Acción</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        col_ratios = [0.6, 1.8, 3.2, 1.8, 1.4, 1.4, 1.4, 0.8]
 
+        # Cabecera simétrica construida con Streamlit Columns
+        h1, h2, h3, h4, h5, h6, h7, h8 = st.columns(col_ratios)
+        with h1:
+            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:center; font-weight:800; font-size:0.80rem; border-radius:6px 0 0 6px;'>N°</div>", unsafe_allow_html=True)
+        with h2:
+            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Área</div>", unsafe_allow_html=True)
+        with h3:
+            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Descripción</div>", unsafe_allow_html=True)
+        with h4:
+            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Responsable</div>", unsafe_allow_html=True)
+        with h5:
+            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Prioridad</div>", unsafe_allow_html=True)
+        with h6:
+            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:center; font-weight:800; font-size:0.80rem;'>Fecha Comp.</div>", unsafe_allow_html=True)
+        with h7:
+            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Estado</div>", unsafe_allow_html=True)
+        with h8:
+            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:center; font-weight:800; font-size:0.80rem; border-radius:0 6px 6px 0;'>Acción</div>", unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
+
+        # Filas de datos estructuradas con el mismo ratio
         for idx, inc in enumerate(lista_incs, 1):
             prio_badge = f"""
-            <div style="font-size: 0.72rem; text-align: left; line-height: 1.3;">
-                <span style="font-weight: {'800' if inc.get('Prioridad')=='Alta' else '400'}; color: {'#dc2626' if inc.get('Prioridad')=='Alta' else '#64748b'};">{'☒' if inc.get('Prioridad')=='Alta' else '☐'} Alta</span><br/>
-                <span style="font-weight: {'800' if inc.get('Prioridad')=='Media' else '400'}; color: {'#d97706' if inc.get('Prioridad')=='Media' else '#64748b'};">{'☒' if inc.get('Prioridad')=='Media' else '☐'} Media</span><br/>
-                <span style="font-weight: {'800' if inc.get('Prioridad')=='Baja' else '400'}; color: {'#16a34a' if inc.get('Prioridad')=='Baja' else '#64748b'};">{'☒' if inc.get('Prioridad')=='Baja' else '☐'} Baja</span>
+            <div style="font-size: 0.76rem; line-height: 1.35; padding-top: 4px;">
+                <span style="font-weight: {'800' if inc.get('Prioridad')=='Alta' else '400'}; color: {'#dc2626' if inc.get('Prioridad')=='Alta' else '#94a3b8'};">{'☒' if inc.get('Prioridad')=='Alta' else '☐'} Alta</span><br/>
+                <span style="font-weight: {'800' if inc.get('Prioridad')=='Media' else '400'}; color: {'#d97706' if inc.get('Prioridad')=='Media' else '#94a3b8'};">{'☒' if inc.get('Prioridad')=='Media' else '☐'} Media</span><br/>
+                <span style="font-weight: {'800' if inc.get('Prioridad')=='Baja' else '400'}; color: {'#16a34a' if inc.get('Prioridad')=='Baja' else '#94a3b8'};">{'☒' if inc.get('Prioridad')=='Baja' else '☐'} Baja</span>
             </div>
             """
 
             est_badge = f"""
-            <div style="font-size: 0.72rem; text-align: left; line-height: 1.3;">
-                <span style="font-weight: {'800' if inc.get('Estado')=='Abierta' else '400'}; color: {'#dc2626' if inc.get('Estado')=='Abierta' else '#64748b'};">{'☒' if inc.get('Estado')=='Abierta' else '☐'} Abierta</span><br/>
-                <span style="font-weight: {'800' if inc.get('Estado')=='Cerrada' else '400'}; color: {'#16a34a' if inc.get('Estado')=='Cerrada' else '#64748b'};">{'☒' if inc.get('Estado')=='Cerrada' else '☐'} Cerrada</span>
+            <div style="font-size: 0.76rem; line-height: 1.35; padding-top: 4px;">
+                <span style="font-weight: {'800' if inc.get('Estado')=='Abierta' else '400'}; color: {'#dc2626' if inc.get('Estado')=='Abierta' else '#94a3b8'};">{'☒' if inc.get('Estado')=='Abierta' else '☐'} Abierta</span><br/>
+                <span style="font-weight: {'800' if inc.get('Estado')=='Cerrada' else '400'}; color: {'#16a34a' if inc.get('Estado')=='Cerrada' else '#94a3b8'};">{'☒' if inc.get('Estado')=='Cerrada' else '☐'} Cerrada</span>
             </div>
             """
 
-            c_row1, c_row2, c_row3, c_row4, c_row5, c_row6, c_row7, c_row8 = st.columns([0.45, 1.4, 3.2, 1.4, 1.1, 1.1, 1.1, 0.7])
+            c_row1, c_row2, c_row3, c_row4, c_row5, c_row6, c_row7, c_row8 = st.columns(col_ratios)
             
             with c_row1:
-                st.markdown(f"<div style='text-align: center; font-weight: 700; padding-top: 8px;'>{idx}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align: center; font-weight: 800; font-size: 0.90rem; padding-top: 6px;'>{idx}</div>", unsafe_allow_html=True)
             with c_row2:
-                st.markdown(f"<div style='font-weight: 600; font-size: 0.85rem; padding-top: 8px;'>{inc.get('Area', '')}<br/><small style='color: #64748b;'>{inc.get('Proyecto', '')}</small></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-weight: 700; font-size: 0.84rem; padding-top: 6px;'>{inc.get('Area', '')}<br/><span style='color: #64748b; font-weight: 400; font-size: 0.72rem;'>{inc.get('Proyecto', '')}</span></div>", unsafe_allow_html=True)
             with c_row3:
-                st.markdown(f"<div style='font-size: 0.85rem; padding-top: 8px;'>{inc.get('Descripcion', '')}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size: 0.84rem; padding-top: 6px; line-height: 1.3;'>{inc.get('Descripcion', '')}</div>", unsafe_allow_html=True)
             with c_row4:
-                st.markdown(f"<div style='font-size: 0.85rem; padding-top: 8px;'>{inc.get('Responsable', '')}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size: 0.84rem; padding-top: 6px;'>{inc.get('Responsable', '')}</div>", unsafe_allow_html=True)
             with c_row5:
                 st.markdown(prio_badge, unsafe_allow_html=True)
             with c_row6:
-                st.markdown(f"<div style='text-align: center; font-size: 0.80rem; font-weight: 700; padding-top: 8px;'>{inc.get('Fecha_Compromiso', '')}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align: center; font-size: 0.80rem; font-weight: 700; padding-top: 6px;'>{inc.get('Fecha_Compromiso', '')}</div>", unsafe_allow_html=True)
             with c_row7:
                 st.markdown(est_badge, unsafe_allow_html=True)
             with c_row8:
@@ -2029,7 +2036,7 @@ with tab_incidencias:
                         st.session_state.db_loaded = False
                         st.rerun()
 
-            st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 6px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
 
         # Descargas en Excel y PDF
         st.markdown("<br>", unsafe_allow_html=True)
