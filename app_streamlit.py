@@ -12,14 +12,14 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
-# Librería ReportLab para la exportación de documentos PDF
+# ReportLab para PDFs
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS VISUALES
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES
 # ==============================================================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -49,6 +49,7 @@ st.markdown(
 
     [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
 
+    /* SIDEBAR TOGGLE */
     [data-testid="stSidebarCollapseButton"] { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important; }
     [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 15px !important; left: 15px !important; z-index: 999999 !important; }
 
@@ -69,6 +70,7 @@ st.markdown(
     }
     [data-testid="stSidebarCollapseButton"] svg, [data-testid="collapsedControl"] svg { fill: #ffffff !important; color: #ffffff !important; }
 
+    /* SIDEBAR CONTAINER */
     [data-testid="stSidebar"] { 
         background-color: #121318 !important; 
         border-right: 2px solid #282a36 !important; 
@@ -149,6 +151,7 @@ st.markdown(
     [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #282c36 !important; padding: 6px 8px !important; }
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * { color: #ffffff !important; font-weight: 700 !important; font-size: 0.78rem !important; }
 
+    /* CARDS Y DASHBOARD */
     .executive-card-studio { 
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%); 
         border: 1px solid #b8c4d8; 
@@ -202,39 +205,59 @@ st.markdown(
         border-radius: 980px !important; 
         border: none !important; 
         font-weight: 800 !important; 
-        padding: 10px 22px !important; 
+        padding: 8px 18px !important; 
     }
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    /* ESTILOS DE TABLAS DE ALTA PRECISIÓN (CUADRÍCULA CONTINUA DELIMITADA) */
-    .incidencias-table, .supervision-table {
+    /* ESTILOS DE TABLAS DE ALTA PRECISIÓN: DELIMITACIÓN CONTINUA Y SIN ESPACIOS */
+    .incidencias-table, .supervision-table, .checklist-table {
         width: 100%;
-        border-collapse: collapse;
-        margin-top: 4px;
-        margin-bottom: 12px;
+        border-collapse: collapse !important;
+        margin-top: 6px;
+        margin-bottom: 14px;
         font-family: 'Inter', sans-serif;
     }
-    .incidencias-table th, .supervision-table th {
-        background-color: #121318;
-        color: #ffffff;
-        padding: 10px 10px;
-        font-size: 0.82rem;
-        font-weight: 700;
-        border: 1px solid #334155;
+    .incidencias-table th, .supervision-table th, .checklist-table th {
+        background-color: #121318 !important;
+        color: #ffffff !important;
+        padding: 10px 10px !important;
+        font-size: 0.82rem !important;
+        font-weight: 700 !important;
+        border: 1px solid #334155 !important;
         text-align: left;
     }
-    .incidencias-table th.center, .supervision-table th.center, .incidencias-table td.center, .supervision-table td.center {
-        text-align: center;
+    .incidencias-table th.center, .supervision-table th.center, .checklist-table th.center,
+    .incidencias-table td.center, .supervision-table td.center, .checklist-table td.center {
+        text-align: center !important;
     }
-    .incidencias-table td, .supervision-table td {
-        padding: 8px 10px;
-        font-size: 0.83rem;
+    .incidencias-table td, .supervision-table td, .checklist-table td {
+        padding: 8px 10px !important;
+        font-size: 0.83rem !important;
+        border: 1px solid #cbd5e1 !important;
+        vertical-align: middle !important;
+        background-color: #ffffff !important;
+    }
+    .incidencias-table tr:nth-child(even) td, .supervision-table tr:nth-child(even) td, .checklist-table tr:nth-child(even) td {
+        background-color: #f8fafc !important;
+    }
+
+    /* FILA INTERACTIVA DE FORMULARIO SIN ESPACIOS DESFASADOS */
+    .form-grid-row {
+        display: flex;
+        align-items: stretch;
         border: 1px solid #cbd5e1;
-        vertical-align: middle;
-        background-color: #ffffff;
+        border-top: none;
+        background: #ffffff;
     }
-    .incidencias-table tr:nth-child(even) td, .supervision-table tr:nth-child(even) td {
-        background-color: #f8fafc;
+    .form-grid-cell {
+        padding: 6px 8px;
+        border-right: 1px solid #cbd5e1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .form-grid-cell:last-child {
+        border-right: none;
     }
 
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
@@ -244,7 +267,7 @@ st.markdown(
 )
 
 # ==============================================================================
-# 2. CONEXIÓN A SUPABASE Y CARGA DE BASE DE DATOS
+# 2. CONEXIÓN A BASE DE DATOS SUPABASE
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -325,7 +348,7 @@ def load_db_from_supabase():
     except Exception:
         pass
 
-    # Carga de Formatos de Inspección Diaria
+    # Carga de Inspecciones Diarias
     db_inspecciones = {}
     try:
         res_insp = supabase.table("inspecciones").select("*").execute()
@@ -420,7 +443,7 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     st.session_state.db_trabajadores = p_data["db_trabajadores"]
     st.session_state.db_loaded = True
 
-# Inicialización y persistencia de sesión del usuario
+# Persistencia de Sesión
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
@@ -441,7 +464,7 @@ if not st.session_state.autenticado:
             st.session_state.usuario_cargo = u_match["Cargo"]
 
 # ==============================================================================
-# 3. FUNCIONES AUXILIARES Y DE EXPORTACIÓN
+# 3. FUNCIONES DE FORMATO Y EXPORTACIÓN
 # ==============================================================================
 def render_estado_badge(estado_str):
     if not estado_str:
@@ -1034,7 +1057,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     return buffer.getvalue()
 
 # ==============================================================================
-# 4. CONSTANTES Y LISTAS REVISADAS DE ACTIVIDADES
+# 4. CONSTANTES
 # ==============================================================================
 EDIFICIOS_ALPHA = [
     "Tesla", "Lafuente", "Imagine", "Asimov", "Rubik", "Castle Rock",
@@ -1044,7 +1067,7 @@ EDIFICIOS_ALPHA = [
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
 RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
 
-# LISTA MAÑANA (Sin el ítem de recorrido inicial)
+# LISTA MAÑANA
 ACTIVIDADES_MANANA_CLEAN = [
     "Verificación de asistencia del personal",
     "Distribución de cuadrillas por frente de trabajo",
@@ -1053,7 +1076,7 @@ ACTIVIDADES_MANANA_CLEAN = [
     "Corrección de observaciones detectadas",
 ]
 
-# LISTA TARDE (Depurada: se quitaron los ítems 1, 5, 7 y 10)
+# LISTA TARDE (Depurada de 1, 5, 7 y 10)
 ACTIVIDADES_TARDE_CLEAN = [
     "Verificación del avance físico de las actividades",
     "Control del rendimiento de las cuadrillas",
@@ -1218,11 +1241,10 @@ if not st.session_state.autenticado:
                 else:
                     st.error("Complete todos los campos.")
 
-    # Detener el flujo aquí para usuarios no autenticados evita cualquier NameError
     st.stop()
 
 # ==============================================================================
-# 6. BARRA LATERAL (PANEL DE USUARIO CONECTADO)
+# 6. BARRA LATERAL (USUARIO AUTENTICADO)
 # ==============================================================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -1328,7 +1350,7 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 7. DASHBOARD PRINCIPAL, PLANTILLA DE TRABAJADORES Y PESTAÑAS
+# 7. DASHBOARD PRINCIPAL, KPIS Y TABS
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
@@ -1448,7 +1470,6 @@ with k5:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# DEFINICIÓN PROTEGIDA DE LAS PESTAÑAS DENTRO DEL BLOQUE AUTENTICADO
 pestanas = [
     "Checklist Diario", 
     "Inspección Diaria", 
@@ -1460,7 +1481,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# 8. MÓDULO 1: CHECKLIST DIARIO (CON TABLA DINÁMICA DE SUPERVISIÓN)
+# 8. MÓDULO 1: CHECKLIST DIARIO (TABLAS CONTINUAS DELIMITADAS Y ALINEADAS)
 # ==============================================================================
 tab_chk = tabs_app[0]
 tab_didactico = tabs_app[1]
@@ -1471,18 +1492,18 @@ with tab_chk:
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
 
-    # Lista dinámica de filas de supervisión interactiva
+    # Lista dinámica de filas de supervisión
     if "filas_supervision" not in st.session_state:
         st.session_state.filas_supervision = [
             {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
         ]
 
-    # Diccionario para conteo de observaciones integradas por actividad (+)
+    # Conteo dinámico de observaciones integradas por actividad
     if "chk_obs_counts" not in st.session_state:
         st.session_state.chk_obs_counts = {}
 
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión técnica diaria con observaciones integradas por actividad y tabla unificada de cuadrillas.")
+    st.caption("Supervisión técnica diaria estructurada en tablas delimitadas continuas sin desfases.")
 
     if not st.session_state.creando_jornada:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -1512,8 +1533,24 @@ with tab_chk:
 
             st.markdown("---")
 
-            # 1. JORNADA DE LA MAÑANA (Sin fotos en 1 y 2, observaciones integradas dinámicas con '+')
+            # ------------------------------------------------------------------
+            # 1. JORNADA DE LA MAÑANA (TABLA CONTINUA DELIMITADA)
+            # ------------------------------------------------------------------
             st.markdown("#### 🌅 Jornada de la Mañana")
+            
+            # Cabecera continua unificada
+            m_h1, m_h2, m_h3, m_h4, m_h5 = st.columns([0.5, 3.2, 2.0, 3.2, 2.1])
+            with m_h1:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 4px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>N°</div>", unsafe_allow_html=True)
+            with m_h2:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Actividad / Verificación</div>", unsafe_allow_html=True)
+            with m_h3:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Estado General</div>", unsafe_allow_html=True)
+            with m_h4:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Observaciones del Ítem</div>", unsafe_allow_html=True)
+            with m_h5:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Foto Evidencia</div>", unsafe_allow_html=True)
+
             resp_manana = []
 
             for idx, act in enumerate(ACTIVIDADES_MANANA_CLEAN, 1):
@@ -1521,41 +1558,40 @@ with tab_chk:
                 if item_key not in st.session_state.chk_obs_counts:
                     st.session_state.chk_obs_counts[item_key] = 1
 
-                st.markdown(f"**N° {idx}. {act}**")
+                mc1, mc2, mc3, mc4, mc5 = st.columns([0.5, 3.2, 2.0, 3.2, 2.1])
 
-                if idx in [1, 2]:
-                    c_sel, c_obs_box = st.columns([2, 5])
-                    with c_sel:
-                        est = st.segmented_control("Estado General", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"m_st_{idx}")
-                    with c_obs_box:
-                        obs_vals_item = []
-                        for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                            o_txt = st.text_input(f"Observación {sub_o}", key=f"m_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
-                            if o_txt.strip():
-                                obs_vals_item.append(o_txt.strip())
-                        if st.button("➕ Observación", key=f"btn_add_obs_m_{idx}"):
-                            st.session_state.chk_obs_counts[item_key] += 1
-                            st.rerun()
-                    ft_b64 = None
-                else:
-                    c_sel, c_obs_box, c_foto = st.columns([2, 3, 2.5])
-                    with c_sel:
-                        est = st.segmented_control("Estado General", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"m_st_{idx}")
-                    with c_obs_box:
-                        obs_vals_item = []
-                        for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                            o_txt = st.text_input(f"Observación {sub_o}", key=f"m_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
-                            if o_txt.strip():
-                                obs_vals_item.append(o_txt.strip())
-                        if st.button("➕ Observación", key=f"btn_add_obs_m_{idx}"):
-                            st.session_state.chk_obs_counts[item_key] += 1
-                            st.rerun()
-                    with c_foto:
-                        ft = st.file_uploader("Foto Evidencia", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
-                    ft_b64 = image_to_base64(ft) if ft is not None else None
+                with mc1:
+                    st.markdown(f"<div style='text-align:center; font-weight:800; font-size:0.88rem; padding-top:12px;'>{idx}</div>", unsafe_allow_html=True)
+                with mc2:
+                    st.markdown(f"<div style='font-size:0.84rem; font-weight:600; padding-top:8px; line-height:1.3;'>{act}</div>", unsafe_allow_html=True)
+                with mc3:
+                    est = st.segmented_control(f"M_Est_{idx}", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"m_st_{idx}", label_visibility="collapsed")
+                with mc4:
+                    obs_vals_item = []
+                    for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
+                        o_txt = st.text_input(
+                            f"Obs {idx}_{sub_o}",
+                            key=f"m_ob_{idx}_{sub_o}",
+                            placeholder=f"Observación {sub_o}...",
+                            label_visibility="collapsed"
+                        )
+                        if o_txt.strip():
+                            obs_vals_item.append(o_txt.strip())
+                    
+                    if st.button("➕ Observación", key=f"btn_add_obs_m_{idx}"):
+                        st.session_state.chk_obs_counts[item_key] += 1
+                        st.rerun()
 
-                st.markdown("<hr style='margin: 8px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
-                
+                with mc5:
+                    if idx in [1, 2]:
+                        st.markdown("<div style='text-align:center; color:#94a3b8; font-size:0.75rem; padding-top:10px;'>No requerida</div>", unsafe_allow_html=True)
+                        ft_b64 = None
+                    else:
+                        ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
+                        ft_b64 = image_to_base64(ft) if ft is not None else None
+
+                st.markdown("<hr style='margin: 3px 0 6px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+
                 resp_manana.append({
                     "Jornada": "Mañana",
                     "N°": idx,
@@ -1565,8 +1601,25 @@ with tab_chk:
                     "Foto_B64": ft_b64
                 })
 
-            # 2. JORNADA DE LA TARDE (Depurada de 1, 5, 7 y 10, observaciones integradas dinámicas con '+')
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ------------------------------------------------------------------
+            # 2. JORNADA DE LA TARDE (TABLA CONTINUA DELIMITADA)
+            # ------------------------------------------------------------------
             st.markdown("#### 🌆 Jornada de la Tarde")
+            
+            t_h1, t_h2, t_h3, t_h4, t_h5 = st.columns([0.5, 3.2, 2.0, 3.2, 2.1])
+            with t_h1:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 4px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>N°</div>", unsafe_allow_html=True)
+            with t_h2:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Actividad / Verificación</div>", unsafe_allow_html=True)
+            with t_h3:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Estado General</div>", unsafe_allow_html=True)
+            with t_h4:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:left; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Observaciones del Ítem</div>", unsafe_allow_html=True)
+            with t_h5:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 8px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>Foto Evidencia</div>", unsafe_allow_html=True)
+
             resp_tarde = []
 
             for idx, act in enumerate(ACTIVIDADES_TARDE_CLEAN, 1):
@@ -1574,26 +1627,36 @@ with tab_chk:
                 if item_key not in st.session_state.chk_obs_counts:
                     st.session_state.chk_obs_counts[item_key] = 1
 
-                st.markdown(f"**N° {idx}. {act}**")
+                tc1, tc2, tc3, tc4, tc5 = st.columns([0.5, 3.2, 2.0, 3.2, 2.1])
 
-                c_sel, c_obs_box, c_foto = st.columns([2, 3, 2.5])
-                with c_sel:
-                    est = st.segmented_control("Estado General", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"t_st_{idx}")
-                with c_obs_box:
+                with tc1:
+                    st.markdown(f"<div style='text-align:center; font-weight:800; font-size:0.88rem; padding-top:12px;'>{idx}</div>", unsafe_allow_html=True)
+                with tc2:
+                    st.markdown(f"<div style='font-size:0.84rem; font-weight:600; padding-top:8px; line-height:1.3;'>{act}</div>", unsafe_allow_html=True)
+                with tc3:
+                    est = st.segmented_control(f"T_Est_{idx}", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"t_st_{idx}", label_visibility="collapsed")
+                with tc4:
                     obs_vals_item = []
                     for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                        o_txt = st.text_input(f"Observación {sub_o}", key=f"t_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
+                        o_txt = st.text_input(
+                            f"Obs T_{idx}_{sub_o}",
+                            key=f"t_ob_{idx}_{sub_o}",
+                            placeholder=f"Observación {sub_o}...",
+                            label_visibility="collapsed"
+                        )
                         if o_txt.strip():
                             obs_vals_item.append(o_txt.strip())
+                    
                     if st.button("➕ Observación", key=f"btn_add_obs_t_{idx}"):
                         st.session_state.chk_obs_counts[item_key] += 1
                         st.rerun()
-                with c_foto:
-                    ft = st.file_uploader("Foto Evidencia", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
 
-                st.markdown("<hr style='margin: 8px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
-                
-                ft_b64 = image_to_base64(ft) if ft is not None else None
+                with tc5:
+                    ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
+                    ft_b64 = image_to_base64(ft) if ft is not None else None
+
+                st.markdown("<hr style='margin: 3px 0 6px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+
                 resp_tarde.append({
                     "Jornada": "Tarde",
                     "N°": idx,
@@ -1603,15 +1666,18 @@ with tab_chk:
                     "Foto_B64": ft_b64
                 })
 
-            # 3. SECCIÓN UNIFICADA: SUPERVISIÓN DE TRABAJOS (TABLA DINÁMICA CON OBREROS REGISTRADOS)
-            st.markdown("---")
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ------------------------------------------------------------------
+            # 3. SUPERVISIÓN DE TRABAJOS (TABLA CONTINUA SIN ESPACIOS DESFASADOS)
+            # ------------------------------------------------------------------
             st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.filas_supervision)} registros)")
             st.caption("Agregue actividades ejecutadas en campo, seleccione a los trabajadores encargados de la plantilla y adjunte evidencia fotográfica.")
 
             lista_nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
             col_widths = [0.45, 2.5, 2.3, 2.4, 2.2, 0.45]
 
-            # Cabecera de la tabla continua
+            # Cabecera continua de la tabla
             sh1, sh2, sh3, sh4, sh5, sh6 = st.columns(col_widths)
             with sh1:
                 st.markdown("<div style='background:#121318; color:#ffffff; padding:10px 4px; text-align:center; font-weight:800; font-size:0.82rem; border:1px solid #334155;'>N°</div>", unsafe_allow_html=True)
@@ -1629,7 +1695,6 @@ with tab_chk:
             indices_a_eliminar = []
             supervision_payload_data = []
 
-            # Renderizado de filas dinámicas
             for idx_f, f_data in enumerate(st.session_state.filas_supervision, 1):
                 f_id = f_data["id"]
                 r1, r2, r3, r4, r5, r6 = st.columns(col_widths)
@@ -1702,7 +1767,6 @@ with tab_chk:
                     "Foto_B64": foto_b64_f
                 })
 
-            # Eliminación de fila si se presionó el botón correspondiente
             if indices_a_eliminar:
                 for del_i in sorted(indices_a_eliminar, reverse=True):
                     if len(st.session_state.filas_supervision) > 1:
@@ -1713,7 +1777,6 @@ with tab_chk:
                         ]
                 st.rerun()
 
-            # Botón Agregar Fila
             col_add_btn, _ = st.columns([2.5, 5])
             with col_add_btn:
                 if st.button("➕ Agregar Fila de Trabajo", key="btn_add_dyn_supervision_row"):
