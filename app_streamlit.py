@@ -60,7 +60,7 @@ st.markdown(
 
     .sidebar-logo-card { background-color: #ffffff; border-radius: 12px; padding: 8px 10px; margin-top: 0px !important; margin-bottom: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3); width: 100% !important; box-sizing: border-box; text-align: center; display: block; }
     [data-testid="stSidebar"] [data-testid="stImage"] { width: 100% !important; display: block !important; margin-top: 6px !important; margin-bottom: 10px !important; clear: both !important; }
-    [data-testid="stSidebar"] [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
+    [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
 
     .sidebar-profile-box { background: #1c1e26; border: 1px solid #323646; border-radius: 12px; padding: 10px 8px !important; text-align: center; margin-top: 4px; margin-bottom: 8px; width: 100% !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); box-sizing: border-box; }
     .sidebar-user-nombres { font-size: 0.88rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }
@@ -91,6 +91,37 @@ st.markdown(
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
     .streamlit-expanderHeader { background-color: #e8eaee !important; border-radius: 12px !important; border: 1px solid #c2c7d2 !important; font-weight: 700 !important; }
+    
+    /* Estilos para tabla unificada sin espacios */
+    .incidencias-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 6px;
+        margin-bottom: 12px;
+        font-family: 'Inter', sans-serif;
+    }
+    .incidencias-table th {
+        background-color: #121318;
+        color: #ffffff;
+        padding: 10px 8px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        border: 1px solid #334155;
+        text-align: left;
+    }
+    .incidencias-table th.center, .incidencias-table td.center {
+        text-align: center;
+    }
+    .incidencias-table td {
+        padding: 8px;
+        font-size: 0.83rem;
+        border: 1px solid #cbd5e1;
+        vertical-align: middle;
+        background-color: #ffffff;
+    }
+    .incidencias-table tr:nth-child(even) td {
+        background-color: #f8fafc;
+    }
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
     </style>
 """,
@@ -708,7 +739,6 @@ def export_inspeccion_to_pdf_file(insp_dict):
     return buffer.getvalue()
 
 
-# GENERADORES DE REPORTES DE INCIDENCIAS
 def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1962,81 +1992,91 @@ with tab_incidencias:
     if filtro_estado_vista != "Todos":
         lista_incs = [i for i in lista_incs if i.get("Estado") == filtro_estado_vista]
 
-    # 4. Matriz de Incidencias Visual Delimitada (Alineación Perfecta)
+    # 4. Matriz de Incidencias con Cuadrícula Continua (Sin huecos ni espacios intermedios)
     st.markdown(f"#### Matriz de Incidencias ({len(lista_incs)} registros)")
 
     if len(lista_incs) > 0:
-        col_ratios = [0.6, 1.8, 3.2, 1.8, 1.4, 1.4, 1.4, 0.8]
-
-        # Cabecera simétrica construida con Streamlit Columns
-        h1, h2, h3, h4, h5, h6, h7, h8 = st.columns(col_ratios)
-        with h1:
-            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:center; font-weight:800; font-size:0.80rem; border-radius:6px 0 0 6px;'>N°</div>", unsafe_allow_html=True)
-        with h2:
-            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Área</div>", unsafe_allow_html=True)
-        with h3:
-            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Descripción</div>", unsafe_allow_html=True)
-        with h4:
-            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Responsable</div>", unsafe_allow_html=True)
-        with h5:
-            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Prioridad</div>", unsafe_allow_html=True)
-        with h6:
-            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:center; font-weight:800; font-size:0.80rem;'>Fecha Comp.</div>", unsafe_allow_html=True)
-        with h7:
-            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Estado</div>", unsafe_allow_html=True)
-        with h8:
-            st.markdown("<div style='background:#121318; color:#ffffff; padding:8px 4px; text-align:center; font-weight:800; font-size:0.80rem; border-radius:0 6px 6px 0;'>Acción</div>", unsafe_allow_html=True)
-
-        st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
-
-        # Filas de datos estructuradas con el mismo ratio
+        table_rows_html = ""
         for idx, inc in enumerate(lista_incs, 1):
-            prio_badge = f"""
-            <div style="font-size: 0.76rem; line-height: 1.35; padding-top: 4px;">
-                <span style="font-weight: {'800' if inc.get('Prioridad')=='Alta' else '400'}; color: {'#dc2626' if inc.get('Prioridad')=='Alta' else '#94a3b8'};">{'☒' if inc.get('Prioridad')=='Alta' else '☐'} Alta</span><br/>
-                <span style="font-weight: {'800' if inc.get('Prioridad')=='Media' else '400'}; color: {'#d97706' if inc.get('Prioridad')=='Media' else '#94a3b8'};">{'☒' if inc.get('Prioridad')=='Media' else '☐'} Media</span><br/>
-                <span style="font-weight: {'800' if inc.get('Prioridad')=='Baja' else '400'}; color: {'#16a34a' if inc.get('Prioridad')=='Baja' else '#94a3b8'};">{'☒' if inc.get('Prioridad')=='Baja' else '☐'} Baja</span>
-            </div>
-            """
-
-            est_badge = f"""
-            <div style="font-size: 0.76rem; line-height: 1.35; padding-top: 4px;">
-                <span style="font-weight: {'800' if inc.get('Estado')=='Abierta' else '400'}; color: {'#dc2626' if inc.get('Estado')=='Abierta' else '#94a3b8'};">{'☒' if inc.get('Estado')=='Abierta' else '☐'} Abierta</span><br/>
-                <span style="font-weight: {'800' if inc.get('Estado')=='Cerrada' else '400'}; color: {'#16a34a' if inc.get('Estado')=='Cerrada' else '#94a3b8'};">{'☒' if inc.get('Estado')=='Cerrada' else '☐'} Cerrada</span>
-            </div>
-            """
-
-            c_row1, c_row2, c_row3, c_row4, c_row5, c_row6, c_row7, c_row8 = st.columns(col_ratios)
+            prio_val = inc.get('Prioridad', 'Media')
+            est_val = inc.get('Estado', 'Abierta')
             
-            with c_row1:
-                st.markdown(f"<div style='text-align: center; font-weight: 800; font-size: 0.90rem; padding-top: 6px;'>{idx}</div>", unsafe_allow_html=True)
-            with c_row2:
-                st.markdown(f"<div style='font-weight: 700; font-size: 0.84rem; padding-top: 6px;'>{inc.get('Area', '')}<br/><span style='color: #64748b; font-weight: 400; font-size: 0.72rem;'>{inc.get('Proyecto', '')}</span></div>", unsafe_allow_html=True)
-            with c_row3:
-                st.markdown(f"<div style='font-size: 0.84rem; padding-top: 6px; line-height: 1.3;'>{inc.get('Descripcion', '')}</div>", unsafe_allow_html=True)
-            with c_row4:
-                st.markdown(f"<div style='font-size: 0.84rem; padding-top: 6px;'>{inc.get('Responsable', '')}</div>", unsafe_allow_html=True)
-            with c_row5:
-                st.markdown(prio_badge, unsafe_allow_html=True)
-            with c_row6:
-                st.markdown(f"<div style='text-align: center; font-size: 0.80rem; font-weight: 700; padding-top: 6px;'>{inc.get('Fecha_Compromiso', '')}</div>", unsafe_allow_html=True)
-            with c_row7:
-                st.markdown(est_badge, unsafe_allow_html=True)
-            with c_row8:
-                with st.popover("⚙️"):
-                    st.markdown(f"**Gestión N° {idx}**")
-                    nuevo_est_toggle = "Cerrada" if inc.get("Estado") == "Abierta" else "Abierta"
-                    if st.button(f"Marcar como {nuevo_est_toggle}", key=f"tog_st_{inc['db_id']}"):
-                        supabase.table("incidencias").update({"estado": nuevo_est_toggle}).eq("id", inc["db_id"]).execute()
-                        st.session_state.db_loaded = False
-                        st.rerun()
+            prio_html = f"""
+                <div style="font-size:0.75rem; line-height:1.3;">
+                    <span style="font-weight:{'800' if prio_val=='Alta' else '400'}; color:{'#dc2626' if prio_val=='Alta' else '#64748b'};">{'☒' if prio_val=='Alta' else '☐'} Alta</span><br/>
+                    <span style="font-weight:{'800' if prio_val=='Media' else '400'}; color:{'#d97706' if prio_val=='Media' else '#64748b'};">{'☒' if prio_val=='Media' else '☐'} Media</span><br/>
+                    <span style="font-weight:{'800' if prio_val=='Baja' else '400'}; color:{'#16a34a' if prio_val=='Baja' else '#64748b'};">{'☒' if prio_val=='Baja' else '☐'} Baja</span>
+                </div>
+            """
+            
+            est_html = f"""
+                <div style="font-size:0.75rem; line-height:1.3;">
+                    <span style="font-weight:{'800' if est_val=='Abierta' else '400'}; color:{'#dc2626' if est_val=='Abierta' else '#64748b'};">{'☒' if est_val=='Abierta' else '☐'} Abierta</span><br/>
+                    <span style="font-weight:{'800' if est_val=='Cerrada' else '400'}; color:{'#16a34a' if est_val=='Cerrada' else '#64748b'};">{'☒' if est_val=='Cerrada' else '☐'} Cerrada</span>
+                </div>
+            """
+            
+            table_rows_html += f"""
+                <tr>
+                    <td class="center" style="font-weight:700; width:45px;">{idx}</td>
+                    <td style="width:140px;"><b>{inc.get('Area', '')}</b><br/><small style="color:#64748b;">{inc.get('Proyecto', '')}</small></td>
+                    <td>{inc.get('Descripcion', '')}</td>
+                    <td style="width:130px;">{inc.get('Responsable', '')}</td>
+                    <td style="width:90px;">{prio_html}</td>
+                    <td class="center" style="font-weight:700; width:100px;">{inc.get('Fecha_Compromiso', '')}</td>
+                    <td style="width:95px;">{est_html}</td>
+                </tr>
+            """
 
-                    if st.button("🗑️ Eliminar", key=f"del_inc_{inc['db_id']}", type="secondary"):
-                        supabase.table("incidencias").delete().eq("id", inc["db_id"]).execute()
-                        st.session_state.db_loaded = False
-                        st.rerun()
+        full_table_html = f"""
+            <table class="incidencias-table">
+                <thead>
+                    <tr>
+                        <th class="center" style="width:45px;">N°</th>
+                        <th style="width:140px;">Área</th>
+                        <th>Descripción</th>
+                        <th style="width:130px;">Responsable</th>
+                        <th style="width:90px;">Prioridad</th>
+                        <th class="center" style="width:100px;">Fecha Comp.</th>
+                        <th style="width:95px;">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {table_rows_html}
+                </tbody>
+            </table>
+        """
+        st.markdown(full_table_html, unsafe_allow_html=True)
 
-            st.markdown("<hr style='margin: 6px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
+        # Barra de gestión individual rápida
+        with st.expander("⚙️ Administrar Estado o Eliminar Incidencias"):
+            col_g1, col_g2, col_g3 = st.columns([2, 1.5, 1])
+            inc_map = {f"N° {i} - {inc.get('Area')} ({inc.get('Proyecto')})": inc for i, inc in enumerate(lista_incs, 1)}
+            
+            with col_g1:
+                sel_inc_label = st.selectbox("Seleccione el registro:", list(inc_map.keys()), key="sel_inc_gest")
+                inc_target = inc_map[sel_inc_label]
+            
+            with col_g2:
+                toggle_st = "Cerrada" if inc_target.get("Estado") == "Abierta" else "Abierta"
+                if st.button(f"Cambiar estado a: {toggle_st}", type="primary", use_container_width=True):
+                    try:
+                        supabase.table("incidencias").update({"estado": toggle_st}).eq("id", inc_target["db_id"]).execute()
+                        st.session_state.db_loaded = False
+                        st.success(f"Estado actualizado a {toggle_st}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+            
+            with col_g3:
+                if st.button("🗑️ Eliminar", type="secondary", use_container_width=True):
+                    try:
+                        supabase.table("incidencias").delete().eq("id", inc_target["db_id"]).execute()
+                        st.session_state.db_loaded = False
+                        st.success("Incidencia eliminada correctamente")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
         # Descargas en Excel y PDF
         st.markdown("<br>", unsafe_allow_html=True)
