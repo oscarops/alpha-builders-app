@@ -36,8 +36,9 @@ st.markdown(
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     h1, h2, h3, .brand-title { font-family: 'Montserrat', sans-serif !important; letter-spacing: -0.03em !important; }
 
+    /* ESPACIADO SUPERIOR SEGURO PARA EVITAR QUE LA INTERFAZ DE STREAMLIT TAPE EL CONTENIDO */
     .block-container { 
-        padding-top: 0.6rem !important; 
+        padding-top: 3.5rem !important; 
         padding-bottom: 1.5rem !important; 
         padding-left: 1.2rem !important; 
         padding-right: 1.2rem !important; 
@@ -49,9 +50,15 @@ st.markdown(
 
     [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
 
+    /* OCULTAR HEADER VACÍO DE STREAMLIT PARA LIBERAR PANTALLA */
+    [data-testid="stHeader"] {
+        background: transparent !important;
+        z-index: 100 !important;
+    }
+
     /* SIDEBAR TOGGLE */
     [data-testid="stSidebarCollapseButton"] { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important; }
-    [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 15px !important; left: 15px !important; z-index: 999999 !important; }
+    [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 12px !important; left: 15px !important; z-index: 999999 !important; }
 
     [data-testid="stSidebarCollapseButton"] button, [data-testid="collapsedControl"] button {
         background-color: #1c1e26 !important; 
@@ -151,15 +158,16 @@ st.markdown(
     [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #282c36 !important; padding: 6px 8px !important; }
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * { color: #ffffff !important; font-weight: 700 !important; font-size: 0.78rem !important; }
 
-    /* WIDGET DASHBOARD UNIFICADO TODO-EN-UNO */
+    /* WIDGET DASHBOARD UNIFICADO TODO-EN-UNO (BAJADO Y TOTALMENTE VISIBLE) */
     .unified-dashboard-widget {
         background: linear-gradient(135deg, #111827 0%, #1e293b 50%, #0f172a 100%);
         border: 1px solid #334155;
         border-radius: 16px;
-        padding: 14px 18px;
+        padding: 16px 20px;
         color: #ffffff !important;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        margin-bottom: 12px;
+        margin-top: 10px !important;
+        margin-bottom: 14px;
         width: 100%;
         box-sizing: border-box;
     }
@@ -249,7 +257,7 @@ st.markdown(
     }
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    /* CABECERAS DE ÍTEMS EN CHECKLIST CON LÍNEA DE CORTE LIMPIA */
+    /* CABECERAS DE ÍTEMS EN CHECKLIST CON LÍNEA BLANCA LIMPIA */
     .banner-item-header {
         background-color: #0f172a !important;
         border: 1px solid #334155 !important;
@@ -277,7 +285,7 @@ st.markdown(
 
     /* RESPONSIVIDAD MÓVIL */
     @media (max-width: 768px) {
-        .block-container { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+        .block-container { padding-top: 4.2rem !important; padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
         .ud-title { font-size: 1.1rem !important; }
         .ud-m-val { font-size: 1.05rem !important; }
         .ud-m-lbl { font-size: 0.52rem !important; }
@@ -1405,11 +1413,11 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 7. DASHBOARD UNIFICADO TODO-EN-UNO (WIDGET CON CLIMA, FECHA Y MÉTRICAS)
+# 7. DASHBOARD UNIFICADO TODO-EN-UNO (WIDGET COMPACTO CON FECHA, CLIMA Y MÉTRICAS)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
-# Obtención y formateo dinámico de fecha y día en español
+# Formateo dinámico de fecha y día en español
 now_dt = datetime.datetime.now()
 dias_nombre_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 meses_nombre_es = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -1418,7 +1426,7 @@ dia_semana_actual = dias_nombre_es[now_dt.weekday()]
 mes_actual = meses_nombre_es[now_dt.month - 1]
 fecha_widget_texto = f"{dia_semana_actual}, {now_dt.day} de {mes_actual} de {now_dt.year}"
 
-# Determinación horaria de saludo y clima
+# Determinación horaria de clima estimado
 hora_actual = now_dt.hour
 if 6 <= hora_actual < 12:
     icono_clima = "☀️"
@@ -1436,7 +1444,7 @@ usr_incs = len(st.session_state.db_incidencias)
 usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 total_obreros = len(st.session_state.db_trabajadores)
 
-# Renderizado del Widget Unificado Todo-en-Uno
+# Renderizado del Widget Unificado Todo-en-Uno (Totalmente visible y sin solapamiento)
 st.markdown(
     f"""
     <div class="unified-dashboard-widget">
