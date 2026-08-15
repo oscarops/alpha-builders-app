@@ -60,7 +60,7 @@ st.markdown(
 
     .sidebar-logo-card { background-color: #ffffff; border-radius: 12px; padding: 8px 10px; margin-top: 0px !important; margin-bottom: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3); width: 100% !important; box-sizing: border-box; text-align: center; display: block; }
     [data-testid="stSidebar"] [data-testid="stImage"] { width: 100% !important; display: block !important; margin-top: 6px !important; margin-bottom: 10px !important; clear: both !important; }
-    [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
+    [data-testid="stSidebar"] [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
 
     .sidebar-profile-box { background: #1c1e26; border: 1px solid #323646; border-radius: 12px; padding: 10px 8px !important; text-align: center; margin-top: 4px; margin-bottom: 8px; width: 100% !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); box-sizing: border-box; }
     .sidebar-user-nombres { font-size: 0.88rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }
@@ -92,7 +92,6 @@ st.markdown(
 
     .streamlit-expanderHeader { background-color: #e8eaee !important; border-radius: 12px !important; border: 1px solid #c2c7d2 !important; font-weight: 700 !important; }
     
-    /* Estilos para tabla unificada sin espacios */
     .incidencias-table {
         width: 100%;
         border-collapse: collapse;
@@ -195,7 +194,7 @@ def load_db_from_supabase():
             if c not in db_checklists:
                 db_checklists[c] = []
             
-            datos_parsed = r["datos"] if isinstance(r["datos"], list) else json.loads(r["datos"])
+            datos_parsed = r["datos"] if isinstance(r["datos"], (list, dict)) else json.loads(r["datos"])
             db_checklists[c].append({
                 "db_id": r["id"],
                 "Fecha": str(r["fecha"]),
@@ -390,7 +389,7 @@ def export_checklist_to_excel_file(jornada_dict):
     ws["B2"] = f"Hora Fin: {jornada_dict.get('Hora_Fin', 'N/A')}"
     ws["C2"] = f"Responsable: {jornada_dict.get('Responsable', '')}"
 
-    headers = ["Jornada", "N°", "Actividad", "Estado", "Observaciones", "Evidencia Fotográfica"]
+    headers = ["Jornada / Sección", "N°", "Actividad / Trabajo", "Estado / Encargados", "Observaciones", "Evidencia Fotográfica"]
     ws.append([])
     ws.append(headers)
 
@@ -407,54 +406,84 @@ def export_checklist_to_excel_file(jornada_dict):
         cell.border = thin_border
 
     ws.row_dimensions[4].height = 25
-    datos = jornada_dict.get("Datos", [])
+    datos_raw = jornada_dict.get("Datos", [])
+    
+    # Manejo de retrocompatibilidad
+    if isinstance(datos_raw, dict):
+        items_verif = datos_raw.get("Verificaciones", [])
+        items_sup = datos_raw.get("Supervision_Trabajos", [])
+    else:
+        items_verif = datos_raw
+        items_sup = []
+
     start_row = 5
+    current_r = start_row
 
-    for row_idx, item in enumerate(datos, start=start_row):
-        obs_val = item.get("Observaciones", "")
-        if item.get("Actividades_Especificas"):
-            sub_acts = " | Actividades: " + ", ".join([f"• {a['Actividad']}" for a in item["Actividades_Especificas"] if a.get("Actividad")])
-            obs_val += sub_acts
-
-        ws.append([item.get("Jornada", ""), item.get("N°", ""), item.get("Actividad", ""), item.get("Estado", ""), obs_val])
-        ws.row_dimensions[row_idx].height = 140
-
+    for item in items_verif:
+        ws.append([item.get("Jornada", ""), item.get("N°", ""), item.get("Actividad", ""), item.get("Estado", ""), item.get("Observaciones", ""), "N/A"])
+        ws.row_dimensions[current_r].height = 30
         for c_i in range(1, 7):
-            cell_txt = ws.cell(row=row_idx, column=c_i)
+            cell_txt = ws.cell(row=current_r, column=c_i)
             cell_txt.border = thin_border
             cell_txt.font = Font(name="Arial", size=9)
-            if c_i < 6:
+            cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
+        current_r += 1
+
+    if items_sup:
+        ws.append([])
+        current_r += 1
+        ws.merge_cells(f"A{current_r}:F{current_r}")
+        ws[f"A{current_r}"] = "SUPERVISIÓN DE LA EJECUCIÓN DE TRABAJOS (UNIFICADA)"
+        ws[f"A{current_r}"].font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
+        ws[f"A{current_r}"].fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
+        current_r += 1
+
+        for idx_s, sup in enumerate(items_sup, 1):
+            ws.append(["Supervisión", idx_s, sup.get("Actividad", ""), f"Encargados: {sup.get('Encargados', '')}", sup.get("Observaciones", ""), ""])
+            ws.row_dimensions[current_r].height = 130
+            for c_i in range(1, 7):
+                cell_txt = ws.cell(row=current_r, column=c_i)
+                cell_txt.border = thin_border
+                cell_txt.font = Font(name="Arial", size=9)
                 cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
+            
+            foto_b64 = sup.get("Foto_B64")
+            if foto_b64:
+                try:
+                    img_data = base64.b64decode(foto_b64)
+                    img_pil = Image.open(io.BytesIO(img_data))
+                    img_pil = ImageOps.exif_transpose(img_pil)
+                    img_pil = img_pil.resize((600, 450), Image.Resampling.LANCZOS)
+                    img_stream = io.BytesIO()
+                    img_pil.save(img_stream, format="PNG", quality=100)
+                    img_stream.seek(0)
 
-        foto_b64 = item.get("Foto_B64")
-        if foto_b64:
-            try:
-                img_data = base64.b64decode(foto_b64)
-                img_pil = Image.open(io.BytesIO(img_data))
-                img_pil = ImageOps.exif_transpose(img_pil)
-                img_pil = img_pil.resize((600, 450), Image.Resampling.LANCZOS)
-                img_stream = io.BytesIO()
-                img_pil.save(img_stream, format="PNG", quality=100)
-                img_stream.seek(0)
+                    img_xlsx = OpenpyxlImage(img_stream)
+                    img_xlsx.width = 240
+                    img_xlsx.height = 120
+                    ws.add_image(img_xlsx, f"F{current_r}")
+                except Exception:
+                    pass
+            current_r += 1
 
-                img_xlsx = OpenpyxlImage(img_stream)
-                img_xlsx.width = 280
-                img_xlsx.height = 140
-                ws.add_image(img_xlsx, f"F{row_idx}")
-            except Exception:
-                pass
+    obs_list = jornada_dict.get("Observacion_General", "")
+    if obs_list:
+        ws.append([])
+        current_r += 1
+        ws.cell(row=current_r, column=1, value="OBSERVACIONES GENERALES:").font = Font(name="Arial", bold=True, size=10)
+        if isinstance(obs_list, list):
+            for o in obs_list:
+                current_r += 1
+                ws.cell(row=current_r, column=2, value=f"• {o}")
+        else:
+            ws.cell(row=current_r, column=3, value=str(obs_list))
 
-    if jornada_dict.get("Observacion_General"):
-        last_r = len(datos) + start_row
-        ws.cell(row=last_r, column=1, value="OBSERVACIÓN GENERAL:").font = Font(name="Arial", bold=True, size=10)
-        ws.cell(row=last_r, column=3, value=jornada_dict.get("Observacion_General"))
-
-    ws.column_dimensions['A'].width = 14
+    ws.column_dimensions['A'].width = 16
     ws.column_dimensions['B'].width = 8
-    ws.column_dimensions['C'].width = 45
-    ws.column_dimensions['D'].width = 16
-    ws.column_dimensions['E'].width = 35
-    ws.column_dimensions['F'].width = 45
+    ws.column_dimensions['C'].width = 40
+    ws.column_dimensions['D'].width = 24
+    ws.column_dimensions['E'].width = 30
+    ws.column_dimensions['F'].width = 40
 
     output = io.BytesIO()
     wb.save(output)
@@ -468,50 +497,85 @@ def export_checklist_to_pdf_file(jornada_dict):
     story = []
 
     title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=8)
-    sub_style = ParagraphStyle('SubStyle', fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#333333'), spaceAfter=10)
+    sub_style = ParagraphStyle('SubStyle', fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#333333'), spaceAfter=8)
+    sec_style = ParagraphStyle('SecStyle', fontName='Helvetica-Bold', fontSize=9.5, textColor=colors.HexColor('#1e293b'), spaceBefore=8, spaceAfter=4)
     header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.white, alignment=1)
     cell_style = ParagraphStyle('CellStyle', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#121318'))
 
     story.append(Paragraph(f"CHECKLIST DIARIO DE OBRA — {jornada_dict.get('Edificio', '').upper()}", title_style))
     story.append(Paragraph(f"<b>Fecha:</b> {jornada_dict.get('Fecha', '')} | <b>Horario:</b> {jornada_dict.get('Hora_Inicio', '')} - {jornada_dict.get('Hora_Fin', '')} | <b>Responsable:</b> {jornada_dict.get('Responsable', '')}", sub_style))
 
-    data = [[
+    datos_raw = jornada_dict.get("Datos", [])
+    if isinstance(datos_raw, dict):
+        items_verif = datos_raw.get("Verificaciones", [])
+        items_sup = datos_raw.get("Supervision_Trabajos", [])
+    else:
+        items_verif = datos_raw
+        items_sup = []
+
+    # Tabla de Verificaciones
+    story.append(Paragraph("1. VERIFICACIONES DE JORNADA", sec_style))
+    data_v = [[
         Paragraph("<b>Jornada</b>", header_style),
         Paragraph("<b>N°</b>", header_style),
         Paragraph("<b>Actividad</b>", header_style),
         Paragraph("<b>Estado</b>", header_style),
         Paragraph("<b>Observaciones</b>", header_style)
     ]]
-    
-    for item in jornada_dict.get("Datos", []):
-        obs = item.get("Observaciones", "")
-        if item.get("Actividades_Especificas"):
-            sub_acts = ", ".join([a['Actividad'] for a in item["Actividades_Especificas"] if a.get("Actividad")])
-            if sub_acts:
-                obs += f" (Específicas: {sub_acts})"
-
-        data.append([
+    for item in items_verif:
+        data_v.append([
             Paragraph(str(item.get("Jornada", "")), cell_style),
             Paragraph(str(item.get("N°", "")), cell_style),
             Paragraph(str(item.get("Actividad", "")), cell_style),
             Paragraph(str(item.get("Estado", "") or "N/A"), cell_style),
-            Paragraph(str(obs), cell_style)
+            Paragraph(str(item.get("Observaciones", "")), cell_style)
         ])
 
-    table = Table(data, colWidths=[55, 25, 190, 65, 215])
-    table.setStyle(TableStyle([
+    table_v = Table(data_v, colWidths=[60, 25, 200, 75, 190])
+    table_v.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
-        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
     ]))
-    story.append(table)
+    story.append(table_v)
 
-    if jornada_dict.get("Observacion_General"):
-        story.append(Spacer(1, 10))
-        story.append(Paragraph(f"<b>Observación General:</b> {jornada_dict.get('Observacion_General')}", sub_style))
+    # Tabla de Supervisión
+    if items_sup:
+        story.append(Spacer(1, 6))
+        story.append(Paragraph("2. SUPERVISIÓN DE LA EJECUCIÓN DE TRABAJOS", sec_style))
+        data_s = [[
+            Paragraph("<b>N°</b>", header_style),
+            Paragraph("<b>Actividad a Ejecutar</b>", header_style),
+            Paragraph("<b>Trabajadores Encargados</b>", header_style),
+            Paragraph("<b>Observaciones</b>", header_style)
+        ]]
+        for idx_s, sup in enumerate(items_sup, 1):
+            data_s.append([
+                Paragraph(str(idx_s), cell_style),
+                Paragraph(str(sup.get("Actividad", "")), cell_style),
+                Paragraph(str(sup.get("Encargados", "")), cell_style),
+                Paragraph(str(sup.get("Observaciones", "")), cell_style)
+            ])
+
+        table_s = Table(data_s, colWidths=[25, 220, 160, 145])
+        table_s.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e293b')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ]))
+        story.append(table_s)
+
+    obs_list = jornada_dict.get("Observacion_General", "")
+    if obs_list:
+        story.append(Spacer(1, 8))
+        story.append(Paragraph("<b>OBSERVACIONES GENERALES:</b>", sec_style))
+        if isinstance(obs_list, list):
+            for o in obs_list:
+                story.append(Paragraph(f"• {o}", cell_style))
+        else:
+            story.append(Paragraph(str(obs_list), cell_style))
 
     doc.build(story)
     buffer.seek(0)
@@ -884,19 +948,25 @@ EDIFICIOS_ALPHA = [
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
 RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
 
-ACTIVIDADES_MANANA = [
-    "Verificación de asistencia del personal", "Distribución de cuadrillas por frente de trabajo",
-    "Recorrido inicial de obra", "Supervisión de la ejecución de los trabajos",
-    "Verificación de los trabajos y la calidad", "Coordinación con otras especialidades",
+# LISTAS LIMPIAS (SIN RECORRIDO INICIAL NI SUPERVISIÓN EN MAÑANA/TARDE)
+ACTIVIDADES_MANANA_CLEAN = [
+    "Verificación de asistencia del personal",
+    "Distribución de cuadrillas por frente de trabajo",
+    "Verificación de los trabajos y la calidad",
+    "Coordinación con otras especialidades",
     "Corrección de observaciones detectadas",
 ]
 
-ACTIVIDADES_TARDE = [
-    "Recorrido de seguimiento de los frentes de trabajo", "Verificación del avance físico de las actividades",
-    "Control del rendimiento de las cuadrillas", "Supervisión de la ejecución de los trabajos",
-    "Verificación de los trabajos y la calidad", "Revisión de observaciones pendientes",
-    "Verificación de trabajos corregidos", "Verificación del orden y limpieza de los frentes de trabajo",
-    "Confirmación de materiales para el siguiente día", "Revisión del cumplimiento de la meta diaria",
+ACTIVIDADES_TARDE_CLEAN = [
+    "Recorrido de seguimiento de los frentes de trabajo",
+    "Verificación del avance físico de las actividades",
+    "Control del rendimiento de las cuadrillas",
+    "Verificación de los trabajos y la calidad",
+    "Revisión de observaciones pendientes",
+    "Verificación de trabajos corregidos",
+    "Verificación del orden y limpieza de los frentes de trabajo",
+    "Confirmación de materiales para el siguiente día",
+    "Revisión del cumplimiento de la meta diaria",
     "Cierre de actividades en campo",
 ]
 # ==========================================
@@ -1303,18 +1373,27 @@ tab_incidencias = tabs_app[2]
 tab_rend = tabs_app[3]
 
 # ------------------------------------------
-# MÓDULO 1: CHECKLIST DIARIO
+# MÓDULO 1: CHECKLIST DIARIO (REESTRUCTURADO)
 # ------------------------------------------
 with tab_chk:
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
 
+    # Inicialización de estado para lista dinámica de supervisiones y observaciones
+    if "num_supervisiones" not in st.session_state:
+        st.session_state.num_supervisiones = 1
+    if "num_observaciones" not in st.session_state:
+        st.session_state.num_observaciones = 1
+
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión diaria de frentes de trabajo con verificación manual y registro de horas.")
+    st.caption("Supervisión diaria de frentes de trabajo con verificación técnica, cuadrillas asignadas y registro fotográfico.")
 
     if not st.session_state.creando_jornada:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
             st.session_state.creando_jornada = True
+            st.session_state.num_supervisiones = 1
+            st.session_state.num_observaciones = 1
+            st.rerun()
 
     if st.session_state.creando_jornada:
         st.markdown("---")
@@ -1335,124 +1414,148 @@ with tab_chk:
 
             st.markdown("---")
 
-            with st.form("form_checklist_jornada"):
-                st.markdown("#### 🌅 Jornada de la Mañana")
-                resp_manana = []
+            # 1. JORNADA DE LA MAÑANA (Sin fotos en 1 y 2, sin recorrido inicial)
+            st.markdown("#### 🌅 Jornada de la Mañana")
+            resp_manana = []
 
-                for idx, act in enumerate(ACTIVIDADES_MANANA, 1):
-                    st.markdown(f"**N° {idx}. {act}**")
-                    
-                    sub_actividades_m = []
-                    if act == "Supervisión de la ejecución de los trabajos":
-                        st.caption("📌 Indique las actividades específicas a realizar durante la jornada de la mañana:")
-                        df_sub_m = pd.DataFrame([
-                            {"Actividad": ""},
-                            {"Actividad": ""}
-                        ])
-                        sub_edited_m = st.data_editor(
-                            df_sub_m,
-                            num_rows="dynamic",
-                            column_config={
-                                "Actividad": st.column_config.TextColumn("Descripción de la Actividad a Realizar")
-                            },
-                            key=f"sub_m_{idx}"
-                        )
-                        sub_actividades_m = sub_edited_m.to_dict(orient="records")
-
-                    c_sel, c_obs, c_foto = st.columns([2, 3, 3])
-
+            for idx, act in enumerate(ACTIVIDADES_MANANA_CLEAN, 1):
+                st.markdown(f"**N° {idx}. {act}**")
+                
+                # Sin campo de fotos para los puntos 1 y 2
+                if idx in [1, 2]:
+                    c_sel, c_obs = st.columns([2, 5])
                     with c_sel:
-                        est = st.segmented_control(
-                            "Estado General",
-                            ["✓ Cumple", "✗ No Cumple", "N/A"],
-                            key=f"m_st_{idx}"
-                        )
+                        est = st.segmented_control("Estado General", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"m_st_{idx}")
+                    with c_obs:
+                        ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
+                    ft_b64 = None
+                else:
+                    c_sel, c_obs, c_foto = st.columns([2, 3, 3])
+                    with c_sel:
+                        est = st.segmented_control("Estado General", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"m_st_{idx}")
                     with c_obs:
                         ob = st.text_input("Observación", key=f"m_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
                     with c_foto:
                         ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}")
-
-                    st.markdown("<hr style='margin: 8px 0; border-color: #c2c7d2;'>", unsafe_allow_html=True)
-                    
                     ft_b64 = image_to_base64(ft) if ft is not None else None
-                    resp_manana.append({
-                        "Jornada": "Mañana",
-                        "N°": idx,
-                        "Actividad": act,
-                        "Estado": est,
-                        "Observaciones": ob,
-                        "Actividades_Especificas": sub_actividades_m,
-                        "Foto_B64": ft_b64,
-                        "Foto_Adjunta": "Sí" if ft is not None else "No"
-                    })
 
-                st.markdown("#### 🌆 Jornada de la Tarde")
-                resp_tarde = []
+                st.markdown("<hr style='margin: 6px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+                
+                resp_manana.append({
+                    "Jornada": "Mañana",
+                    "N°": idx,
+                    "Actividad": act,
+                    "Estado": est,
+                    "Observaciones": ob,
+                    "Foto_B64": ft_b64
+                })
 
-                for idx, act in enumerate(ACTIVIDADES_TARDE, 1):
-                    st.markdown(f"**N° {idx}. {act}**")
-                    
-                    sub_actividades_t = []
-                    if act == "Supervisión de la ejecución de los trabajos":
-                        st.caption("📌 Indique las actividades específicas a realizar durante la jornada de la tarde:")
-                        df_sub_t = pd.DataFrame([
-                            {"Actividad": ""},
-                            {"Actividad": ""}
-                        ])
-                        sub_edited_t = st.data_editor(
-                            df_sub_t,
-                            num_rows="dynamic",
-                            column_config={
-                                "Actividad": st.column_config.TextColumn("Descripción de la Actividad a Realizar")
-                            },
-                            key=f"sub_t_{idx}"
-                        )
-                        sub_actividades_t = sub_edited_t.to_dict(orient="records")
+            # 2. JORNADA DE LA TARDE (Sin supervisión duplicada)
+            st.markdown("#### 🌆 Jornada de la Tarde")
+            resp_tarde = []
 
-                    c_sel, c_obs, c_foto = st.columns([2, 3, 3])
+            for idx, act in enumerate(ACTIVIDADES_TARDE_CLEAN, 1):
+                st.markdown(f"**N° {idx}. {act}**")
+                
+                c_sel, c_obs, c_foto = st.columns([2, 3, 3])
+                with c_sel:
+                    est = st.segmented_control("Estado General", ["✓ Cumple", "✗ No Cumple", "N/A"], key=f"t_st_{idx}")
+                with c_obs:
+                    ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
+                with c_foto:
+                    ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
 
-                    with c_sel:
-                        est = st.segmented_control(
-                            "Estado General",
-                            ["✓ Cumple", "✗ No Cumple", "N/A"],
-                            key=f"t_st_{idx}"
-                        )
-                    with c_obs:
-                        ob = st.text_input("Observación", key=f"t_ob_{idx}", placeholder="Observaciones...", label_visibility="collapsed")
-                    with c_foto:
-                        ft = st.file_uploader("Foto Evidencia (Opcional)", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}")
+                st.markdown("<hr style='margin: 6px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+                
+                ft_b64 = image_to_base64(ft) if ft is not None else None
+                resp_tarde.append({
+                    "Jornada": "Tarde",
+                    "N°": idx,
+                    "Actividad": act,
+                    "Estado": est,
+                    "Observaciones": ob,
+                    "Foto_B64": ft_b64
+                })
 
-                    st.markdown("<hr style='margin: 8px 0; border-color: #c2c7d2;'>", unsafe_allow_html=True)
-                    
-                    ft_b64 = image_to_base64(ft) if ft is not None else None
-                    resp_tarde.append({
-                        "Jornada": "Tarde",
-                        "N°": idx,
-                        "Actividad": act,
-                        "Estado": est,
-                        "Observaciones": ob,
-                        "Actividades_Especificas": sub_actividades_t,
-                        "Foto_B64": ft_b64,
-                        "Foto_Adjunta": "Sí" if ft is not None else "No"
-                    })
+            # 3. SECCIÓN UNIFICADA: SUPERVISIÓN DE LA EJECUCIÓN DE TRABAJOS
+            st.markdown("---")
+            st.markdown("#### 🏗️ Supervisión de la Ejecución de los Trabajos (Unificada)")
+            st.caption("Registre las actividades ejecutadas en campo, asigne a los trabajadores responsables y adjunte evidencia fotográfica propia.")
 
-                st.markdown("#### 📝 Cierre de la Inspección")
-                obs_general_val = st.text_area("Observación General de la Inspección:", placeholder="Ingrese observaciones generales, recomendaciones o novedades globales del frente de obra...", key="obs_general_inp")
+            lista_nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
+            resp_supervision = []
 
-                btn_guardar_chk = st.form_submit_button("Guardar Jornada de Inspección", type="primary")
+            for s_idx in range(1, st.session_state.num_supervisiones + 1):
+                st.markdown(f"**Frente de Trabajo N° {s_idx}**")
+                col_sup1, col_sup2 = st.columns([3, 3])
+                
+                with col_sup1:
+                    sup_actividad = st.text_input(f"Actividad / Trabajo a ejecutar:", key=f"sup_act_{s_idx}", placeholder="Ej. Enlucido de paredes en fachada posterior")
+                    if lista_nombres_obreros:
+                        sup_obreros = st.multiselect(f"Trabajadores encargados:", options=lista_nombres_obreros, key=f"sup_obs_{s_idx}")
+                        sup_obreros_str = ", ".join(sup_obreros) if sup_obreros else ""
+                    else:
+                        sup_obreros_str = st.text_input(f"Trabajadores encargados (Manual):", key=f"sup_obs_man_{s_idx}", placeholder="Ej. Juan Pérez, Carlos Gómez")
 
-            if btn_guardar_chk:
+                with col_sup2:
+                    sup_obs = st.text_input(f"Observaciones del trabajo:", key=f"sup_det_obs_{s_idx}", placeholder="Ej. Nivel y plomo correcto, uso de andamio certificado")
+                    sup_foto = st.file_uploader(f"Foto Evidencia del Trabajo {s_idx}:", type=["jpg", "jpeg", "png"], key=f"sup_ft_{s_idx}")
+
+                sup_foto_b64 = image_to_base64(sup_foto) if sup_foto is not None else None
+                
+                resp_supervision.append({
+                    "N°": s_idx,
+                    "Actividad": sup_actividad.strip(),
+                    "Encargados": sup_obreros_str,
+                    "Observaciones": sup_obs.strip(),
+                    "Foto_B64": sup_foto_b64
+                })
+                st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+
+            col_btn_sup1, _ = st.columns([2, 5])
+            with col_btn_sup1:
+                if st.button("➕ Agregar Otra Actividad de Supervisión", key="btn_add_sup"):
+                    st.session_state.num_supervisiones += 1
+                    st.rerun()
+
+            # 4. OBSERVACIONES GENERALES MÚLTIPLES Y DINÁMICAS
+            st.markdown("---")
+            st.markdown("#### 📝 Observaciones Generales de la Inspección")
+            st.caption("Agregue observaciones individuales separadas para mantener el reporte limpio y organizado.")
+
+            resp_observaciones_list = []
+            for o_idx in range(1, st.session_state.num_observaciones + 1):
+                c_ob_in, _ = st.columns([6, 1])
+                with c_ob_in:
+                    obs_item_val = st.text_input(f"Observación N° {o_idx}:", placeholder=f"Describa la observación o novedad {o_idx}...", key=f"obs_gen_item_{o_idx}")
+                    if obs_item_val.strip():
+                        resp_observaciones_list.append(obs_item_val.strip())
+
+            col_btn_obs1, _ = st.columns([2, 5])
+            with col_btn_obs1:
+                if st.button("➕ Agregar Otra Observación", key="btn_add_obs_gen"):
+                    st.session_state.num_observaciones += 1
+                    st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # Botón Guardar Jornada
+            if st.button("💾 Guardar Jornada de Inspección", type="primary", use_container_width=True):
                 if edificio_val == "-- Seleccione --" or not edificio_val:
                     st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
                 else:
                     manana_respondida = [item for item in resp_manana if item["Estado"] is not None]
                     tarde_respondida = [item for item in resp_tarde if item["Estado"] is not None]
+                    supervisiones_validas = [item for item in resp_supervision if item["Actividad"]]
 
-                    all_chk_data = manana_respondida + tarde_respondida
-
-                    if len(all_chk_data) == 0:
-                        st.error("⚠️ Por favor responda al menos a una actividad (Mañana o Tarde) para guardar.")
+                    if len(manana_respondida) == 0 and len(tarde_respondida) == 0 and len(supervisiones_validas) == 0:
+                        st.error("⚠️ Por favor registre al menos una verificación o actividad de supervisión para guardar.")
                     else:
+                        payload_jornada = {
+                            "Verificaciones": manana_respondida + tarde_respondida,
+                            "Supervision_Trabajos": supervisiones_validas
+                        }
+
                         try:
                             supabase.table("checklists").insert({
                                 "usuario_email": user_email,
@@ -1462,13 +1565,15 @@ with tab_chk:
                                 "hora_fin": hora_fin_val.strftime("%H:%M"),
                                 "responsable": user_nombre_completo,
                                 "cargo": user_cargo,
-                                "observacion_general": obs_general_val.strip(),
-                                "datos": all_chk_data
+                                "observacion_general": resp_observaciones_list,
+                                "datos": payload_jornada
                             }).execute()
 
                             st.session_state.db_loaded = False
                             st.success(f"¡Jornada guardada permanentemente para **{edificio_val}**!")
                             st.session_state.creando_jornada = False
+                            st.session_state.num_supervisiones = 1
+                            st.session_state.num_observaciones = 1
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al guardar checklist: {e}")
@@ -1533,31 +1638,46 @@ with tab_chk:
 
                         with col_j_info:
                             with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})"):
-                                st.markdown("#### Actividades Registradas y Evidencias:")
-                                df_data = pd.DataFrame(j["Datos"])
-                                for _, row in df_data.iterrows():
-                                    estado_badge = render_estado_badge(row['Estado'])
-                                    st.markdown(f"- **[{row['Jornada']}] N° {row['N°']}. {row['Actividad']}**: {estado_badge}", unsafe_allow_html=True)
-                                    
-                                    sub_tasks = row.get("Actividades_Especificas", [])
-                                    if sub_tasks:
-                                        for st_item in sub_tasks:
-                                            if st_item.get("Actividad"):
-                                                st.markdown(f"  * ▫️ *Actividad:* {st_item['Actividad']}")
+                                datos_item = j.get("Datos", {})
+                                if isinstance(datos_item, dict):
+                                    v_list = datos_item.get("Verificaciones", [])
+                                    s_list = datos_item.get("Supervision_Trabajos", [])
+                                else:
+                                    v_list = datos_item
+                                    s_list = []
 
-                                    if row['Observaciones']:
-                                        st.caption(f"Obs: {row['Observaciones']}")
-                                    
-                                    if row.get("Foto_B64") is not None:
-                                        img_evidencia = base64_to_image(row["Foto_B64"])
-                                        if img_evidencia:
-                                            with st.popover("📷 Vista previa"):
-                                                st.image(img_evidencia, caption=row['Actividad'], use_container_width=True)
+                                st.markdown("##### 1. Verificaciones:")
+                                for row in v_list:
+                                    estado_badge = render_estado_badge(row.get('Estado'))
+                                    st.markdown(f"- **[{row.get('Jornada')}] N° {row.get('N°')}. {row.get('Actividad')}**: {estado_badge}", unsafe_allow_html=True)
+                                    if row.get('Observaciones'):
+                                        st.caption(f"Obs: {row.get('Observaciones')}")
+                                    if row.get("Foto_B64"):
+                                        img_ev = base64_to_image(row["Foto_B64"])
+                                        if img_ev:
+                                            with st.popover("📷 Ver Foto"):
+                                                st.image(img_ev, caption=row.get('Actividad'), use_container_width=True)
 
-                                    st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+                                if s_list:
+                                    st.markdown("##### 2. Supervisión de Trabajos:")
+                                    for sup_r in s_list:
+                                        st.markdown(f"- ▫️ **Actividad:** {sup_r.get('Actividad')} | **Encargados:** `{sup_r.get('Encargados', 'No especificado')}`")
+                                        if sup_r.get('Observaciones'):
+                                            st.caption(f"Detalle: {sup_r.get('Observaciones')}")
+                                        if sup_r.get("Foto_B64"):
+                                            img_sup = base64_to_image(sup_r["Foto_B64"])
+                                            if img_sup:
+                                                with st.popover(f"📷 Evidencia {sup_r.get('Actividad')}"):
+                                                    st.image(img_sup, caption=sup_r.get('Actividad'), use_container_width=True)
 
-                                if j.get("Observacion_General"):
-                                    st.info(f"**Observación General:** {j.get('Observacion_General')}")
+                                obs_g = j.get("Observacion_General")
+                                if obs_g:
+                                    st.markdown("##### Observaciones Generales:")
+                                    if isinstance(obs_g, list):
+                                        for o_txt in obs_g:
+                                            st.info(f"• {o_txt}")
+                                    else:
+                                        st.info(obs_g)
 
                                 c_dl1, c_dl2 = st.columns(2)
                                 with c_dl1:
@@ -1992,7 +2112,7 @@ with tab_incidencias:
     if filtro_estado_vista != "Todos":
         lista_incs = [i for i in lista_incs if i.get("Estado") == filtro_estado_vista]
 
-# 4. Matriz de Incidencias con Cuadrícula Continua (Renderizado HTML limpio sin código plano)
+    # 4. Matriz de Incidencias con Cuadrícula Continua (Renderizado HTML limpio sin código plano)
     st.markdown(f"#### Matriz de Incidencias ({len(lista_incs)} registros)")
 
     if len(lista_incs) > 0:
@@ -2259,10 +2379,32 @@ if es_admin:
                 with st.expander(f"📌 [{j_adm.get('Edificio', 'N/A')}] {j_adm['Fecha']} — {resp_str} ({j_adm['Usuario_Correo']})"):
                     st.markdown(f"**Usuario:** `{j_adm['Usuario_Correo']}` | **Responsable:** {resp_str}")
                     
-                    df_data_adm = pd.DataFrame(j_adm["Datos"])
-                    for _, r_adm in df_data_adm.iterrows():
-                        badge_adm = render_estado_badge(r_adm['Estado'])
-                        st.markdown(f"- **[{r_adm['Jornada']}] N° {r_adm['N°']}. {r_adm['Actividad']}**: {badge_adm}", unsafe_allow_html=True)
+                    datos_item_adm = j_adm.get("Datos", {})
+                    if isinstance(datos_item_adm, dict):
+                        v_adm = datos_item_adm.get("Verificaciones", [])
+                        s_adm = datos_item_adm.get("Supervision_Trabajos", [])
+                    else:
+                        v_adm = datos_item_adm
+                        s_adm = []
+
+                    st.markdown("##### 1. Verificaciones:")
+                    for r_adm in v_adm:
+                        badge_adm = render_estado_badge(r_adm.get('Estado'))
+                        st.markdown(f"- **[{r_adm.get('Jornada')}] N° {r_adm.get('N°')}. {r_adm.get('Actividad')}**: {badge_adm}", unsafe_allow_html=True)
+
+                    if s_adm:
+                        st.markdown("##### 2. Supervisión de Trabajos:")
+                        for sup_adm in s_adm:
+                            st.markdown(f"- ▫️ **Actividad:** {sup_adm.get('Actividad')} | **Encargados:** `{sup_adm.get('Encargados', 'N/A')}`")
+
+                    obs_adm_g = j_adm.get("Observacion_General")
+                    if obs_adm_g:
+                        st.markdown("##### Observaciones:")
+                        if isinstance(obs_adm_g, list):
+                            for o_a in obs_adm_g:
+                                st.info(f"• {o_a}")
+                        else:
+                            st.info(obs_adm_g)
 
                     c_ad_dl1, c_ad_dl2 = st.columns(2)
                     with c_ad_dl1:
