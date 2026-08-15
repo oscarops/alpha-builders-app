@@ -12,7 +12,7 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
-# Importaciones de ReportLab para generación de PDFs
+# ReportLab para PDFs
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -90,41 +90,35 @@ st.markdown(
     .stButton > button { background-color: #121318 !important; color: #ffffff !important; border-radius: 980px !important; border: none !important; font-weight: 800 !important; padding: 10px 22px !important; }
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    /* ESTILOS DE TABLAS DE ALTA PRECISIÓN */
-    .incidencias-table, .grid-table {
+    /* ESTILOS DE TABLAS DE ALTA PRECISIÓN (ESTILO CUADRÍCULA CONTINUA) */
+    .incidencias-table, .supervision-table {
         width: 100%;
         border-collapse: collapse;
         margin-top: 4px;
         margin-bottom: 12px;
         font-family: 'Inter', sans-serif;
     }
-    .incidencias-table th, .grid-table th {
+    .incidencias-table th, .supervision-table th {
         background-color: #121318;
         color: #ffffff;
-        padding: 10px 8px;
+        padding: 10px 10px;
         font-size: 0.82rem;
         font-weight: 700;
         border: 1px solid #334155;
         text-align: left;
     }
-    .incidencias-table th.center, .grid-table th.center, .incidencias-table td.center, .grid-table td.center {
+    .incidencias-table th.center, .supervision-table th.center, .incidencias-table td.center, .supervision-table td.center {
         text-align: center;
     }
-    .incidencias-table td, .grid-table td {
-        padding: 8px;
+    .incidencias-table td, .supervision-table td {
+        padding: 9px 10px;
         font-size: 0.83rem;
         border: 1px solid #cbd5e1;
         vertical-align: middle;
         background-color: #ffffff;
     }
-    .incidencias-table tr:nth-child(even) td, .grid-table tr:nth-child(even) td {
+    .incidencias-table tr:nth-child(even) td, .supervision-table tr:nth-child(even) td {
         background-color: #f8fafc;
-    }
-
-    .table-cell-container {
-        border-right: 1px solid #cbd5e1;
-        padding: 4px 6px;
-        height: 100%;
     }
 
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
@@ -929,7 +923,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     return buffer.getvalue()
 
 # ==========================================
-# 3. CONSTANTES Y LISTAS REVISADAS
+# 3. CONSTANTES
 # ==========================================
 EDIFICIOS_ALPHA = [
     "Tesla", "Lafuente", "Imagine", "Asimov", "Rubik", "Castle Rock",
@@ -939,7 +933,7 @@ EDIFICIOS_ALPHA = [
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
 RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
 
-# LISTAS REESTRUCTURADAS
+# LISTA DE LA MAÑANA LIMPIA (Sin recorrido inicial)
 ACTIVIDADES_MANANA_CLEAN = [
     "Verificación de asistencia del personal",
     "Distribución de cuadrillas por frente de trabajo",
@@ -948,7 +942,7 @@ ACTIVIDADES_MANANA_CLEAN = [
     "Corrección de observaciones detectadas",
 ]
 
-# TARDE: Se quitaron 1 (Recorrido seguimiento), 5 (Observaciones pendientes), 7 (Limpieza) y 10 (Cierre en campo)
+# LISTA DE LA TARDE LIMPIA (Se quitaron 1, 5, 7 y 10)
 ACTIVIDADES_TARDE_CLEAN = [
     "Verificación del avance físico de las actividades",
     "Control del rendimiento de las cuadrillas",
@@ -1361,14 +1355,15 @@ tab_incidencias = tabs_app[2]
 tab_rend = tabs_app[3]
 
 # ------------------------------------------
-# MÓDULO 1: CHECKLIST DIARIO (OBSERVACIONES INTEGRADAS Y TABLA DELIMITADA)
+# MÓDULO 1: CHECKLIST DIARIO (OBSERVACIONES INTEGRADAS Y TABLA DELIMITADA SIN DESFASES)
 # ------------------------------------------
 with tab_chk:
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
 
-    if "num_supervisiones" not in st.session_state:
-        st.session_state.num_supervisiones = 1
+    # Lista dinámica de filas de supervisión en sesión
+    if "supervision_rows_live" not in st.session_state:
+        st.session_state.supervision_rows_live = []
 
     # Conteo dinámico de observaciones integradas por actividad
     if "chk_obs_counts" not in st.session_state:
@@ -1380,7 +1375,7 @@ with tab_chk:
     if not st.session_state.creando_jornada:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
             st.session_state.creando_jornada = True
-            st.session_state.num_supervisiones = 1
+            st.session_state.supervision_rows_live = []
             st.session_state.chk_obs_counts = {}
             st.rerun()
 
@@ -1494,69 +1489,82 @@ with tab_chk:
                     "Foto_B64": ft_b64
                 })
 
-            # 3. SECCIÓN UNIFICADA: SUPERVISIÓN DE TRABAJOS (TABLA UNIFICADA CON CUADRÍCULA Y DELIMITACIÓN CONTINUA)
+            # 3. SECCIÓN UNIFICADA: SUPERVISIÓN DE TRABAJOS (TABLA EXACTA A LA DE INCIDENCIAS)
             st.markdown("---")
-            st.markdown("#### 🏗️ Supervisión de la Ejecución de los Trabajos (Tabla Unificada)")
+            st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.supervision_rows_live)} registros)")
             st.caption("Registre las actividades ejecutadas en campo, los trabajadores encargados y la evidencia fotográfica correspondiente.")
 
             lista_nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
-            sup_col_ratios = [0.55, 2.4, 2.2, 2.4, 2.45]
 
-            # Cabecera continua de la tabla sin separaciones
-            h_s1, h_s2, h_s3, h_s4, h_s5 = st.columns(sup_col_ratios)
-            with h_s1:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:9px 4px; text-align:center; font-weight:800; font-size:0.80rem; border:1px solid #334155;'>N°</div>", unsafe_allow_html=True)
-            with h_s2:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:9px 8px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #334155;'>Actividad / Trabajo a Ejecutar</div>", unsafe_allow_html=True)
-            with h_s3:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:9px 8px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #334155;'>Trabajadores Encargados</div>", unsafe_allow_html=True)
-            with h_s4:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:9px 8px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #334155;'>Observaciones del Trabajo</div>", unsafe_allow_html=True)
-            with h_s5:
-                st.markdown("<div style='background:#121318; color:#ffffff; padding:9px 8px; text-align:left; font-weight:800; font-size:0.80rem; border:1px solid #334155;'>Foto Evidencia Propia</div>", unsafe_allow_html=True)
+            # Formulario para registrar cada actividad sin desfases
+            with st.expander("➕ Registrar Nueva Actividad de Supervisión", expanded=(len(st.session_state.supervision_rows_live) == 0)):
+                with st.form("form_add_supervision_row_clean"):
+                    col_sup_in1, col_sup_in2 = st.columns(2)
+                    with col_sup_in1:
+                        in_act = st.text_input("Actividad / Trabajo a Ejecutar:*", placeholder="Ej. Enlucido de paredes fachada posterior")
+                        if lista_nombres_obreros:
+                            in_obs_sel = st.multiselect("Trabajadores Encargados:", options=lista_nombres_obreros, placeholder="Seleccionar obreros...")
+                            in_obs_txt = ", ".join(in_obs_sel) if in_obs_sel else ""
+                        else:
+                            in_obs_txt = st.text_input("Trabajadores Encargados (Manual):", placeholder="Nombres de los obreros...")
 
-            resp_supervision = []
-            for s_idx in range(1, st.session_state.num_supervisiones + 1):
-                sc1, sc2, sc3, sc4, sc5 = st.columns(sup_col_ratios)
-                with sc1:
-                    st.markdown(f"<div style='text-align:center; font-weight:800; font-size:0.90rem; padding-top:14px; border-left:1px solid #cbd5e1; border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; min-height:68px; background-color:#ffffff;'>{s_idx}</div>", unsafe_allow_html=True)
-                with sc2:
-                    st.markdown("<div style='border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:6px; min-height:68px; background-color:#ffffff;'>", unsafe_allow_html=True)
-                    sup_actividad = st.text_input(f"Actividad {s_idx}", placeholder="Ej. Enlucido fachada...", key=f"sup_act_{s_idx}", label_visibility="collapsed")
-                    st.markdown("</div>", unsafe_allow_html=True)
-                with sc3:
-                    st.markdown("<div style='border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:6px; min-height:68px; background-color:#ffffff;'>", unsafe_allow_html=True)
-                    if lista_nombres_obreros:
-                        sup_obreros = st.multiselect(f"Obreros {s_idx}", options=lista_nombres_obreros, key=f"sup_obs_{s_idx}", label_visibility="collapsed", placeholder="Elegir...")
-                        sup_obreros_str = ", ".join(sup_obreros) if sup_obreros else ""
-                    else:
-                        sup_obreros_str = st.text_input(f"Obreros manual {s_idx}", placeholder="Nombres...", key=f"sup_obs_man_{s_idx}", label_visibility="collapsed")
-                    st.markdown("</div>", unsafe_allow_html=True)
-                with sc4:
-                    st.markdown("<div style='border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:6px; min-height:68px; background-color:#ffffff;'>", unsafe_allow_html=True)
-                    sup_obs = st.text_input(f"Obs {s_idx}", placeholder="Observación...", key=f"sup_det_obs_{s_idx}", label_visibility="collapsed")
-                    st.markdown("</div>", unsafe_allow_html=True)
-                with sc5:
-                    st.markdown("<div style='border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:6px; min-height:68px; background-color:#ffffff;'>", unsafe_allow_html=True)
-                    sup_foto = st.file_uploader(f"Foto {s_idx}", type=["jpg", "jpeg", "png"], key=f"sup_ft_{s_idx}", label_visibility="collapsed")
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    with col_sup_in2:
+                        in_det_obs = st.text_input("Observaciones del Trabajo:", placeholder="Ej. Plomo verificado, andamios con línea de vida")
+                        in_ft = st.file_uploader("Foto Evidencia Propia (Opcional):", type=["jpg", "jpeg", "png"])
 
-                sup_foto_b64 = image_to_base64(sup_foto) if sup_foto is not None else None
-                
-                resp_supervision.append({
-                    "N°": s_idx,
-                    "Actividad": sup_actividad.strip(),
-                    "Encargados": sup_obreros_str,
-                    "Observaciones": sup_obs.strip(),
-                    "Foto_B64": sup_foto_b64
-                })
+                    btn_add_sup_row = st.form_submit_button("➕ Agregar Actividad a la Tabla", type="primary")
 
-            st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
-            col_btn_sup1, _ = st.columns([2.5, 5])
-            with col_btn_sup1:
-                if st.button("➕ Agregar Fila de Trabajo", key="btn_add_sup_row"):
-                    st.session_state.num_supervisiones += 1
+                    if btn_add_sup_row:
+                        if not in_act.strip():
+                            st.error("⚠️ Por favor ingrese la descripción de la actividad.")
+                        else:
+                            ft_b64_in = image_to_base64(in_ft) if in_ft is not None else None
+                            st.session_state.supervision_rows_live.append({
+                                "N°": len(st.session_state.supervision_rows_live) + 1,
+                                "Actividad": in_act.strip(),
+                                "Encargados": in_obs_txt.strip(),
+                                "Observaciones": in_det_obs.strip(),
+                                "Foto_B64": ft_b64_in
+                            })
+                            st.success("¡Actividad agregada a la tabla!")
+                            st.rerun()
+
+            # Renderizado de la tabla de supervisión con cuadrícula idéntica a la de incidencias
+            if len(st.session_state.supervision_rows_live) > 0:
+                sup_table_rows = ""
+                for idx_s, sup_item in enumerate(st.session_state.supervision_rows_live, 1):
+                    has_foto = "📷 Con Evidencia" if sup_item.get("Foto_B64") else '<span style="color:#94a3b8;">Sin Foto</span>'
+                    sup_table_rows += (
+                        f"<tr>"
+                        f"<td class='center' style='font-weight:700; width:45px;'>{idx_s}</td>"
+                        f"<td style='width:240px;'><b>{sup_item.get('Actividad', '')}</b></td>"
+                        f"<td style='width:180px;'>{sup_item.get('Encargados', '') or 'No especificado'}</td>"
+                        f"<td>{sup_item.get('Observaciones', '') or 'Sin novedades'}</td>"
+                        f"<td class='center' style='width:120px; font-size:0.75rem; font-weight:700;'>{has_foto}</td>"
+                        f"</tr>"
+                    )
+
+                full_sup_html = (
+                    '<table class="supervision-table">'
+                    '<thead>'
+                    '<tr>'
+                    '<th class="center" style="width:45px;">N°</th>'
+                    '<th style="width:240px;">Actividad / Trabajo a Ejecutar</th>'
+                    '<th style="width:180px;">Trabajadores Encargados</th>'
+                    '<th>Observaciones del Trabajo</th>'
+                    '<th class="center" style="width:120px;">Foto Evidencia</th>'
+                    '</tr>'
+                    '</thead>'
+                    f'<tbody>{sup_table_rows}</tbody>'
+                    '</table>'
+                )
+                st.markdown(full_sup_html, unsafe_allow_html=True)
+
+                if st.button("🗑️ Limpiar Tabla de Supervisión", type="secondary"):
+                    st.session_state.supervision_rows_live = []
                     st.rerun()
+            else:
+                st.info("No hay actividades agregadas a la tabla de supervisión aún. Utilice el formulario de arriba para añadir filas.")
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1567,7 +1575,7 @@ with tab_chk:
                 else:
                     manana_respondida = [item for item in resp_manana if item["Estado"] is not None]
                     tarde_respondida = [item for item in resp_tarde if item["Estado"] is not None]
-                    supervisiones_validas = [item for item in resp_supervision if item["Actividad"]]
+                    supervisiones_validas = st.session_state.supervision_rows_live
 
                     if len(manana_respondida) == 0 and len(tarde_respondida) == 0 and len(supervisiones_validas) == 0:
                         st.error("⚠️ Por favor registre al menos una verificación o actividad de supervisión para guardar.")
@@ -1593,7 +1601,7 @@ with tab_chk:
                             st.session_state.db_loaded = False
                             st.success(f"¡Jornada guardada permanentemente para **{edificio_val}**!")
                             st.session_state.creando_jornada = False
-                            st.session_state.num_supervisiones = 1
+                            st.session_state.supervision_rows_live = []
                             st.session_state.chk_obs_counts = {}
                             st.rerun()
                         except Exception as e:
@@ -1690,15 +1698,15 @@ with tab_chk:
                                     for idx_sup, sup_r in enumerate(s_list, 1):
                                         hist_rows_html += (
                                             f"<tr>"
-                                            f"<td class='center' style='font-weight:700;'>{idx_sup}</td>"
-                                            f"<td><b>{sup_r.get('Actividad', '')}</b></td>"
-                                            f"<td>{sup_r.get('Encargados', 'No especificado')}</td>"
+                                            f"<td class='center' style='font-weight:700; width:45px;'>{idx_sup}</td>"
+                                            f"<td style='width:240px;'><b>{sup_r.get('Actividad', '')}</b></td>"
+                                            f"<td style='width:180px;'>{sup_r.get('Encargados', 'No especificado')}</td>"
                                             f"<td>{sup_r.get('Observaciones', '')}</td>"
                                             f"</tr>"
                                         )
                                     tbl_hist_html = (
-                                        f"<table class='grid-table'>"
-                                        f"<thead><tr><th class='center' style='width:45px;'>N°</th><th>Actividad</th><th style='width:180px;'>Encargados</th><th>Observaciones</th></tr></thead>"
+                                        f"<table class='supervision-table'>"
+                                        f"<thead><tr><th class='center' style='width:45px;'>N°</th><th style='width:240px;'>Actividad</th><th style='width:180px;'>Encargados</th><th>Observaciones</th></tr></thead>"
                                         f"<tbody>{hist_rows_html}</tbody>"
                                         f"</table>"
                                     )
@@ -2436,13 +2444,13 @@ if es_admin:
                         for idx_s_a, sup_adm in enumerate(s_adm, 1):
                             hist_admin_rows += (
                                 f"<tr>"
-                                f"<td class='center' style='font-weight:700;'>{idx_s_a}</td>"
-                                f"<td><b>{sup_adm.get('Actividad', '')}</b></td>"
-                                f"<td>{sup_adm.get('Encargados', 'No especificado')}</td>"
+                                f"<td class='center' style='font-weight:700; width:45px;'>{idx_s_a}</td>"
+                                f"<td style='width:240px;'><b>{sup_adm.get('Actividad', '')}</b></td>"
+                                f"<td style='width:180px;'>{sup_adm.get('Encargados', 'No especificado')}</td>"
                                 f"<td>{sup_adm.get('Observaciones', '')}</td>"
                                 f"</tr>"
                             )
-                        st.markdown(f"<table class='grid-table'><thead><tr><th class='center' style='width:45px;'>N°</th><th>Actividad</th><th style='width:180px;'>Encargados</th><th>Observaciones</th></tr></thead><tbody>{hist_admin_rows}</tbody></table>", unsafe_allow_html=True)
+                        st.markdown(f"<table class='supervision-table'><thead><tr><th class='center' style='width:45px;'>N°</th><th style='width:240px;'>Actividad</th><th style='width:180px;'>Encargados</th><th>Observaciones</th></tr></thead><tbody>{hist_admin_rows}</tbody></table>", unsafe_allow_html=True)
 
                     c_ad_dl1, c_ad_dl2 = st.columns(2)
                     with c_ad_dl1:
