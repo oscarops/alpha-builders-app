@@ -60,7 +60,7 @@ st.markdown(
 
     .sidebar-logo-card { background-color: #ffffff; border-radius: 12px; padding: 8px 10px; margin-top: 0px !important; margin-bottom: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3); width: 100% !important; box-sizing: border-box; text-align: center; display: block; }
     [data-testid="stSidebar"] [data-testid="stImage"] { width: 100% !important; display: block !important; margin-top: 6px !important; margin-bottom: 10px !important; clear: both !important; }
-    [data-testid="stSidebar"] [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
+    [data-testid="stImage"] img { border-radius: 12px !important; width: 100% !important; height: auto !important; max-width: 100% !important; object-fit: cover !important; border: 1px solid #323646 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); margin: 0 !important; display: block !important; }
 
     .sidebar-profile-box { background: #1c1e26; border: 1px solid #323646; border-radius: 12px; padding: 10px 8px !important; text-align: center; margin-top: 4px; margin-bottom: 8px; width: 100% !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); box-sizing: border-box; }
     .sidebar-user-nombres { font-size: 0.88rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }
@@ -408,7 +408,6 @@ def export_checklist_to_excel_file(jornada_dict):
     ws.row_dimensions[4].height = 25
     datos_raw = jornada_dict.get("Datos", [])
     
-    # Manejo de retrocompatibilidad
     if isinstance(datos_raw, dict):
         items_verif = datos_raw.get("Verificaciones", [])
         items_sup = datos_raw.get("Supervision_Trabajos", [])
@@ -416,8 +415,7 @@ def export_checklist_to_excel_file(jornada_dict):
         items_verif = datos_raw
         items_sup = []
 
-    start_row = 5
-    current_r = start_row
+    current_r = 5
 
     for item in items_verif:
         ws.append([item.get("Jornada", ""), item.get("N°", ""), item.get("Actividad", ""), item.get("Estado", ""), item.get("Observaciones", ""), "N/A"])
@@ -433,7 +431,7 @@ def export_checklist_to_excel_file(jornada_dict):
         ws.append([])
         current_r += 1
         ws.merge_cells(f"A{current_r}:F{current_r}")
-        ws[f"A{current_r}"] = "SUPERVISIÓN DE LA EJECUCIÓN DE TRABAJOS (UNIFICADA)"
+        ws[f"A{current_r}"] = "SUPERVISIÓN DE LA EJECUCIÓN DE TRABAJOS (TABLA UNIFICADA)"
         ws[f"A{current_r}"].font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
         ws[f"A{current_r}"].fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
         current_r += 1
@@ -513,7 +511,6 @@ def export_checklist_to_pdf_file(jornada_dict):
         items_verif = datos_raw
         items_sup = []
 
-    # Tabla de Verificaciones
     story.append(Paragraph("1. VERIFICACIONES DE JORNADA", sec_style))
     data_v = [[
         Paragraph("<b>Jornada</b>", header_style),
@@ -540,7 +537,6 @@ def export_checklist_to_pdf_file(jornada_dict):
     ]))
     story.append(table_v)
 
-    # Tabla de Supervisión
     if items_sup:
         story.append(Spacer(1, 6))
         story.append(Paragraph("2. SUPERVISIÓN DE LA EJECUCIÓN DE TRABAJOS", sec_style))
@@ -948,7 +944,7 @@ EDIFICIOS_ALPHA = [
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
 RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
 
-# LISTAS LIMPIAS (SIN RECORRIDO INICIAL NI SUPERVISIÓN EN MAÑANA/TARDE)
+# LISTAS REESTRUCTURADAS (Sin 'Recorrido inicial' y sin supervisión intermedia)
 ACTIVIDADES_MANANA_CLEAN = [
     "Verificación de asistencia del personal",
     "Distribución de cuadrillas por frente de trabajo",
@@ -1373,20 +1369,20 @@ tab_incidencias = tabs_app[2]
 tab_rend = tabs_app[3]
 
 # ------------------------------------------
-# MÓDULO 1: CHECKLIST DIARIO (REESTRUCTURADO)
+# MÓDULO 1: CHECKLIST DIARIO (REESTRUCTURADO CON TABLA Y OBSERVACIONES CON BOTÓN +)
 # ------------------------------------------
 with tab_chk:
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
 
-    # Inicialización de estado para lista dinámica de supervisiones y observaciones
+    # Control de filas dinámicas
     if "num_supervisiones" not in st.session_state:
         st.session_state.num_supervisiones = 1
     if "num_observaciones" not in st.session_state:
         st.session_state.num_observaciones = 1
 
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión diaria de frentes de trabajo con verificación técnica, cuadrillas asignadas y registro fotográfico.")
+    st.caption("Supervisión diaria de frentes de trabajo con verificación técnica, tabla unificada de cuadrillas y observaciones estructuradas.")
 
     if not st.session_state.creando_jornada:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -1450,7 +1446,7 @@ with tab_chk:
                     "Foto_B64": ft_b64
                 })
 
-            # 2. JORNADA DE LA TARDE (Sin supervisión duplicada)
+            # 2. JORNADA DE LA TARDE
             st.markdown("#### 🌆 Jornada de la Tarde")
             resp_tarde = []
 
@@ -1477,29 +1473,46 @@ with tab_chk:
                     "Foto_B64": ft_b64
                 })
 
-            # 3. SECCIÓN UNIFICADA: SUPERVISIÓN DE LA EJECUCIÓN DE TRABAJOS
+            # 3. SECCIÓN UNIFICADA: SUPERVISIÓN DE LA EJECUCIÓN DE TRABAJOS (EN FORMATO TABLA)
             st.markdown("---")
-            st.markdown("#### 🏗️ Supervisión de la Ejecución de los Trabajos (Unificada)")
-            st.caption("Registre las actividades ejecutadas en campo, asigne a los trabajadores responsables y adjunte evidencia fotográfica propia.")
+            st.markdown("#### 🏗️ Supervisión de la Ejecución de los Trabajos (Tabla Unificada)")
+            st.caption("Registre las actividades ejecutadas en campo, los trabajadores encargados y la evidencia fotográfica correspondiente.")
 
             lista_nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
-            resp_supervision = []
+            
+            # Cabecera de la tabla visual
+            sup_col_ratios = [0.5, 2.5, 2.2, 2.3, 2.5]
+            sh1, sh2, sh3, sh4, sh5 = st.columns(sup_col_ratios)
+            with sh1:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:7px 4px; text-align:center; font-weight:800; font-size:0.80rem; border-radius:6px 0 0 6px;'>N°</div>", unsafe_allow_html=True)
+            with sh2:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:7px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Actividad / Trabajo a Ejecutar</div>", unsafe_allow_html=True)
+            with sh3:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:7px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Trabajadores Encargados</div>", unsafe_allow_html=True)
+            with sh4:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:7px 4px; text-align:left; font-weight:800; font-size:0.80rem;'>Observaciones del Trabajo</div>", unsafe_allow_html=True)
+            with sh5:
+                st.markdown("<div style='background:#121318; color:#ffffff; padding:7px 4px; text-align:left; font-weight:800; font-size:0.80rem; border-radius:0 6px 6px 0;'>Foto Evidencia Propia</div>", unsafe_allow_html=True)
 
+            st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
+
+            resp_supervision = []
             for s_idx in range(1, st.session_state.num_supervisiones + 1):
-                st.markdown(f"**Frente de Trabajo N° {s_idx}**")
-                col_sup1, col_sup2 = st.columns([3, 3])
-                
-                with col_sup1:
-                    sup_actividad = st.text_input(f"Actividad / Trabajo a ejecutar:", key=f"sup_act_{s_idx}", placeholder="Ej. Enlucido de paredes en fachada posterior")
+                sc1, sc2, sc3, sc4, sc5 = st.columns(sup_col_ratios)
+                with sc1:
+                    st.markdown(f"<div style='text-align:center; font-weight:800; font-size:0.90rem; padding-top:12px;'>{s_idx}</div>", unsafe_allow_html=True)
+                with sc2:
+                    sup_actividad = st.text_input(f"Actividad {s_idx}", placeholder="Ej. Enlucido fachada...", key=f"sup_act_{s_idx}", label_visibility="collapsed")
+                with sc3:
                     if lista_nombres_obreros:
-                        sup_obreros = st.multiselect(f"Trabajadores encargados:", options=lista_nombres_obreros, key=f"sup_obs_{s_idx}")
+                        sup_obreros = st.multiselect(f"Obreros {s_idx}", options=lista_nombres_obreros, key=f"sup_obs_{s_idx}", label_visibility="collapsed", placeholder="Elegir...")
                         sup_obreros_str = ", ".join(sup_obreros) if sup_obreros else ""
                     else:
-                        sup_obreros_str = st.text_input(f"Trabajadores encargados (Manual):", key=f"sup_obs_man_{s_idx}", placeholder="Ej. Juan Pérez, Carlos Gómez")
-
-                with col_sup2:
-                    sup_obs = st.text_input(f"Observaciones del trabajo:", key=f"sup_det_obs_{s_idx}", placeholder="Ej. Nivel y plomo correcto, uso de andamio certificado")
-                    sup_foto = st.file_uploader(f"Foto Evidencia del Trabajo {s_idx}:", type=["jpg", "jpeg", "png"], key=f"sup_ft_{s_idx}")
+                        sup_obreros_str = st.text_input(f"Obreros manual {s_idx}", placeholder="Nombres...", key=f"sup_obs_man_{s_idx}", label_visibility="collapsed")
+                with sc4:
+                    sup_obs = st.text_input(f"Obs {s_idx}", placeholder="Observación...", key=f"sup_det_obs_{s_idx}", label_visibility="collapsed")
+                with sc5:
+                    sup_foto = st.file_uploader(f"Foto {s_idx}", type=["jpg", "jpeg", "png"], key=f"sup_ft_{s_idx}", label_visibility="collapsed")
 
                 sup_foto_b64 = image_to_base64(sup_foto) if sup_foto is not None else None
                 
@@ -1510,28 +1523,28 @@ with tab_chk:
                     "Observaciones": sup_obs.strip(),
                     "Foto_B64": sup_foto_b64
                 })
-                st.markdown("<hr style='margin: 4px 0; border-color: #cbd5e1;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin: 4px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
 
-            col_btn_sup1, _ = st.columns([2, 5])
+            col_btn_sup1, _ = st.columns([2.5, 5])
             with col_btn_sup1:
-                if st.button("➕ Agregar Otra Actividad de Supervisión", key="btn_add_sup"):
+                if st.button("➕ Agregar Fila de Trabajo", key="btn_add_sup_row"):
                     st.session_state.num_supervisiones += 1
                     st.rerun()
 
-            # 4. OBSERVACIONES GENERALES MÚLTIPLES Y DINÁMICAS
+            # 4. OBSERVACIONES GENERALES MÚLTIPLES CON BOTÓN +
             st.markdown("---")
-            st.markdown("#### 📝 Observaciones Generales de la Inspección")
+            st.markdown("#### 📝 Observaciones de la Inspección")
             st.caption("Agregue observaciones individuales separadas para mantener el reporte limpio y organizado.")
 
             resp_observaciones_list = []
             for o_idx in range(1, st.session_state.num_observaciones + 1):
                 c_ob_in, _ = st.columns([6, 1])
                 with c_ob_in:
-                    obs_item_val = st.text_input(f"Observación N° {o_idx}:", placeholder=f"Describa la observación o novedad {o_idx}...", key=f"obs_gen_item_{o_idx}")
+                    obs_item_val = st.text_input(f"Observación N° {o_idx}:", placeholder=f"Describa la observación {o_idx}...", key=f"obs_gen_item_{o_idx}")
                     if obs_item_val.strip():
                         resp_observaciones_list.append(obs_item_val.strip())
 
-            col_btn_obs1, _ = st.columns([2, 5])
+            col_btn_obs1, _ = st.columns([2.5, 5])
             with col_btn_obs1:
                 if st.button("➕ Agregar Otra Observación", key="btn_add_obs_gen"):
                     st.session_state.num_observaciones += 1
