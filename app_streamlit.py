@@ -12,14 +12,14 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
-# ReportLab para PDFs
+# ReportLab para exportación en PDF
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y CSS RESPONSIVO (DESKTOP + MOBILE)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES
 # ==============================================================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -49,7 +49,7 @@ st.markdown(
 
     [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
 
-    /* SIDEBAR TOGGLE & CONTROLS */
+    /* SIDEBAR TOGGLE */
     [data-testid="stSidebarCollapseButton"] { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important; }
     [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 15px !important; left: 15px !important; z-index: 999999 !important; }
 
@@ -151,7 +151,7 @@ st.markdown(
     [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #282c36 !important; padding: 6px 8px !important; }
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * { color: #ffffff !important; font-weight: 700 !important; font-size: 0.78rem !important; }
 
-    /* DASHBOARD CARD & KPIS ULTRA-COMPACTOS RESPONSIVOS */
+    /* DASHBOARD CARD & KPIS */
     .executive-card-studio { 
         background: linear-gradient(145deg, #f3f6fc 0%, #e8edf7 100%); 
         border: 1px solid #b8c4d8; 
@@ -204,28 +204,38 @@ st.markdown(
         border: none !important; 
         font-weight: 700 !important; 
         padding: 6px 14px !important; 
-        font-size: 0.82rem !important;
+        font-size: 0.82rem !important; 
     }
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    /* FILA / TARJETA TÉCNICA RESPONSIVA */
-    .checklist-row-card {
-        border: 1px solid #cbd5e1;
-        border-radius: 10px;
-        background-color: #ffffff;
-        padding: 10px 12px;
-        margin-bottom: 8px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    /* CABECERAS DE ÍTEMS CON ALTA VISIBILIDAD (TEXTO BLANCO FORZADO) */
+    .banner-item-header {
+        background-color: #0f172a !important;
+        border: 1px solid #334155 !important;
+        border-radius: 8px 8px 0 0 !important;
+        padding: 8px 12px !important;
+        margin-top: 4px !important;
+        margin-bottom: 0px !important;
     }
-    .checklist-row-card:hover {
-        border-color: #94a3b8;
-        background-color: #f8fafc;
+    .banner-item-header p, .banner-item-header span, .banner-item-header b {
+        color: #ffffff !important;
+        font-size: 0.86rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.01em !important;
     }
 
-    /* OCULTAR ENCABEZADOS DESKTOP EN DISPOSITIVOS MÓVILES */
+    .card-item-body {
+        border: 1px solid #cbd5e1;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        padding: 10px 12px;
+        background-color: #ffffff;
+        margin-bottom: 12px;
+    }
+
+    /* RESPONSIVIDAD MÓVIL */
     @media (max-width: 768px) {
         .block-container { padding-left: 0.6rem !important; padding-right: 0.6rem !important; }
-        .desktop-header { display: none !important; }
         .brand-title { font-size: 1.4rem !important; }
         .executive-card-studio { padding: 10px 12px !important; }
         .kpi-val-studio { font-size: 1.2rem !important; }
@@ -1486,7 +1496,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# 8. MÓDULO 1: CHECKLIST DIARIO (100% RESPONSIVO PARA MÓVIL Y COMPUTADORA)
+# 8. MÓDULO 1: CHECKLIST DIARIO (ALTA VISIBILIDAD, FOTOS A LA DERECHA, SIN N/A)
 # ==============================================================================
 tab_chk = tabs_app[0]
 tab_didactico = tabs_app[1]
@@ -1503,12 +1513,12 @@ with tab_chk:
             {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
         ]
 
-    # Conteo dinámico de observaciones por actividad (+)
+    # Conteo dinámico de observaciones integradas por actividad (+)
     if "chk_obs_counts" not in st.session_state:
         st.session_state.chk_obs_counts = {}
 
     st.markdown("### Check List Diario – Control de Obra")
-    st.caption("Supervisión técnica diaria con formato optimizado y adaptable para teléfono móvil y pantalla de escritorio.")
+    st.caption("Supervisión técnica diaria con formato optimizado, texto de alta visibilidad, foto a la derecha y sin opción N/A.")
 
     if not st.session_state.creando_jornada:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -1539,7 +1549,7 @@ with tab_chk:
             st.markdown("---")
 
             # ------------------------------------------------------------------
-            # 1. JORNADA DE LA MAÑANA (FILAS / TARJETAS RESPONSIVAS SIN N/A)
+            # 1. JORNADA DE LA MAÑANA (FOTO A LA DERECHA, TEXTO 100% VISIBLE)
             # ------------------------------------------------------------------
             st.markdown("#### 🌅 Jornada de la Mañana")
             resp_manana = []
@@ -1549,55 +1559,59 @@ with tab_chk:
                 if item_key not in st.session_state.chk_obs_counts:
                     st.session_state.chk_obs_counts[item_key] = 1
 
-                with st.container():
-                    st.markdown(
-                        f"""
-                        <div style="background:#1e293b; color:#ffffff; padding:6px 10px; border-radius:6px 6px 0 0; font-weight:700; font-size:0.83rem; display:flex; justify-content:space-between; align-items:center;">
-                            <span>N° {idx} — {act}</span>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
+                # Cabecera oscura con texto blanco forzado
+                st.markdown(
+                    f"""
+                    <div class="banner-item-header">
+                        <span style="color:#ffffff !important; font-weight:800; font-size:0.88rem;">N° {idx} — {act}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                # Cuerpo de la tarjeta con 3 columnas balanceadas
+                st.markdown('<div class="card-item-body">', unsafe_allow_html=True)
+                c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
+
+                with c_col1:
+                    st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
+                    est = st.segmented_control(
+                        f"M_Est_{idx}", 
+                        ["✓ Cumple", "✗ No Cumple"], 
+                        key=f"m_st_{idx}", 
+                        label_visibility="collapsed"
                     )
 
-                    c_box1, c_box2 = st.columns([1.2, 2.8])
-
-                    with c_box1:
-                        st.markdown("<small style='font-weight:700; color:#475569;'>Estado General:</small>", unsafe_allow_html=True)
-                        est = st.segmented_control(
-                            f"M_Est_{idx}", 
-                            ["✓ Cumple", "✗ No Cumple"], 
-                            key=f"m_st_{idx}", 
+                with c_col2:
+                    st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
+                    obs_vals_item = []
+                    for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
+                        o_txt = st.text_input(
+                            f"Obs {idx}_{sub_o}",
+                            key=f"m_ob_{idx}_{sub_o}",
+                            placeholder=f"Escribir observación {sub_o}...",
                             label_visibility="collapsed"
                         )
-                        
-                        if idx not in [1, 2]:
-                            st.markdown("<small style='font-weight:700; color:#475569; margin-top:4px;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                            ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
-                            ft_b64 = image_to_base64(ft) if ft is not None else None
-                        else:
-                            st.caption("📷 *Foto no requerida*")
-                            ft_b64 = None
+                        if o_txt.strip():
+                            obs_vals_item.append(o_txt.strip())
+                    
+                    c_btn_o, _ = st.columns([2, 2])
+                    with c_btn_o:
+                        if st.button("➕ Observación", key=f"btn_add_obs_m_{idx}", use_container_width=True):
+                            st.session_state.chk_obs_counts[item_key] += 1
+                            st.rerun()
 
-                    with c_box2:
-                        st.markdown("<small style='font-weight:700; color:#475569;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
-                        obs_vals_item = []
-                        for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                            o_txt = st.text_input(
-                                f"Obs {idx}_{sub_o}",
-                                key=f"m_ob_{idx}_{sub_o}",
-                                placeholder=f"Escribir observación {sub_o}...",
-                                label_visibility="collapsed"
-                            )
-                            if o_txt.strip():
-                                obs_vals_item.append(o_txt.strip())
-                        
-                        c_btn_o, _ = st.columns([1.5, 3])
-                        with c_btn_o:
-                            if st.button("➕ Observación", key=f"btn_add_obs_m_{idx}", use_container_width=True):
-                                st.session_state.chk_obs_counts[item_key] += 1
-                                st.rerun()
+                with c_col3:
+                    if idx not in [1, 2]:
+                        st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
+                        ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
+                        ft_b64 = image_to_base64(ft) if ft is not None else None
+                    else:
+                        st.markdown("<small style='font-weight:700; color:#94a3b8;'>Foto Evidencia:</small>", unsafe_allow_html=True)
+                        st.caption("📷 *No requerida*")
+                        ft_b64 = None
 
-                    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 resp_manana.append({
                     "Jornada": "Mañana",
@@ -1611,7 +1625,7 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 2. JORNADA DE LA TARDE (FILAS / TARJETAS RESPONSIVAS SIN N/A)
+            # 2. JORNADA DE LA TARDE (FOTO A LA DERECHA, TEXTO 100% VISIBLE)
             # ------------------------------------------------------------------
             st.markdown("#### 🌆 Jornada de la Tarde")
             resp_tarde = []
@@ -1621,51 +1635,52 @@ with tab_chk:
                 if item_key not in st.session_state.chk_obs_counts:
                     st.session_state.chk_obs_counts[item_key] = 1
 
-                with st.container():
-                    st.markdown(
-                        f"""
-                        <div style="background:#1e293b; color:#ffffff; padding:6px 10px; border-radius:6px 6px 0 0; font-weight:700; font-size:0.83rem; display:flex; justify-content:space-between; align-items:center;">
-                            <span>N° {idx} — {act}</span>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
+                st.markdown(
+                    f"""
+                    <div class="banner-item-header">
+                        <span style="color:#ffffff !important; font-weight:800; font-size:0.88rem;">N° {idx} — {act}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                st.markdown('<div class="card-item-body">', unsafe_allow_html=True)
+                c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
+
+                with c_col1:
+                    st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
+                    est = st.segmented_control(
+                        f"T_Est_{idx}", 
+                        ["✓ Cumple", "✗ No Cumple"], 
+                        key=f"t_st_{idx}", 
+                        label_visibility="collapsed"
                     )
 
-                    c_box1, c_box2 = st.columns([1.2, 2.8])
-
-                    with c_box1:
-                        st.markdown("<small style='font-weight:700; color:#475569;'>Estado General:</small>", unsafe_allow_html=True)
-                        est = st.segmented_control(
-                            f"T_Est_{idx}", 
-                            ["✓ Cumple", "✗ No Cumple"], 
-                            key=f"t_st_{idx}", 
+                with c_col2:
+                    st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
+                    obs_vals_item = []
+                    for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
+                        o_txt = st.text_input(
+                            f"Obs T_{idx}_{sub_o}",
+                            key=f"t_ob_{idx}_{sub_o}",
+                            placeholder=f"Escribir observación {sub_o}...",
                             label_visibility="collapsed"
                         )
-                        
-                        st.markdown("<small style='font-weight:700; color:#475569; margin-top:4px;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                        ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
-                        ft_b64 = image_to_base64(ft) if ft is not None else None
+                        if o_txt.strip():
+                            obs_vals_item.append(o_txt.strip())
+                    
+                    c_btn_o, _ = st.columns([2, 2])
+                    with c_btn_o:
+                        if st.button("➕ Observación", key=f"btn_add_obs_t_{idx}", use_container_width=True):
+                            st.session_state.chk_obs_counts[item_key] += 1
+                            st.rerun()
 
-                    with c_box2:
-                        st.markdown("<small style='font-weight:700; color:#475569;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
-                        obs_vals_item = []
-                        for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                            o_txt = st.text_input(
-                                f"Obs T_{idx}_{sub_o}",
-                                key=f"t_ob_{idx}_{sub_o}",
-                                placeholder=f"Escribir observación {sub_o}...",
-                                label_visibility="collapsed"
-                            )
-                            if o_txt.strip():
-                                obs_vals_item.append(o_txt.strip())
-                        
-                        c_btn_o, _ = st.columns([1.5, 3])
-                        with c_btn_o:
-                            if st.button("➕ Observación", key=f"btn_add_obs_t_{idx}", use_container_width=True):
-                                st.session_state.chk_obs_counts[item_key] += 1
-                                st.rerun()
+                with c_col3:
+                    st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
+                    ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
+                    ft_b64 = image_to_base64(ft) if ft is not None else None
 
-                    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 resp_tarde.append({
                     "Jornada": "Tarde",
@@ -1679,10 +1694,10 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 3. SUPERVISIÓN DE TRABAJOS (RESPONSIVO PARA MÓVIL Y ESCRITORIO)
+            # 3. SUPERVISIÓN DE TRABAJOS (CUADRÍCULA BALACEADA Y RESPONSIVA)
             # ------------------------------------------------------------------
             st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.filas_supervision)} registros)")
-            st.caption("Agregue actividades ejecutadas en campo, seleccione trabajadores y cargue evidencia fotográfica.")
+            st.caption("Agregue actividades ejecutadas en campo, seleccione los trabajadores encargados de la plantilla y cargue la foto a la derecha.")
 
             lista_nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
             indices_a_eliminar = []
@@ -1691,76 +1706,78 @@ with tab_chk:
             for idx_f, f_data in enumerate(st.session_state.filas_supervision, 1):
                 f_id = f_data["id"]
 
-                with st.container():
-                    col_top_l, col_top_r = st.columns([8, 1])
-                    with col_top_l:
-                        st.markdown(
-                            f"""
-                            <div style="background:#121318; color:#ffffff; padding:6px 10px; border-radius:6px 6px 0 0; font-weight:800; font-size:0.83rem;">
-                                Fila de Supervisión N° {idx_f}
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                    with col_top_r:
-                        if st.button("🗑️", key=f"btn_del_row_{f_id}", help="Eliminar fila", use_container_width=True):
-                            indices_a_eliminar.append(idx_f - 1)
+                st.markdown(
+                    f"""
+                    <div class="banner-item-header" style="background-color:#1e293b !important; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:#ffffff !important; font-weight:800; font-size:0.88rem;">Fila de Supervisión N° {idx_f}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-                    s_col1, s_col2 = st.columns([2, 2])
-                    with s_col1:
-                        st.markdown("<small style='font-weight:700; color:#475569;'>Actividad / Trabajo a Ejecutar:*</small>", unsafe_allow_html=True)
-                        act_val = st.text_input(
-                            f"Actividad {f_id}",
-                            value=f_data.get("actividad", ""),
-                            placeholder="Ej. Enlucido fachada posterior...",
-                            key=f"dyn_act_{f_id}",
+                st.markdown('<div class="card-item-body">', unsafe_allow_html=True)
+                s1, s2, s3, s4 = st.columns([1.6, 1.4, 1.4, 0.4])
+
+                with s1:
+                    st.markdown("<small style='font-weight:700; color:#334155;'>Actividad / Trabajo:*</small>", unsafe_allow_html=True)
+                    act_val = st.text_input(
+                        f"Actividad {f_id}",
+                        value=f_data.get("actividad", ""),
+                        placeholder="Ej. Enlucido fachada posterior...",
+                        key=f"dyn_act_{f_id}",
+                        label_visibility="collapsed"
+                    )
+
+                    st.markdown("<small style='font-weight:700; color:#334155; margin-top:4px;'>Observaciones del Trabajo:</small>", unsafe_allow_html=True)
+                    obs_val_s = st.text_input(
+                        f"Obs {f_id}",
+                        value=f_data.get("observaciones", ""),
+                        placeholder="Observaciones adicionales...",
+                        key=f"dyn_obs_{f_id}",
+                        label_visibility="collapsed"
+                    )
+
+                with s2:
+                    st.markdown("<small style='font-weight:700; color:#334155;'>Trabajadores Encargados:*</small>", unsafe_allow_html=True)
+                    if lista_nombres_obreros:
+                        enc_val = st.multiselect(
+                            f"Obreros {f_id}",
+                            options=lista_nombres_obreros,
+                            default=f_data.get("encargados", []),
+                            key=f"dyn_enc_{f_id}",
+                            placeholder="Seleccionar obreros...",
                             label_visibility="collapsed"
                         )
-
-                        st.markdown("<small style='font-weight:700; color:#475569; margin-top:4px;'>Trabajadores Encargados:*</small>", unsafe_allow_html=True)
-                        if lista_nombres_obreros:
-                            enc_val = st.multiselect(
-                                f"Obreros {f_id}",
-                                options=lista_nombres_obreros,
-                                default=f_data.get("encargados", []),
-                                key=f"dyn_enc_{f_id}",
-                                placeholder="Seleccionar obreros...",
-                                label_visibility="collapsed"
-                            )
-                            enc_str = ", ".join(enc_val) if enc_val else ""
-                        else:
-                            enc_str = st.text_input(
-                                f"Obreros manual {f_id}",
-                                value=f_data.get("encargados_manual", ""),
-                                placeholder="Escribir nombres...",
-                                key=f"dyn_enc_man_{f_id}",
-                                label_visibility="collapsed"
-                            )
-                            enc_val = [enc_str] if enc_str else []
-
-                    with s_col2:
-                        st.markdown("<small style='font-weight:700; color:#475569;'>Observaciones del Trabajo:</small>", unsafe_allow_html=True)
-                        obs_val_s = st.text_input(
-                            f"Obs {f_id}",
-                            value=f_data.get("observaciones", ""),
-                            placeholder="Observaciones adicionales...",
-                            key=f"dyn_obs_{f_id}",
+                        enc_str = ", ".join(enc_val) if enc_val else ""
+                    else:
+                        enc_str = st.text_input(
+                            f"Obreros manual {f_id}",
+                            value=f_data.get("encargados_manual", ""),
+                            placeholder="Escribir nombres...",
+                            key=f"dyn_enc_man_{f_id}",
                             label_visibility="collapsed"
                         )
+                        enc_val = [enc_str] if enc_str else []
 
-                        st.markdown("<small style='font-weight:700; color:#475569; margin-top:4px;'>Foto Evidencia Propia:</small>", unsafe_allow_html=True)
-                        ft_file = st.file_uploader(
-                            f"Foto {f_id}",
-                            type=["jpg", "jpeg", "png"],
-                            key=f"dyn_ft_{f_id}",
-                            label_visibility="collapsed"
-                        )
-                        if ft_file is not None:
-                            foto_b64_f = image_to_base64(ft_file)
-                        else:
-                            foto_b64_f = f_data.get("foto_b64")
+                with s3:
+                    st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia Propia:</small>", unsafe_allow_html=True)
+                    ft_file = st.file_uploader(
+                        f"Foto {f_id}",
+                        type=["jpg", "jpeg", "png"],
+                        key=f"dyn_ft_{f_id}",
+                        label_visibility="collapsed"
+                    )
+                    if ft_file is not None:
+                        foto_b64_f = image_to_base64(ft_file)
+                    else:
+                        foto_b64_f = f_data.get("foto_b64")
 
-                    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+                with s4:
+                    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+                    if st.button("🗑️", key=f"btn_del_row_{f_id}", help="Eliminar fila", use_container_width=True):
+                        indices_a_eliminar.append(idx_f - 1)
+
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 supervision_payload_data.append({
                     "N°": idx_f,
