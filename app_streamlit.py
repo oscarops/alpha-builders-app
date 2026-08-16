@@ -326,6 +326,18 @@ st.markdown(
         margin-bottom: 6px;
     }
 
+    /* FILA DE OBRERO EN NÓMINA */
+    .obrero-row-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 6px 10px;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
     @media (max-width: 768px) {
         .block-container { padding-top: 3.8rem !important; padding-left: 0.4rem !important; padding-right: 0.4rem !important; }
         .widgets-grid { grid-template-columns: 1fr 1fr; }
@@ -1444,7 +1456,7 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM UI (HITOS DIARIOS, DONA RENDIMIENTO, INCIDENCIAS)
+# 8. SMART DASHBOARD GLASSMORPHISM UI (HITOS, DONA RENDIMIENTO, INCIDENCIAS)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
@@ -2316,113 +2328,119 @@ with tab_libro:
     else:
         st.info("Aún no hay registros guardados en Libro de Obra.")
 # ==============================================================================
-# 11. MÓDULO 3: PLANTILLA DE OBREROS (PESTAÑA DEDICADA)
+# 11. MÓDULO 3: PLANTILLA DE OBREROS (BOTONES POPOVER + ELIMINACIÓN POR FILA)
 # ==============================================================================
 with tab_obreros:
     st.markdown("### Plantilla de Obreros Activos")
-    st.caption("Administración de personal en obra, asignación de cargos, importación masiva y control de cuadrilla.")
+    st.caption("Administración de cuadrillas, asignación de cargos, importación masiva y control del personal en obra.")
 
-    # Registro individual de obrero
-    st.markdown("#### ➕ Registrar Obrero Individual")
-    with st.form("form_add_obrero_tab"):
-        c_ob1, c_ob2 = st.columns(2)
-        with c_ob1:
-            nom_obrero = st.text_input("Nombre Completo del Trabajador:*", placeholder="Ej. Juan Carlos Pérez")
-        with c_ob2:
-            car_obrero = st.text_input("Cargo / Especialidad en Obra:*", placeholder="Ej. Albañil, Fierrero, Ayudante")
-        btn_sub_obrero = st.form_submit_button("💾 Guardar Obrero", type="primary")
+    # Botones compactos con popover (solo se abre la interfaz al dar clic)
+    col_btn_ob1, col_btn_ob2, _ = st.columns([1.5, 1.8, 3])
 
-        if btn_sub_obrero:
-            if nom_obrero.strip() and car_obrero.strip():
+    with col_btn_ob1:
+        with st.popover("➕ Registrar Obrero", use_container_width=True):
+            st.markdown("#### Nuevo Obrero")
+            with st.form("form_pop_reg_obrero"):
+                nom_obrero_in = st.text_input("Nombre Completo:*", placeholder="Ej. Juan Carlos Pérez")
+                car_obrero_in = st.text_input("Cargo / Especialidad:*", placeholder="Ej. Albañil, Fierrero, Ayudante")
+                btn_save_obrero_pop = st.form_submit_button("💾 Guardar Obrero", type="primary", use_container_width=True)
+
+                if btn_save_obrero_pop:
+                    if nom_obrero_in.strip() and car_obrero_in.strip():
+                        try:
+                            supabase.table("trabajadores").insert({
+                                "nombre": nom_obrero_in.strip().upper(),
+                                "cargo": car_obrero_in.strip().upper()
+                            }).execute()
+                            st.session_state.db_loaded = False
+                            st.success("¡Obrero registrado exitosamente!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al registrar obrero: {e}")
+                    else:
+                        st.error("⚠️ Complete todos los campos obligatorios.")
+
+    with col_btn_ob2:
+        with st.popover("📂 Importación Masiva", use_container_width=True):
+            st.markdown("#### Cargar Archivo Masivo")
+            st.caption("El archivo (.xlsx o .csv) debe contener al menos 2 columnas: Nombre y Cargo.")
+            archivo_excel_pop = st.file_uploader("Seleccione archivo:", type=["xlsx", "csv"], key="upl_obreros_modal_pop")
+            if archivo_excel_pop is not None:
                 try:
-                    supabase.table("trabajadores").insert({
-                        "nombre": nom_obrero.strip().upper(),
-                        "cargo": car_obrero.strip().upper()
-                    }).execute()
-                    st.session_state.db_loaded = False
-                    st.success("¡Obrero registrado exitosamente en la cuadrilla!")
-                    st.rerun()
+                    if archivo_excel_pop.name.endswith(".csv"):
+                        df_sub_pop = pd.read_csv(archivo_excel_pop)
+                    else:
+                        df_sub_pop = pd.read_excel(archivo_excel_pop)
+                    
+                    if len(df_sub_pop.columns) >= 2:
+                        if st.button("Confirmar Carga Masiva", type="primary", use_container_width=True):
+                            registrados_cnt = 0
+                            for _, r_data in df_sub_pop.iterrows():
+                                n_val = str(r_data.iloc[0]).strip().upper()
+                                c_val = str(r_data.iloc[1]).strip().upper()
+                                if n_val and n_val != "NAN":
+                                    try:
+                                        supabase.table("trabajadores").insert({
+                                            "nombre": n_val,
+                                            "cargo": c_val
+                                        }).execute()
+                                        registrados_cnt += 1
+                                    except Exception:
+                                        pass
+                            st.session_state.db_loaded = False
+                            st.success(f"¡{registrados_cnt} obreros importados exitosamente!")
+                            st.rerun()
+                    else:
+                        st.error("El archivo debe contener mínimo 2 columnas.")
                 except Exception as e:
-                    st.error(f"Error al registrar obrero: {e}")
-            else:
-                st.error("⚠️ Por favor complete todos los campos obligatorios.")
+                    st.error(f"Error al procesar archivo: {e}")
 
     st.markdown("---")
 
-    # Importación masiva y eliminación
-    col_imp_m, col_del_m = st.columns([1.5, 1])
-
-    with col_imp_m:
-        st.markdown("#### 📂 Importación Masiva (.xlsx / .csv)")
-        st.caption("El archivo debe contener al menos 2 columnas: Nombre y Cargo.")
-        archivo_excel_obreros = st.file_uploader("Subir archivo de nómina:", type=["xlsx", "csv"], key="upl_obreros_tab_page")
-        if archivo_excel_obreros is not None:
-            try:
-                if archivo_excel_obreros.name.endswith(".csv"):
-                    df_subido = pd.read_csv(archivo_excel_obreros)
-                else:
-                    df_subido = pd.read_excel(archivo_excel_obreros)
-                
-                if len(df_subido.columns) >= 2:
-                    if st.button("Confirmar Importación Masiva", type="primary"):
-                        registrados = 0
-                        for _, row in df_subido.iterrows():
-                            n_nom = str(row.iloc[0]).strip().upper()
-                            n_car = str(row.iloc[1]).strip().upper()
-                            if n_nom and n_nom != "NAN":
-                                try:
-                                    supabase.table("trabajadores").insert({
-                                        "nombre": n_nom,
-                                        "cargo": n_car
-                                    }).execute()
-                                    registrados += 1
-                                except Exception:
-                                    pass
-                        st.session_state.db_loaded = False
-                        st.success(f"¡{registrados} obreros importados exitosamente!")
-                        st.rerun()
-                else:
-                    st.error("El archivo debe tener al menos dos columnas (Nombre y Cargo).")
-            except Exception as e:
-                st.error(f"Error procesando el archivo: {e}")
-
-    with col_del_m:
-        st.markdown("#### 🗑️ Eliminar Obrero")
-        obreros_lista = [t["nombre"] for t in st.session_state.db_trabajadores]
-        if len(obreros_lista) > 0:
-            obrero_a_borrar = st.selectbox("Seleccione obrero a remover:", obreros_lista, key="del_obs_sel_tab")
-            if st.button("Remover Obrero de la Cuadrilla", type="secondary", use_container_width=True):
-                try:
-                    supabase.table("trabajadores").delete().eq("nombre", obrero_a_borrar).execute()
-                    st.session_state.db_loaded = False
-                    st.success(f"Obrero {obrero_a_borrar} removido correctamente.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error al remover obrero: {e}")
-        else:
-            st.info("No hay obreros en la lista.")
-
-    st.markdown("---")
-
-    # Tabla de obreros activos
+    # Nómina de cuadrilla activa con botón menos (➖) al lado de cada obrero
     st.markdown(f"#### Nómina de Cuadrilla Activa ({len(st.session_state.db_trabajadores)} trabajadores)")
-    if len(st.session_state.db_trabajadores) > 0:
-        df_trab_display = pd.DataFrame(st.session_state.db_trabajadores)
-        df_trab_display.columns = ["Nombre Completo", "Cargo / Especialidad"]
-        df_trab_display.index = range(1, len(df_trab_display) + 1)
-        st.dataframe(df_trab_display, use_container_width=True)
 
-        csv_obreros_bytes = export_dataframe_to_excel_csv(df_trab_display)
+    if len(st.session_state.db_trabajadores) > 0:
+        for idx_t, trab in enumerate(st.session_state.db_trabajadores, 1):
+            col_t_num, col_t_nom, col_t_car, col_t_del = st.columns([0.4, 3, 2, 0.6])
+            
+            with col_t_num:
+                st.markdown(f"<div style='padding-top: 6px; font-weight: 800; color: #64748b;'>{idx_t}.</div>", unsafe_allow_html=True)
+            
+            with col_t_nom:
+                st.markdown(f"<div style='padding-top: 6px; font-weight: 700; color: #0f172a;'>{trab['nombre']}</div>", unsafe_allow_html=True)
+            
+            with col_t_car:
+                st.markdown(f"<div style='padding-top: 6px;'><span style='background: #e2e8f0; color: #334155; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 10px;'>{trab['cargo']}</span></div>", unsafe_allow_html=True)
+            
+            with col_t_del:
+                if st.button("➖", key=f"del_single_obrero_{idx_t}", help=f"Remover a {trab['nombre']}", use_container_width=True):
+                    try:
+                        supabase.table("trabajadores").delete().eq("nombre", trab["nombre"]).execute()
+                        st.session_state.db_loaded = False
+                        st.success(f"Trabajador {trab['nombre']} removido de la cuadrilla.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al eliminar: {e}")
+            
+            st.markdown("<div style='border-bottom: 1px solid #f1f5f9; margin-bottom: 4px;'></div>", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        df_export_obreros = pd.DataFrame(st.session_state.db_trabajadores)
+        df_export_obreros.columns = ["Nombre Completo", "Cargo / Especialidad"]
+        df_export_obreros.index = range(1, len(df_export_obreros) + 1)
+        csv_obreros_bytes = export_dataframe_to_excel_csv(df_export_obreros)
+        
         st.download_button(
-            label="📥 Descargar Nómina de Obreros en CSV (Excel)",
+            label="📥 Descargar Nómina de Cuadrilla en CSV (Excel)",
             data=csv_obreros_bytes,
             file_name=f"Plantilla_Obreros_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
             mime="text/csv",
-            key="dl_csv_nomina_obreros",
+            key="dl_csv_nomina_obreros_tab",
             use_container_width=True
         )
     else:
-        st.info("No existen obreros activos registrados en la plataforma.")
+        st.info("No existen obreros activos registrados en la nómina.")
 
 # ==============================================================================
 # 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS
