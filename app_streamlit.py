@@ -14,14 +14,14 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
-# ReportLab para exportaciones en PDF
+# ReportLab para PDFs
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLASSMORPHISM UI (MODERN DASHBOARD)
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES COMPACTOS
 # ==============================================================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -40,9 +40,9 @@ st.markdown(
 
     .block-container { 
         padding-top: 3.2rem !important; 
-        padding-bottom: 1.5rem !important; 
-        padding-left: 1.2rem !important; 
-        padding-right: 1.2rem !important; 
+        padding-bottom: 1.2rem !important; 
+        padding-left: 1rem !important; 
+        padding-right: 1rem !important; 
         max-width: 100% !important; 
     }
     .stApp { background-color: #f8fafc !important; color: #0f172a !important; }
@@ -60,8 +60,8 @@ st.markdown(
         background-color: #0f172a !important; 
         border: 1px solid #334155 !important; 
         border-radius: 50% !important; 
-        width: 36px !important; 
-        height: 36px !important; 
+        width: 34px !important; 
+        height: 34px !important; 
         color: #ffffff !important; 
         box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important; 
         transition: all 0.2s ease !important;
@@ -78,19 +78,19 @@ st.markdown(
         background-color: #0b0f19 !important; 
         border-right: 1px solid #1e293b !important; 
         padding-top: 0px !important; 
-        padding-left: 12px !important; 
-        padding-right: 12px !important; 
-        padding-bottom: 15px !important; 
+        padding-left: 10px !important; 
+        padding-right: 10px !important; 
+        padding-bottom: 12px !important; 
     }
-    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.5rem !important; padding-top: 0px !important; }
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.4rem !important; padding-top: 0px !important; }
     [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] div { color: #ffffff !important; }
 
     .sidebar-logo-card { 
         background-color: #ffffff; 
-        border-radius: 12px; 
-        padding: 8px 10px; 
+        border-radius: 10px; 
+        padding: 6px 8px; 
         margin-top: 0px !important; 
-        margin-bottom: 20px !important; 
+        margin-bottom: 14px !important; 
         box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
         width: 100% !important; 
         box-sizing: border-box; 
@@ -100,18 +100,17 @@ st.markdown(
     [data-testid="stSidebar"] [data-testid="stImage"] { 
         width: 100% !important; 
         display: block !important; 
-        margin-top: 6px !important; 
-        margin-bottom: 10px !important; 
+        margin-top: 4px !important; 
+        margin-bottom: 8px !important; 
         clear: both !important; 
     }
     [data-testid="stImage"] img { 
-        border-radius: 12px !important; 
+        border-radius: 10px !important; 
         width: 100% !important; 
         height: auto !important; 
         max-width: 100% !important; 
         object-fit: cover !important; 
         border: 1px solid #334155 !important; 
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); 
         margin: 0 !important; 
         display: block !important; 
     }
@@ -119,225 +118,182 @@ st.markdown(
     .sidebar-profile-box { 
         background: #111827; 
         border: 1px solid #1f2937; 
-        border-radius: 12px; 
-        padding: 10px 8px !important; 
+        border-radius: 10px; 
+        padding: 8px 6px !important; 
         text-align: center; 
-        margin-top: 4px; 
-        margin-bottom: 8px; 
+        margin-top: 2px; 
+        margin-bottom: 6px; 
         width: 100% !important; 
         box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
         box-sizing: border-box; 
     }
-    .sidebar-user-nombres { font-size: 0.88rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }
-    .sidebar-user-apellidos { font-size: 0.85rem; font-weight: 700; color: #e2e8f0 !important; margin-bottom: 4px !important; line-height: 1.2; }
-    .sidebar-user-email { font-size: 0.68rem; color: #60a5fa !important; font-weight: 600; margin-bottom: 6px !important; word-break: break-all; }
+    .sidebar-user-nombres { font-size: 0.84rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }
+    .sidebar-user-apellidos { font-size: 0.80rem; font-weight: 700; color: #e2e8f0 !important; margin-bottom: 3px !important; line-height: 1.2; }
+    .sidebar-user-email { font-size: 0.65rem; color: #60a5fa !important; font-weight: 600; margin-bottom: 4px !important; word-break: break-all; }
     .sidebar-user-cargo { 
         display: inline-block; 
         background: #1f2937 !important; 
         color: #ffffff !important; 
         border: 1px solid #374151 !important; 
-        font-size: 0.60rem !important; 
+        font-size: 0.58rem !important; 
         font-weight: 800 !important; 
-        padding: 2px 8px !important; 
-        border-radius: 14px !important; 
+        padding: 2px 7px !important; 
+        border-radius: 12px !important; 
         text-transform: uppercase !important; 
     }
 
-    [data-testid="stSidebar"] hr { margin: 6px 0 !important; border-color: #1f2937 !important; }
-    [data-testid="stSidebar"] [data-testid="stExpander"] { 
-        background-color: #111827 !important; 
-        border: 1px solid #1f2937 !important; 
-        border-radius: 10px !important; 
-        margin-top: 2px !important; 
-        margin-bottom: 6px !important; 
-    }
-    [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #1f2937 !important; padding: 6px 8px !important; }
-    [data-testid="stSidebar"] [data-testid="stExpander"] summary * { color: #ffffff !important; font-weight: 700 !important; font-size: 0.78rem !important; }
+    [data-testid="stSidebar"] hr { margin: 4px 0 !important; border-color: #1f2937 !important; }
 
     /* =========================================================================
-       GLASSMORPHISM SMART WIDGETS DASHBOARD (ESTILO SEGUNDA IMAGEN)
+       GLASSMORPHISM WIDGET CONTAINER & CARDS (COMPACTO)
        ========================================================================= */
     .smart-dashboard-container {
         background: radial-gradient(120% 120% at 50% 0%, #1e293b 0%, #0f172a 60%, #090d16 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 20px;
-        padding: 16px 20px;
-        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+        border-radius: 14px;
+        padding: 12px 14px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
         color: #ffffff !important;
-        margin-top: 6px;
-        margin-bottom: 16px;
+        margin-top: 4px;
+        margin-bottom: 12px;
         width: 100%;
         box-sizing: border-box;
     }
-    .smart-dashboard-container * {
-        color: #ffffff !important;
-    }
+    .smart-dashboard-container * { color: #ffffff !important; }
 
     .smart-header-bar {
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        padding-bottom: 12px;
-        margin-bottom: 14px;
+        padding-bottom: 8px;
+        margin-bottom: 10px;
     }
     .smart-title {
-        font-size: 1.25rem;
+        font-size: 1.1rem;
         font-weight: 800;
         letter-spacing: -0.02em;
-        line-height: 1.2;
+        line-height: 1.1;
     }
     .smart-user-sub {
-        font-size: 0.82rem;
+        font-size: 0.76rem;
         color: #94a3b8 !important;
-        margin-top: 2px;
+        margin-top: 1px;
     }
 
     .smart-pill {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
         background: rgba(255, 255, 255, 0.06);
         border: 1px solid rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(10px);
-        padding: 5px 12px;
-        border-radius: 24px;
-        font-size: 0.76rem;
+        backdrop-filter: blur(8px);
+        padding: 3px 8px;
+        border-radius: 16px;
+        font-size: 0.70rem;
         font-weight: 700;
     }
 
-    /* GRID DE WIDGETS INTERNOS */
+    /* GRID RESPONSIVO DE WIDGETS */
     .widgets-grid {
         display: grid;
-        grid-template-columns: 1.4fr 1fr 1fr 1fr;
-        gap: 12px;
-        align-items: stretch;
+        grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+        gap: 8px;
     }
 
     .widget-glass-card {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
-        padding: 12px 14px;
-        backdrop-filter: blur(12px);
+        border-radius: 10px;
+        padding: 8px 10px;
+        backdrop-filter: blur(10px);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        transition: all 0.2s ease;
-    }
-    .widget-glass-card:hover {
-        background: rgba(255, 255, 255, 0.07);
-        border-color: rgba(255, 255, 255, 0.16);
-        transform: translateY(-2px);
+        box-sizing: border-box;
     }
 
     .w-card-title {
-        font-size: 0.72rem;
+        font-size: 0.65rem;
         font-weight: 800;
         text-transform: uppercase;
         color: #94a3b8 !important;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.04em;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
     }
 
-    /* HITOS DIARIOS (PILLS DE ESTADO PENDIENTE / CUMPLIDO) */
+    /* HITOS COMPACTOS */
     .milestone-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 8px;
-        padding: 6px 8px;
-        margin-bottom: 5px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+        padding: 4px 6px;
+        margin-bottom: 3px;
     }
-    .milestone-name {
-        font-size: 0.76rem;
-        font-weight: 700;
-        color: #f1f5f9 !important;
-    }
+    .milestone-name { font-size: 0.68rem; font-weight: 700; color: #e2e8f0 !important; }
     .milestone-status-done {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        background: #10b981;
         color: #ffffff !important;
-        font-size: 0.65rem;
+        font-size: 0.58rem;
         font-weight: 800;
-        padding: 2px 8px;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+        padding: 1px 6px;
+        border-radius: 10px;
     }
     .milestone-status-pending {
-        background: rgba(239, 68, 68, 0.15);
+        background: rgba(239, 68, 68, 0.2);
         border: 1px solid rgba(239, 68, 68, 0.4);
         color: #fca5a5 !important;
-        font-size: 0.65rem;
+        font-size: 0.58rem;
         font-weight: 800;
-        padding: 2px 8px;
-        border-radius: 12px;
+        padding: 1px 6px;
+        border-radius: 10px;
     }
 
-    /* GRÁFICO DE DONA CIRCULAR SVG / CSS */
+    /* GRÁFICO DE DONA */
     .donut-container {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-top: 4px;
+        gap: 8px;
     }
     .donut-chart-svg {
-        width: 58px;
-        height: 58px;
+        width: 42px;
+        height: 42px;
         transform: rotate(-90deg);
         flex-shrink: 0;
     }
-    .donut-bg {
-        fill: none;
-        stroke: rgba(255, 255, 255, 0.1);
-        stroke-width: 3.8;
-    }
-    .donut-progress {
-        fill: none;
-        stroke: #3b82f6;
-        stroke-width: 3.8;
-        stroke-linecap: round;
-        transition: stroke-dasharray 0.5s ease;
-    }
-    .donut-info-val {
-        font-size: 1.15rem;
-        font-weight: 900;
-        color: #ffffff !important;
-        line-height: 1.1;
-    }
-    .donut-info-lbl {
-        font-size: 0.68rem;
-        color: #94a3b8 !important;
-        font-weight: 600;
-    }
+    .donut-bg { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 4.5; }
+    .donut-progress { fill: none; stroke-width: 4.5; stroke-linecap: round; }
+    .donut-info-val { font-size: 0.98rem; font-weight: 900; line-height: 1; }
+    .donut-info-lbl { font-size: 0.60rem; color: #94a3b8 !important; font-weight: 600; margin-top: 1px; }
 
-    /* INCIDENCIAS & OBREROS */
     .stat-hero-number {
-        font-size: 1.8rem;
+        font-size: 1.35rem;
         font-weight: 900;
         line-height: 1;
-        margin-top: 4px;
-        margin-bottom: 4px;
+        margin-top: 2px;
+        margin-bottom: 2px;
     }
 
     /* TABS */
     .stTabs [data-baseweb="tab-list"] { 
-        gap: 6px; 
+        gap: 4px; 
         background-color: #e2e8f0 !important; 
-        padding: 4px; 
-        border-radius: 12px; 
+        padding: 3px; 
+        border-radius: 10px; 
         border: 1px solid #cbd5e1; 
     }
-    .stTabs [data-baseweb="tab"] { border-radius: 8px !important; padding: 6px 14px !important; background-color: transparent !important; }
-    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: #0f172a !important; font-weight: 700 !important; font-size: 0.84rem; }
-    .stTabs [aria-selected="true"] { background-color: #0f172a !important; border-radius: 8px !important; }
-    .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span, .stTabs [aria-selected="true"] div { color: #ffffff !important; font-weight: 900 !important; }
+    .stTabs [data-baseweb="tab"] { border-radius: 6px !important; padding: 5px 10px !important; background-color: transparent !important; }
+    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: #0f172a !important; font-weight: 700 !important; font-size: 0.78rem; }
+    .stTabs [aria-selected="true"] { background-color: #0f172a !important; border-radius: 6px !important; }
+    .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span, .stTabs [aria-selected="true"] div { color: #ffffff !important; font-weight: 800 !important; }
 
     .stButton > button { 
         background-color: #0f172a !important; 
@@ -345,58 +301,55 @@ st.markdown(
         border-radius: 980px !important; 
         border: none !important; 
         font-weight: 700 !important; 
-        padding: 6px 14px !important; 
-        font-size: 0.82rem !important; 
+        padding: 5px 12px !important; 
+        font-size: 0.78rem !important; 
     }
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    /* CABECERAS DE ÍTEMS EN CHECKLIST CON LÍNEA BLANCA LIMPIA */
+    /* CABECERAS DE ÍTEMS EN CHECKLIST */
     .banner-item-header {
         background-color: #0f172a !important;
         border: 1px solid #334155 !important;
         border-bottom: 2px solid #ffffff !important;
-        border-radius: 8px 8px 0 0 !important;
-        padding: 8px 12px !important;
-        margin-top: 6px !important;
+        border-radius: 6px 6px 0 0 !important;
+        padding: 6px 10px !important;
+        margin-top: 4px !important;
         margin-bottom: 0px !important;
     }
-    .banner-item-header p, .banner-item-header span, .banner-item-header b {
+    .banner-item-header span {
         color: #ffffff !important;
-        font-size: 0.86rem !important;
+        font-size: 0.80rem !important;
         font-weight: 800 !important;
-        letter-spacing: 0.01em !important;
     }
 
     .card-item-body-compact {
         border: 1px solid #cbd5e1;
         border-top: none;
-        border-radius: 0 0 8px 8px;
-        padding: 8px 10px 4px 10px;
+        border-radius: 0 0 6px 6px;
+        padding: 6px 8px 2px 8px;
         background-color: #ffffff;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
 
     /* RESPONSIVIDAD MÓVIL */
-    @media (max-width: 900px) {
-        .widgets-grid {
-            grid-template-columns: 1fr;
-        }
-        .block-container { padding-top: 4.2rem !important; padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-        .smart-title { font-size: 1.1rem !important; }
+    @media (max-width: 768px) {
+        .block-container { padding-top: 3.8rem !important; padding-left: 0.4rem !important; padding-right: 0.4rem !important; }
+        .widgets-grid { grid-template-columns: 1fr 1fr; }
+        .smart-title { font-size: 0.95rem !important; }
     }
 
-    /* TABLAS ESTÁTICAS DE RESULTADOS */
+    /* TABLAS ESTÁTICAS */
     .incidencias-table, .supervision-table, .checklist-table {
         width: 100%;
         border-collapse: collapse !important;
         margin-top: 4px;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
     }
     .incidencias-table th, .supervision-table th, .checklist-table th {
         background-color: #0f172a !important;
         color: #ffffff !important;
-        padding: 8px 10px !important;
-        font-size: 0.80rem !important;
+        padding: 6px 8px !important;
+        font-size: 0.75rem !important;
         font-weight: 700 !important;
         border: 1px solid #334155 !important;
         text-align: left;
@@ -406,8 +359,8 @@ st.markdown(
         text-align: center !important;
     }
     .incidencias-table td, .supervision-table td, .checklist-table td {
-        padding: 7px 9px !important;
-        font-size: 0.82rem !important;
+        padding: 5px 7px !important;
+        font-size: 0.76rem !important;
         border: 1px solid #cbd5e1 !important;
         vertical-align: middle !important;
         background-color: #ffffff !important;
@@ -435,7 +388,6 @@ def get_local_datetime_ecuador():
 
 @st.cache_data(ttl=600)
 def get_realtime_weather():
-    """Consulta la API meteorológica pública Open-Meteo para obtener temperatura y condición en tiempo real"""
     try:
         url = "https://api.open-meteo.com/v1/forecast?latitude=-0.1807&longitude=-78.4678&current=temperature_2m,weather_code,is_day&timezone=America%2FGuayaquil"
         req = urllib.request.Request(url, headers={'User-Agent': 'AlphaBuildersApp/1.0'})
@@ -652,7 +604,6 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     st.session_state.db_trabajadores = p_data["db_trabajadores"]
     st.session_state.db_loaded = True
 
-# Persistencia de Sesión
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
@@ -679,11 +630,11 @@ def render_estado_badge(estado_str):
     if not estado_str:
         return '<span style="color: #64748b; font-weight: 600;">Sin Responder</span>'
     if "Cumple" in estado_str or estado_str in ["Sí", "Operativo", "Completado", "Cerrada", "EFICIENTE"]:
-        return f'<span style="background-color: #dcfce7; color: #16a34a; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #bbf7d0; font-size: 0.82rem;">{estado_str}</span>'
+        return f'<span style="background-color: #dcfce7; color: #16a34a; font-weight: 800; padding: 2px 8px; border-radius: 6px; border: 1px solid #bbf7d0; font-size: 0.76rem;">{estado_str}</span>'
     elif "No" in estado_str or estado_str in ["Fuera de servicio", "Retrasado", "Abierta", "EXCESO DE HH"]:
-        return f'<span style="background-color: #fee2e2; color: #dc2626; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #fca5a5; font-size: 0.82rem;">{estado_str}</span>'
+        return f'<span style="background-color: #fee2e2; color: #dc2626; font-weight: 800; padding: 2px 8px; border-radius: 6px; border: 1px solid #fca5a5; font-size: 0.76rem;">{estado_str}</span>'
     else:
-        return f'<span style="background-color: #f1f5f9; color: #121318; font-weight: 800; padding: 3px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.82rem;">{estado_str}</span>'
+        return f'<span style="background-color: #f1f5f9; color: #121318; font-weight: 800; padding: 2px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.76rem;">{estado_str}</span>'
 
 def image_to_base64(image_file):
     if image_file is not None:
@@ -1276,7 +1227,6 @@ EDIFICIOS_ALPHA = [
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
 RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
 
-# LISTA MAÑANA
 ACTIVIDADES_MANANA_CLEAN = [
     "Verificación de asistencia del personal",
     "Distribución de cuadrillas por frente de trabajo",
@@ -1285,7 +1235,6 @@ ACTIVIDADES_MANANA_CLEAN = [
     "Corrección de observaciones detectadas",
 ]
 
-# LISTA TARDE
 ACTIVIDADES_TARDE_CLEAN = [
     "Verificación del avance físico de las actividades",
     "Control del rendimiento de las cuadrillas",
@@ -1307,7 +1256,7 @@ if not st.session_state.autenticado:
             st.markdown(
                 f"""
                 <div style="text-align: center; margin-top: 10px; margin-bottom: 10px;">
-                    <img src="data:image/png;base64,{encoded_logo}" style="width: 300px; max-width: 100%; pointer-events: none;">
+                    <img src="data:image/png;base64,{encoded_logo}" style="width: 280px; max-width: 100%; pointer-events: none;">
                 </div>
             """,
                 unsafe_allow_html=True,
@@ -1597,8 +1546,8 @@ else:
     porc_rendimiento = 100
     lbl_rend_prom = "100% Óptimo"
 
-# Circunferencia del círculo en SVG (radio 20 => 2 * pi * 20 = 125.66)
-circunferencia_circulo = 125.66
+# Circunferencia del círculo en SVG (radio 16 => 2 * pi * 16 = 100.53)
+circunferencia_circulo = 100.53
 progreso_dona_stroke = round((porc_rendimiento / 100) * circunferencia_circulo, 2)
 color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
 
@@ -1606,78 +1555,51 @@ color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimie
 incs_abiertas_count = sum(1 for inc in st.session_state.db_incidencias if inc.get("Estado") == "Abierta")
 total_obreros_count = len(st.session_state.db_trabajadores)
 
-# Renderizado Glassmorphism Dashboard
-st.markdown(
-    f"""
-    <div class="smart-dashboard-container">
-        <!-- BARRA SUPERIOR CON SALUDO, FECHA REAL Y CLIMA EN VIVO -->
-        <div class="smart-header-bar">
-            <div>
-                <div class="smart-title">Alpha Builders | Portal de Obra</div>
-                <div class="smart-user-sub">{user_nombre_completo} &bull; <b style="color: #cbd5e1 !important;">{user_cargo}</b></div>
-            </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <div class="smart-pill">📅 {fecha_widget_texto}</div>
-                <div class="smart-pill">{clima_actual_str}</div>
-            </div>
-        </div>
-
-        <!-- GRID DE 4 WIDGETS INTERNOS -->
-        <div class="widgets-grid">
-            <!-- WIDGET 1: HITOS DIARIOS (CHECKLIST E INSPECCIÓN DE HOY) -->
-            <div class="widget-glass-card">
-                <div class="w-card-title"><span>🎯 Hitos Diarios</span><span style="font-size:0.68rem;">Hoy</span></div>
-                <div>
-                    <div class="milestone-item">
-                        <span class="milestone-name">Checklist Diario</span>
-                        {tag_chk_html}
-                    </div>
-                    <div class="milestone-item">
-                        <span class="milestone-name">Inspección de Obra</span>
-                        {tag_insp_html}
-                    </div>
-                </div>
-            </div>
-
-            <!-- WIDGET 2: RENDIMIENTO PROMEDIO CON GRÁFICO DE DONA CIRCULAR -->
-            <div class="widget-glass-card">
-                <div class="w-card-title"><span>⚡ Rendimiento</span><span style="font-size:0.68rem;">Promedio</span></div>
-                <div class="donut-container">
-                    <svg class="donut-chart-svg" viewBox="0 0 48 48">
-                        <circle class="donut-bg" cx="24" cy="24" r="20" />
-                        <circle class="donut-progress" cx="24" cy="24" r="20" 
-                            stroke="{color_dona}" 
-                            stroke-dasharray="{progreso_dona_stroke} {circunferencia_circulo}" />
-                    </svg>
-                    <div>
-                        <div class="donut-info-val" style="color: {color_dona} !important;">{porc_rendimiento}%</div>
-                        <div class="donut-info-lbl">{lbl_rend_prom}</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- WIDGET 3: INCIDENCIAS ACTIVAS CON NÚMERO DIRECTO -->
-            <div class="widget-glass-card">
-                <div class="w-card-title"><span>🚨 Incidencias</span><span style="font-size:0.68rem;">Abiertas</span></div>
-                <div>
-                    <div class="stat-hero-number" style="color: #f87171 !important;">{incs_abiertas_count}</div>
-                    <div style="font-size: 0.72rem; color: #94a3b8 !important; font-weight: 600;">Por resolver en obra</div>
-                </div>
-            </div>
-
-            <!-- WIDGET 4: PLANTILLA DE OBREROS ACTIVOS -->
-            <div class="widget-glass-card">
-                <div class="w-card-title"><span>👷 Obreros</span><span style="font-size:0.68rem;">Activos</span></div>
-                <div>
-                    <div class="stat-hero-number" style="color: #60a5fa !important;">{total_obreros_count}</div>
-                    <div style="font-size: 0.72rem; color: #94a3b8 !important; font-weight: 600;">Personal en planilla</div>
-                </div>
-            </div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+# Renderizado HTML limpio y continuo sin sangrías
+dashboard_html = (
+    '<div class="smart-dashboard-container">'
+    '<div class="smart-header-bar">'
+    '<div>'
+    '<div class="smart-title">Alpha Builders | Portal de Obra</div>'
+    f'<div class="smart-user-sub">{user_nombre_completo} &bull; <b style="color: #cbd5e1 !important;">{user_cargo}</b></div>'
+    '</div>'
+    '<div style="display: flex; gap: 6px; flex-wrap: wrap;">'
+    f'<div class="smart-pill">📅 {fecha_widget_texto}</div>'
+    f'<div class="smart-pill">{clima_actual_str}</div>'
+    '</div>'
+    '</div>'
+    '<div class="widgets-grid">'
+    '<div class="widget-glass-card">'
+    '<div class="w-card-title"><span>🎯 Hitos Diarios</span><span>Hoy</span></div>'
+    f'<div class="milestone-item"><span class="milestone-name">Checklist</span>{tag_chk_html}</div>'
+    f'<div class="milestone-item"><span class="milestone-name">Inspección</span>{tag_insp_html}</div>'
+    '</div>'
+    '<div class="widget-glass-card">'
+    '<div class="w-card-title"><span>⚡ Rendimiento</span><span>Promedio</span></div>'
+    '<div class="donut-container">'
+    f'<svg class="donut-chart-svg" viewBox="0 0 36 36">'
+    f'<circle class="donut-bg" cx="18" cy="18" r="16" />'
+    f'<circle class="donut-progress" cx="18" cy="18" r="16" stroke="{color_dona}" stroke-dasharray="{progreso_dona_stroke} {circunferencia_circulo}" />'
+    f'</svg>'
+    f'<div><div class="donut-info-val" style="color: {color_dona} !important;">{porc_rendimiento}%</div>'
+    f'<div class="donut-info-lbl">{lbl_rend_prom}</div></div>'
+    '</div>'
+    '</div>'
+    '<div class="widget-glass-card">'
+    '<div class="w-card-title"><span>🚨 Incidencias</span><span>Abiertas</span></div>'
+    f'<div class="stat-hero-number" style="color: #f87171 !important;">{incs_abiertas_count}</div>'
+    '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">Por resolver en obra</div>'
+    '</div>'
+    '<div class="widget-glass-card">'
+    '<div class="w-card-title"><span>👷 Obreros</span><span>Activos</span></div>'
+    f'<div class="stat-hero-number" style="color: #60a5fa !important;">{total_obreros_count}</div>'
+    '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">Personal en plantilla</div>'
+    '</div>'
+    '</div>'
+    '</div>'
 )
+
+st.markdown(dashboard_html, unsafe_allow_html=True)
 
 # Acceso rápido para administrar plantilla de obreros
 with st.expander("👷 Administrar Plantilla de Obreros Activos", expanded=False):
@@ -1753,7 +1675,7 @@ with st.expander("👷 Administrar Plantilla de Obreros Activos", expanded=False
         else:
             st.info("No hay obreros registrados.")
 
-st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
 pestanas = [
     "Checklist Diario", 
@@ -1831,11 +1753,7 @@ with tab_chk:
                     st.session_state.chk_obs_counts[item_key] = 1
 
                 st.markdown(
-                    f"""
-                    <div class="banner-item-header">
-                        <span style="color:#ffffff !important; font-weight:800; font-size:0.86rem;">N° {idx} — {act}</span>
-                    </div>
-                    """,
+                    f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""",
                     unsafe_allow_html=True
                 )
 
@@ -1905,11 +1823,7 @@ with tab_chk:
                     st.session_state.chk_obs_counts[item_key] = 1
 
                 st.markdown(
-                    f"""
-                    <div class="banner-item-header">
-                        <span style="color:#ffffff !important; font-weight:800; font-size:0.86rem;">N° {idx} — {act}</span>
-                    </div>
-                    """,
+                    f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""",
                     unsafe_allow_html=True
                 )
 
@@ -1976,11 +1890,7 @@ with tab_chk:
                 f_id = f_data["id"]
 
                 st.markdown(
-                    f"""
-                    <div class="banner-item-header" style="background-color:#1e293b !important; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="color:#ffffff !important; font-weight:800; font-size:0.86rem;">Fila de Supervisión N° {idx_f}</span>
-                    </div>
-                    """,
+                    f"""<div class="banner-item-header" style="background-color:#1e293b !important; display:flex; justify-content:space-between; align-items:center;"><span>Fila de Supervisión N° {idx_f}</span></div>""",
                     unsafe_allow_html=True
                 )
 
