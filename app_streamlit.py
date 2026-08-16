@@ -2018,8 +2018,8 @@ with tab_chk:
 # 10. MÓDULO 2: LIBRO DE OBRA (FORMATO OFICIAL L-O CON VINCULACIÓN AL CHECKLIST)
 # ==============================================================================
 with tab_libro:
-    st.markdown("### Libro de Obra – Formato Oficial")[cite: 1]
-    st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")[cite: 1]
+    st.markdown("### Libro de Obra – Formato Oficial")
+    st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")
 
     dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     local_today_insp = get_local_datetime_ecuador().date()
@@ -2047,27 +2047,27 @@ with tab_libro:
 
     with st.form("form_libro_obra_oficial_lo"):
         # 1. ENCABEZADO OFICIAL
-        st.markdown("#### 1. Datos Generales de la Obra")[cite: 1]
+        st.markdown("#### 1. Datos Generales de la Obra")
         c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
         with c_lo_a1:
-            lo_proyecto = st.selectbox("Proyecto:*", ["-- Seleccione --"] + proyectos_libro, index=idx_proy_lo, key="lo_proy_sel_off")[cite: 1]
-            lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")[cite: 1]
-            lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")[cite: 1]
+            lo_proyecto = st.selectbox("Proyecto:*", ["-- Seleccione --"] + proyectos_libro, index=idx_proy_lo, key="lo_proy_sel_off")
+            lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")
+            lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")
 
         with c_lo_a2:
-            lo_superintendente = st.text_input("Superintendente:*", value="ING. PABLO ESPINOSA", key="lo_super_in")[cite: 1]
-            lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")[cite: 1]
-            lo_fiscalizador = st.text_input("Fiscalizador:*", value="ING. DIEGO CHARVET", key="lo_fisc_in")[cite: 1]
+            lo_superintendente = st.text_input("Superintendente:*", value="ING. PABLO ESPINOSA", key="lo_super_in")
+            lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")
+            lo_fiscalizador = st.text_input("Fiscalizador:*", value="ING. DIEGO CHARVET", key="lo_fisc_in")
 
         with c_lo_a3:
-            lo_hoja = st.text_input("Hoja N°:*", value="000053", key="lo_hoja_in")[cite: 1]
-            lo_h_ini = st.time_input("Hora Entrada:*", datetime.time(7, 0), key="lo_hini_off")[cite: 1]
-            lo_h_fin = st.time_input("Hora Salida:*", datetime.time(16, 0), key="lo_hfin_off")[cite: 1]
+            lo_hoja = st.text_input("Hoja N°:*", value="000053", key="lo_hoja_in")
+            lo_h_ini = st.time_input("Hora Entrada:*", datetime.time(7, 0), key="lo_hini_off")
+            lo_h_fin = st.time_input("Hora Salida:*", datetime.time(16, 0), key="lo_hfin_off")
 
         st.markdown("---")
 
         # 2. NÓMINA DE PERSONAL Y PERSONAL ROTATIVO
-        st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")[cite: 1]
+        st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
         st.caption("Cálculo automático de obreros según tu cuadrilla activa en el proyecto seleccionado.")
 
         edif_filtro_pers = lo_proyecto if lo_proyecto != "-- Seleccione --" else None
@@ -2094,81 +2094,81 @@ with tab_libro:
 
         c_nom1, c_nom2 = st.columns(2)
         with c_nom1:
-            st.markdown("##### 👷 Personal Nómina")[cite: 1]
+            st.markdown("##### 👷 Personal Nómina")
             nomina_input_map = {}
             for ofi in OFICIOS_NOMINA_FORMATO:
                 col_n_l, col_n_v = st.columns([3, 1])
                 with col_n_l:
-                    st.write(f"• {ofi} (7:00AM - 4:00PM)")[cite: 1]
+                    st.write(f"• {ofi} (7:00AM - 4:00PM)")
                 with col_n_v:
-                    nomina_input_map[ofi] = st.number_input(f"N_{ofi}", min_value=0, value=int(conteo_auto_nomina.get(ofi, 0)), key=f"lo_nom_{ofi}", label_visibility="collapsed")[cite: 1]
+                    nomina_input_map[ofi] = st.number_input(f"N_{ofi}", min_value=0, value=int(conteo_auto_nomina.get(ofi, 0)), key=f"lo_nom_{ofi}", label_visibility="collapsed")
 
         with c_nom2:
-            st.markdown("##### 🔄 Personal Rotativo / Subcontratos")[cite: 1]
+            st.markdown("##### 🔄 Personal Rotativo / Subcontratos")
             rotativo_input_map = {}
             for rubro in RUROS_ROTATIVOS_FORMATO:
                 col_r_l, col_r_v = st.columns([3, 1])
                 with col_r_l:
-                    st.write(f"• {rubro}")[cite: 1]
+                    st.write(f"• {rubro}")
                 with col_r_v:
-                    rotativo_input_map[rubro] = st.number_input(f"R_{rubro}", min_value=0, value=0, key=f"lo_rot_{rubro}", label_visibility="collapsed")[cite: 1]
+                    rotativo_input_map[rubro] = st.number_input(f"R_{rubro}", min_value=0, value=0, key=f"lo_rot_{rubro}", label_visibility="collapsed")
 
         st.markdown("---")
 
         # 3. CONDICIONES CLIMÁTICAS Y MAQUINARIA / HERRAMIENTAS
-        st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")[cite: 1]
+        st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")
         c_cl1, c_cl2 = st.columns(2)
         with c_cl1:
-            st.markdown("##### ⛅ Condiciones Climáticas")[cite: 1]
-            clima_cond_sel = st.selectbox("Estado del Clima:*", ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"], index=0, key="lo_clima_cond")[cite: 1]
-            clima_obs = st.text_input("Observaciones del Clima en Obra:", placeholder="Ej. Lluvia de 14:00 a 15:30 interrumpió trabajos en terraza", key="lo_clima_obs")[cite: 1]
+            st.markdown("##### ⛅ Condiciones Climáticas")
+            clima_cond_sel = st.selectbox("Estado del Clima:*", ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"], index=0, key="lo_clima_cond")
+            clima_obs = st.text_input("Observaciones del Clima en Obra:", placeholder="Ej. Lluvia de 14:00 a 15:30 interrumpió trabajos en terraza", key="lo_clima_obs")
 
         with c_cl2:
-            st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")[cite: 1]
+            st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")
             maq_input_map = {}
             for maq in MAQUINARIAS_FORMATO:
                 c_m_l, c_m_v = st.columns([3, 1])
                 with c_m_l:
-                    st.write(f"• {maq}")[cite: 1]
+                    st.write(f"• {maq}")
                 with c_m_v:
-                    def_v = 2 if "SOLDADORA" in maq else 0[cite: 1]
-                    maq_input_map[maq] = st.number_input(f"M_{maq}", min_value=0, value=def_v, key=f"lo_maq_{maq}", label_visibility="collapsed")[cite: 1]
+                    def_v = 2 if "SOLDADORA" in maq else 0
+                    maq_input_map[maq] = st.number_input(f"M_{maq}", min_value=0, value=def_v, key=f"lo_maq_{maq}", label_visibility="collapsed")
 
         st.markdown("---")
 
         # 4. SEGURIDAD, SEÑALIZACIÓN Y MITIGACIÓN
-        st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")[cite: 1]
+        st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
         c_ss1, c_ss2, c_ss3 = st.columns(3)
         with c_ss1:
-            st.markdown("##### 🛡️ Seguridad")[cite: 1]
-            seg_casco = st.checkbox("Casco", value=True)[cite: 1]
-            seg_chaleco = st.checkbox("Chalecos", value=True)[cite: 1]
-            seg_guantes = st.checkbox("Guantes", value=True)[cite: 1]
-            seg_gafas = st.checkbox("Gafas", value=True)[cite: 1]
-            seg_mascarilla = st.checkbox("Mascarilla", value=True)[cite: 1]
-            seg_auditivo = st.checkbox("Auditivo", value=True)[cite: 1]
+            st.markdown("##### 🛡️ Seguridad")
+            seg_casco = st.checkbox("Casco", value=True)
+            seg_chaleco = st.checkbox("Chalecos", value=True)
+            seg_guantes = st.checkbox("Guantes", value=True)
+            seg_gafas = st.checkbox("Gafas", value=True)
+            seg_mascarilla = st.checkbox("Mascarilla", value=True)
+            seg_auditivo = st.checkbox("Auditivo", value=True)
 
         with c_ss2:
-            st.markdown("##### 🚧 Señalización")[cite: 1]
-            sen_conos = st.checkbox("Conos", value=True)[cite: 1]
-            sen_cintas = st.checkbox("Cintas", value=True)[cite: 1]
-            sen_rotulos = st.checkbox("Rótulos", value=False)[cite: 1]
-            sen_vallas = st.checkbox("Vallas", value=False)[cite: 1]
-            sen_extintor = st.checkbox("Extintor", value=True)[cite: 1]
-            sen_botiquin = st.checkbox("Botiquín", value=True)[cite: 1]
+            st.markdown("##### 🚧 Señalización")
+            sen_conos = st.checkbox("Conos", value=True)
+            sen_cintas = st.checkbox("Cintas", value=True)
+            sen_rotulos = st.checkbox("Rótulos", value=False)
+            sen_vallas = st.checkbox("Vallas", value=False)
+            sen_extintor = st.checkbox("Extintor", value=True)
+            sen_botiquin = st.checkbox("Botiquín", value=True)
 
         with c_ss3:
-            st.markdown("##### 🧹 Mitigación")[cite: 1]
-            mit_polvo = st.checkbox("Control de Polvo", value=False)[cite: 1]
-            mit_ruido = st.checkbox("Control de Ruido", value=True)[cite: 1]
-            mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)[cite: 1]
-            mit_cerramiento = st.checkbox("Cerramiento", value=False)[cite: 1]
-            mit_limpieza = st.checkbox("Limpieza y Orden", value=True)[cite: 1]
+            st.markdown("##### 🧹 Mitigación")
+            mit_polvo = st.checkbox("Control de Polvo", value=False)
+            mit_ruido = st.checkbox("Control de Ruido", value=True)
+            mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)
+            mit_cerramiento = st.checkbox("Cerramiento", value=False)
+            mit_limpieza = st.checkbox("Limpieza y Orden", value=True)
 
         st.markdown("---")
 
         # 5. ACTIVIDADES REALIZADAS EN LA JORNADA
-        st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")[cite: 1]
+        st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
         st.caption("Rubros ejecutados en campo. Si llenaste el Checklist de hoy, se copiarán sus actividades automáticamente.")
 
         lista_actividades_lo = []
@@ -2195,7 +2195,7 @@ with tab_libro:
                     "Unidad": "m2",
                     "Cantidad": 15.0,
                     "Observaciones": "Conforme plano"
-                },[cite: 1]
+                },
                 {
                     "Descripcion": "Enlucido y masillado de fajas interiores",
                     "Area": "Torre Principal",
@@ -2208,17 +2208,17 @@ with tab_libro:
 
         acts_final_payload = []
         for idx_act_form, a_item in enumerate(lista_actividades_lo, 1):
-            st.markdown(f"**Actividad N° {idx_act_form}:**")[cite: 1]
+            st.markdown(f"**Actividad N° {idx_act_form}:**")
             c_af1, c_af2, c_af3, c_af4 = st.columns([2.5, 1.5, 1, 1])
             with c_af1:
-                d_in = st.text_input(f"Descripción {idx_act_form}:", value=a_item["Descripcion"], key=f"lo_act_d_{idx_act_form}")[cite: 1]
+                d_in = st.text_input(f"Descripción {idx_act_form}:", value=a_item["Descripcion"], key=f"lo_act_d_{idx_act_form}")
             with c_af2:
-                ar_in = st.text_input(f"Área {idx_act_form}:", value=a_item["Area"], key=f"lo_act_ar_{idx_act_form}")[cite: 1]
+                ar_in = st.text_input(f"Área {idx_act_form}:", value=a_item["Area"], key=f"lo_act_ar_{idx_act_form}")
             with c_af3:
-                u_in = st.selectbox(f"Unidad {idx_act_form}:", ["m2", "m", "m3", "kg", "pto", "unid"], index=0, key=f"lo_act_u_{idx_act_form}")[cite: 1]
+                u_in = st.selectbox(f"Unidad {idx_act_form}:", ["m2", "m", "m3", "kg", "pto", "unid"], index=0, key=f"lo_act_u_{idx_act_form}")
             with c_af4:
-                ct_in = st.number_input(f"Cant. {idx_act_form}:", min_value=0.0, value=float(a_item["Cantidad"]), step=0.5, key=f"lo_act_ct_{idx_act_form}")[cite: 1]
-            
+                ct_in = st.number_input(f"Cant. {idx_act_form}:", min_value=0.0, value=float(a_item["Cantidad"]), step=0.5, key=f"lo_act_ct_{idx_act_form}")
+
             acts_final_payload.append({
                 "Descripcion": d_in.strip(),
                 "Area": ar_in.strip(),
@@ -2231,8 +2231,8 @@ with tab_libro:
         st.markdown("---")
 
         # 6. NOVEDADES Y RECOMENDACIONES
-        st.markdown("#### 6. Novedades y Recomendaciones")[cite: 1]
-        lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="ALBAÑILERIA - GYPSUM - PINTURA Y PORCELANATO CONFORME AVANCE PROGRAMADO.", height=90, key="lo_nov_in")[cite: 1]
+        st.markdown("#### 6. Novedades y Recomendaciones")
+        lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="ALBAÑILERIA - GYPSUM - PINTURA Y PORCELANATO CONFORME AVANCE PROGRAMADO.", height=90, key="lo_nov_in")
 
         btn_guardar_lo_oficial = st.form_submit_button("💾 Guardar Formato Oficial de Libro de Obra", type="primary", use_container_width=True)
 
@@ -2241,25 +2241,25 @@ with tab_libro:
                 st.error("⚠️ Seleccione un Proyecto o Edificio.")
             else:
                 seguridad_checks = {
-                    "Casco": seg_casco, "Chalecos": seg_chaleco, "Guantes": seg_guantes, "Gafas": seg_gafas, "Mascarilla": seg_mascarilla, "Auditivo": seg_auditivo,[cite: 1]
-                    "Conos": sen_conos, "Cintas": sen_cintas, "Rótulos": sen_rotulos, "Vallas": sen_vallas, "Extintor": sen_extintor, "Botiquin": sen_botiquin,[cite: 1]
-                    "Polvo": mit_polvo, "Ruido": mit_ruido, "Liquidos": mit_liquidos, "Cerramiento": mit_cerramiento, "Limpieza": mit_limpieza[cite: 1]
+                    "Casco": seg_casco, "Chalecos": seg_chaleco, "Guantes": seg_guantes, "Gafas": seg_gafas, "Mascarilla": seg_mascarilla, "Auditivo": seg_auditivo,
+                    "Conos": sen_conos, "Cintas": sen_cintas, "Rótulos": sen_rotulos, "Vallas": sen_vallas, "Extintor": sen_extintor, "Botiquin": sen_botiquin,
+                    "Polvo": mit_polvo, "Ruido": mit_ruido, "Liquidos": mit_liquidos, "Cerramiento": mit_cerramiento, "Limpieza": mit_limpieza
                 }
 
                 payload_libro_oficial = {
-                    "Superintendente": lo_superintendente,[cite: 1]
-                    "Fiscalizador": lo_fiscalizador,[cite: 1]
-                    "Ubicacion": lo_ubicacion,[cite: 1]
-                    "Barrio": lo_barrio,[cite: 1]
-                    "Hoja": lo_hoja,[cite: 1]
-                    "Nomina_Conteo": nomina_input_map,[cite: 1]
-                    "Rotativo_Conteo": rotativo_input_map,[cite: 1]
-                    "Clima_Condicion": clima_cond_sel,[cite: 1]
-                    "Clima_Obs": clima_obs,[cite: 1]
-                    "Maquinaria_Conteo": maq_input_map,[cite: 1]
-                    "Seguridad_Check": seguridad_checks,[cite: 1]
-                    "Actividades_Ejecutadas": acts_final_payload,[cite: 1]
-                    "Novedades": lo_novedades[cite: 1]
+                    "Superintendente": lo_superintendente,
+                    "Fiscalizador": lo_fiscalizador,
+                    "Ubicacion": lo_ubicacion,
+                    "Barrio": lo_barrio,
+                    "Hoja": lo_hoja,
+                    "Nomina_Conteo": nomina_input_map,
+                    "Rotativo_Conteo": rotativo_input_map,
+                    "Clima_Condicion": clima_cond_sel,
+                    "Clima_Obs": clima_obs,
+                    "Maquinaria_Conteo": maq_input_map,
+                    "Seguridad_Check": seguridad_checks,
+                    "Actividades_Ejecutadas": acts_final_payload,
+                    "Novedades": lo_novedades
                 }
 
                 try:
