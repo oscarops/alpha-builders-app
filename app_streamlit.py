@@ -3,6 +3,8 @@ import datetime
 import io
 import json
 import os
+import urllib.request
+import zoneinfo
 import pandas as pd
 from PIL import Image, ImageOps
 import streamlit as st
@@ -36,7 +38,6 @@ st.markdown(
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     h1, h2, h3, .brand-title { font-family: 'Montserrat', sans-serif !important; letter-spacing: -0.03em !important; }
 
-    /* ESPACIADO SUPERIOR SEGURO PARA EVITAR QUE LA INTERFAZ DE STREAMLIT TAPE EL CONTENIDO */
     .block-container { 
         padding-top: 3.5rem !important; 
         padding-bottom: 1.5rem !important; 
@@ -49,12 +50,7 @@ st.markdown(
     .stCaption, caption, small, [data-testid="stCaptionContainer"] { color: #5a5f6e !important; }
 
     [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
-
-    /* OCULTAR HEADER VACÍO DE STREAMLIT PARA LIBERAR PANTALLA */
-    [data-testid="stHeader"] {
-        background: transparent !important;
-        z-index: 100 !important;
-    }
+    [data-testid="stHeader"] { background: transparent !important; z-index: 100 !important; }
 
     /* SIDEBAR TOGGLE */
     [data-testid="stSidebarCollapseButton"] { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important; }
@@ -158,7 +154,7 @@ st.markdown(
     [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #282c36 !important; padding: 6px 8px !important; }
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * { color: #ffffff !important; font-weight: 700 !important; font-size: 0.78rem !important; }
 
-    /* WIDGET DASHBOARD UNIFICADO TODO-EN-UNO (BAJADO Y TOTALMENTE VISIBLE) */
+    /* WIDGET DASHBOARD UNIFICADO TODO-EN-UNO */
     .unified-dashboard-widget {
         background: linear-gradient(135deg, #111827 0%, #1e293b 50%, #0f172a 100%);
         border: 1px solid #334155;
@@ -291,7 +287,7 @@ st.markdown(
         .ud-m-lbl { font-size: 0.52rem !important; }
     }
 
-    /* TABLAS ESTÁTICAS DE RESULTADOS / MATRICES */
+    /* TABLAS ESTÁTICAS DE RESULTADOS */
     .incidencias-table, .supervision-table, .checklist-table {
         width: 100%;
         border-collapse: collapse !important;
@@ -330,7 +326,68 @@ st.markdown(
 )
 
 # ==============================================================================
-# 2. CONEXIÓN A BASE DE DATOS SUPABASE
+# 2. SERVICIO EN TIEMPO REAL: HORA LOCAL Y CLIMA ACTUAL
+# ==============================================================================
+def get_local_datetime_ecuador():
+    try:
+        tz = zoneinfo.ZoneInfo("America/Guayaquil")
+        return datetime.datetime.now(tz)
+    except Exception:
+        # Fallback manual UTC-5
+        tz_offset = datetime.timezone(datetime.timedelta(hours=-5))
+        return datetime.datetime.now(tz_offset)
+
+@st.cache_data(ttl=600)  # Actualiza cada 10 minutos
+def get_realtime_weather():
+    """Consulta la API meteorológica pública Open-Meteo para obtener clima y temperatura en tiempo real en Quito/Ecuador"""
+    try:
+        # Coordenadas de Quito, Ecuador
+        url = "https://api.open-meteo.com/v1/forecast?latitude=-0.1807&longitude=-78.4678&current=temperature_2m,weather_code,is_day&timezone=America%2FGuayaquil"
+        req = urllib.request.Request(url, headers={'User-Agent': 'AlphaBuildersApp/1.0'})
+        with urllib.request.urlopen(req, timeout=4) as response:
+            res_data = json.loads(response.read().decode())
+            current = res_data.get("current", {})
+            temp = round(current.get("temperature_2m", 18.0))
+            wmo_code = current.get("weather_code", 0)
+            is_day = current.get("is_day", 1)
+
+            # Mapeo oficial WMO Weather Codes
+            if wmo_code == 0:
+                cond = "Despejado"
+                ico = "☀️" if is_day else "🌙"
+            elif wmo_code in [1, 2]:
+                cond = "Parcial Nublado"
+                ico = "⛅" if is_day else "☁️"
+            elif wmo_code == 3:
+                cond = "Nublado"
+                ico = "☁️"
+            elif wmo_code in [45, 48]:
+                cond = "Neblina"
+                ico = "🌫️"
+            elif wmo_code in [51, 53, 55, 61, 63, 65, 80, 81, 82]:
+                cond = "Lluvia"
+                ico = "🌧️"
+            elif wmo_code in [95, 96, 99]:
+                cond = "Tormenta"
+                ico = "⛈️"
+            else:
+                cond = "Templado"
+                ico = "⛅"
+
+            return f"{ico} {temp}°C {cond}"
+    except Exception:
+        # Fallback de respaldo según la hora exacta de Ecuador
+        local_dt = get_local_datetime_ecuador()
+        h = local_dt.hour
+        if 6 <= h < 12:
+            return "☀️ 17°C Mañana Despejada"
+        elif 12 <= h < 18:
+            return "⛅ 21°C Tarde Templada"
+        else:
+            return "🌙 14°C Noche Fresca"
+
+# ==============================================================================
+# 3. BASE DE DATOS SUPABASE
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -527,7 +584,7 @@ if not st.session_state.autenticado:
             st.session_state.usuario_cargo = u_match["Cargo"]
 
 # ==============================================================================
-# 3. FUNCIONES DE FORMATO Y EXPORTACIÓN
+# 4. FUNCIONES DE FORMATO Y EXPORTACIÓN
 # ==============================================================================
 def render_estado_badge(estado_str):
     if not estado_str:
@@ -1120,7 +1177,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     return buffer.getvalue()
 
 # ==============================================================================
-# 4. CONSTANTES
+# 5. CONSTANTES
 # ==============================================================================
 EDIFICIOS_ALPHA = [
     "Tesla", "Lafuente", "Imagine", "Asimov", "Rubik", "Castle Rock",
@@ -1413,30 +1470,21 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 7. DASHBOARD UNIFICADO TODO-EN-UNO (WIDGET COMPACTO CON FECHA, CLIMA Y MÉTRICAS)
+# 7. DASHBOARD UNIFICADO (FECHA EXACTA LOCAL + CLIMA EN TIEMPO REAL VÍA API)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
-# Formateo dinámico de fecha y día en español
-now_dt = datetime.datetime.now()
+# Cálculo de fecha exacta con zona horaria local de Ecuador (UTC-5)
+local_dt = get_local_datetime_ecuador()
 dias_nombre_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 meses_nombre_es = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 
-dia_semana_actual = dias_nombre_es[now_dt.weekday()]
-mes_actual = meses_nombre_es[now_dt.month - 1]
-fecha_widget_texto = f"{dia_semana_actual}, {now_dt.day} de {mes_actual} de {now_dt.year}"
+dia_semana_actual = dias_nombre_es[local_dt.weekday()]
+mes_actual = meses_nombre_es[local_dt.month - 1]
+fecha_widget_texto = f"{dia_semana_actual}, {local_dt.day} de {mes_actual} de {local_dt.year}"
 
-# Determinación horaria de clima estimado
-hora_actual = now_dt.hour
-if 6 <= hora_actual < 12:
-    icono_clima = "☀️"
-    desc_clima = "Mañana Despejada"
-elif 12 <= hora_actual < 18:
-    icono_clima = "⛅"
-    desc_clima = "Tarde Templada"
-else:
-    icono_clima = "🌙"
-    desc_clima = "Noche Fresca"
+# Clima en tiempo real (vía API meteorológica Open-Meteo)
+clima_actual_str = get_realtime_weather()
 
 usr_chks = len(st.session_state.db_checklists.get(user_email, []))
 usr_insps = len(st.session_state.db_inspecciones.get(user_email, []))
@@ -1444,7 +1492,7 @@ usr_incs = len(st.session_state.db_incidencias)
 usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
 total_obreros = len(st.session_state.db_trabajadores)
 
-# Renderizado del Widget Unificado Todo-en-Uno (Totalmente visible y sin solapamiento)
+# Renderizado del Widget Dashboard Unificado
 st.markdown(
     f"""
     <div class="unified-dashboard-widget">
@@ -1455,7 +1503,7 @@ st.markdown(
             </div>
             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                 <div class="ud-badge-pill">📅 {fecha_widget_texto}</div>
-                <div class="ud-badge-pill">{icono_clima} {desc_clima}</div>
+                <div class="ud-badge-pill">{clima_actual_str}</div>
             </div>
         </div>
         <div class="ud-metrics-row">
@@ -1616,7 +1664,8 @@ with tab_chk:
             with cfg_c2:
                 st.text_input("Responsable:", value=user_nombre_completo, disabled=True)
             with cfg_c3:
-                fecha_val = st.date_input("Fecha:", datetime.date.today(), key="sel_fecha")
+                local_now_chk = get_local_datetime_ecuador().date()
+                fecha_val = st.date_input("Fecha:", local_now_chk, key="sel_fecha")
             with cfg_c4:
                 hora_inicio_val = st.time_input("Hora Inicio:", datetime.time(7, 0), key="sel_hora_inicio")
             with cfg_c5:
@@ -1635,7 +1684,6 @@ with tab_chk:
                 if item_key not in st.session_state.chk_obs_counts:
                     st.session_state.chk_obs_counts[item_key] = 1
 
-                # Cabecera azul oscuro con texto blanco visible y línea divisoria
                 st.markdown(
                     f"""
                     <div class="banner-item-header">
@@ -1645,7 +1693,6 @@ with tab_chk:
                     unsafe_allow_html=True
                 )
 
-                # Cuerpo compacto con foto a la derecha y sin fondos blancos gigantes
                 st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                 c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
 
@@ -2076,7 +2123,8 @@ with tab_didactico:
     
     col_f_out, _ = st.columns([1, 2])
     with col_f_out:
-        did_fecha_fuera = st.date_input("Fecha de Inspección:", datetime.date.today(), key="did_fecha_live")
+        local_today_insp = get_local_datetime_ecuador().date()
+        did_fecha_fuera = st.date_input("Fecha de Inspección:", local_today_insp, key="did_fecha_live")
     
     dia_auto_es = dias_es[did_fecha_fuera.weekday()]
 
@@ -2435,7 +2483,8 @@ with tab_incidencias:
 
             with c_i2:
                 prio_nueva = st.segmented_control("Prioridad:*", ["Alta", "Media", "Baja"], default="Media", key="f_inc_prio")
-                f_comp_nueva = st.date_input("Fecha Compromiso:*", datetime.date.today() + datetime.timedelta(days=3), key="f_inc_fcomp")
+                local_f_comp = get_local_datetime_ecuador().date() + datetime.timedelta(days=3)
+                f_comp_nueva = st.date_input("Fecha Compromiso:*", local_f_comp, key="f_inc_fcomp")
                 est_nuevo = st.segmented_control("Estado Inicial:*", ["Abierta", "Cerrada"], default="Abierta", key="f_inc_est")
 
             desc_nueva = st.text_area("Descripción de la Incidencia / No Conformidad:*", placeholder="Describa a detalle el problema o trabajo por corregir...", key="f_inc_desc")
@@ -2565,13 +2614,14 @@ with tab_incidencias:
         st.markdown("<br>", unsafe_allow_html=True)
         c_exp1, c_exp2 = st.columns(2)
         nombre_proy_rep = proy_inc_sel if proy_inc_sel != "-- Todos los Proyectos --" else "Alpha_Builders_General"
+        local_today_str = get_local_datetime_ecuador().strftime('%Y%m%d')
         
         with c_exp1:
             excel_inc_bytes = export_incidencias_to_excel(lista_incs, nombre_proy_rep)
             st.download_button(
                 label="📊 Descargar Incidencias en Excel (.xlsx)",
                 data=excel_inc_bytes,
-                file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{datetime.date.today().strftime('%Y%m%d')}.xlsx",
+                file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="dl_excel_incidencias_tab",
                 use_container_width=True
@@ -2581,7 +2631,7 @@ with tab_incidencias:
             st.download_button(
                 label="📄 Descargar Incidencias en PDF (.pdf)",
                 data=pdf_inc_bytes,
-                file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{datetime.date.today().strftime('%Y%m%d')}.pdf",
+                file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.pdf",
                 mime="application/pdf",
                 key="dl_pdf_incidencias_tab",
                 use_container_width=True
@@ -2642,12 +2692,13 @@ with tab_rend:
             rend_real = round(horas_acumuladas / avance_cant, 3)
             rend_teorico = RENDIMIENTOS_TEORICOS.get(rubro_sel, 1.0)
             estado_diag = "EFICIENTE" if rend_real <= rend_teorico else "EXCESO DE HH"
+            local_fecha_r = get_local_datetime_ecuador().strftime("%Y-%m-%d")
 
             try:
                 supabase.table("rendimientos").insert({
                     "usuario_email": user_email,
                     "cargo_obrero": cargo_actual,
-                    "fecha": datetime.date.today().strftime("%Y-%m-%d"),
+                    "fecha": local_fecha_r,
                     "trabajador": trabajador_sel,
                     "rubro": rubro_sel,
                     "horas_hh": horas_acumuladas,
@@ -2873,7 +2924,7 @@ if es_admin:
             st.download_button(
                 label="📥 Descargar Todas las Incidencias (CSV)",
                 data=csv_inc_admin_bytes,
-                file_name=f"Incidencias_Globales_{datetime.date.today().strftime('%Y%m%d')}.csv",
+                file_name=f"Incidencias_Globales_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
                 key="dl_csv_inc_admin_all",
                 use_container_width=True
@@ -2904,7 +2955,7 @@ if es_admin:
             st.download_button(
                 label="📥 Descargar Todos los Rendimientos (Excel CSV)",
                 data=csv_rend_admin_bytes,
-                file_name=f"Rendimientos_Globales_{datetime.date.today().strftime('%Y%m%d')}.csv",
+                file_name=f"Rendimientos_Globales_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
                 use_container_width=True
             )
@@ -3001,7 +3052,7 @@ if es_admin:
         st.download_button(
             label="📥 Descargar Reporte de Usuarios (Excel CSV)",
             data=csv_admin_bytes,
-            file_name=f"Reporte_Usuarios_AlphaBuilders_{datetime.date.today().strftime('%Y%m%d')}.csv",
+            file_name=f"Reporte_Usuarios_AlphaBuilders_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
             mime="text/csv",
             use_container_width=True
         )
