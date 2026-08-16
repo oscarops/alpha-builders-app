@@ -21,7 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES COMPACTOS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES
 # ==============================================================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -145,7 +145,7 @@ st.markdown(
     [data-testid="stSidebar"] hr { margin: 4px 0 !important; border-color: #1f2937 !important; }
 
     /* =========================================================================
-       GLASSMORPHISM WIDGET CONTAINER & CARDS (COMPACTO)
+       GLASSMORPHISM WIDGET CONTAINER & CARDS
        ========================================================================= */
     .smart-dashboard-container {
         background: radial-gradient(120% 120% at 50% 0%, #1e293b 0%, #0f172a 60%, #090d16 100%);
@@ -196,7 +196,6 @@ st.markdown(
         font-weight: 700;
     }
 
-    /* GRID RESPONSIVO DE WIDGETS */
     .widgets-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
@@ -227,7 +226,6 @@ st.markdown(
         margin-bottom: 4px;
     }
 
-    /* HITOS COMPACTOS */
     .milestone-item {
         display: flex;
         justify-content: space-between;
@@ -257,7 +255,6 @@ st.markdown(
         border-radius: 10px;
     }
 
-    /* GRÁFICO DE DONA */
     .donut-container {
         display: flex;
         align-items: center;
@@ -282,7 +279,6 @@ st.markdown(
         margin-bottom: 2px;
     }
 
-    /* TABS */
     .stTabs [data-baseweb="tab-list"] { 
         gap: 4px; 
         background-color: #e2e8f0 !important; 
@@ -306,7 +302,6 @@ st.markdown(
     }
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    /* CABECERAS DE ÍTEMS EN CHECKLIST */
     .banner-item-header {
         background-color: #0f172a !important;
         border: 1px solid #334155 !important;
@@ -331,14 +326,12 @@ st.markdown(
         margin-bottom: 6px;
     }
 
-    /* RESPONSIVIDAD MÓVIL */
     @media (max-width: 768px) {
         .block-container { padding-top: 3.8rem !important; padding-left: 0.4rem !important; padding-right: 0.4rem !important; }
         .widgets-grid { grid-template-columns: 1fr 1fr; }
         .smart-title { font-size: 0.95rem !important; }
     }
 
-    /* TABLAS ESTÁTICAS */
     .incidencias-table, .supervision-table, .checklist-table {
         width: 100%;
         border-collapse: collapse !important;
@@ -676,10 +669,10 @@ def export_dataframe_to_excel_csv(df):
 def export_checklist_to_excel_file(jornada_dict):
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Checklist Obra"
+    ws.title = "Checklist"
 
     ws.merge_cells("A1:E1")
-    ws["A1"] = f"INSPECCIÓN DE OBRA - {jornada_dict.get('Edificio', '')} ({jornada_dict.get('Fecha', '')})"
+    ws["A1"] = f"CHECKLIST DE OBRA - {jornada_dict.get('Edificio', '')} ({jornada_dict.get('Fecha', '')})"
     ws["A1"].font = Font(name="Arial", bold=True, color="FFFFFF", size=12)
     ws["A1"].fill = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
@@ -736,7 +729,7 @@ def export_checklist_to_excel_file(jornada_dict):
         ws.append([])
         current_r += 1
         ws.merge_cells(f"A{current_r}:E{current_r}")
-        ws[f"A{current_r}"] = "SUPERVISIÓN DE LA EJECUCIÓN DE TRABAJOS (TABLA UNIFICADA)"
+        ws[f"A{current_r}"] = "SUPERVISIÓN DE LA EJECUCIÓN DE TRABAJOS"
         ws[f"A{current_r}"].font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
         ws[f"A{current_r}"].fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
         current_r += 1
@@ -791,7 +784,7 @@ def export_checklist_to_pdf_file(jornada_dict):
     header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.white, alignment=1)
     cell_style = ParagraphStyle('CellStyle', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#121318'))
 
-    story.append(Paragraph(f"CHECKLIST DIARIO DE OBRA — {jornada_dict.get('Edificio', '').upper()}", title_style))
+    story.append(Paragraph(f"CHECKLIST DE OBRA — {jornada_dict.get('Edificio', '').upper()}", title_style))
     story.append(Paragraph(f"<b>Fecha:</b> {jornada_dict.get('Fecha', '')} | <b>Horario:</b> {jornada_dict.get('Hora_Inicio', '')} - {jornada_dict.get('Hora_Fin', '')} | <b>Responsable:</b> {jornada_dict.get('Responsable', '')}", sub_style))
 
     datos_raw = jornada_dict.get("Datos", [])
@@ -867,7 +860,7 @@ def export_checklist_to_pdf_file(jornada_dict):
 def export_inspeccion_to_excel_file(insp_dict):
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Inspección Diaria"
+    ws.title = "Libro de Obra"
 
     thin_border = Border(
         left=Side(style='thin', color='CBD5E1'), 
@@ -882,7 +875,6 @@ def export_inspeccion_to_excel_file(insp_dict):
     )
     
     fill_main_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
-    fill_sub_header = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
     fill_category_bar = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
     
     font_main_title = Font(name="Arial", bold=True, color="FFFFFF", size=12)
@@ -892,7 +884,7 @@ def export_inspeccion_to_excel_file(insp_dict):
     font_regular = Font(name="Arial", size=9)
 
     ws.merge_cells("A1:C1")
-    ws["A1"] = f"FORMATO DE INSPECCIÓN DIARIA - {insp_dict.get('Proyecto', '').upper()}"
+    ws["A1"] = f"LIBRO DE OBRA - {insp_dict.get('Proyecto', '').upper()}"
     ws["A1"].font = font_main_title
     ws["A1"].fill = fill_main_header
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
@@ -911,36 +903,7 @@ def export_inspeccion_to_excel_file(insp_dict):
         ws.cell(row=r_idx, column=2).font = font_regular
         ws.cell(row=r_idx, column=3).font = font_regular
 
-    ws.append([])
     datos = insp_dict.get("Datos", {})
-
-    r_av_head = ws.max_row + 1
-    ws.merge_cells(f"A{r_av_head}:C{r_av_head}")
-    ws[f"A{r_av_head}"] = "1. AVANCE GENERAL"
-    ws[f"A{r_av_head}"].font = font_category_title
-    ws[f"A{r_av_head}"].fill = fill_category_bar
-    ws[f"A{r_av_head}"].alignment = Alignment(vertical="center", indent=1)
-    ws.row_dimensions[r_av_head].height = 22
-
-    ws.append(["Actividad", "% Prog / % Ejec", "Estado"])
-    r_hdr1 = ws.max_row
-    for col_i in range(1, 4):
-        c = ws.cell(row=r_hdr1, column=col_i)
-        c.font = font_tbl_header
-        c.fill = fill_sub_header
-        c.alignment = Alignment(horizontal="center", vertical="center")
-
-    for av in datos.get("Avance", []):
-        prog_ejec_str = f"Prog: {av.get('% Prog', 0)}% | Ejec: {av.get('% Ejec', 0)}%"
-        ws.append([av.get("Actividad", ""), prog_ejec_str, av.get("Estado", "") or "N/A"])
-        r_i = ws.max_row
-        for col_i in range(1, 4):
-            cell = ws.cell(row=r_i, column=col_i)
-            cell.font = font_regular
-            cell.border = thin_border
-            if col_i in [2, 3]:
-                cell.alignment = Alignment(horizontal="center", vertical="center")
-
     checklist_groups = datos.get("Checklist", {})
 
     for sec_name, items in checklist_groups.items():
@@ -1010,7 +973,7 @@ def export_inspeccion_to_pdf_file(insp_dict):
     header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=1)
     cell_style = ParagraphStyle('CellStyle', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'))
 
-    story.append(Paragraph(f"FORMATO DE INSPECCIÓN DIARIA DE OBRA", title_style))
+    story.append(Paragraph(f"LIBRO DE OBRA", title_style))
     
     meta_text = f"<b>Proyecto:</b> {insp_dict.get('Proyecto', '')} | <b>Fecha:</b> {insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})<br/>" \
                 f"<b>Residente:</b> {insp_dict.get('Residente', '')} | <b>Frente:</b> {insp_dict.get('Frente', '')}<br/>" \
@@ -1020,33 +983,6 @@ def export_inspeccion_to_pdf_file(insp_dict):
     story.append(Spacer(1, 6))
 
     datos = insp_dict.get("Datos", {})
-
-    story.append(Paragraph("1. AVANCE GENERAL", sub_title))
-    av_data = [[
-        Paragraph("<b>Actividad</b>", header_style),
-        Paragraph("<b>% Prog</b>", header_style),
-        Paragraph("<b>% Ejec</b>", header_style),
-        Paragraph("<b>Estado</b>", header_style)
-    ]]
-    for av in datos.get("Avance", []):
-        av_data.append([
-            Paragraph(av.get("Actividad", ""), cell_style),
-            Paragraph(str(av.get("% Prog", 0)), cell_style),
-            Paragraph(str(av.get("% Ejec", 0)), cell_style),
-            Paragraph(str(av.get("Estado", "") or "N/A"), cell_style)
-        ])
-    t_av = Table(av_data, colWidths=[190, 75, 75, 210])
-    t_av.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-    ]))
-    story.append(t_av)
-
-    story.append(Spacer(1, 6))
-    story.append(Paragraph("2. CHECK LIST Y CONTROL GENERAL DE OBRA", sub_title))
-
     checklist_groups = datos.get("Checklist", {})
 
     for sec_name, items in checklist_groups.items():
@@ -1508,7 +1444,7 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM UI (HITOS, DONA RENDIMIENTO, INCIDENCIAS)
+# 8. SMART DASHBOARD GLASSMORPHISM UI (HITOS DIARIOS, DONA RENDIMIENTO, INCIDENCIAS)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
@@ -1572,7 +1508,7 @@ dashboard_html = (
     '<div class="widget-glass-card">'
     '<div class="w-card-title"><span>🎯 Hitos Diarios</span><span>Hoy</span></div>'
     f'<div class="milestone-item"><span class="milestone-name">Checklist</span>{tag_chk_html}</div>'
-    f'<div class="milestone-item"><span class="milestone-name">Inspección</span>{tag_insp_html}</div>'
+    f'<div class="milestone-item"><span class="milestone-name">Libro de Obra</span>{tag_insp_html}</div>'
     '</div>'
     '<div class="widget-glass-card">'
     '<div class="w-card-title"><span>⚡ Rendimiento</span><span>Promedio</span></div>'
@@ -1593,93 +1529,20 @@ dashboard_html = (
     '<div class="widget-glass-card">'
     '<div class="w-card-title"><span>👷 Obreros</span><span>Activos</span></div>'
     f'<div class="stat-hero-number" style="color: #60a5fa !important;">{total_obreros_count}</div>'
-    '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">Personal en plantilla</div>'
+    '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">Personal en planilla</div>'
     '</div>'
     '</div>'
     '</div>'
 )
 
 st.markdown(dashboard_html, unsafe_allow_html=True)
-
-# Acceso rápido para administrar plantilla de obreros
-with st.expander("👷 Administrar Plantilla de Obreros Activos", expanded=False):
-    st.caption("Agregue trabajadores individualmente, cárguelos masivamente o elimine registros de la cuadrilla.")
-    with st.form("form_add_obrero_popover"):
-        c_ob1, c_ob2 = st.columns(2)
-        with c_ob1:
-            nom_obrero = st.text_input("Nombre completo:")
-        with c_ob2:
-            car_obrero = st.text_input("Cargo en obra (Ej. Albañil, Ayudante):")
-        btn_sub_obrero = st.form_submit_button("➕ Guardar Obrero", type="primary")
-
-        if btn_sub_obrero:
-            if nom_obrero and car_obrero:
-                try:
-                    supabase.table("trabajadores").insert({
-                        "nombre": nom_obrero.strip().upper(),
-                        "cargo": car_obrero.strip().upper()
-                    }).execute()
-                    st.session_state.db_loaded = False
-                    st.success("¡Obrero registrado con éxito!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error al registrar obrero: {e}")
-            else:
-                st.error("Complete todos los campos.")
-
-    c_imp1, c_imp2 = st.columns([2, 1])
-    with c_imp1:
-        archivo_excel_obreros = st.file_uploader("📂 Importar archivo masivo (.xlsx / .csv):", type=["xlsx", "csv"], key="upl_obreros_pop")
-        if archivo_excel_obreros is not None:
-            try:
-                if archivo_excel_obreros.name.endswith(".csv"):
-                    df_subido = pd.read_csv(archivo_excel_obreros)
-                else:
-                    df_subido = pd.read_excel(archivo_excel_obreros)
-                
-                if len(df_subido.columns) >= 2:
-                    if st.button("Confirmar Importación Masiva", type="primary"):
-                        registrados = 0
-                        for _, row in df_subido.iterrows():
-                            n_nom = str(row.iloc[0]).strip().upper()
-                            n_car = str(row.iloc[1]).strip().upper()
-                            if n_nom and n_nom != "NAN":
-                                try:
-                                    supabase.table("trabajadores").insert({
-                                        "nombre": n_nom,
-                                        "cargo": n_car
-                                    }).execute()
-                                    registrados += 1
-                                except Exception:
-                                    pass
-                        st.session_state.db_loaded = False
-                        st.success(f"¡{registrados} obreros importados exitosamente!")
-                        st.rerun()
-                else:
-                    st.error("El archivo debe tener al menos dos columnas (Nombre y Cargo).")
-            except Exception as e:
-                st.error(f"Error procesando el archivo: {e}")
-
-    with c_imp2:
-        obreros_lista = [t["nombre"] for t in st.session_state.db_trabajadores]
-        if len(obreros_lista) > 0:
-            obrero_a_borrar = st.selectbox("Seleccione obrero a eliminar:", obreros_lista, key="del_obs_sel")
-            if st.button("🗑️ Eliminar Obrero", type="secondary", use_container_width=True):
-                try:
-                    supabase.table("trabajadores").delete().eq("nombre", obrero_a_borrar).execute()
-                    st.session_state.db_loaded = False
-                    st.success(f"Obrero {obrero_a_borrar} eliminado.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error al eliminar obrero: {e}")
-        else:
-            st.info("No hay obreros registrados.")
-
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
+# Pestañas reorganizadas con nuevos nombres y pestaña dedicada a Plantilla de Obreros
 pestanas = [
-    "Checklist Diario", 
-    "Inspección Diaria", 
+    "Checklist", 
+    "Libro de Obra", 
+    "Plantilla de Obreros",
     "Levantamiento de Incidencias", 
     "Control de Rendimiento"
 ]
@@ -1688,12 +1551,13 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# 9. MÓDULO 1: CHECKLIST DIARIO (CUADROS COMPACTOS, LÍNEA BLANCA, FOTO A LA DERECHA)
+# 9. MÓDULO 1: CHECKLIST
 # ==============================================================================
 tab_chk = tabs_app[0]
-tab_didactico = tabs_app[1]
-tab_incidencias = tabs_app[2]
-tab_rend = tabs_app[3]
+tab_libro = tabs_app[1]
+tab_obreros = tabs_app[2]
+tab_incidencias = tabs_app[3]
+tab_rend = tabs_app[4]
 
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -1709,7 +1573,7 @@ with tab_chk:
     if "chk_obs_counts" not in st.session_state:
         st.session_state.chk_obs_counts = {}
 
-    st.markdown("### Check List Diario – Control de Obra")
+    st.markdown("### Checklist – Control de Obra")
     st.caption("Supervisión técnica diaria con formato ultra-compacto, alta visibilidad, foto a la derecha y sin opción N/A.")
 
     if not st.session_state.creando_jornada:
@@ -1992,7 +1856,7 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # Botón Guardar Jornada Completa
-            if st.button("💾 Guardar Jornada de Inspección", type="primary", use_container_width=True):
+            if st.button("💾 Guardar Checklist de Obra", type="primary", use_container_width=True):
                 if edificio_val == "-- Seleccione --" or not edificio_val:
                     st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
                 else:
@@ -2022,7 +1886,7 @@ with tab_chk:
                             }).execute()
 
                             st.session_state.db_loaded = False
-                            st.success(f"¡Jornada guardada permanentemente para **{edificio_val}**!")
+                            st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
                             st.session_state.creando_jornada = False
                             st.session_state.filas_supervision = [
                                 {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
@@ -2169,32 +2033,32 @@ with tab_chk:
         st.info("Aún no hay checklists guardados.")
 
 # ==============================================================================
-# 10. MÓDULO 2: INSPECCIÓN DIARIA
+# 10. MÓDULO 2: LIBRO DE OBRA (SIN AVANCE GENERAL)
 # ==============================================================================
-with tab_didactico:
-    st.markdown("### Formato de Inspección Diaria de Obra")
-    st.caption("Supervisión técnica paso a paso con tabuladores y registro permanente.")
+with tab_libro:
+    st.markdown("### Libro de Obra")
+    st.caption("Supervisión técnica de rubros, control de personal, materiales y equipos.")
 
     dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     
     col_f_out, _ = st.columns([1, 2])
     with col_f_out:
         local_today_insp = get_local_datetime_ecuador().date()
-        did_fecha_fuera = st.date_input("Fecha de Inspección:", local_today_insp, key="did_fecha_live")
+        did_fecha_fuera = st.date_input("Fecha de Registro en Libro de Obra:", local_today_insp, key="did_fecha_live")
     
     dia_auto_es = dias_es[did_fecha_fuera.weekday()]
 
-    with st.form("form_didactico_1_6"):
+    with st.form("form_libro_obra_clean"):
         st.markdown("#### 1. Información General")
         c1, c2 = st.columns(2)
         with c1:
-            did_proyecto = st.selectbox("Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="did_proy")
+            did_proyecto = st.selectbox("Proyecto / Edificio:*", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="did_proy")
             did_dia = st.text_input("Día:", value=dia_auto_es, disabled=True)
             did_residente = st.text_input("Residente de Obra:", value=user_nombre_completo, key="did_res")
 
         with c2:
-            did_frente = st.text_input("Frente Inspeccionado:", placeholder="Ej. Bloque A - Piso 3", key="did_fre")
-            did_clima = st.selectbox("Clima:", ["Soleado", "Nublado", "Lluvia"], index=None, placeholder="Seleccionar clima...", key="did_cli_single")
+            did_frente = st.text_input("Frente Inspeccionado:*", placeholder="Ej. Bloque A - Piso 3", key="did_fre")
+            did_clima = st.selectbox("Clima:*", ["Soleado", "Nublado", "Lluvia"], index=None, placeholder="Seleccionar clima...", key="did_cli_single")
             c_h1, c_h2 = st.columns(2)
             with c_h1:
                 did_h_ini = st.time_input("Hora inicio:", datetime.time(7, 0), key="did_hini")
@@ -2203,32 +2067,8 @@ with tab_didactico:
 
         st.markdown("---")
 
-        # 2. AVANCE GENERAL
-        st.markdown("#### 2. Avance General")
-        sub_actividades_pdf = ["Movimiento de tierras", "Estructura", "Mampostería", "Enlucidos", "Instalaciones", "Acabados"]
-        avance_datos = []
-        for act in sub_actividades_pdf:
-            col_a1, col_a2, col_a3, col_a4 = st.columns([3, 2, 2, 2])
-            with col_a1:
-                st.write(f"**{act}**")
-            with col_a2:
-                p_prog = st.number_input(f"% Prog. ({act})", min_value=0.0, max_value=100.0, step=1.0, key=f"prog_{act}")
-            with col_a3:
-                p_ejec = st.number_input(f"% Ejec. ({act})", min_value=0.0, max_value=100.0, step=1.0, key=f"ejec_{act}")
-            with col_a4:
-                est_act = st.selectbox(
-                    f"Estado ({act})", 
-                    ["En Proceso", "Completado", "Retrasado", "N/A"], 
-                    index=None, 
-                    placeholder="Seleccionar...", 
-                    key=f"est_{act}"
-                )
-            avance_datos.append({"Actividad": act, "% Prog": p_prog, "% Ejec": p_ejec, "Estado": est_act})
-
-        st.markdown("---")
-
-        # 3. CHECK LIST GENERAL
-        st.markdown("#### 3. Check List General")
+        # 2. CHECK LIST Y CONTROL GENERAL DE OBRA
+        st.markdown("#### 2. Check List y Control General de Obra")
         
         tab_sec1, tab_sec2, tab_sec3, tab_sec4, tab_sec5 = st.tabs([
             "🛡️ Seguridad Industrial", "🧱 Mampostería", "🏗️ Hormigón", "🔌 Instalaciones", "🎨 Acabados"
@@ -2301,8 +2141,8 @@ with tab_didactico:
 
         st.markdown("---")
 
-        # 4. CONTROL DE PERSONAL
-        st.markdown("#### 4. Control de Personal")
+        # 3. CONTROL DE PERSONAL
+        st.markdown("#### 3. Control de Personal")
         sec_pers = ["Personal completo", "Contratistas completos", "Rendimiento adecuado", "Retrasos"]
         pers_resp = []
         for item in sec_pers:
@@ -2317,8 +2157,8 @@ with tab_didactico:
 
         st.markdown("---")
 
-        # 5. MATERIALES
-        st.markdown("#### 5. Materiales")
+        # 4. MATERIALES
+        st.markdown("#### 4. Materiales")
         sec_mat = ["Material suficiente", "Material conforme", "Material almacenado correctamente", "Material deteriorado"]
         mat_resp = []
         for item in sec_mat:
@@ -2333,8 +2173,8 @@ with tab_didactico:
 
         st.markdown("---")
 
-        # 6. EQUIPOS
-        st.markdown("#### 6. Equipos")
+        # 5. EQUIPOS
+        st.markdown("#### 5. Equipos")
         sec_eq = ["Mezcladora", "Vibrador", "Cortadora", "Compresor", "Herramienta eléctrica"]
         eq_resp = []
         for item in sec_eq:
@@ -2347,16 +2187,18 @@ with tab_didactico:
                 obs_val = st.text_input(f"Obs_eq_{item}", placeholder="Observación...", key=f"eq_obs_{item}", label_visibility="collapsed")
             eq_resp.append({"Equipo": item, "Estado": st_val, "Observación": obs_val})
 
-        btn_guardar_did = st.form_submit_button("💾 Guardar Formato de Inspección", type="primary")
+        btn_guardar_did = st.form_submit_button("💾 Guardar Registro en Libro de Obra", type="primary")
 
         if btn_guardar_did:
             if did_proyecto == "-- Seleccione --":
                 st.error("⚠️ Por favor seleccione un Proyecto.")
             elif not did_clima:
                 st.error("⚠️ Por favor seleccione las condiciones del clima.")
+            elif not did_frente.strip():
+                st.error("⚠️ Por favor ingrese el frente inspeccionado.")
             else:
                 payload_insp = {
-                    "Avance": avance_datos,
+                    "Avance": [],
                     "Checklist": {
                         "Seguridad Industrial": seg_resp,
                         "Mampostería": mamp_resp,
@@ -2375,7 +2217,7 @@ with tab_didactico:
                         "fecha": did_fecha_fuera.strftime("%Y-%m-%d"),
                         "dia": dia_auto_es,
                         "residente": did_residente,
-                        "frente": did_frente,
+                        "frente": did_frente.strip(),
                         "clima": did_clima,
                         "hora_inicio": did_h_ini.strftime("%H:%M"),
                         "hora_fin": did_h_fin.strftime("%H:%M"),
@@ -2383,15 +2225,15 @@ with tab_didactico:
                     }).execute()
 
                     st.session_state.db_loaded = False
-                    st.success(f"¡Formato de inspección registrado y guardado permanentemente para **{did_proyecto}**!")
+                    st.success(f"¡Registro en Libro de Obra guardado exitosamente para **{did_proyecto}**!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error al guardar inspección: {e}")
+                    st.error(f"Error al guardar registro: {e}")
 
     st.markdown("---")
 
-    # HISTORIAL GENERAL DE FORMATOS DE INSPECCIÓN DIARIA (CON EDICIÓN Y ELIMINACIÓN)
-    st.markdown("### Historial General de Formatos de Inspección Creados")
+    # HISTORIAL GENERAL DE LIBRO DE OBRA (CON EDICIÓN Y ELIMINACIÓN)
+    st.markdown("### Historial de Libro de Obra")
 
     mis_inspecciones = st.session_state.db_inspecciones.get(user_email, [])
 
@@ -2402,7 +2244,7 @@ with tab_didactico:
 
         insps_filtradas = [i for i in mis_inspecciones if i.get("Proyecto") == edif_insp_filtro] if edif_insp_filtro != "-- Todos los Proyectos --" else mis_inspecciones.copy()
 
-        st.caption(f"Mostrando **{len(insps_filtradas)}** de **{len(mis_inspecciones)}** inspección(es) registradas.")
+        st.caption(f"Mostrando **{len(insps_filtradas)}** de **{len(mis_inspecciones)}** registro(s) en Libro de Obra.")
 
         if len(insps_filtradas) > 0:
             insps_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
@@ -2411,11 +2253,11 @@ with tab_didactico:
                 col_i_info, col_i_del = st.columns([8, 1])
 
                 with col_i_del:
-                    if st.button("🗑️", key=f"del_insp_{idx_insp}", help="Borrar inspección permanentemente"):
+                    if st.button("🗑️", key=f"del_insp_{idx_insp}", help="Borrar registro permanentemente"):
                         try:
                             supabase.table("inspecciones").delete().eq("id", insp["db_id"]).execute()
                             st.session_state.db_loaded = False
-                            st.success("¡Inspección eliminada!")
+                            st.success("¡Registro eliminado!")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al eliminar: {e}")
@@ -2424,54 +2266,29 @@ with tab_didactico:
                     with st.expander(f"📌 {insp['Proyecto']} — {insp['Fecha']} ({insp['Dia']}) | Frente: {insp.get('Frente', 'N/A')}"):
                         st.markdown(f"**Residente:** {insp.get('Residente', '')} | **Clima:** {insp.get('Clima', '')}")
                         st.markdown(f"**Horario:** {insp.get('Hora_Inicio', '')} - {insp.get('Hora_Fin', '')}")
-                        
-                        st.markdown("##### Avance General de Actividades:")
-                        df_av = pd.DataFrame(insp.get("Datos", {}).get("Avance", []))
-                        if not df_av.empty:
-                            st.dataframe(df_av, use_container_width=True)
 
-                        with st.popover("✏️ Editar Inspección"):
-                            st.markdown(f"#### Modificar Inspección — {insp['Proyecto']} ({insp['Fecha']})")
+                        with st.popover("✏️ Editar Libro de Obra"):
+                            st.markdown(f"#### Modificar Registro — {insp['Proyecto']} ({insp['Fecha']})")
                             with st.form(f"form_edit_insp_{insp['db_id']}"):
                                 e_frente = st.text_input("Frente Inspeccionado:", value=insp.get("Frente", ""))
                                 e_clima = st.selectbox("Clima:", ["Soleado", "Nublado", "Lluvia"], index=["Soleado", "Nublado", "Lluvia"].index(insp.get("Clima", "Soleado")) if insp.get("Clima") in ["Soleado", "Nublado", "Lluvia"] else 0)
                                 e_residente = st.text_input("Residente:", value=insp.get("Residente", ""))
 
-                                st.markdown("##### Actualizar Avance General")
-                                e_avance_datos = []
-                                current_avance = insp.get("Datos", {}).get("Avance", [])
-                                for item_av in current_avance:
-                                    c_e1, c_e2, c_e3, c_e4 = st.columns([3, 2, 2, 2])
-                                    act_n = item_av.get("Actividad", "")
-                                    with c_e1:
-                                        st.write(f"**{act_n}**")
-                                    with c_e2:
-                                        p_p = st.number_input(f"% Prog ({act_n})", min_value=0.0, max_value=100.0, value=float(item_av.get("% Prog", 0)), key=f"e_prog_{insp['db_id']}_{act_n}")
-                                    with c_e3:
-                                        p_e = st.number_input(f"% Ejec ({act_n})", min_value=0.0, max_value=100.0, value=float(item_av.get("% Ejec", 0)), key=f"e_ejec_{insp['db_id']}_{act_n}")
-                                    with c_e4:
-                                        e_st = st.selectbox(f"Estado ({act_n})", ["En Proceso", "Completado", "Retrasado", "N/A"], index=["En Proceso", "Completado", "Retrasado", "N/A"].index(item_av.get("Estado", "En Proceso")) if item_av.get("Estado") in ["En Proceso", "Completado", "Retrasado", "N/A"] else 0, key=f"e_est_{insp['db_id']}_{act_n}")
-                                    e_avance_datos.append({"Actividad": act_n, "% Prog": p_p, "% Ejec": p_e, "Estado": e_st})
-
-                                btn_save_edit = st.form_submit_button("💾 Guardar Cambios en Inspección", type="primary")
+                                btn_save_edit = st.form_submit_button("💾 Guardar Cambios", type="primary")
 
                                 if btn_save_edit:
-                                    updated_payload = insp.get("Datos", {})
-                                    updated_payload["Avance"] = e_avance_datos
-
                                     try:
                                         supabase.table("inspecciones").update({
                                             "frente": e_frente,
                                             "clima": e_clima,
-                                            "residente": e_residente,
-                                            "datos": updated_payload
+                                            "residente": e_residente
                                         }).eq("id", insp["db_id"]).execute()
 
                                         st.session_state.db_loaded = False
-                                        st.success("¡Inspección actualizada correctamente!")
+                                        st.success("¡Registro actualizado correctamente!")
                                         st.rerun()
                                     except Exception as err:
-                                        st.error(f"Error al actualizar inspección: {err}")
+                                        st.error(f"Error al actualizar: {err}")
 
                         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -2481,7 +2298,7 @@ with tab_didactico:
                             st.download_button(
                                 label="📊 Descargar Excel (.xlsx)",
                                 data=excel_insp_bytes,
-                                file_name=f"Inspeccion_{insp['Proyecto'].replace(' ', '_')}_{insp['Fecha']}.xlsx",
+                                file_name=f"Libro_Obra_{insp['Proyecto'].replace(' ', '_')}_{insp['Fecha']}.xlsx",
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                 key=f"dl_insp_xlsx_{idx_insp}"
                             )
@@ -2490,16 +2307,125 @@ with tab_didactico:
                             st.download_button(
                                 label="📄 Descargar PDF (.pdf)",
                                 data=pdf_insp_bytes,
-                                file_name=f"Inspeccion_{insp['Proyecto'].replace(' ', '_')}_{insp['Fecha']}.pdf",
+                                file_name=f"Libro_Obra_{insp['Proyecto'].replace(' ', '_')}_{insp['Fecha']}.pdf",
                                 mime="application/pdf",
                                 key=f"dl_insp_pdf_{idx_insp}"
                             )
         else:
-            st.warning("No hay formatos de inspección para el proyecto seleccionado.")
+            st.warning("No hay registros en Libro de Obra para el proyecto seleccionado.")
     else:
-        st.info("Aún no hay formatos de inspección guardados.")
+        st.info("Aún no hay registros guardados en Libro de Obra.")
 # ==============================================================================
-# 11. MÓDULO 3: LEVANTAMIENTO DE INCIDENCIAS
+# 11. MÓDULO 3: PLANTILLA DE OBREROS (PESTAÑA DEDICADA)
+# ==============================================================================
+with tab_obreros:
+    st.markdown("### Plantilla de Obreros Activos")
+    st.caption("Administración de personal en obra, asignación de cargos, importación masiva y control de cuadrilla.")
+
+    # Registro individual de obrero
+    st.markdown("#### ➕ Registrar Obrero Individual")
+    with st.form("form_add_obrero_tab"):
+        c_ob1, c_ob2 = st.columns(2)
+        with c_ob1:
+            nom_obrero = st.text_input("Nombre Completo del Trabajador:*", placeholder="Ej. Juan Carlos Pérez")
+        with c_ob2:
+            car_obrero = st.text_input("Cargo / Especialidad en Obra:*", placeholder="Ej. Albañil, Fierrero, Ayudante")
+        btn_sub_obrero = st.form_submit_button("💾 Guardar Obrero", type="primary")
+
+        if btn_sub_obrero:
+            if nom_obrero.strip() and car_obrero.strip():
+                try:
+                    supabase.table("trabajadores").insert({
+                        "nombre": nom_obrero.strip().upper(),
+                        "cargo": car_obrero.strip().upper()
+                    }).execute()
+                    st.session_state.db_loaded = False
+                    st.success("¡Obrero registrado exitosamente en la cuadrilla!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al registrar obrero: {e}")
+            else:
+                st.error("⚠️ Por favor complete todos los campos obligatorios.")
+
+    st.markdown("---")
+
+    # Importación masiva y eliminación
+    col_imp_m, col_del_m = st.columns([1.5, 1])
+
+    with col_imp_m:
+        st.markdown("#### 📂 Importación Masiva (.xlsx / .csv)")
+        st.caption("El archivo debe contener al menos 2 columnas: Nombre y Cargo.")
+        archivo_excel_obreros = st.file_uploader("Subir archivo de nómina:", type=["xlsx", "csv"], key="upl_obreros_tab_page")
+        if archivo_excel_obreros is not None:
+            try:
+                if archivo_excel_obreros.name.endswith(".csv"):
+                    df_subido = pd.read_csv(archivo_excel_obreros)
+                else:
+                    df_subido = pd.read_excel(archivo_excel_obreros)
+                
+                if len(df_subido.columns) >= 2:
+                    if st.button("Confirmar Importación Masiva", type="primary"):
+                        registrados = 0
+                        for _, row in df_subido.iterrows():
+                            n_nom = str(row.iloc[0]).strip().upper()
+                            n_car = str(row.iloc[1]).strip().upper()
+                            if n_nom and n_nom != "NAN":
+                                try:
+                                    supabase.table("trabajadores").insert({
+                                        "nombre": n_nom,
+                                        "cargo": n_car
+                                    }).execute()
+                                    registrados += 1
+                                except Exception:
+                                    pass
+                        st.session_state.db_loaded = False
+                        st.success(f"¡{registrados} obreros importados exitosamente!")
+                        st.rerun()
+                else:
+                    st.error("El archivo debe tener al menos dos columnas (Nombre y Cargo).")
+            except Exception as e:
+                st.error(f"Error procesando el archivo: {e}")
+
+    with col_del_m:
+        st.markdown("#### 🗑️ Eliminar Obrero")
+        obreros_lista = [t["nombre"] for t in st.session_state.db_trabajadores]
+        if len(obreros_lista) > 0:
+            obrero_a_borrar = st.selectbox("Seleccione obrero a remover:", obreros_lista, key="del_obs_sel_tab")
+            if st.button("Remover Obrero de la Cuadrilla", type="secondary", use_container_width=True):
+                try:
+                    supabase.table("trabajadores").delete().eq("nombre", obrero_a_borrar).execute()
+                    st.session_state.db_loaded = False
+                    st.success(f"Obrero {obrero_a_borrar} removido correctamente.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al remover obrero: {e}")
+        else:
+            st.info("No hay obreros en la lista.")
+
+    st.markdown("---")
+
+    # Tabla de obreros activos
+    st.markdown(f"#### Nómina de Cuadrilla Activa ({len(st.session_state.db_trabajadores)} trabajadores)")
+    if len(st.session_state.db_trabajadores) > 0:
+        df_trab_display = pd.DataFrame(st.session_state.db_trabajadores)
+        df_trab_display.columns = ["Nombre Completo", "Cargo / Especialidad"]
+        df_trab_display.index = range(1, len(df_trab_display) + 1)
+        st.dataframe(df_trab_display, use_container_width=True)
+
+        csv_obreros_bytes = export_dataframe_to_excel_csv(df_trab_display)
+        st.download_button(
+            label="📥 Descargar Nómina de Obreros en CSV (Excel)",
+            data=csv_obreros_bytes,
+            file_name=f"Plantilla_Obreros_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            key="dl_csv_nomina_obreros",
+            use_container_width=True
+        )
+    else:
+        st.info("No existen obreros activos registrados en la plataforma.")
+
+# ==============================================================================
+# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS
 # ==============================================================================
 with tab_incidencias:
     st.markdown("### Levantamiento de Incidencias")
@@ -2696,7 +2622,7 @@ with tab_incidencias:
         st.info("No se encontraron incidencias registradas con los filtros seleccionados.")
 
 # ==============================================================================
-# 12. MÓDULO 4: CONTROL DE RENDIMIENTO
+# 13. MÓDULO 5: CONTROL DE RENDIMIENTO
 # ==============================================================================
 with tab_rend:
     st.markdown("### Control de Rendimiento por Trabajador")
@@ -2712,7 +2638,7 @@ with tab_rend:
         else:
             trabajador_sel = None
             cargo_actual = "OBRERO"
-            st.warning("No hay obreros registrados. Agregue obreros en la plantilla superior.")
+            st.warning("No hay obreros registrados. Agregue obreros en la pestaña 'Plantilla de Obreros'.")
 
     with col2:
         rubros_opciones = ["Enlucidos", "Fijos", "Fajas", "Dinteles"]
@@ -2794,10 +2720,10 @@ with tab_rend:
         st.info("Aún no existen registros en su historial.")
 
 # ==============================================================================
-# 13. MÓDULO 5: PANEL DE CONTROL ADMINISTRADOR
+# 14. MÓDULO 6: PANEL DE CONTROL ADMINISTRADOR
 # ==============================================================================
 if es_admin:
-    tab_admin = tabs_app[4]
+    tab_admin = tabs_app[5]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
         st.caption("Módulo exclusivo para supervisar inspecciones, checklists, incidencias, rendimientos, usuarios y configuración.")
@@ -2917,7 +2843,7 @@ if es_admin:
 
         st.markdown("---")
 
-        st.markdown("#### 📑 Formatos de Inspección Subidos por Todos los Participantes")
+        st.markdown("#### 📑 Registros de Libro de Obra Subidos por Todos los Participantes")
         todas_las_inspecciones_admin = []
         for u_mail, i_lista in st.session_state.db_inspecciones.items():
             for i_item in i_lista:
@@ -2928,10 +2854,10 @@ if es_admin:
         if len(todas_las_inspecciones_admin) > 0:
             col_adm_i1, col_adm_i2 = st.columns(2)
             with col_adm_i1:
-                filtro_edif_insp_adm = st.selectbox("Filtrar inspecciones por edificio:", ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA, key="admin_filter_edif_insp")
+                filtro_edif_insp_adm = st.selectbox("Filtrar por edificio / proyecto:", ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA, key="admin_filter_edif_insp")
             with col_adm_i2:
                 usuarios_lista_insp = ["-- Todos los Usuarios --"] + sorted(list(set([i["Usuario_Correo"] for i in todas_las_inspecciones_admin])))
-                filtro_usr_insp_adm = st.selectbox("Filtrar inspecciones por usuario:", usuarios_lista_insp, key="admin_filter_usr_insp")
+                filtro_usr_insp_adm = st.selectbox("Filtrar por usuario:", usuarios_lista_insp, key="admin_filter_usr_insp")
 
             insps_admin_filtradas = todas_las_inspecciones_admin.copy()
             if filtro_edif_insp_adm != "-- Todos los Edificios --":
@@ -2951,7 +2877,7 @@ if es_admin:
                         st.download_button(
                             label="📊 Descargar Excel (.xlsx)",
                             data=excel_insp_bytes_adm,
-                            file_name=f"Inspeccion_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx",
+                            file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             key=f"dl_insp_xlsx_adm_{idx_i_adm}",
                             use_container_width=True
@@ -2961,13 +2887,13 @@ if es_admin:
                         st.download_button(
                             label="📄 Descargar PDF (.pdf)",
                             data=pdf_insp_bytes_adm,
-                            file_name=f"Inspeccion_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf",
+                            file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf",
                             mime="application/pdf",
                             key=f"dl_insp_pdf_adm_{idx_i_adm}",
                             use_container_width=True
                         )
         else:
-            st.info("Ningún participante ha registrado formatos de inspección aún.")
+            st.info("Ningún participante ha registrado formatos de Libro de Obra aún.")
 
         st.markdown("---")
 
@@ -3093,7 +3019,7 @@ if es_admin:
                 "Correo": e,
                 "Cargo": u["Cargo"],
                 "Checklists": num_c,
-                "Inspecciones": num_i,
+                "Libro de Obra": num_i,
                 "Incidencias": num_inc,
                 "Rendimientos": num_r,
                 "Estado": u["Estado"]
