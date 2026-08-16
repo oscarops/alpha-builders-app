@@ -144,7 +144,9 @@ st.markdown(
 
     [data-testid="stSidebar"] hr { margin: 4px 0 !important; border-color: #1f2937 !important; }
 
-    /* GLASSMORPHISM DASHBOARD */
+    /* =========================================================================
+       GLASSMORPHISM WIDGET CONTAINER & CARDS
+       ========================================================================= */
     .smart-dashboard-container {
         background: radial-gradient(120% 120% at 50% 0%, #1e293b 0%, #0f172a 60%, #090d16 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
@@ -294,7 +296,7 @@ st.markdown(
         margin-bottom: 2px;
     }
 
-    /* PESTAÑAS INDIVIDUALES DELIMITADAS CON BORDES */
+    /* PESTAÑAS DELIMITADAS CON BORDES */
     .stTabs [data-baseweb="tab-list"] { 
         gap: 6px !important; 
         background-color: #e2e8f0 !important; 
@@ -570,7 +572,6 @@ def load_db_from_supabase():
         for r in res_trab.data:
             u_owner = str(r.get("usuario_email", "")).lower().strip()
             if not u_owner:
-                # Si es un registro previo sin dueño, se asigna al admin general
                 u_owner = "oscarsebitas2013@gmail.com"
             if u_owner not in db_trabajadores_por_usuario:
                 db_trabajadores_por_usuario[u_owner] = []
@@ -630,7 +631,6 @@ def load_db_from_supabase():
     except Exception:
         pass
 
-    # Incidencias estructuradas por usuario y globales
     db_incidencias_all = []
     try:
         res_inc = supabase.table("incidencias").select("*").execute()
@@ -688,6 +688,7 @@ def load_db_from_supabase():
         "db_trabajadores_por_usuario": db_trabajadores_por_usuario,
     }
 
+# Inicialización segura
 if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     p_data = load_db_from_supabase()
     st.session_state.access_pin = p_data["access_pin"]
@@ -700,6 +701,20 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     st.session_state.db_rendimientos = p_data["db_rendimientos"]
     st.session_state.db_trabajadores_por_usuario = p_data["db_trabajadores_por_usuario"]
     st.session_state.db_loaded = True
+
+# Fallbacks garantizados contra AttributeError
+if "db_incidencias_all" not in st.session_state:
+    st.session_state.db_incidencias_all = []
+if "db_trabajadores_por_usuario" not in st.session_state:
+    st.session_state.db_trabajadores_por_usuario = {}
+if "db_checklists" not in st.session_state:
+    st.session_state.db_checklists = {}
+if "db_inspecciones" not in st.session_state:
+    st.session_state.db_inspecciones = {}
+if "db_rendimientos" not in st.session_state:
+    st.session_state.db_rendimientos = {}
+if "db_usuarios" not in st.session_state:
+    st.session_state.db_usuarios = []
 
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -1620,9 +1635,9 @@ fecha_widget_texto = f"{dia_semana_actual}, {local_dt.day} de {mes_actual} de {l
 clima_actual_str = get_realtime_weather()
 
 # Hitos e información calculada estrictamente para el usuario activo
-mis_chks_list = st.session_state.db_checklists.get(user_email, [])
-mis_insps_list = st.session_state.db_inspecciones.get(user_email, [])
-mis_rnds_list = st.session_state.db_rendimientos.get(user_email, [])
+mis_chks_list = st.session_state.get("db_checklists", {}).get(user_email, [])
+mis_insps_list = st.session_state.get("db_inspecciones", {}).get(user_email, [])
+mis_rnds_list = st.session_state.get("db_rendimientos", {}).get(user_email, [])
 
 chk_hoy_cumplido = any(c.get("Fecha") == fecha_hoy_iso for c in mis_chks_list)
 insp_hoy_cumplida = any(i.get("Fecha") == fecha_hoy_iso for i in mis_insps_list)
@@ -1643,12 +1658,13 @@ circunferencia_circulo = 100.53
 progreso_dona_stroke = round((porc_rendimiento / 100) * circunferencia_circulo, 2)
 color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
 
-# Incidencias propias abiertas del usuario activo
-incs_propias = [inc for inc in st.session_state.db_incidencias_all if inc.get("Usuario") == user_email]
+# Incidencias propias abiertas del usuario activo (acceso 100% seguro)
+todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
+incs_propias = [inc for inc in todas_las_incidencias_db if inc.get("Usuario") == user_email]
 incs_abiertas_count = sum(1 for inc in incs_propias if inc.get("Estado") == "Abierta")
 
-# Personal a cargo registrado por este usuario
-mi_personal_lista = st.session_state.db_trabajadores_por_usuario.get(user_email, [])
+# Personal a cargo registrado por este usuario (acceso seguro)
+mi_personal_lista = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
 total_personal_count = len(mi_personal_lista)
 
 tags_edificios_html = "".join([f"<span class='edificio-tag-badge'>{ed}</span>" for ed in user_edificios])
@@ -1699,7 +1715,7 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# Pestañas con bordes estilizados
+# Pestañas con bordes delimitados
 pestanas = [
     "Checklist", 
     "Libro de Obra", 
@@ -1713,7 +1729,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 3 DE 4: CHECKLIST Y LIBRO DE OBRA (100% AUTÓNOMOS)
+# PARTE 3 DE 4: CHECKLIST Y LIBRO DE OBRA (AUTÓNOMOS Y SEGUROS)
 # ==============================================================================
 
 # ==============================================================================
@@ -1759,7 +1775,6 @@ with tab_chk:
             
             cfg_c1, cfg_c2, cfg_c3, cfg_c4, cfg_c5 = st.columns([2, 2, 2, 1.5, 1.5])
             with cfg_c1:
-                # Priorizar los proyectos asignados al usuario en la lista
                 proyectos_disponibles = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
                 edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + proyectos_disponibles, index=0, key="sel_edificio")
             with cfg_c2:
@@ -1915,7 +1930,7 @@ with tab_chk:
             st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.filas_supervision)} registros)")
             st.caption("Agregue actividades ejecutadas en campo, asigne personal a cargo y adjunte fotos.")
 
-            mi_personal_propio = st.session_state.db_trabajadores_por_usuario.get(user_email, [])
+            mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
             lista_nombres_personal = [t["nombre"] for t in mi_personal_propio]
             indices_a_eliminar = []
             supervision_payload_data = []
@@ -2071,7 +2086,7 @@ with tab_chk:
     # HISTORIAL EXCLUSIVO DEL USUARIO ACTIVO
     st.markdown("### Historial General de Checklists Creados")
 
-    mis_jornadas = st.session_state.db_checklists.get(user_email, [])
+    mis_jornadas = st.session_state.get("db_checklists", {}).get(user_email, [])
 
     if len(mis_jornadas) > 0:
         col_edif_sel, _ = st.columns([2, 2])
@@ -2406,7 +2421,7 @@ with tab_libro:
     # HISTORIAL EXCLUSIVO DEL USUARIO ACTIVO
     st.markdown("### Historial de Libro de Obra")
 
-    mis_inspecciones = st.session_state.db_inspecciones.get(user_email, [])
+    mis_inspecciones = st.session_state.get("db_inspecciones", {}).get(user_email, [])
 
     if len(mis_inspecciones) > 0:
         col_edif_insp, _ = st.columns([2, 2])
@@ -2568,12 +2583,11 @@ with tab_personal:
             
             mis_edifs_set = set(st.session_state.get("usuario_edificios", []))
             companeros_nomina = []
-            for u in st.session_state.db_usuarios:
+            for u in st.session_state.get("db_usuarios", []):
                 if u["Correo"] != user_email:
                     u_edifs_set = set(u.get("Edificios", []))
                     if len(mis_edifs_set.intersection(u_edifs_set)) > 0:
-                        # Verificar si tiene personal registrado
-                        pers_comp = st.session_state.db_trabajadores_por_usuario.get(u["Correo"], [])
+                        pers_comp = st.session_state.get("db_trabajadores_por_usuario", {}).get(u["Correo"], [])
                         if len(pers_comp) > 0:
                             companeros_nomina.append((u, pers_comp))
 
@@ -2587,7 +2601,7 @@ with tab_personal:
                 
                 if st.button("📥 Importar a Mi Nómina Personal", type="primary", use_container_width=True):
                     importados_cnt = 0
-                    mi_personal_nombres = [t["nombre"] for t in st.session_state.db_trabajadores_por_usuario.get(user_email, [])]
+                    mi_personal_nombres = [t["nombre"] for t in st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])]
                     for p_item in lista_p_elegida:
                         if p_item["nombre"] not in mi_personal_nombres:
                             try:
@@ -2608,7 +2622,7 @@ with tab_personal:
     st.markdown("---")
 
     # Tabla de Personal Activo exclusivo del usuario
-    mi_personal_actual = st.session_state.db_trabajadores_por_usuario.get(user_email, [])
+    mi_personal_actual = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
     st.markdown(f"#### Tu Nómina de Personal a Cargo ({len(mi_personal_actual)} integrantes)")
 
     if len(mi_personal_actual) > 0:
@@ -2759,8 +2773,9 @@ with tab_incidencias:
                     except Exception as e:
                         st.error(f"Error al registrar la incidencia: {e}")
 
-    # Filtrar incidencias propias
-    lista_incs_propias = [inc for inc in st.session_state.db_incidencias_all if inc.get("Usuario") == user_email]
+    # Filtrar incidencias propias con acceso seguro garantizado
+    todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
+    lista_incs_propias = [inc for inc in todas_las_incidencias_db if inc.get("Usuario") == user_email]
 
     if proy_inc_sel != "-- Todos los Proyectos --":
         lista_incs_propias = [i for i in lista_incs_propias if i.get("Proyecto") == proy_inc_sel]
@@ -2889,7 +2904,7 @@ with tab_rend:
     st.markdown("### Control de Rendimiento por Personal")
     st.caption("Asignación de rubros, ingreso manual de horario/HH, cantidades ejecutadas y diagnóstico de productividad.")
 
-    mi_personal_propio = st.session_state.db_trabajadores_por_usuario.get(user_email, [])
+    mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
     nombres_personal = [t["nombre"] for t in mi_personal_propio]
 
     col1, col2 = st.columns(2)
@@ -3006,7 +3021,7 @@ with tab_rend:
     st.markdown("---")
     st.markdown("### Tabla de Resultados de Rendimiento Propios")
 
-    mis_rendimientos = st.session_state.db_rendimientos.get(user_email, [])
+    mis_rendimientos = st.session_state.get("db_rendimientos", {}).get(user_email, [])
 
     if len(mis_rendimientos) > 0:
         st.markdown(
@@ -3101,7 +3116,7 @@ with tab_colab:
     else:
         # Detectar todos los compañeros con al menos un edificio en común
         companeros_colab = []
-        for u in st.session_state.db_usuarios:
+        for u in st.session_state.get("db_usuarios", []):
             if u["Correo"] != user_email:
                 u_edifs = set(u.get("Edificios", []))
                 interseccion = mis_proyectos_set.intersection(u_edifs)
@@ -3152,7 +3167,7 @@ with tab_colab:
 
             # 1. Checklists del compañero
             with sub_tab_chk:
-                chks_colega = st.session_state.db_checklists.get(c_mail, [])
+                chks_colega = st.session_state.get("db_checklists", {}).get(c_mail, [])
                 if len(chks_colega) > 0:
                     st.caption(f"Mostrando **{len(chks_colega)}** checklist(s) registrados por **{colega_u['Nombres']}**.")
                     for idx_c_j, j_col in enumerate(chks_colega, 1):
@@ -3188,7 +3203,7 @@ with tab_colab:
 
             # 2. Libros de obra del compañero
             with sub_tab_libro:
-                insps_colega = st.session_state.db_inspecciones.get(c_mail, [])
+                insps_colega = st.session_state.get("db_inspecciones", {}).get(c_mail, [])
                 if len(insps_colega) > 0:
                     st.caption(f"Mostrando **{len(insps_colega)}** registro(s) en Libro de Obra.")
                     for idx_c_i, i_col in enumerate(insps_colega, 1):
@@ -3206,8 +3221,9 @@ with tab_colab:
 
             # 3. Incidencias registradas en proyectos en común
             with sub_tab_inc:
+                todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
                 incs_comunes = [
-                    inc for inc in st.session_state.db_incidencias_all
+                    inc for inc in todas_las_incidencias_db
                     if inc.get("Proyecto") in item_colega_sel["proyectos_comunes"]
                 ]
                 if len(incs_comunes) > 0:
@@ -3219,7 +3235,7 @@ with tab_colab:
 
             # 4. Rendimientos del compañero
             with sub_tab_rend:
-                rnds_colega = st.session_state.db_rendimientos.get(c_mail, [])
+                rnds_colega = st.session_state.get("db_rendimientos", {}).get(c_mail, [])
                 if len(rnds_colega) > 0:
                     st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento ingresados por **{colega_u['Nombres']}**.")
                     df_r_col = pd.DataFrame(rnds_colega).drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador"], errors="ignore")
@@ -3268,7 +3284,7 @@ if es_admin:
 
         st.markdown("#### 👁️ Checklists Subidos por Todos los Participantes")
         todas_las_jornadas_admin = []
-        for u_mail, j_lista in st.session_state.db_checklists.items():
+        for u_mail, j_lista in st.session_state.get("db_checklists", {}).items():
             for j_item in j_lista:
                 j_copy = j_item.copy()
                 j_copy["Usuario_Correo"] = u_mail
@@ -3333,7 +3349,7 @@ if es_admin:
                     with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label=f"📊 Descargar Excel",
+                            label="📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3343,7 +3359,7 @@ if es_admin:
                     with c_ad_dl2:
                         pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
                         st.download_button(
-                            label=f"📄 Descargar PDF",
+                            label="📄 Descargar PDF",
                             data=pdf_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                             mime="application/pdf",
@@ -3357,7 +3373,7 @@ if es_admin:
 
         st.markdown("#### 📑 Registros de Libro de Obra Subidos por Todos los Participantes")
         todas_las_inspecciones_admin = []
-        for u_mail, i_lista in st.session_state.db_inspecciones.items():
+        for u_mail, i_lista in st.session_state.get("db_inspecciones", {}).items():
             for i_item in i_lista:
                 i_copy = i_item.copy()
                 i_copy["Usuario_Correo"] = u_mail
@@ -3410,7 +3426,7 @@ if es_admin:
         st.markdown("---")
 
         st.markdown("#### 🚨 Levantamiento de Incidencias - Vista Administrador")
-        todas_las_incidencias_admin = st.session_state.db_incidencias_all
+        todas_las_incidencias_admin = st.session_state.get("db_incidencias_all", [])
         if len(todas_las_incidencias_admin) > 0:
             df_inc_admin = pd.DataFrame(todas_las_incidencias_admin)
             st.dataframe(df_inc_admin, use_container_width=True)
@@ -3430,7 +3446,7 @@ if es_admin:
 
         st.markdown("#### 📊 Rendimientos Subidos por Todos los Participantes")
         todos_los_rendimientos = []
-        for u_mail, r_lista in st.session_state.db_rendimientos.items():
+        for u_mail, r_lista in st.session_state.get("db_rendimientos", {}).items():
             for r_item in r_lista:
                 r_copy = r_item.copy()
                 r_copy["Usuario_Correo"] = u_mail
@@ -3479,13 +3495,13 @@ if es_admin:
 
         with col_adm2:
             st.markdown("**Administradores Actuales:**")
-            for adm in st.session_state.admin_emails:
+            for adm in st.session_state.get("admin_emails", []):
                 st.write(f"- `{adm}`")
 
         st.markdown("---")
 
         st.markdown("#### Usuarios Activos y Gestión de Cuentas")
-        lista_correos = [u["Correo"] for u in st.session_state.db_usuarios]
+        lista_correos = [u["Correo"] for u in st.session_state.get("db_usuarios", [])]
         
         col_del_usr1, col_del_usr2 = st.columns([2, 1])
         with col_del_usr1:
@@ -3508,7 +3524,7 @@ if es_admin:
         st.markdown("<br>", unsafe_allow_html=True)
 
         db_usuarios_privados = []
-        for u in st.session_state.db_usuarios:
+        for u in st.session_state.get("db_usuarios", []):
             u_copy = u.copy()
             u_copy["Password"] = "••••••••"
             db_usuarios_privados.append(u_copy)
@@ -3520,13 +3536,13 @@ if es_admin:
 
         st.markdown("#### Resumen Global de Actividad por Usuario")
         resumen_actividad = []
-        for u in st.session_state.db_usuarios:
+        for u in st.session_state.get("db_usuarios", []):
             e = u["Correo"]
-            num_c = len(st.session_state.db_checklists.get(e, []))
-            num_i = len(st.session_state.db_inspecciones.get(e, []))
-            num_inc = len([inc for inc in st.session_state.db_incidencias_all if inc.get("Usuario") == e])
-            num_r = len(st.session_state.db_rendimientos.get(e, []))
-            num_p = len(st.session_state.db_trabajadores_por_usuario.get(e, []))
+            num_c = len(st.session_state.get("db_checklists", {}).get(e, []))
+            num_i = len(st.session_state.get("db_inspecciones", {}).get(e, []))
+            num_inc = len([inc for inc in st.session_state.get("db_incidencias_all", []) if inc.get("Usuario") == e])
+            num_r = len(st.session_state.get("db_rendimientos", {}).get(e, []))
+            num_p = len(st.session_state.get("db_trabajadores_por_usuario", {}).get(e, []))
             resumen_actividad.append({
                 "Usuario": f"{u['Nombres']} {u['Apellidos']}".strip() or e,
                 "Correo": e,
