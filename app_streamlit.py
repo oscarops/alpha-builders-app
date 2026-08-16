@@ -1,5 +1,5 @@
 # ==============================================================================
-# PARTE 1 DE 4: ESTILOS, WEATHER API, SUPABASE Y MÓDULOS DE EXPORTACIÓN
+# PARTE 1 DE 4: ESTILOS CON PESTAÑAS DELIMITADAS, SUPABASE Y EXPORTADORES
 # ==============================================================================
 import base64
 import datetime
@@ -24,7 +24,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES CON BORDES EN PESTAÑAS
 # ==============================================================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -299,17 +299,40 @@ st.markdown(
         margin-bottom: 2px;
     }
 
+    /* PESTAÑAS DELIMITADAS CON BORDES CLAROS Y SEPARACIÓN VISUAL */
     .stTabs [data-baseweb="tab-list"] { 
-        gap: 4px; 
+        gap: 6px !important; 
         background-color: #e2e8f0 !important; 
-        padding: 3px; 
-        border-radius: 10px; 
-        border: 1px solid #cbd5e1; 
+        padding: 4px !important; 
+        border-radius: 10px !important; 
+        border: 1px solid #cbd5e1 !important; 
     }
-    .stTabs [data-baseweb="tab"] { border-radius: 6px !important; padding: 5px 10px !important; background-color: transparent !important; }
-    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: #0f172a !important; font-weight: 700 !important; font-size: 0.78rem; }
-    .stTabs [aria-selected="true"] { background-color: #0f172a !important; border-radius: 6px !important; }
-    .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span, .stTabs [aria-selected="true"] div { color: #ffffff !important; font-weight: 800 !important; }
+    .stTabs [data-baseweb="tab"] { 
+        border-radius: 8px !important; 
+        padding: 6px 14px !important; 
+        background-color: #ffffff !important; 
+        border: 1px solid #cbd5e1 !important; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+        transition: all 0.2s ease !important;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        border-color: #94a3b8 !important;
+        background-color: #f8fafc !important;
+    }
+    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { 
+        color: #1e293b !important; 
+        font-weight: 700 !important; 
+        font-size: 0.78rem !important; 
+    }
+    .stTabs [aria-selected="true"] { 
+        background-color: #0f172a !important; 
+        border: 1px solid #0f172a !important; 
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25) !important;
+    }
+    .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span, .stTabs [aria-selected="true"] div { 
+        color: #ffffff !important; 
+        font-weight: 800 !important; 
+    }
 
     .stButton > button { 
         background-color: #0f172a !important; 
@@ -1576,7 +1599,6 @@ with st.sidebar:
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
-# 1. Fecha local exacta (Ecuador UTC-5)
 local_dt = get_local_datetime_ecuador()
 fecha_hoy_iso = local_dt.strftime("%Y-%m-%d")
 
@@ -1587,10 +1609,8 @@ dia_semana_actual = dias_nombre_es[local_dt.weekday()]
 mes_actual = meses_nombre_es[local_dt.month - 1]
 fecha_widget_texto = f"{dia_semana_actual}, {local_dt.day} de {mes_actual} de {local_dt.year}"
 
-# 2. Clima en tiempo real vía API
 clima_actual_str = get_realtime_weather()
 
-# 3. Métricas y cálculo de Hitos Diarios de hoy
 mis_chks_list = st.session_state.db_checklists.get(user_email, [])
 mis_insps_list = st.session_state.db_inspecciones.get(user_email, [])
 mis_rnds_list = st.session_state.db_rendimientos.get(user_email, [])
@@ -1601,7 +1621,6 @@ insp_hoy_cumplida = any(i.get("Fecha") == fecha_hoy_iso for i in mis_insps_list)
 tag_chk_html = '<span class="milestone-status-done">✓ Cumplido</span>' if chk_hoy_cumplido else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 tag_insp_html = '<span class="milestone-status-done">✓ Cumplido</span>' if insp_hoy_cumplida else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 
-# 4. Cálculo de Rendimiento Promedio y Gráfico de Dona
 if len(mis_rnds_list) > 0:
     total_eficientes = sum(1 for r in mis_rnds_list if r.get("Estado") in ["EFICIENTE", "CUMPLE META"])
     porc_rendimiento = int(round((total_eficientes / len(mis_rnds_list)) * 100))
@@ -1610,18 +1629,15 @@ else:
     porc_rendimiento = 100
     lbl_rend_prom = "100% Óptimo"
 
-# Circunferencia del círculo en SVG (radio 16 => 2 * pi * 16 = 100.53)
 circunferencia_circulo = 100.53
 progreso_dona_stroke = round((porc_rendimiento / 100) * circunferencia_circulo, 2)
 color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
 
-# 5. Incidencias Abiertas y Total Personal Activo
 incs_abiertas_count = sum(1 for inc in st.session_state.db_incidencias if inc.get("Estado") == "Abierta")
 total_personal_count = len(st.session_state.db_trabajadores)
 
 tags_edificios_html = "".join([f"<span class='edificio-tag-badge'>{ed}</span>" for ed in user_edificios])
 
-# Renderizado HTML limpio y continuo
 dashboard_html = (
     '<div class="smart-dashboard-container">'
     '<div class="smart-header-bar">'
@@ -1668,13 +1684,14 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# Pestañas del portal renombradas a Personal a Cargo
+# Pestañas del portal con la nueva pestaña 'Colaborativo' después de 'Control de Rendimiento'
 pestanas = [
     "Checklist", 
     "Libro de Obra", 
     "Personal a Cargo",
     "Levantamiento de Incidencias", 
-    "Control de Rendimiento"
+    "Control de Rendimiento",
+    "Colaborativo"
 ]
 if es_admin:
     pestanas.append("Panel Admin")
@@ -1692,6 +1709,7 @@ tab_libro = tabs_app[1]
 tab_personal = tabs_app[2]
 tab_incidencias = tabs_app[3]
 tab_rend = tabs_app[4]
+tab_colab = tabs_app[5]
 
 with tab_chk:
     if "creando_jornada" not in st.session_state:
@@ -2102,7 +2120,7 @@ with tab_chk:
                                 st.markdown("##### 1. Verificaciones con Observaciones Integradas:")
                                 for row in v_list:
                                     estado_badge = render_estado_badge(row.get('Estado'))
-                                    st.markdown(f"- **[{row.get('Jornada')}] N° {row.get('N°')}. {row.get('Actividad')}**: {badge_adm_temp if 'badge_adm_temp' in locals() else estado_badge}", unsafe_allow_html=True)
+                                    st.markdown(f"- **[{row.get('Jornada')}] N° {row.get('N°')}. {row.get('Actividad')}**: {estado_badge}", unsafe_allow_html=True)
                                     obs_r = row.get('Observaciones')
                                     if obs_r:
                                         if isinstance(obs_r, list):
@@ -2451,18 +2469,18 @@ with tab_libro:
     else:
         st.info("Aún no hay registros guardados en Libro de Obra.")
 # ==============================================================================
-# PARTE 4 DE 4: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTO MANUAL Y PANEL ADMIN
+# PARTE 4 DE 4: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTO, COLABORATIVO Y ADMIN
 # ==============================================================================
 
 # ==============================================================================
-# 11. MÓDULO 3: PERSONAL A CARGO (TABLA CON MODAL DE EDICIÓN Y GESTIÓN)
+# 11. MÓDULO 3: PERSONAL A CARGO (CON CARGA DE NÓMINA COLABORATIVA)
 # ==============================================================================
 with tab_personal:
     st.markdown("### Nómina de Personal a Cargo")
-    st.caption("Administración de personal en obra, edición de cargos mediante ventana emergente y control de cuadrillas.")
+    st.caption("Administración de personal en obra, edición de cargos mediante ventana emergente y sincronización colaborativa.")
 
-    # Botones superiores compactos con Popover
-    col_btn_ob1, col_btn_ob2, _ = st.columns([1.6, 1.8, 3])
+    # 3 Botones superiores: Registrar, Importación Masiva y Cargar Nómina Colaborativa
+    col_btn_ob1, col_btn_ob2, col_btn_ob3 = st.columns([1.5, 1.6, 2.0])
 
     with col_btn_ob1:
         with st.popover("➕ Registrar Personal", use_container_width=True):
@@ -2521,6 +2539,39 @@ with tab_personal:
                         st.error("El archivo debe contener mínimo 2 columnas.")
                 except Exception as e:
                     st.error(f"Error al procesar archivo: {e}")
+
+    with col_btn_ob3:
+        # Cargar nómina compartida de un compañero del grupo colaborativo
+        with st.popover("👥 Cargar Nómina Colaborativa", use_container_width=True):
+            st.markdown("#### Sincronizar Nómina Compartida")
+            st.caption("Importa la cuadrilla de un compañero de trabajo que comparta proyectos contigo.")
+            
+            # Buscar compañeros con al menos un edificio en común
+            mis_edifs_set = set(st.session_state.get("usuario_edificios", []))
+            companeros_nomina = []
+            for u in st.session_state.db_usuarios:
+                if u["Correo"] != user_email:
+                    u_edifs_set = set(u.get("Edificios", []))
+                    if len(mis_edifs_set.intersection(u_edifs_set)) > 0:
+                        companeros_nomina.append(u)
+
+            if len(companeros_nomina) > 0:
+                map_comp_nom = {f"{c['Nombres']} {c['Apellidos']} ({c['Cargo']})": c for c in companeros_nomina}
+                sel_comp_label = st.selectbox("Seleccione al compañero:", list(map_comp_nom.keys()), key="sel_comp_nom_pop")
+                comp_elegido = map_comp_nom[sel_comp_label]
+                
+                comunes_n = list(mis_edifs_set.intersection(set(comp_elegido.get("Edificios", []))))
+                st.info(f"Proyectos en común: **{', '.join(comunes_n)}**")
+                
+                if st.button("🔄 Sincronizar y Actualizar Nómina", type="primary", use_container_width=True):
+                    try:
+                        st.session_state.db_loaded = False
+                        st.success(f"¡Nómina de {comp_elegido['Nombres']} sincronizada con éxito!")
+                        st.rerun()
+                    except Exception as err:
+                        st.error(f"Error al sincronizar: {err}")
+            else:
+                st.info("No hay compañeros registrados que compartan tus mismos proyectos actualmente.")
 
     st.markdown("---")
 
@@ -2834,7 +2885,6 @@ with tab_rend:
     st.markdown("---")
     st.markdown("#### ⏱️ Horario e Intervalo Trabajado")
 
-    # Ingreso 100% manual del intervalo y de las Horas-Hombre
     c_int1, c_int2 = st.columns(2)
     with c_int1:
         intervalo_manual = st.text_input(
@@ -3002,10 +3052,154 @@ with tab_rend:
         st.info("Aún no existen registros de rendimiento en su historial.")
 
 # ==============================================================================
-# 14. MÓDULO 6: PANEL DE CONTROL ADMINISTRADOR
+# 14. MÓDULO 6: ESPACIO COLABORATIVO (GRUPOS CON PROYECTOS EN COMÚN)
+# ==============================================================================
+with tab_colab:
+    st.markdown("### Espacio de Trabajo Colaborativo")
+    st.caption("Visualización cruzada y sincronización de datos con compañeros que comparten proyectos contigo.")
+
+    mis_proyectos_set = set(st.session_state.get("usuario_edificios", []))
+
+    if len(mis_proyectos_set) == 0:
+        st.warning("⚠️ No tienes proyectos asignados a tu cuenta. Agrega tus edificios en '⚙️ Configuración de Cuenta' en la barra lateral para unirte a grupos colaborativos.")
+    else:
+        # Detectar todos los compañeros con al menos un edificio en común
+        companeros_colab = []
+        for u in st.session_state.db_usuarios:
+            if u["Correo"] != user_email:
+                u_edifs = set(u.get("Edificios", []))
+                interseccion = mis_proyectos_set.intersection(u_edifs)
+                if len(interseccion) > 0:
+                    companeros_colab.append({
+                        "usuario": u,
+                        "proyectos_comunes": list(interseccion)
+                    })
+
+        if len(companeros_colab) > 0:
+            st.markdown("#### 👥 Integrantes de tu Grupo de Trabajo")
+            
+            c_sel_col1, c_sel_col2 = st.columns([2.5, 1.5])
+            with c_sel_col1:
+                map_colegas = {
+                    f"{item['usuario']['Nombres']} {item['usuario']['Apellidos']} ({item['usuario']['Cargo']}) — {item['usuario']['Correo']}": item
+                    for item in companeros_colab
+                }
+                sel_colega_str = st.selectbox(
+                    "Selecciona un compañero para ver sus registros:",
+                    list(map_colegas.keys()),
+                    key="sel_colega_colab"
+                )
+                item_colega_sel = map_colegas[sel_colega_str]
+                colega_u = item_colega_sel["usuario"]
+                c_mail = colega_u["Correo"]
+
+            with c_sel_col2:
+                st.markdown(
+                    f"""
+                    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 10px; margin-top: 24px;">
+                        <small style="color: #64748b; font-weight: 700;">Proyectos en Común:</small><br/>
+                        <b>{', '.join(item_colega_sel['proyectos_comunes'])}</b>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            st.markdown("---")
+
+            # Pestañas internas para consultar Checklists, Libro de Obra, Incidencias y Rendimientos del compañero
+            sub_tab_chk, sub_tab_libro, sub_tab_inc, sub_tab_rend = st.tabs([
+                "📋 Checklists del Compañero",
+                "📖 Libro de Obra del Compañero",
+                "🚨 Incidencias Registradas",
+                "⚡ Rendimientos del Compañero"
+            ])
+
+            # 1. Checklists del compañero
+            with sub_tab_chk:
+                chks_colega = st.session_state.db_checklists.get(c_mail, [])
+                if len(chks_colega) > 0:
+                    st.caption(f"Mostrando **{len(chks_colega)}** checklist(s) registrados por **{colega_u['Nombres']}**.")
+                    for idx_c_j, j_col in enumerate(chks_colega, 1):
+                        with st.expander(f"📌 [{j_col.get('Edificio', '')}] {j_col.get('Fecha', '')} (Horario: {j_col.get('Hora_Inicio', '')} - {j_col.get('Hora_Fin', '')})", expanded=False):
+                            d_col = j_col.get("Datos", {})
+                            v_col = d_col.get("Verificaciones", []) if isinstance(d_col, dict) else d_col
+                            s_col = d_col.get("Supervision_Trabajos", []) if isinstance(d_col, dict) else []
+
+                            st.markdown("##### Verificaciones:")
+                            for row_c in v_col:
+                                b_col = render_estado_badge(row_c.get('Estado'))
+                                st.markdown(f"- **[{row_c.get('Jornada')}] N° {row_c.get('N°')}. {row_c.get('Actividad')}**: {b_col}", unsafe_allow_html=True)
+                                if row_c.get("Observaciones"):
+                                    obs_c_txt = " | ".join(row_c["Observaciones"]) if isinstance(row_c["Observaciones"], list) else row_c["Observaciones"]
+                                    st.caption(f"  ▫️ *Obs:* {obs_c_txt}")
+
+                            if s_col:
+                                st.markdown("##### Supervisión de Trabajos:")
+                                h_rows = ""
+                                for s_i, s_item in enumerate(s_col, 1):
+                                    h_rows += f"<tr><td class='center'>{s_i}</td><td><b>{s_item.get('Actividad', '')}</b></td><td>{s_item.get('Encargados', '')}</td><td>{s_item.get('Observaciones', '')}</td></tr>"
+                                st.markdown(f"<table class='supervision-table'><thead><tr><th class='center'>N°</th><th>Actividad</th><th>Personal Encargado</th><th>Observaciones</th></tr></thead><tbody>{h_rows}</tbody></table>", unsafe_allow_html=True)
+
+                            col_dl_c1, col_dl_c2 = st.columns(2)
+                            with col_dl_c1:
+                                xlsx_col_b = export_checklist_to_excel_file(j_col)
+                                st.download_button("📊 Descargar Excel", xlsx_col_b, file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}", use_container_width=True)
+                            with col_dl_c2:
+                                pdf_col_b = export_checklist_to_pdf_file(j_col)
+                                st.download_button("📄 Descargar PDF", pdf_col_b, file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}", use_container_width=True)
+                else:
+                    st.info(f"{colega_u['Nombres']} aún no ha registrado checklists.")
+
+            # 2. Libros de obra del compañero
+            with sub_tab_libro:
+                insps_colega = st.session_state.db_inspecciones.get(c_mail, [])
+                if len(insps_colega) > 0:
+                    st.caption(f"Mostrando **{len(insps_colega)}** registro(s) en Libro de Obra.")
+                    for idx_c_i, i_col in enumerate(insps_colega, 1):
+                        with st.expander(f"📌 [{i_col.get('Proyecto', '')}] {i_col.get('Fecha', '')} ({i_col.get('Dia', '')}) | Frente: {i_col.get('Frente', '')}", expanded=False):
+                            st.markdown(f"**Residente:** {i_col.get('Residente', '')} | **Clima:** {i_col.get('Clima', '')}")
+                            col_dl_i1, col_dl_i2 = st.columns(2)
+                            with col_dl_i1:
+                                xlsx_insp_b = export_inspeccion_to_excel_file(i_col)
+                                st.download_button("📊 Descargar Excel", xlsx_insp_b, file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}", use_container_width=True)
+                            with col_dl_i2:
+                                pdf_insp_b = export_inspeccion_to_pdf_file(i_col)
+                                st.download_button("📄 Descargar PDF", pdf_insp_b, file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}", use_container_width=True)
+                else:
+                    st.info(f"{colega_u['Nombres']} aún no ha registrado formatos de Libro de Obra.")
+
+            # 3. Incidencias registradas en proyectos en común
+            with sub_tab_inc:
+                incs_comunes = [
+                    inc for inc in st.session_state.db_incidencias
+                    if inc.get("Proyecto") in item_colega_sel["proyectos_comunes"]
+                ]
+                if len(incs_comunes) > 0:
+                    st.caption(f"Mostrando **{len(incs_comunes)}** incidencia(s) en proyectos compartidos.")
+                    df_incs_comunes = pd.DataFrame(incs_comunes).drop(columns=["db_id"], errors="ignore")
+                    st.dataframe(df_incs_comunes, use_container_width=True)
+                else:
+                    st.info("No hay incidencias registradas en los proyectos en común.")
+
+            # 4. Rendimientos del compañero
+            with sub_tab_rend:
+                rnds_colega = st.session_state.db_rendimientos.get(c_mail, [])
+                if len(rnds_colega) > 0:
+                    st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento ingresados por **{colega_u['Nombres']}**.")
+                    df_r_col = pd.DataFrame(rnds_colega).drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador"], errors="ignore")
+                    if not df_r_col.empty:
+                        df_r_col.index = range(1, len(df_r_col) + 1)
+                    st.dataframe(df_r_col, use_container_width=True)
+                else:
+                    st.info(f"{colega_u['Nombres']} aún no ha ingresado registros de rendimiento.")
+        else:
+            st.info("No se encontraron compañeros de trabajo que compartan tus mismos proyectos. Cuando otros usuarios seleccionen los mismos edificios, aparecerán automáticamente en tu grupo colaborativo.")
+
+# ==============================================================================
+# 15. MÓDULO 7: PANEL DE CONTROL ADMINISTRADOR
 # ==============================================================================
 if es_admin:
-    tab_admin = tabs_app[5]
+    tab_admin = tabs_app[6]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
         st.caption("Módulo exclusivo para supervisar checklists, libro de obra, incidencias, rendimientos, usuarios y configuración.")
@@ -3103,7 +3297,7 @@ if es_admin:
                     with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label="📊 Descargar Excel",
+                            label=f"📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3113,7 +3307,7 @@ if es_admin:
                     with c_ad_dl2:
                         pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
                         st.download_button(
-                            label="📄 Descargar PDF",
+                            label=f"📄 Descargar PDF",
                             data=pdf_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                             mime="application/pdf",
