@@ -178,9 +178,24 @@ st.markdown(
         line-height: 1.1;
     }
     .smart-user-sub {
-        font-size: 0.76rem;
+        font-size: 0.78rem;
         color: #94a3b8 !important;
-        margin-top: 1px;
+        margin-top: 2px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .edificio-tag-badge {
+        display: inline-block;
+        background: rgba(59, 130, 246, 0.18);
+        border: 1px solid rgba(96, 165, 250, 0.4);
+        color: #93c5fd !important;
+        font-size: 0.62rem;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 6px;
     }
 
     .smart-pill {
@@ -326,7 +341,6 @@ st.markdown(
         margin-bottom: 6px;
     }
 
-    /* ENCABEZADOS DE TABLA PERSONALIZADA */
     .custom-table-header {
         background-color: #0f172a;
         color: #ffffff !important;
@@ -482,12 +496,25 @@ def load_db_from_supabase():
         admin_emails = []
         for row in res_usr.data:
             c = row["correo"].lower().strip()
+            # Carga de proyectos asignados al usuario
+            edifs = row.get("edificios")
+            if isinstance(edifs, list):
+                edifs_list = edifs
+            elif isinstance(edifs, str):
+                try:
+                    edifs_list = json.loads(edifs)
+                except Exception:
+                    edifs_list = [edifs] if edifs else []
+            else:
+                edifs_list = []
+
             db_usuarios.append({
                 "Nombres": row["nombres"],
                 "Apellidos": row["apellidos"],
                 "Correo": c,
                 "Password": row["password"],
                 "Cargo": row["cargo"],
+                "Edificios": edifs_list,
                 "Fecha_Registro": str(row["fecha_registro"]),
                 "Estado": row.get("estado", "Activo")
             })
@@ -632,6 +659,7 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_nombres = ""
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
+    st.session_state.usuario_edificios = []
 
 if not st.session_state.autenticado:
     saved_token = local_storage.getItem("user_session_email")
@@ -644,6 +672,7 @@ if not st.session_state.autenticado:
             st.session_state.usuario_nombres = u_match["Nombres"]
             st.session_state.usuario_apellidos = u_match["Apellidos"]
             st.session_state.usuario_cargo = u_match["Cargo"]
+            st.session_state.usuario_edificios = u_match.get("Edificios", [])
 
 # ==============================================================================
 # 4. FUNCIONES DE FORMATO Y EXPORTACIÓN
@@ -1254,6 +1283,7 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_nombres = u_match["Nombres"]
                                 st.session_state.usuario_apellidos = u_match["Apellidos"]
                                 st.session_state.usuario_cargo = u_match["Cargo"]
+                                st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
                                 local_storage.setItem("user_session_email", mail_clean)
                                 st.rerun()
@@ -1268,25 +1298,35 @@ if not st.session_state.autenticado:
 
         with tab_register:
             st.markdown("### Crear una Cuenta Nueva")
-            st.caption("Complete la información para habilitar su acceso.")
+            st.caption("Complete la información y seleccione los proyectos en los que labora.")
 
             with st.form("form_register_clean"):
                 col_n, col_a = st.columns(2)
                 with col_n:
-                    reg_nombres = st.text_input("Nombres:", placeholder="Ej. Juan Carlos")
+                    reg_nombres = st.text_input("Nombres:*", placeholder="Ej. Juan Carlos")
                 with col_a:
-                    reg_apellidos = st.text_input("Apellidos:", placeholder="Ej. Pérez Gómez")
+                    reg_apellidos = st.text_input("Apellidos:*", placeholder="Ej. Pérez Gómez")
 
-                reg_email = st.text_input("Correo electrónico:", placeholder="ejemplo@correo.com", key="reg_email")
+                reg_email = st.text_input("Correo electrónico:*", placeholder="ejemplo@correo.com", key="reg_email")
                 
                 col_p1, col_p2 = st.columns(2)
                 with col_p1:
-                    reg_pass = st.text_input("Crear contraseña:", type="password", key="reg_pass")
+                    reg_pass = st.text_input("Crear contraseña:*", type="password", key="reg_pass")
                 with col_p2:
-                    reg_pass_repeat = st.text_input("Repetir contraseña:", type="password", key="reg_pass_rep")
+                    reg_pass_repeat = st.text_input("Repetir contraseña:*", type="password", key="reg_pass_rep")
 
-                reg_cargo = st.selectbox("Cargo / Rol en Obra:", ["Residente", "Asistente", "Ayudante"])
-                reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="reg_pin")
+                reg_cargo = st.selectbox("Cargo / Rol en Obra:*", ["Residente", "Asistente", "Ayudante"])
+                
+                # Selección múltiple de edificios en el registro
+                reg_edificios_sel = st.multiselect(
+                    "Edificios / Proyectos asignados:*",
+                    options=EDIFICIOS_ALPHA,
+                    default=[],
+                    placeholder="Seleccione los proyectos en los que trabaja...",
+                    key="reg_edif_multisel"
+                )
+
+                reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):*", type="password", max_chars=4, placeholder="****", key="reg_pin")
 
                 btn_reg = st.form_submit_button("Completar Registro", type="primary", use_container_width=True)
 
@@ -1310,6 +1350,7 @@ if not st.session_state.autenticado:
                                     "apellidos": reg_apellidos.strip(),
                                     "password": reg_pass,
                                     "cargo": reg_cargo,
+                                    "edificios": reg_edificios_sel,
                                     "es_admin": False
                                 }).execute()
 
@@ -1318,6 +1359,7 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_nombres = reg_nombres.strip()
                                 st.session_state.usuario_apellidos = reg_apellidos.strip()
                                 st.session_state.usuario_cargo = reg_cargo
+                                st.session_state.usuario_edificios = reg_edificios_sel
                                 st.session_state.db_loaded = False
                                 
                                 local_storage.setItem("user_session_email", mail_clean)
@@ -1326,7 +1368,7 @@ if not st.session_state.autenticado:
                             except Exception as e:
                                 st.error(f"Error al guardar usuario: {e}")
                 else:
-                    st.error("Por favor complete todos los campos requeridos, incluyendo el código PIN.")
+                    st.error("Por favor complete todos los campos requeridos (*), incluyendo el código PIN.")
 
         with tab_reset:
             st.markdown("### Recuperación de Contraseña")
@@ -1373,6 +1415,7 @@ user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
 user_apellidos = st.session_state.usuario_apellidos
 user_cargo = st.session_state.usuario_cargo
+user_edificios = st.session_state.get("usuario_edificios", [])
 es_admin = user_email in st.session_state.admin_emails
 
 with st.sidebar:
@@ -1402,13 +1445,21 @@ with st.sidebar:
     if img_obj is not None:
         st.image(img_obj, use_container_width=True)
 
+    # Badges de edificios para la barra lateral
+    tags_edif_sidebar = "".join([f"<span class='edificio-tag-badge' style='margin: 1px;'>{e}</span>" for e in user_edificios])
+
     st.markdown(
         f"""
         <div class="sidebar-profile-box">
             <div class="sidebar-user-nombres">{user_nombres}</div>
             <div class="sidebar-user-apellidos">{user_apellidos}</div>
             <div class="sidebar-user-email">{user_email}</div>
-            <div class="sidebar-user-cargo">{user_cargo}</div>
+            <div style="margin-top: 3px; margin-bottom: 4px;">
+                <div class="sidebar-user-cargo">{user_cargo}</div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-top: 4px;">
+                {tags_edif_sidebar}
+            </div>
         </div>
     """,
         unsafe_allow_html=True,
@@ -1427,6 +1478,14 @@ with st.sidebar:
         idx_c = cargos_lista.index(user_cargo) if user_cargo in cargos_lista else 0
         edit_cargo = st.selectbox("Cargo:", cargos_lista, index=idx_c, key="sb_car")
 
+        # Modificación de proyectos asignados en cuentas activas
+        edit_edificios = st.multiselect(
+            "Edificios Asignados:",
+            options=EDIFICIOS_ALPHA,
+            default=[e for e in user_edificios if e in EDIFICIOS_ALPHA],
+            key="sb_edif_edit"
+        )
+
         edit_pass = st.text_input("Nueva Contraseña:", type="password", key="sb_pass")
         edit_pass_rep = st.text_input("Repetir Contraseña:", type="password", key="sb_pass_rep")
 
@@ -1441,7 +1500,8 @@ with st.sidebar:
             update_data = {
                 "nombres": edit_nombres.strip(),
                 "apellidos": edit_apellidos.strip(),
-                "cargo": edit_cargo
+                "cargo": edit_cargo,
+                "edificios": edit_edificios
             }
 
             if edit_pass.strip():
@@ -1458,6 +1518,7 @@ with st.sidebar:
                 st.session_state.usuario_nombres = edit_nombres.strip()
                 st.session_state.usuario_apellidos = edit_apellidos.strip()
                 st.session_state.usuario_cargo = edit_cargo
+                st.session_state.usuario_edificios = edit_edificios
                 st.session_state.db_loaded = False
                 
                 st.success("Configuración actualizada correctamente.")
@@ -1473,7 +1534,7 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM UI (HITOS, DONA RENDIMIENTO, INCIDENCIAS)
+# 8. SMART DASHBOARD GLASSMORPHISM UI (EDIFICIOS AL LADO DEL CARGO)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
@@ -1520,13 +1581,16 @@ color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimie
 incs_abiertas_count = sum(1 for inc in st.session_state.db_incidencias if inc.get("Estado") == "Abierta")
 total_obreros_count = len(st.session_state.db_trabajadores)
 
+# Insignias de edificios colocadas al lado del cargo
+tags_edificios_html = "".join([f"<span class='edificio-tag-badge'>{ed}</span>" for ed in user_edificios])
+
 # Renderizado HTML limpio y continuo sin sangrías
 dashboard_html = (
     '<div class="smart-dashboard-container">'
     '<div class="smart-header-bar">'
     '<div>'
     '<div class="smart-title">Alpha Builders | Portal de Obra</div>'
-    f'<div class="smart-user-sub">{user_nombre_completo} &bull; <b style="color: #cbd5e1 !important;">{user_cargo}</b></div>'
+    f'<div class="smart-user-sub">{user_nombre_completo} &bull; <b style="color: #cbd5e1 !important;">{user_cargo}</b> {tags_edificios_html}</div>'
     '</div>'
     '<div style="display: flex; gap: 6px; flex-wrap: wrap;">'
     f'<div class="smart-pill">📅 {fecha_widget_texto}</div>'
@@ -1567,7 +1631,7 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# Pestañas del portal de obra
+# Pestañas del portal
 pestanas = [
     "Checklist", 
     "Libro de Obra", 
@@ -1927,7 +1991,7 @@ with tab_chk:
 
     st.markdown("---")
 
-    # HISTORIAL GENERAL DE CHECKLISTS POR EDIFICIO
+    # HISTORIAL GENERAL DE CHECKLISTS POR EDIFICIO (COLAPSADO POR DEFECTO)
     st.markdown("### Historial General de Checklists Creados")
 
     mis_jornadas = st.session_state.db_checklists.get(user_email, [])
@@ -1968,8 +2032,9 @@ with tab_chk:
                     grupos_meses[nombre_mes] = []
                 grupos_meses[nombre_mes].append((orig_idx, j))
 
+            # Cada grupo mensual inicia cerrado (expanded=False) para que solo se abra al hacer clic
             for mes_anio, lista_j in grupos_meses.items():
-                with st.expander(f"📅 {mes_anio} ({len(lista_j)} checklists)", expanded=True):
+                with st.expander(f"📅 {mes_anio} ({len(lista_j)} checklists)", expanded=False):
                     for idx_rel, (orig_idx, j) in enumerate(lista_j):
                         col_j_info, col_j_del = st.columns([8, 1])
                         
@@ -1984,7 +2049,7 @@ with tab_chk:
                                     st.error(f"Error al eliminar: {e}")
 
                         with col_j_info:
-                            with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})"):
+                            with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})", expanded=False):
                                 datos_item = j.get("Datos", {})
                                 if isinstance(datos_item, dict):
                                     v_list = datos_item.get("Verificaciones", [])
@@ -2292,7 +2357,7 @@ with tab_libro:
                             st.error(f"Error al eliminar: {e}")
 
                 with col_i_info:
-                    with st.expander(f"📌 {insp['Proyecto']} — {insp['Fecha']} ({insp['Dia']}) | Frente: {insp.get('Frente', 'N/A')}"):
+                    with st.expander(f"📌 {insp['Proyecto']} — {insp['Fecha']} ({insp['Dia']}) | Frente: {insp.get('Frente', 'N/A')}", expanded=False):
                         st.markdown(f"**Residente:** {insp.get('Residente', '')} | **Clima:** {insp.get('Clima', '')}")
                         st.markdown(f"**Horario:** {insp.get('Hora_Inicio', '')} - {insp.get('Hora_Fin', '')}")
 
@@ -2345,7 +2410,7 @@ with tab_libro:
     else:
         st.info("Aún no hay registros guardados en Libro de Obra.")
 # ==============================================================================
-# 11. MÓDULO 3: PLANTILLA DE OBREROS (TABLA LIMPIA CON MODAL DE EDICIÓN)
+# 11. MÓDULO 3: PLANTILLA DE OBREROS (TABLA CON MODAL DE EDICIÓN Y SIN FLECHAS)
 # ==============================================================================
 with tab_obreros:
     st.markdown("### Plantilla de Obreros Activos")
@@ -2418,13 +2483,12 @@ with tab_obreros:
     st.markdown(f"#### Nómina de Cuadrilla Activa ({len(st.session_state.db_trabajadores)} trabajadores)")
 
     if len(st.session_state.db_trabajadores) > 0:
-        # Encabezados formales de la tabla
         st.markdown(
             """
             <div class="custom-table-header">
                 <div style="width: 6%; text-align: center;">N°</div>
-                <div style="width: 48%; padding-left: 8px;">Nombre del Trabajador</div>
-                <div style="width: 32%; padding-left: 8px;">Cargo / Especialidad</div>
+                <div style="width: 50%; padding-left: 8px;">Nombre del Trabajador</div>
+                <div style="width: 30%; padding-left: 8px;">Cargo / Especialidad</div>
                 <div style="width: 14%; text-align: center;">Acciones</div>
             </div>
             """,
@@ -2439,7 +2503,7 @@ with tab_obreros:
             t_car = trab["cargo"]
 
             st.markdown('<div class="custom-table-row">', unsafe_allow_html=True)
-            col_num, col_nom, col_car, col_act = st.columns([0.6, 4.8, 3.2, 1.4])
+            col_num, col_nom, col_car, col_act = st.columns([0.6, 5.0, 3.0, 1.4])
 
             with col_num:
                 st.markdown(f"<div style='text-align: center; font-weight: 800; color: #64748b; padding-top: 6px;'>{idx_t + 1}.</div>", unsafe_allow_html=True)
@@ -2454,7 +2518,7 @@ with tab_obreros:
                 c_edit, c_del = st.columns(2)
                 with c_edit:
                     with st.popover("✏️", help=f"Editar cargo de {t_nom}"):
-                        st.markdown(f"**Modificar Cargo**")
+                        st.markdown("**Modificar Cargo**")
                         st.caption(f"Trabajador: **{t_nom}**")
                         nuevo_cargo_input = st.text_input("Nuevo Cargo / Especialidad:", value=t_car, key=f"pop_in_car_{idx_t}_{t_id}")
                         if st.button("Guardar", key=f"btn_pop_save_{idx_t}_{t_id}", type="primary", use_container_width=True):
@@ -2658,7 +2722,7 @@ with tab_incidencias:
                         st.success("Incidencia eliminada correctamente")
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"Error al eliminar: {e}")
 
         st.markdown("<br>", unsafe_allow_html=True)
         c_exp1, c_exp2 = st.columns(2)
@@ -2689,11 +2753,11 @@ with tab_incidencias:
         st.info("No se encontraron incidencias registradas con los filtros seleccionados.")
 
 # ==============================================================================
-# 13. MÓDULO 5: CONTROL DE RENDIMIENTO (CÁLCULO AUTOMÁTICO DE HH)
+# 13. MÓDULO 5: CONTROL DE RENDIMIENTO (INTERVALO Y HH 100% MANUALES)
 # ==============================================================================
 with tab_rend:
     st.markdown("### Control de Rendimiento por Trabajador")
-    st.caption("Asignación de rubros, cálculo automático de Horas-Hombre según horario y diagnóstico de productividad.")
+    st.caption("Asignación de rubros, ingreso manual de horario/HH, cantidades ejecutadas y diagnóstico de productividad.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -2725,59 +2789,23 @@ with tab_rend:
     st.markdown("---")
     st.markdown("#### ⏱️ Horario e Intervalo Trabajado")
 
-    # Horario interactivo con cálculo automático de HH
-    col_t1, col_t2, col_t3 = st.columns([1.5, 1.5, 2])
-
-    with col_t1:
-        h_inicio_rend = st.time_input("Hora de Inicio:*", datetime.time(7, 0), key="h_ini_rend_picker")
-    with col_t2:
-        h_fin_rend = st.time_input("Hora de Fin:*", datetime.time(12, 0), key="h_fin_rend_picker")
-    with col_t3:
-        aplica_tarde = st.checkbox("Incluir Jornada de la Tarde", value=False, key="chk_tarde_rend")
-
-    hh_tarde = 0.0
-    intervalo_tarde_str = ""
-
-    if aplica_tarde:
-        col_t4, col_t5 = st.columns(2)
-        with col_t4:
-            h_ini_tarde = st.time_input("Inicio Tarde:", datetime.time(13, 0), key="h_ini_t_picker")
-        with col_t5:
-            h_fin_tarde = st.time_input("Fin Tarde:", datetime.time(17, 0), key="h_fin_t_picker")
-
-        t_ini_t = datetime.datetime.combine(datetime.date.today(), h_ini_tarde)
-        t_fin_t = datetime.datetime.combine(datetime.date.today(), h_fin_tarde)
-        if t_fin_t > t_ini_t:
-            diff_t = t_fin_t - t_ini_t
-            hh_tarde = diff_t.total_seconds() / 3600.0
-            intervalo_tarde_str = f" / {h_ini_tarde.strftime('%H:%M')} - {h_fin_tarde.strftime('%H:%M')}"
-
-    # Cálculo automático de HH en base a los intervalos seleccionados
-    t_ini_m = datetime.datetime.combine(datetime.date.today(), h_inicio_rend)
-    t_fin_m = datetime.datetime.combine(datetime.date.today(), h_fin_rend)
-
-    if t_fin_m > t_ini_m:
-        diff_m = t_fin_m - t_ini_m
-        hh_manana = diff_m.total_seconds() / 3600.0
-    else:
-        hh_manana = 0.0
-
-    total_hh_calculada = round(hh_manana + hh_tarde, 2)
-    intervalo_completo_str = f"{h_inicio_rend.strftime('%H:%M')} - {h_fin_rend.strftime('%H:%M')}{intervalo_tarde_str}"
-
-    # Visualización clara del intervalo y HH calculadas
-    c_res_h1, c_res_h2 = st.columns(2)
-    with c_res_h1:
-        st.text_input("Intervalo Generado:", value=intervalo_completo_str, disabled=True)
-    with c_res_h2:
-        st.markdown(
-            f"""
-            <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:6px 12px; margin-top:2px;">
-                <span style="font-size:0.75rem; color:#64748b; font-weight:700;">Total Horas-Hombre (HH):</span><br/>
-                <span style="font-size:1.15rem; font-weight:900; color:#0f172a;">{total_hh_calculada} HH</span>
-            </div>
-            """,
-            unsafe_allow_html=True
+    # Ingreso 100% manual del intervalo y de las Horas-Hombre (sin defaults de 8.0)
+    c_int1, c_int2 = st.columns(2)
+    with c_int1:
+        intervalo_manual = st.text_input(
+            "Intervalo de Horas Trabajadas:*",
+            placeholder="Ej. 07:00 - 12:00 / 13:00 - 16:00",
+            key="in_intervalo_manual_rend"
+        )
+    with c_int2:
+        hh_manual = st.number_input(
+            "Total Horas-Hombre (HH):*",
+            min_value=0.0,
+            max_value=24.0,
+            step=0.5,
+            value=0.0,
+            format="%.2f",
+            key="in_hh_manual_rend"
         )
 
     st.markdown("#### 📊 Cantidades de Obra")
@@ -2801,15 +2829,17 @@ with tab_rend:
 
     if st.button("💾 Registrar Rendimiento", type="primary", use_container_width=True):
         if trabajador_sel == "-- Seleccione un Trabajador --":
-            st.error("⚠️ Debe seleccionar un trabajador.")
+            st.error("⚠️ Por favor seleccione un trabajador de la lista.")
         elif rubro_sel == "-- Seleccione un Rubro --":
-            st.error("⚠️ Debe seleccionar un rubro.")
-        elif total_hh_calculada <= 0:
-            st.error("⚠️ La hora de fin debe ser mayor a la hora de inicio para calcular las Horas-Hombre.")
+            st.error("⚠️ Por favor seleccione un rubro.")
+        elif not intervalo_manual.strip():
+            st.error("⚠️ Por favor ingrese el intervalo de horas trabajadas.")
+        elif hh_manual <= 0:
+            st.error("⚠️ Por favor ingrese un valor de Horas-Hombre (HH) mayor a 0.")
         elif avance_cant <= 0:
             st.warning("⚠️ Ingrese una cantidad ejecutada mayor a 0.")
         else:
-            rend_real = round(total_hh_calculada / avance_cant, 3)
+            rend_real = round(hh_manual / avance_cant, 3)
             rend_teorico = RENDIMIENTOS_TEORICOS.get(rubro_sel, 1.0)
             
             if esperado_cant > 0:
@@ -2826,8 +2856,8 @@ with tab_rend:
                     "fecha": local_fecha_r,
                     "trabajador": trabajador_sel,
                     "rubro": rubro_sel,
-                    "intervalo": intervalo_completo_str,
-                    "horas_hh": total_hh_calculada,
+                    "intervalo": intervalo_manual.strip(),
+                    "horas_hh": hh_manual,
                     "avance": avance_cant,
                     "esperado": esperado_cant,
                     "unidad": unidad_medida,
@@ -2987,7 +3017,7 @@ if es_admin:
 
             for idx_adm, j_adm in enumerate(jornadas_admin_filtradas, 1):
                 resp_str = j_adm.get("Responsable", "") or j_adm["Usuario_Correo"]
-                with st.expander(f"📌 [{j_adm.get('Edificio', 'N/A')}] {j_adm['Fecha']} — {resp_str} ({j_adm['Usuario_Correo']})"):
+                with st.expander(f"📌 [{j_adm.get('Edificio', 'N/A')}] {j_adm['Fecha']} — {resp_str} ({j_adm['Usuario_Correo']})", expanded=False):
                     st.markdown(f"**Usuario:** `{j_adm['Usuario_Correo']}` | **Responsable:** {resp_str}")
                     
                     datos_item_adm = j_adm.get("Datos", {})
@@ -3028,7 +3058,7 @@ if es_admin:
                     with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label=f"📊 Descargar Excel",
+                            label="📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3038,7 +3068,7 @@ if es_admin:
                     with c_ad_dl2:
                         pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
                         st.download_button(
-                            label=f"📄 Descargar PDF",
+                            label="📄 Descargar PDF",
                             data=pdf_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                             mime="application/pdf",
@@ -3075,7 +3105,7 @@ if es_admin:
             insps_admin_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
 
             for idx_i_adm, i_adm in enumerate(insps_admin_filtradas, 1):
-                with st.expander(f"📌 [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} ({i_adm['Dia']}) — Usuario: {i_adm['Usuario_Correo']}"):
+                with st.expander(f"📌 [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} ({i_adm['Dia']}) — Usuario: {i_adm['Usuario_Correo']}", expanded=False):
                     st.markdown(f"**Residente:** {i_adm.get('Residente', '')} | **Clima:** {i_adm.get('Clima', '')}")
                     
                     c_ad_idl1, c_ad_idl2 = st.columns(2)
@@ -3225,6 +3255,7 @@ if es_admin:
                 "Usuario": f"{u['Nombres']} {u['Apellidos']}".strip() or e,
                 "Correo": e,
                 "Cargo": u["Cargo"],
+                "Edificios": ", ".join(u.get("Edificios", [])) if u.get("Edificios") else "Ninguno",
                 "Checklists": num_c,
                 "Libro de Obra": num_i,
                 "Incidencias": num_inc,
