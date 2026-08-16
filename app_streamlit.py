@@ -21,7 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLASSMORPHISM UI (MODERN DASHBOARD)
 # ==============================================================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -33,21 +33,21 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&display=swap');
 
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+    html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
     h1, h2, h3, .brand-title { font-family: 'Montserrat', sans-serif !important; letter-spacing: -0.03em !important; }
 
     .block-container { 
-        padding-top: 3.5rem !important; 
+        padding-top: 3.2rem !important; 
         padding-bottom: 1.5rem !important; 
         padding-left: 1.2rem !important; 
         padding-right: 1.2rem !important; 
         max-width: 100% !important; 
     }
-    .stApp { background-color: #ffffff !important; color: #121318 !important; }
-    .stApp p, .stApp label, .stApp span, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: #121318; }
-    .stCaption, caption, small, [data-testid="stCaptionContainer"] { color: #5a5f6e !important; }
+    .stApp { background-color: #f8fafc !important; color: #0f172a !important; }
+    .stApp p, .stApp label, .stApp span, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: #0f172a; }
+    .stCaption, caption, small, [data-testid="stCaptionContainer"] { color: #64748b !important; }
 
     [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
     [data-testid="stHeader"] { background: transparent !important; z-index: 100 !important; }
@@ -57,8 +57,8 @@ st.markdown(
     [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 12px !important; left: 15px !important; z-index: 999999 !important; }
 
     [data-testid="stSidebarCollapseButton"] button, [data-testid="collapsedControl"] button {
-        background-color: #1c1e26 !important; 
-        border: 1px solid #323646 !important; 
+        background-color: #0f172a !important; 
+        border: 1px solid #334155 !important; 
         border-radius: 50% !important; 
         width: 36px !important; 
         height: 36px !important; 
@@ -67,16 +67,16 @@ st.markdown(
         transition: all 0.2s ease !important;
     }
     [data-testid="stSidebarCollapseButton"] button:hover, [data-testid="collapsedControl"] button:hover {
-        background-color: #ff8c00 !important; 
-        border-color: #ff8c00 !important; 
+        background-color: #3b82f6 !important; 
+        border-color: #3b82f6 !important; 
         transform: scale(1.08);
     }
     [data-testid="stSidebarCollapseButton"] svg, [data-testid="collapsedControl"] svg { fill: #ffffff !important; color: #ffffff !important; }
 
     /* SIDEBAR */
     [data-testid="stSidebar"] { 
-        background-color: #121318 !important; 
-        border-right: 2px solid #282a36 !important; 
+        background-color: #0b0f19 !important; 
+        border-right: 1px solid #1e293b !important; 
         padding-top: 0px !important; 
         padding-left: 12px !important; 
         padding-right: 12px !important; 
@@ -110,15 +110,15 @@ st.markdown(
         height: auto !important; 
         max-width: 100% !important; 
         object-fit: cover !important; 
-        border: 1px solid #323646 !important; 
+        border: 1px solid #334155 !important; 
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); 
         margin: 0 !important; 
         display: block !important; 
     }
 
     .sidebar-profile-box { 
-        background: #1c1e26; 
-        border: 1px solid #323646; 
+        background: #111827; 
+        border: 1px solid #1f2937; 
         border-radius: 12px; 
         padding: 10px 8px !important; 
         text-align: center; 
@@ -129,13 +129,13 @@ st.markdown(
         box-sizing: border-box; 
     }
     .sidebar-user-nombres { font-size: 0.88rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }
-    .sidebar-user-apellidos { font-size: 0.85rem; font-weight: 700; color: #e0e4ed !important; margin-bottom: 4px !important; line-height: 1.2; }
-    .sidebar-user-email { font-size: 0.68rem; color: #72b2ff !important; font-weight: 600; margin-bottom: 6px !important; word-break: break-all; }
+    .sidebar-user-apellidos { font-size: 0.85rem; font-weight: 700; color: #e2e8f0 !important; margin-bottom: 4px !important; line-height: 1.2; }
+    .sidebar-user-email { font-size: 0.68rem; color: #60a5fa !important; font-weight: 600; margin-bottom: 6px !important; word-break: break-all; }
     .sidebar-user-cargo { 
         display: inline-block; 
-        background: #323646 !important; 
+        background: #1f2937 !important; 
         color: #ffffff !important; 
-        border: 1px solid #484e5e !important; 
+        border: 1px solid #374151 !important; 
         font-size: 0.60rem !important; 
         font-weight: 800 !important; 
         padding: 2px 8px !important; 
@@ -143,107 +143,204 @@ st.markdown(
         text-transform: uppercase !important; 
     }
 
-    [data-testid="stSidebar"] hr { margin: 6px 0 !important; border-color: #282a36 !important; }
+    [data-testid="stSidebar"] hr { margin: 6px 0 !important; border-color: #1f2937 !important; }
     [data-testid="stSidebar"] [data-testid="stExpander"] { 
-        background-color: #1c1e26 !important; 
-        border: 1px solid #323646 !important; 
+        background-color: #111827 !important; 
+        border: 1px solid #1f2937 !important; 
         border-radius: 10px !important; 
         margin-top: 2px !important; 
         margin-bottom: 6px !important; 
     }
-    [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #282c36 !important; padding: 6px 8px !important; }
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary { background-color: #1f2937 !important; padding: 6px 8px !important; }
     [data-testid="stSidebar"] [data-testid="stExpander"] summary * { color: #ffffff !important; font-weight: 700 !important; font-size: 0.78rem !important; }
 
-    /* WIDGET DASHBOARD UNIFICADO TODO-EN-UNO */
-    .unified-dashboard-widget {
-        background: linear-gradient(135deg, #111827 0%, #1e293b 50%, #0f172a 100%);
-        border: 1px solid #334155;
-        border-radius: 16px;
+    /* =========================================================================
+       GLASSMORPHISM SMART WIDGETS DASHBOARD (ESTILO SEGUNDA IMAGEN)
+       ========================================================================= */
+    .smart-dashboard-container {
+        background: radial-gradient(120% 120% at 50% 0%, #1e293b 0%, #0f172a 60%, #090d16 100%);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 20px;
         padding: 16px 20px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
         color: #ffffff !important;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        margin-top: 10px !important;
-        margin-bottom: 14px;
+        margin-top: 6px;
+        margin-bottom: 16px;
         width: 100%;
         box-sizing: border-box;
     }
-    .unified-dashboard-widget * {
+    .smart-dashboard-container * {
         color: #ffffff !important;
     }
-    .ud-top-bar {
+
+    .smart-header-bar {
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
-        gap: 8px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-        padding-bottom: 10px;
-        margin-bottom: 10px;
+        gap: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 12px;
+        margin-bottom: 14px;
     }
-    .ud-title {
-        font-family: 'Montserrat', sans-serif !important;
-        font-size: 1.35rem !important;
-        font-weight: 800 !important;
+    .smart-title {
+        font-size: 1.25rem;
+        font-weight: 800;
         letter-spacing: -0.02em;
-        margin: 0;
         line-height: 1.2;
     }
-    .ud-badge-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 0.76rem;
-        font-weight: 700;
-    }
-    .ud-metrics-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
-        gap: 8px;
-        text-align: center;
-    }
-    .ud-metric-item {
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 10px;
-        padding: 6px 4px;
-        transition: transform 0.15s ease;
-    }
-    .ud-metric-item:hover {
-        transform: translateY(-2px);
-        background: rgba(255, 255, 255, 0.12);
-    }
-    .ud-m-val {
-        font-size: 1.25rem;
-        font-weight: 900;
-        line-height: 1.1;
-    }
-    .ud-m-lbl {
-        font-size: 0.60rem;
-        text-transform: uppercase;
-        font-weight: 700;
-        opacity: 0.85;
+    .smart-user-sub {
+        font-size: 0.82rem;
+        color: #94a3b8 !important;
         margin-top: 2px;
     }
 
-    /* PESTAÑAS Y BOTONES */
+    .smart-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(10px);
+        padding: 5px 12px;
+        border-radius: 24px;
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+
+    /* GRID DE WIDGETS INTERNOS */
+    .widgets-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr 1fr;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .widget-glass-card {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 12px 14px;
+        backdrop-filter: blur(12px);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+    }
+    .widget-glass-card:hover {
+        background: rgba(255, 255, 255, 0.07);
+        border-color: rgba(255, 255, 255, 0.16);
+        transform: translateY(-2px);
+    }
+
+    .w-card-title {
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #94a3b8 !important;
+        letter-spacing: 0.05em;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    /* HITOS DIARIOS (PILLS DE ESTADO PENDIENTE / CUMPLIDO) */
+    .milestone-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        padding: 6px 8px;
+        margin-bottom: 5px;
+    }
+    .milestone-name {
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: #f1f5f9 !important;
+    }
+    .milestone-status-done {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: #ffffff !important;
+        font-size: 0.65rem;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+    }
+    .milestone-status-pending {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #fca5a5 !important;
+        font-size: 0.65rem;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 12px;
+    }
+
+    /* GRÁFICO DE DONA CIRCULAR SVG / CSS */
+    .donut-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 4px;
+    }
+    .donut-chart-svg {
+        width: 58px;
+        height: 58px;
+        transform: rotate(-90deg);
+        flex-shrink: 0;
+    }
+    .donut-bg {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.1);
+        stroke-width: 3.8;
+    }
+    .donut-progress {
+        fill: none;
+        stroke: #3b82f6;
+        stroke-width: 3.8;
+        stroke-linecap: round;
+        transition: stroke-dasharray 0.5s ease;
+    }
+    .donut-info-val {
+        font-size: 1.15rem;
+        font-weight: 900;
+        color: #ffffff !important;
+        line-height: 1.1;
+    }
+    .donut-info-lbl {
+        font-size: 0.68rem;
+        color: #94a3b8 !important;
+        font-weight: 600;
+    }
+
+    /* INCIDENCIAS & OBREROS */
+    .stat-hero-number {
+        font-size: 1.8rem;
+        font-weight: 900;
+        line-height: 1;
+        margin-top: 4px;
+        margin-bottom: 4px;
+    }
+
+    /* TABS */
     .stTabs [data-baseweb="tab-list"] { 
         gap: 6px; 
-        background-color: #e2e5ec !important; 
+        background-color: #e2e8f0 !important; 
         padding: 4px; 
         border-radius: 12px; 
-        border: 1px solid #c2c7d2; 
+        border: 1px solid #cbd5e1; 
     }
     .stTabs [data-baseweb="tab"] { border-radius: 8px !important; padding: 6px 14px !important; background-color: transparent !important; }
-    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: #121318 !important; font-weight: 700 !important; font-size: 0.84rem; }
-    .stTabs [aria-selected="true"] { background-color: #121318 !important; border-radius: 8px !important; }
+    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: #0f172a !important; font-weight: 700 !important; font-size: 0.84rem; }
+    .stTabs [aria-selected="true"] { background-color: #0f172a !important; border-radius: 8px !important; }
     .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span, .stTabs [aria-selected="true"] div { color: #ffffff !important; font-weight: 900 !important; }
 
     .stButton > button { 
-        background-color: #121318 !important; 
+        background-color: #0f172a !important; 
         color: #ffffff !important; 
         border-radius: 980px !important; 
         border: none !important; 
@@ -280,11 +377,12 @@ st.markdown(
     }
 
     /* RESPONSIVIDAD MÓVIL */
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
+        .widgets-grid {
+            grid-template-columns: 1fr;
+        }
         .block-container { padding-top: 4.2rem !important; padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-        .ud-title { font-size: 1.1rem !important; }
-        .ud-m-val { font-size: 1.05rem !important; }
-        .ud-m-lbl { font-size: 0.52rem !important; }
+        .smart-title { font-size: 1.1rem !important; }
     }
 
     /* TABLAS ESTÁTICAS DE RESULTADOS */
@@ -293,10 +391,9 @@ st.markdown(
         border-collapse: collapse !important;
         margin-top: 4px;
         margin-bottom: 12px;
-        font-family: 'Inter', sans-serif;
     }
     .incidencias-table th, .supervision-table th, .checklist-table th {
-        background-color: #121318 !important;
+        background-color: #0f172a !important;
         color: #ffffff !important;
         padding: 8px 10px !important;
         font-size: 0.80rem !important;
@@ -326,22 +423,20 @@ st.markdown(
 )
 
 # ==============================================================================
-# 2. SERVICIO EN TIEMPO REAL: HORA LOCAL Y CLIMA ACTUAL
+# 2. SERVICIO EN TIEMPO REAL: HORA LOCAL Y CLIMA ACTUAL DE ECUADOR
 # ==============================================================================
 def get_local_datetime_ecuador():
     try:
         tz = zoneinfo.ZoneInfo("America/Guayaquil")
         return datetime.datetime.now(tz)
     except Exception:
-        # Fallback manual UTC-5
         tz_offset = datetime.timezone(datetime.timedelta(hours=-5))
         return datetime.datetime.now(tz_offset)
 
-@st.cache_data(ttl=600)  # Actualiza cada 10 minutos
+@st.cache_data(ttl=600)
 def get_realtime_weather():
-    """Consulta la API meteorológica pública Open-Meteo para obtener clima y temperatura en tiempo real en Quito/Ecuador"""
+    """Consulta la API meteorológica pública Open-Meteo para obtener temperatura y condición en tiempo real"""
     try:
-        # Coordenadas de Quito, Ecuador
         url = "https://api.open-meteo.com/v1/forecast?latitude=-0.1807&longitude=-78.4678&current=temperature_2m,weather_code,is_day&timezone=America%2FGuayaquil"
         req = urllib.request.Request(url, headers={'User-Agent': 'AlphaBuildersApp/1.0'})
         with urllib.request.urlopen(req, timeout=4) as response:
@@ -351,7 +446,6 @@ def get_realtime_weather():
             wmo_code = current.get("weather_code", 0)
             is_day = current.get("is_day", 1)
 
-            # Mapeo oficial WMO Weather Codes
             if wmo_code == 0:
                 cond = "Despejado"
                 ico = "☀️" if is_day else "🌙"
@@ -376,7 +470,6 @@ def get_realtime_weather():
 
             return f"{ico} {temp}°C {cond}"
     except Exception:
-        # Fallback de respaldo según la hora exacta de Ecuador
         local_dt = get_local_datetime_ecuador()
         h = local_dt.hour
         if 6 <= h < 12:
@@ -444,7 +537,6 @@ def load_db_from_supabase():
     except Exception:
         db_trabajadores = DEFAULT_TRABAJADORES
 
-    # Carga de Checklists Diarios
     db_checklists = {}
     try:
         res_chk = supabase.table("checklists").select("*").execute()
@@ -468,7 +560,6 @@ def load_db_from_supabase():
     except Exception:
         pass
 
-    # Carga de Inspecciones Diarias
     db_inspecciones = {}
     try:
         res_insp = supabase.table("inspecciones").select("*").execute()
@@ -493,7 +584,6 @@ def load_db_from_supabase():
     except Exception:
         pass
 
-    # Carga de Incidencias
     db_incidencias = []
     try:
         res_inc = supabase.table("incidencias").select("*").execute()
@@ -512,7 +602,6 @@ def load_db_from_supabase():
     except Exception:
         pass
 
-    # Carga de Rendimientos
     db_rendimientos = {}
     try:
         res_rnd = supabase.table("rendimientos").select("*").execute()
@@ -1206,7 +1295,7 @@ ACTIVIDADES_TARDE_CLEAN = [
     "Revisión del cumplimiento de la meta diaria",
 ]
 # ==============================================================================
-# 5. MÓDULO DE AUTENTICACIÓN: LOGIN, REGISTRO Y RECUPERACIÓN DE CONTRASEÑA
+# 6. MÓDULO DE AUTENTICACIÓN: LOGIN, REGISTRO Y RECUPERACIÓN DE CONTRASEÑA
 # ==============================================================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -1364,7 +1453,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==============================================================================
-# 6. BARRA LATERAL (USUARIO AUTENTICADO)
+# 7. BARRA LATERAL (USUARIO AUTENTICADO)
 # ==============================================================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -1412,7 +1501,7 @@ with st.sidebar:
     )
 
     if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 4px; font-size: 0.65rem; color: #ffffff; font-weight: 800; background: #1c1e26; padding: 3px; border-radius: 6px; border: 1px solid #323646;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; margin-bottom: 4px; font-size: 0.65rem; color: #ffffff; font-weight: 800; background: #111827; padding: 3px; border-radius: 6px; border: 1px solid #1f2937;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -1470,12 +1559,14 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 7. DASHBOARD UNIFICADO (FECHA EXACTA LOCAL + CLIMA EN TIEMPO REAL VÍA API)
+# 8. SMART DASHBOARD GLASSMORPHISM UI (HITOS, DONA RENDIMIENTO, INCIDENCIAS)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
-# Cálculo de fecha exacta con zona horaria local de Ecuador (UTC-5)
+# 1. Fecha local exacta (Ecuador UTC-5)
 local_dt = get_local_datetime_ecuador()
+fecha_hoy_iso = local_dt.strftime("%Y-%m-%d")
+
 dias_nombre_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 meses_nombre_es = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 
@@ -1483,49 +1574,104 @@ dia_semana_actual = dias_nombre_es[local_dt.weekday()]
 mes_actual = meses_nombre_es[local_dt.month - 1]
 fecha_widget_texto = f"{dia_semana_actual}, {local_dt.day} de {mes_actual} de {local_dt.year}"
 
-# Clima en tiempo real (vía API meteorológica Open-Meteo)
+# 2. Clima en tiempo real vía API
 clima_actual_str = get_realtime_weather()
 
-usr_chks = len(st.session_state.db_checklists.get(user_email, []))
-usr_insps = len(st.session_state.db_inspecciones.get(user_email, []))
-usr_incs = len(st.session_state.db_incidencias)
-usr_rnds = len(st.session_state.db_rendimientos.get(user_email, []))
-total_obreros = len(st.session_state.db_trabajadores)
+# 3. Métricas y cálculo de Hitos Diarios de hoy
+mis_chks_list = st.session_state.db_checklists.get(user_email, [])
+mis_insps_list = st.session_state.db_inspecciones.get(user_email, [])
+mis_rnds_list = st.session_state.db_rendimientos.get(user_email, [])
 
-# Renderizado del Widget Dashboard Unificado
+chk_hoy_cumplido = any(c.get("Fecha") == fecha_hoy_iso for c in mis_chks_list)
+insp_hoy_cumplida = any(i.get("Fecha") == fecha_hoy_iso for i in mis_insps_list)
+
+tag_chk_html = '<span class="milestone-status-done">✓ Cumplido</span>' if chk_hoy_cumplido else '<span class="milestone-status-pending">⏳ Pendiente</span>'
+tag_insp_html = '<span class="milestone-status-done">✓ Cumplido</span>' if insp_hoy_cumplida else '<span class="milestone-status-pending">⏳ Pendiente</span>'
+
+# 4. Cálculo de Rendimiento Promedio y Gráfico de Dona
+if len(mis_rnds_list) > 0:
+    total_eficientes = sum(1 for r in mis_rnds_list if r.get("Estado") == "EFICIENTE")
+    porc_rendimiento = int(round((total_eficientes / len(mis_rnds_list)) * 100))
+    lbl_rend_prom = f"{porc_rendimiento}% Eficaz"
+else:
+    porc_rendimiento = 100
+    lbl_rend_prom = "100% Óptimo"
+
+# Circunferencia del círculo en SVG (radio 20 => 2 * pi * 20 = 125.66)
+circunferencia_circulo = 125.66
+progreso_dona_stroke = round((porc_rendimiento / 100) * circunferencia_circulo, 2)
+color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
+
+# 5. Incidencias Abiertas y Total Obreros
+incs_abiertas_count = sum(1 for inc in st.session_state.db_incidencias if inc.get("Estado") == "Abierta")
+total_obreros_count = len(st.session_state.db_trabajadores)
+
+# Renderizado Glassmorphism Dashboard
 st.markdown(
     f"""
-    <div class="unified-dashboard-widget">
-        <div class="ud-top-bar">
+    <div class="smart-dashboard-container">
+        <!-- BARRA SUPERIOR CON SALUDO, FECHA REAL Y CLIMA EN VIVO -->
+        <div class="smart-header-bar">
             <div>
-                <div class="ud-title">Alpha Builders | Portal de Obra</div>
-                <div style="font-size: 0.85rem; opacity: 0.85; margin-top: 2px;">{user_nombre_completo} — <b>{user_cargo}</b></div>
+                <div class="smart-title">Alpha Builders | Portal de Obra</div>
+                <div class="smart-user-sub">{user_nombre_completo} &bull; <b style="color: #cbd5e1 !important;">{user_cargo}</b></div>
             </div>
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <div class="ud-badge-pill">📅 {fecha_widget_texto}</div>
-                <div class="ud-badge-pill">{clima_actual_str}</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <div class="smart-pill">📅 {fecha_widget_texto}</div>
+                <div class="smart-pill">{clima_actual_str}</div>
             </div>
         </div>
-        <div class="ud-metrics-row">
-            <div class="ud-metric-item">
-                <div class="ud-m-val">{total_obreros}</div>
-                <div class="ud-m-lbl">Obreros</div>
+
+        <!-- GRID DE 4 WIDGETS INTERNOS -->
+        <div class="widgets-grid">
+            <!-- WIDGET 1: HITOS DIARIOS (CHECKLIST E INSPECCIÓN DE HOY) -->
+            <div class="widget-glass-card">
+                <div class="w-card-title"><span>🎯 Hitos Diarios</span><span style="font-size:0.68rem;">Hoy</span></div>
+                <div>
+                    <div class="milestone-item">
+                        <span class="milestone-name">Checklist Diario</span>
+                        {tag_chk_html}
+                    </div>
+                    <div class="milestone-item">
+                        <span class="milestone-name">Inspección de Obra</span>
+                        {tag_insp_html}
+                    </div>
+                </div>
             </div>
-            <div class="ud-metric-item">
-                <div class="ud-m-val">{usr_chks}</div>
-                <div class="ud-m-lbl">Checklists</div>
+
+            <!-- WIDGET 2: RENDIMIENTO PROMEDIO CON GRÁFICO DE DONA CIRCULAR -->
+            <div class="widget-glass-card">
+                <div class="w-card-title"><span>⚡ Rendimiento</span><span style="font-size:0.68rem;">Promedio</span></div>
+                <div class="donut-container">
+                    <svg class="donut-chart-svg" viewBox="0 0 48 48">
+                        <circle class="donut-bg" cx="24" cy="24" r="20" />
+                        <circle class="donut-progress" cx="24" cy="24" r="20" 
+                            stroke="{color_dona}" 
+                            stroke-dasharray="{progreso_dona_stroke} {circunferencia_circulo}" />
+                    </svg>
+                    <div>
+                        <div class="donut-info-val" style="color: {color_dona} !important;">{porc_rendimiento}%</div>
+                        <div class="donut-info-lbl">{lbl_rend_prom}</div>
+                    </div>
+                </div>
             </div>
-            <div class="ud-metric-item">
-                <div class="ud-m-val">{usr_insps}</div>
-                <div class="ud-m-lbl">Inspecciones</div>
+
+            <!-- WIDGET 3: INCIDENCIAS ACTIVAS CON NÚMERO DIRECTO -->
+            <div class="widget-glass-card">
+                <div class="w-card-title"><span>🚨 Incidencias</span><span style="font-size:0.68rem;">Abiertas</span></div>
+                <div>
+                    <div class="stat-hero-number" style="color: #f87171 !important;">{incs_abiertas_count}</div>
+                    <div style="font-size: 0.72rem; color: #94a3b8 !important; font-weight: 600;">Por resolver en obra</div>
+                </div>
             </div>
-            <div class="ud-metric-item">
-                <div class="ud-m-val">{usr_incs}</div>
-                <div class="ud-m-lbl">Incidencias</div>
-            </div>
-            <div class="ud-metric-item">
-                <div class="ud-m-val">{usr_rnds}</div>
-                <div class="ud-m-lbl">Rendimiento</div>
+
+            <!-- WIDGET 4: PLANTILLA DE OBREROS ACTIVOS -->
+            <div class="widget-glass-card">
+                <div class="w-card-title"><span>👷 Obreros</span><span style="font-size:0.68rem;">Activos</span></div>
+                <div>
+                    <div class="stat-hero-number" style="color: #60a5fa !important;">{total_obreros_count}</div>
+                    <div style="font-size: 0.72rem; color: #94a3b8 !important; font-weight: 600;">Personal en planilla</div>
+                </div>
             </div>
         </div>
     </div>
@@ -1620,7 +1766,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# 8. MÓDULO 1: CHECKLIST DIARIO (CUADROS COMPACTOS, LÍNEA BLANCA, FOTO A LA DERECHA)
+# 9. MÓDULO 1: CHECKLIST DIARIO (CUADROS COMPACTOS, LÍNEA BLANCA, FOTO A LA DERECHA)
 # ==============================================================================
 tab_chk = tabs_app[0]
 tab_didactico = tabs_app[1]
@@ -2113,7 +2259,7 @@ with tab_chk:
         st.info("Aún no hay checklists guardados.")
 
 # ==============================================================================
-# 9. MÓDULO 2: INSPECCIÓN DIARIA
+# 10. MÓDULO 2: INSPECCIÓN DIARIA
 # ==============================================================================
 with tab_didactico:
     st.markdown("### Formato de Inspección Diaria de Obra")
@@ -2443,7 +2589,7 @@ with tab_didactico:
     else:
         st.info("Aún no hay formatos de inspección guardados.")
 # ==============================================================================
-# 10. MÓDULO 3: LEVANTAMIENTO DE INCIDENCIAS
+# 11. MÓDULO 3: LEVANTAMIENTO DE INCIDENCIAS
 # ==============================================================================
 with tab_incidencias:
     st.markdown("### Levantamiento de Incidencias")
@@ -2640,7 +2786,7 @@ with tab_incidencias:
         st.info("No se encontraron incidencias registradas con los filtros seleccionados.")
 
 # ==============================================================================
-# 11. MÓDULO 4: CONTROL DE RENDIMIENTO
+# 12. MÓDULO 4: CONTROL DE RENDIMIENTO
 # ==============================================================================
 with tab_rend:
     st.markdown("### Control de Rendimiento por Trabajador")
@@ -2738,7 +2884,7 @@ with tab_rend:
         st.info("Aún no existen registros en su historial.")
 
 # ==============================================================================
-# 12. MÓDULO 5: PANEL DE CONTROL ADMINISTRADOR
+# 13. MÓDULO 5: PANEL DE CONTROL ADMINISTRADOR
 # ==============================================================================
 if es_admin:
     tab_admin = tabs_app[4]
