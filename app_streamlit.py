@@ -119,7 +119,7 @@ st.markdown(
         background: #111827; 
         border: 1px solid #1f2937; 
         border-radius: 10px; 
-        padding: 8px 6px !important; 
+        padding: 10px 8px !important; 
         text-align: center; 
         margin-top: 2px; 
         margin-bottom: 6px; 
@@ -180,7 +180,7 @@ st.markdown(
     .smart-user-sub {
         font-size: 0.78rem;
         color: #94a3b8 !important;
-        margin-top: 2px;
+        margin-top: 3px;
         display: flex;
         align-items: center;
         flex-wrap: wrap;
@@ -188,14 +188,16 @@ st.markdown(
     }
 
     .edificio-tag-badge {
-        display: inline-block;
-        background: rgba(59, 130, 246, 0.18);
-        border: 1px solid rgba(96, 165, 250, 0.4);
+        display: inline-flex;
+        align-items: center;
+        background: rgba(59, 130, 246, 0.20);
+        border: 1px solid rgba(96, 165, 250, 0.45);
         color: #93c5fd !important;
-        font-size: 0.62rem;
-        font-weight: 700;
-        padding: 1px 6px;
+        font-size: 0.64rem;
+        font-weight: 800;
+        padding: 2px 7px;
         border-radius: 6px;
+        letter-spacing: 0.02em;
     }
 
     .smart-pill {
@@ -466,7 +468,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 3. BASE DE DATOS SUPABASE
+# 3. BASE DE DATOS SUPABASE RESILIENTE
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -489,6 +491,19 @@ def load_db_from_supabase():
     except Exception:
         access_pin = "1254"
 
+    # Cargar configuraciones globales de respaldo para edificios de usuarios
+    fallback_edificios_map = {}
+    try:
+        res_cfg = supabase.table("app_config").select("*").like("key", "user_edificios_%").execute()
+        for r_cfg in res_cfg.data:
+            u_k = r_cfg["key"].replace("user_edificios_", "").lower().strip()
+            try:
+                fallback_edificios_map[u_k] = json.loads(r_cfg["value"])
+            except Exception:
+                fallback_edificios_map[u_k] = [r_cfg["value"]]
+    except Exception:
+        pass
+
     try:
         res_usr = supabase.table("usuarios").select("*").execute()
         db_usuarios = []
@@ -496,7 +511,8 @@ def load_db_from_supabase():
         admin_emails = []
         for row in res_usr.data:
             c = row["correo"].lower().strip()
-            # Carga de proyectos asignados al usuario
+            
+            # Carga de edificios asignados con fallback
             edifs = row.get("edificios")
             if isinstance(edifs, list):
                 edifs_list = edifs
@@ -506,7 +522,7 @@ def load_db_from_supabase():
                 except Exception:
                     edifs_list = [edifs] if edifs else []
             else:
-                edifs_list = []
+                edifs_list = fallback_edificios_map.get(c, [])
 
             db_usuarios.append({
                 "Nombres": row["nombres"],
@@ -1317,7 +1333,6 @@ if not st.session_state.autenticado:
 
                 reg_cargo = st.selectbox("Cargo / Rol en Obra:*", ["Residente", "Asistente", "Ayudante"])
                 
-                # Selección múltiple de edificios en el registro
                 reg_edificios_sel = st.multiselect(
                     "Edificios / Proyectos asignados:*",
                     options=EDIFICIOS_ALPHA,
@@ -1344,15 +1359,26 @@ if not st.session_state.autenticado:
                             st.warning("Este correo ya se encuentra registrado.")
                         else:
                             try:
-                                supabase.table("usuarios").insert({
+                                insert_payload = {
                                     "correo": mail_clean,
                                     "nombres": reg_nombres.strip(),
                                     "apellidos": reg_apellidos.strip(),
                                     "password": reg_pass,
                                     "cargo": reg_cargo,
-                                    "edificios": reg_edificios_sel,
                                     "es_admin": False
-                                }).execute()
+                                }
+                                # Intento 1: Guardar con la columna edificios
+                                try:
+                                    payload_full = insert_payload.copy()
+                                    payload_full["edificios"] = reg_edificios_sel
+                                    supabase.table("usuarios").insert(payload_full).execute()
+                                except Exception:
+                                    # Fallback seguro si la columna no existe en Supabase
+                                    supabase.table("usuarios").insert(insert_payload).execute()
+                                    supabase.table("app_config").upsert({
+                                        "key": f"user_edificios_{mail_clean}",
+                                        "value": json.dumps(reg_edificios_sel)
+                                    }).execute()
 
                                 st.session_state.autenticado = True
                                 st.session_state.usuario_email = mail_clean
@@ -1445,8 +1471,11 @@ with st.sidebar:
     if img_obj is not None:
         st.image(img_obj, use_container_width=True)
 
-    # Badges de edificios para la barra lateral
-    tags_edif_sidebar = "".join([f"<span class='edificio-tag-badge' style='margin: 1px;'>{e}</span>" for e in user_edificios])
+    # Badges de edificios para la barra lateral (debajo del nombre y cargo)
+    if len(user_edificios) > 0:
+        tags_edif_sidebar = "".join([f"<span class='edificio-tag-badge' style='margin: 1px;'>{e}</span>" for e in user_edificios])
+    else:
+        tags_edif_sidebar = "<span style='font-size: 0.60rem; color: #64748b;'>Sin proyectos asignados</span>"
 
     st.markdown(
         f"""
@@ -1454,7 +1483,7 @@ with st.sidebar:
             <div class="sidebar-user-nombres">{user_nombres}</div>
             <div class="sidebar-user-apellidos">{user_apellidos}</div>
             <div class="sidebar-user-email">{user_email}</div>
-            <div style="margin-top: 3px; margin-bottom: 4px;">
+            <div style="margin-top: 4px; margin-bottom: 5px;">
                 <div class="sidebar-user-cargo">{user_cargo}</div>
             </div>
             <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-top: 4px;">
@@ -1478,9 +1507,8 @@ with st.sidebar:
         idx_c = cargos_lista.index(user_cargo) if user_cargo in cargos_lista else 0
         edit_cargo = st.selectbox("Cargo:", cargos_lista, index=idx_c, key="sb_car")
 
-        # Modificación de proyectos asignados en cuentas activas
         edit_edificios = st.multiselect(
-            "Edificios Asignados:",
+            "Edificios / Proyectos Asignados:",
             options=EDIFICIOS_ALPHA,
             default=[e for e in user_edificios if e in EDIFICIOS_ALPHA],
             key="sb_edif_edit"
@@ -1497,23 +1525,32 @@ with st.sidebar:
                     st.error("Las nuevas contraseñas no coinciden.")
                     st.stop()
 
-            update_data = {
+            base_update_data = {
                 "nombres": edit_nombres.strip(),
                 "apellidos": edit_apellidos.strip(),
-                "cargo": edit_cargo,
-                "edificios": edit_edificios
+                "cargo": edit_cargo
             }
 
             if edit_pass.strip():
-                update_data["password"] = edit_pass.strip()
+                base_update_data["password"] = edit_pass.strip()
 
             if nueva_foto_file is not None:
                 b64_str = image_to_base64(nueva_foto_file)
                 if b64_str:
-                    update_data["foto_b64"] = b64_str
+                    base_update_data["foto_b64"] = b64_str
 
+            # Intento de actualización con manejo seguro del campo edificios
             try:
-                supabase.table("usuarios").update(update_data).eq("correo", user_email).execute()
+                try:
+                    full_update = base_update_data.copy()
+                    full_update["edificios"] = edit_edificios
+                    supabase.table("usuarios").update(full_update).eq("correo", user_email).execute()
+                except Exception:
+                    supabase.table("usuarios").update(base_update_data).eq("correo", user_email).execute()
+                    supabase.table("app_config").upsert({
+                        "key": f"user_edificios_{user_email}",
+                        "value": json.dumps(edit_edificios)
+                    }).execute()
                 
                 st.session_state.usuario_nombres = edit_nombres.strip()
                 st.session_state.usuario_apellidos = edit_apellidos.strip()
@@ -1581,7 +1618,7 @@ color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimie
 incs_abiertas_count = sum(1 for inc in st.session_state.db_incidencias if inc.get("Estado") == "Abierta")
 total_obreros_count = len(st.session_state.db_trabajadores)
 
-# Insignias de edificios colocadas al lado del cargo
+# Insignias de edificios colocadas al lado del cargo en el Dashboard
 tags_edificios_html = "".join([f"<span class='edificio-tag-badge'>{ed}</span>" for ed in user_edificios])
 
 # Renderizado HTML limpio y continuo sin sangrías
@@ -2789,7 +2826,7 @@ with tab_rend:
     st.markdown("---")
     st.markdown("#### ⏱️ Horario e Intervalo Trabajado")
 
-    # Ingreso 100% manual del intervalo y de las Horas-Hombre (sin defaults de 8.0)
+    # Ingreso 100% manual del intervalo y de las Horas-Hombre
     c_int1, c_int2 = st.columns(2)
     with c_int1:
         intervalo_manual = st.text_input(
@@ -3058,7 +3095,7 @@ if es_admin:
                     with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label="📊 Descargar Excel",
+                            label=f"📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3068,7 +3105,7 @@ if es_admin:
                     with c_ad_dl2:
                         pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
                         st.download_button(
-                            label="📄 Descargar PDF",
+                            label=f"📄 Descargar PDF",
                             data=pdf_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                             mime="application/pdf",
