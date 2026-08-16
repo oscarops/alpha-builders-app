@@ -326,7 +326,7 @@ st.markdown(
         margin-bottom: 6px;
     }
 
-    /* ENCABEZADOS DE TABLA PERSONALIZADA PARA OBREROS */
+    /* ENCABEZADOS DE TABLA PERSONALIZADA */
     .custom-table-header {
         background-color: #0f172a;
         color: #ffffff !important;
@@ -2345,11 +2345,11 @@ with tab_libro:
     else:
         st.info("Aún no hay registros guardados en Libro de Obra.")
 # ==============================================================================
-# 11. MÓDULO 3: PLANTILLA DE OBREROS (TABLA DINÁMICA CON EDICIÓN Y REORDENAMIENTO)
+# 11. MÓDULO 3: PLANTILLA DE OBREROS (TABLA LIMPIA CON MODAL DE EDICIÓN)
 # ==============================================================================
 with tab_obreros:
     st.markdown("### Plantilla de Obreros Activos")
-    st.caption("Administración de cuadrillas, edición directa de cargos, cambio de posición y control del personal.")
+    st.caption("Administración de personal en obra, edición de cargos mediante ventana emergente y control de cuadrilla.")
 
     # Botones compactos superiores con Popover
     col_btn_ob1, col_btn_ob2, _ = st.columns([1.5, 1.8, 3])
@@ -2414,7 +2414,7 @@ with tab_obreros:
 
     st.markdown("---")
 
-    # Tabla Dinámica de Cuadrilla Activa
+    # Tabla de Cuadrilla Activa
     st.markdown(f"#### Nómina de Cuadrilla Activa ({len(st.session_state.db_trabajadores)} trabajadores)")
 
     if len(st.session_state.db_trabajadores) > 0:
@@ -2422,18 +2422,16 @@ with tab_obreros:
         st.markdown(
             """
             <div class="custom-table-header">
-                <div style="width: 5%; text-align: center;">N°</div>
-                <div style="width: 40%; padding-left: 8px;">Nombre del Trabajador</div>
+                <div style="width: 6%; text-align: center;">N°</div>
+                <div style="width: 48%; padding-left: 8px;">Nombre del Trabajador</div>
                 <div style="width: 32%; padding-left: 8px;">Cargo / Especialidad</div>
-                <div style="width: 13%; text-align: center;">Posición</div>
-                <div style="width: 10%; text-align: center;">Acción</div>
+                <div style="width: 14%; text-align: center;">Acciones</div>
             </div>
             """,
             unsafe_allow_html=True
         )
 
         lista_trabajadores_actual = st.session_state.db_trabajadores
-        total_trabs = len(lista_trabajadores_actual)
 
         for idx_t, trab in enumerate(lista_trabajadores_actual):
             t_id = trab.get("id", idx_t)
@@ -2441,58 +2439,43 @@ with tab_obreros:
             t_car = trab["cargo"]
 
             st.markdown('<div class="custom-table-row">', unsafe_allow_html=True)
-            col_num, col_nom, col_car, col_pos, col_act = st.columns([0.5, 4.0, 3.2, 1.3, 1.0])
+            col_num, col_nom, col_car, col_act = st.columns([0.6, 4.8, 3.2, 1.4])
 
             with col_num:
-                st.markdown(f"<div style='text-align: center; font-weight: 800; color: #64748b; padding-top: 6px;'>{idx_t + 1}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align: center; font-weight: 800; color: #64748b; padding-top: 6px;'>{idx_t + 1}.</div>", unsafe_allow_html=True)
 
             with col_nom:
                 st.markdown(f"<div style='font-weight: 700; color: #0f172a; padding-top: 6px;'>{t_nom}</div>", unsafe_allow_html=True)
 
             with col_car:
-                c_car_in, c_car_btn = st.columns([3, 1])
-                with c_car_in:
-                    nuevo_cargo_val = st.text_input(
-                        f"Cargo_{idx_t}",
-                        value=t_car,
-                        key=f"in_car_{idx_t}_{t_id}",
-                        label_visibility="collapsed"
-                    )
-                with c_car_btn:
-                    if st.button("💾", key=f"btn_save_car_{idx_t}_{t_id}", help="Guardar nuevo cargo"):
-                        if nuevo_cargo_val.strip() and nuevo_cargo_val.strip().upper() != t_car:
-                            try:
-                                supabase.table("trabajadores").update({"cargo": nuevo_cargo_val.strip().upper()}).eq("nombre", t_nom).execute()
-                                st.session_state.db_loaded = False
-                                st.success("Cargo actualizado.")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Error: {e}")
-
-            with col_pos:
-                p_up, p_down = st.columns(2)
-                with p_up:
-                    if idx_t > 0:
-                        if st.button("🔼", key=f"btn_up_{idx_t}_{t_id}", help="Mover arriba"):
-                            lista_trabajadores_actual[idx_t - 1], lista_trabajadores_actual[idx_t] = lista_trabajadores_actual[idx_t], lista_trabajadores_actual[idx_t - 1]
-                            st.session_state.db_trabajadores = lista_trabajadores_actual
-                            st.rerun()
-                with p_down:
-                    if idx_t < total_trabs - 1:
-                        if st.button("🔽", key=f"btn_down_{idx_t}_{t_id}", help="Mover abajo"):
-                            lista_trabajadores_actual[idx_t + 1], lista_trabajadores_actual[idx_t] = lista_trabajadores_actual[idx_t], lista_trabajadores_actual[idx_t + 1]
-                            st.session_state.db_trabajadores = lista_trabajadores_actual
-                            st.rerun()
+                st.markdown(f"<div style='padding-top: 5px;'><span style='background: #e2e8f0; color: #1e293b; font-size: 0.72rem; font-weight: 800; padding: 3px 10px; border-radius: 12px; border: 1px solid #cbd5e1;'>{t_car}</span></div>", unsafe_allow_html=True)
 
             with col_act:
-                if st.button("➖", key=f"btn_del_ob_{idx_t}_{t_id}", help=f"Remover a {t_nom}", use_container_width=True):
-                    try:
-                        supabase.table("trabajadores").delete().eq("nombre", t_nom).execute()
-                        st.session_state.db_loaded = False
-                        st.success(f"Trabajador {t_nom} removido.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al eliminar: {e}")
+                c_edit, c_del = st.columns(2)
+                with c_edit:
+                    with st.popover("✏️", help=f"Editar cargo de {t_nom}"):
+                        st.markdown(f"**Modificar Cargo**")
+                        st.caption(f"Trabajador: **{t_nom}**")
+                        nuevo_cargo_input = st.text_input("Nuevo Cargo / Especialidad:", value=t_car, key=f"pop_in_car_{idx_t}_{t_id}")
+                        if st.button("Guardar", key=f"btn_pop_save_{idx_t}_{t_id}", type="primary", use_container_width=True):
+                            if nuevo_cargo_input.strip() and nuevo_cargo_input.strip().upper() != t_car:
+                                try:
+                                    supabase.table("trabajadores").update({"cargo": nuevo_cargo_input.strip().upper()}).eq("nombre", t_nom).execute()
+                                    st.session_state.db_loaded = False
+                                    st.success("Cargo actualizado correctamente.")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+
+                with c_del:
+                    if st.button("➖", key=f"btn_del_ob_{idx_t}_{t_id}", help=f"Remover a {t_nom} de la cuadrilla", use_container_width=True):
+                        try:
+                            supabase.table("trabajadores").delete().eq("nombre", t_nom).execute()
+                            st.session_state.db_loaded = False
+                            st.success(f"Trabajador {t_nom} removido.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al eliminar: {e}")
 
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -2706,11 +2689,11 @@ with tab_incidencias:
         st.info("No se encontraron incidencias registradas con los filtros seleccionados.")
 
 # ==============================================================================
-# 13. MÓDULO 5: CONTROL DE RENDIMIENTO (MANUAL CON BORRADO '➖')
+# 13. MÓDULO 5: CONTROL DE RENDIMIENTO (CÁLCULO AUTOMÁTICO DE HH)
 # ==============================================================================
 with tab_rend:
     st.markdown("### Control de Rendimiento por Trabajador")
-    st.caption("Asignación de rubros, registro de horas/intervalos, cantidad ejecutada vs. meta y diagnóstico de productividad.")
+    st.caption("Asignación de rubros, cálculo automático de Horas-Hombre según horario y diagnóstico de productividad.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -2742,21 +2725,59 @@ with tab_rend:
     st.markdown("---")
     st.markdown("#### ⏱️ Horario e Intervalo Trabajado")
 
-    c_int1, c_int2 = st.columns(2)
-    with c_int1:
-        intervalo_txt = st.text_input(
-            "Intervalo de Horas Trabajadas:*",
-            placeholder="Ej. 07:00 - 12:00 / 13:00 - 17:00",
-            key="in_intervalo_rend"
-        )
-    with c_int2:
-        horas_acumuladas = st.number_input(
-            "Total Horas-Hombre (HH):*",
-            min_value=0.1,
-            max_value=24.0,
-            step=0.5,
-            value=8.0,
-            key="in_hh_rend"
+    # Horario interactivo con cálculo automático de HH
+    col_t1, col_t2, col_t3 = st.columns([1.5, 1.5, 2])
+
+    with col_t1:
+        h_inicio_rend = st.time_input("Hora de Inicio:*", datetime.time(7, 0), key="h_ini_rend_picker")
+    with col_t2:
+        h_fin_rend = st.time_input("Hora de Fin:*", datetime.time(12, 0), key="h_fin_rend_picker")
+    with col_t3:
+        aplica_tarde = st.checkbox("Incluir Jornada de la Tarde", value=False, key="chk_tarde_rend")
+
+    hh_tarde = 0.0
+    intervalo_tarde_str = ""
+
+    if aplica_tarde:
+        col_t4, col_t5 = st.columns(2)
+        with col_t4:
+            h_ini_tarde = st.time_input("Inicio Tarde:", datetime.time(13, 0), key="h_ini_t_picker")
+        with col_t5:
+            h_fin_tarde = st.time_input("Fin Tarde:", datetime.time(17, 0), key="h_fin_t_picker")
+
+        t_ini_t = datetime.datetime.combine(datetime.date.today(), h_ini_tarde)
+        t_fin_t = datetime.datetime.combine(datetime.date.today(), h_fin_tarde)
+        if t_fin_t > t_ini_t:
+            diff_t = t_fin_t - t_ini_t
+            hh_tarde = diff_t.total_seconds() / 3600.0
+            intervalo_tarde_str = f" / {h_ini_tarde.strftime('%H:%M')} - {h_fin_tarde.strftime('%H:%M')}"
+
+    # Cálculo automático de HH en base a los intervalos seleccionados
+    t_ini_m = datetime.datetime.combine(datetime.date.today(), h_inicio_rend)
+    t_fin_m = datetime.datetime.combine(datetime.date.today(), h_fin_rend)
+
+    if t_fin_m > t_ini_m:
+        diff_m = t_fin_m - t_ini_m
+        hh_manana = diff_m.total_seconds() / 3600.0
+    else:
+        hh_manana = 0.0
+
+    total_hh_calculada = round(hh_manana + hh_tarde, 2)
+    intervalo_completo_str = f"{h_inicio_rend.strftime('%H:%M')} - {h_fin_rend.strftime('%H:%M')}{intervalo_tarde_str}"
+
+    # Visualización clara del intervalo y HH calculadas
+    c_res_h1, c_res_h2 = st.columns(2)
+    with c_res_h1:
+        st.text_input("Intervalo Generado:", value=intervalo_completo_str, disabled=True)
+    with c_res_h2:
+        st.markdown(
+            f"""
+            <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:6px 12px; margin-top:2px;">
+                <span style="font-size:0.75rem; color:#64748b; font-weight:700;">Total Horas-Hombre (HH):</span><br/>
+                <span style="font-size:1.15rem; font-weight:900; color:#0f172a;">{total_hh_calculada} HH</span>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
     st.markdown("#### 📊 Cantidades de Obra")
@@ -2783,12 +2804,12 @@ with tab_rend:
             st.error("⚠️ Debe seleccionar un trabajador.")
         elif rubro_sel == "-- Seleccione un Rubro --":
             st.error("⚠️ Debe seleccionar un rubro.")
-        elif not intervalo_txt.strip():
-            st.error("⚠️ Ingrese el intervalo de horas trabajadas.")
+        elif total_hh_calculada <= 0:
+            st.error("⚠️ La hora de fin debe ser mayor a la hora de inicio para calcular las Horas-Hombre.")
         elif avance_cant <= 0:
             st.warning("⚠️ Ingrese una cantidad ejecutada mayor a 0.")
         else:
-            rend_real = round(horas_acumuladas / avance_cant, 3)
+            rend_real = round(total_hh_calculada / avance_cant, 3)
             rend_teorico = RENDIMIENTOS_TEORICOS.get(rubro_sel, 1.0)
             
             if esperado_cant > 0:
@@ -2805,8 +2826,8 @@ with tab_rend:
                     "fecha": local_fecha_r,
                     "trabajador": trabajador_sel,
                     "rubro": rubro_sel,
-                    "intervalo": intervalo_txt.strip(),
-                    "horas_hh": horas_acumuladas,
+                    "intervalo": intervalo_completo_str,
+                    "horas_hh": total_hh_calculada,
                     "avance": avance_cant,
                     "esperado": esperado_cant,
                     "unidad": unidad_medida,
@@ -2827,7 +2848,6 @@ with tab_rend:
     mis_rendimientos = st.session_state.db_rendimientos.get(user_email, [])
 
     if len(mis_rendimientos) > 0:
-        # Encabezado formal de la tabla de rendimientos
         st.markdown(
             """
             <div class="custom-table-header">
