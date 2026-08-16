@@ -143,7 +143,7 @@ st.markdown(
 
     [data-testid="stSidebar"] hr { margin: 4px 0 !important; border-color: #1f2937 !important; }
 
-    /* GLASSMORPHISM DASHBOARD */
+    /* SMART DASHBOARD */
     .smart-dashboard-container {
         background: radial-gradient(120% 120% at 50% 0%, #1e293b 0%, #0f172a 60%, #090d16 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
@@ -168,12 +168,7 @@ st.markdown(
         padding-bottom: 8px;
         margin-bottom: 10px;
     }
-    .smart-title {
-        font-size: 1.1rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        line-height: 1.1;
-    }
+    .smart-title { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
     .smart-user-sub {
         font-size: 0.78rem;
         color: #94a3b8 !important;
@@ -269,31 +264,15 @@ st.markdown(
         border-radius: 10px;
     }
 
-    .donut-container {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .donut-chart-svg {
-        width: 42px;
-        height: 42px;
-        transform: rotate(-90deg);
-        flex-shrink: 0;
-    }
+    .donut-container { display: flex; align-items: center; gap: 8px; }
+    .donut-chart-svg { width: 42px; height: 42px; transform: rotate(-90deg); flex-shrink: 0; }
     .donut-bg { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 4.5; }
     .donut-progress { fill: none; stroke-width: 4.5; stroke-linecap: round; }
     .donut-info-val { font-size: 0.98rem; font-weight: 900; line-height: 1; }
     .donut-info-lbl { font-size: 0.60rem; color: #94a3b8 !important; font-weight: 600; margin-top: 1px; }
+    .stat-hero-number { font-size: 1.35rem; font-weight: 900; line-height: 1; margin-top: 2px; margin-bottom: 2px; }
 
-    .stat-hero-number {
-        font-size: 1.35rem;
-        font-weight: 900;
-        line-height: 1;
-        margin-top: 2px;
-        margin-bottom: 2px;
-    }
-
-    /* PESTAÑAS INDIVIDUALES DELIMITADAS CON BORDES */
+    /* PESTAÑAS */
     .stTabs [data-baseweb="tab-list"] { 
         gap: 6px !important; 
         background-color: #e2e8f0 !important; 
@@ -307,21 +286,14 @@ st.markdown(
         background-color: #ffffff !important; 
         border: 1px solid #cbd5e1 !important; 
         box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
-        transition: all 0.2s ease !important;
+        transition: all 0.2s ease !important; 
     }
-    .stTabs [data-baseweb="tab"]:hover {
-        border-color: #94a3b8 !important;
-        background-color: #f8fafc !important;
-    }
-    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { 
-        color: #1e293b !important; 
-        font-weight: 700 !important; 
-        font-size: 0.78rem !important; 
-    }
+    .stTabs [data-baseweb="tab"]:hover { border-color: #94a3b8 !important; background-color: #f8fafc !important; }
+    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: #1e293b !important; font-weight: 700 !important; font-size: 0.78rem !important; }
     .stTabs [aria-selected="true"] { 
         background-color: #0f172a !important; 
         border: 1px solid #0f172a !important; 
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25) !important;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25) !important; 
     }
     .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span, .stTabs [aria-selected="true"] div { 
         color: #ffffff !important; 
@@ -348,11 +320,7 @@ st.markdown(
         margin-top: 4px !important;
         margin-bottom: 0px !important;
     }
-    .banner-item-header span {
-        color: #ffffff !important;
-        font-size: 0.80rem !important;
-        font-weight: 800 !important;
-    }
+    .banner-item-header span { color: #ffffff !important; font-size: 0.80rem !important; font-weight: 800 !important; }
 
     .card-item-body-compact {
         border: 1px solid #cbd5e1;
@@ -363,7 +331,6 @@ st.markdown(
         margin-bottom: 6px;
     }
 
-    /* CARD RESPONSIVE PARA PERSONAL EN MÓVILES */
     .worker-card-row {
         background: #ffffff;
         border: 1px solid #cbd5e1;
@@ -376,26 +343,9 @@ st.markdown(
         gap: 8px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
-    .worker-info-block {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        min-width: 0;
-    }
-    .worker-name-title {
-        font-size: 0.82rem;
-        font-weight: 800;
-        color: #0f172a;
-        line-height: 1.2;
-        word-break: break-word;
-    }
-    .worker-meta-tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        margin-top: 4px;
-        align-items: center;
-    }
+    .worker-info-block { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+    .worker-name-title { font-size: 0.82rem; font-weight: 800; color: #0f172a; line-height: 1.2; word-break: break-word; }
+    .worker-meta-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; align-items: center; }
     .tag-cargo-chip {
         background: #e2e8f0;
         color: #1e293b;
@@ -413,14 +363,6 @@ st.markdown(
         padding: 2px 8px;
         border-radius: 12px;
         border: 1px solid rgba(59, 130, 246, 0.35);
-    }
-
-    @media (max-width: 768px) {
-        .block-container { padding-top: 3.6rem !important; padding-left: 0.4rem !important; padding-right: 0.4rem !important; }
-        .widgets-grid { grid-template-columns: 1fr 1fr; }
-        .smart-title { font-size: 0.95rem !important; }
-        .worker-card-row { padding: 6px 8px; }
-        .worker-name-title { font-size: 0.78rem; }
     }
 
     .incidencias-table, .supervision-table, .checklist-table {
@@ -452,10 +394,9 @@ st.markdown(
     .incidencias-table tr:nth-child(even) td, .supervision-table tr:nth-child(even) td, .checklist-table tr:nth-child(even) td {
         background-color: #f8fafc !important;
     }
-
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
     </style>
-""",
+    """,
     unsafe_allow_html=True,
 )
 
@@ -516,7 +457,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 3. BASE DE DATOS SUPABASE CON AISLAMIENTO POR USUARIO Y RESPALDO
+# 3. BASE DE DATOS SUPABASE CON AISLAMIENTO POR USUARIO
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -565,7 +506,6 @@ def load_db_from_supabase():
         admin_emails = []
         for row in res_usr.data:
             c = row["correo"].lower().strip()
-            
             edifs = row.get("edificios")
             if isinstance(edifs, list):
                 edifs_list = edifs
@@ -599,7 +539,6 @@ def load_db_from_supabase():
     if "oscarsebitas2013@gmail.com" not in admin_emails:
         admin_emails.append("oscarsebitas2013@gmail.com")
 
-    # Personal a cargo aislado por usuario con campo Edificio
     db_trabajadores_por_usuario = {}
     for u_k, t_list in fallback_trabajadores_map.items():
         db_trabajadores_por_usuario[u_k] = t_list
@@ -614,7 +553,6 @@ def load_db_from_supabase():
                 db_trabajadores_por_usuario[u_owner] = []
             
             edif_val = r.get("edificio") or "General"
-            
             if not any(x.get("id") == r["id"] or x.get("nombre") == r["nombre"] for x in db_trabajadores_por_usuario[u_owner]):
                 db_trabajadores_por_usuario[u_owner].append({
                     "id": r["id"],
@@ -743,7 +681,6 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     st.session_state.db_trabajadores_por_usuario = p_data["db_trabajadores_por_usuario"]
     st.session_state.db_loaded = True
 
-# Fallbacks garantizados contra errores de Session State
 if "db_incidencias_all" not in st.session_state:
     st.session_state.db_incidencias_all = []
 if "db_trabajadores_por_usuario" not in st.session_state:
@@ -779,7 +716,7 @@ if not st.session_state.autenticado:
             st.session_state.usuario_edificios = u_match.get("Edificios", [])
 
 # ==============================================================================
-# 4. FUNCIONES DE FORMATO Y EXPORTACIÓN
+# 4. FUNCIONES AUXILIARES Y EXPORTACIÓN
 # ==============================================================================
 def render_estado_badge(estado_str):
     if not estado_str:
@@ -870,14 +807,9 @@ def export_checklist_to_excel_file(jornada_dict):
         items_sup = []
 
     current_r = 5
-
     for item in items_verif:
         obs_val = item.get("Observaciones", "")
-        if isinstance(obs_val, list):
-            obs_str = " | ".join([f"• {o}" for o in obs_val if o])
-        else:
-            obs_str = str(obs_val or "")
-
+        obs_str = " | ".join([f"• {o}" for o in obs_val if o]) if isinstance(obs_val, list) else str(obs_val or "")
         ws.append([item.get("Jornada", ""), item.get("N°", ""), item.get("Actividad", ""), item.get("Estado", ""), obs_str])
         ws.row_dimensions[current_r].height = 28
         for c_i in range(1, 6):
@@ -967,11 +899,7 @@ def export_checklist_to_pdf_file(jornada_dict):
     ]]
     for item in items_verif:
         obs_val = item.get("Observaciones", "")
-        if isinstance(obs_val, list):
-            obs_str = "<br/>".join([f"• {o}" for o in obs_val if o])
-        else:
-            obs_str = str(obs_val or "")
-
+        obs_str = "<br/>".join([f"• {o}" for o in obs_val if o]) if isinstance(obs_val, list) else str(obs_val or "")
         data_v.append([
             Paragraph(str(item.get("Jornada", "")), cell_style),
             Paragraph(str(item.get("N°", "")), cell_style),
@@ -1019,105 +947,114 @@ def export_checklist_to_pdf_file(jornada_dict):
     buffer.seek(0)
     return buffer.getvalue()
 
+# EXPORTADORES INTEGRADOS DEL LIBRO DE OBRA
 def export_inspeccion_to_excel_file(insp_dict):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Libro de Obra"
 
     thin_border = Border(
-        left=Side(style='thin', color='CBD5E1'), 
-        right=Side(style='thin', color='CBD5E1'),
-        top=Side(style='thin', color='CBD5E1'), 
-        bottom=Side(style='thin', color='CBD5E1')
+        left=Side(style='thin', color='CBD5E1'), right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'), bottom=Side(style='thin', color='CBD5E1')
     )
-    thick_bottom = Border(
-        left=Side(style='thin', color='CBD5E1'),
-        right=Side(style='thin', color='CBD5E1'),
-        bottom=Side(style='medium', color='1E293B')
-    )
-    
-    fill_main_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
-    fill_category_bar = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
-    
-    font_main_title = Font(name="Arial", bold=True, color="FFFFFF", size=12)
-    font_category_title = Font(name="Arial", bold=True, color="FFFFFF", size=10)
-    font_tbl_header = Font(name="Arial", bold=True, color="FFFFFF", size=9)
-    font_bold = Font(name="Arial", bold=True, color="121318", size=9.5)
-    font_regular = Font(name="Arial", size=9)
+    fill_main = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
+    fill_sub = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
 
-    ws.merge_cells("A1:C1")
+    ws.merge_cells("A1:E1")
     ws["A1"] = f"LIBRO DE OBRA - {insp_dict.get('Proyecto', '').upper()}"
-    ws["A1"].font = font_main_title
-    ws["A1"].fill = fill_main_header
+    ws["A1"].font = Font(name="Arial", bold=True, color="FFFFFF", size=12)
+    ws["A1"].fill = fill_main
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 28
+    ws.row_dimensions[1].height = 26
 
-    meta_info = [
-        ["Fecha:", f"{insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})", ""],
-        ["Residente de Obra:", insp_dict.get("Residente", ""), ""],
-        ["Frente Inspeccionado:", insp_dict.get("Frente", ""), ""],
-        ["Clima:", insp_dict.get("Clima", ""), f"Horario: {insp_dict.get('Hora_Inicio', '')} - {insp_dict.get('Hora_Fin', '')}"]
+    meta = [
+        ["Fecha:", f"{insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})", "Horario:", f"{insp_dict.get('Hora_Inicio', '')} - {insp_dict.get('Hora_Fin', '')}", ""],
+        ["Residente / Resp.:", insp_dict.get("Residente", ""), "Clima:", insp_dict.get("Clima", ""), ""],
+        ["Frente Inspeccionado:", insp_dict.get("Frente", ""), "", "", ""]
     ]
-    for r in meta_info:
-        ws.append(r)
+    for row in meta:
+        ws.append(row)
         r_idx = ws.max_row
-        ws.cell(row=r_idx, column=1).font = font_bold
-        ws.cell(row=r_idx, column=2).font = font_regular
-        ws.cell(row=r_idx, column=3).font = font_regular
+        ws.cell(row=r_idx, column=1).font = Font(name="Arial", bold=True, size=9)
+        ws.cell(row=r_idx, column=3).font = Font(name="Arial", bold=True, size=9)
 
     datos = insp_dict.get("Datos", {})
-    checklist_groups = datos.get("Checklist", {})
+    cuadrilla = datos.get("Cuadrilla_Presente", [])
+    actividades = datos.get("Actividades_Ejecutadas", [])
+    controles = datos.get("Controles_Calidad", [])
 
-    for sec_name, items in checklist_groups.items():
-        if items:
-            ws.append([])
-            r_sec = ws.max_row + 1
-            ws.merge_cells(f"A{r_sec}:C{r_sec}")
-            ws[f"A{r_sec}"] = f"■  {sec_name.upper()}"
-            ws[f"A{r_sec}"].font = font_category_title
-            ws[f"A{r_sec}"].fill = fill_category_bar
-            ws[f"A{r_sec}"].alignment = Alignment(vertical="center", indent=1)
-            ws.row_dimensions[r_sec].height = 24
-            
-            ws.append(["Ítem / Aspecto Inspeccionado", "Cumple / Estado", "Observación"])
-            r_hdr_sub = ws.max_row
-            ws.row_dimensions[r_hdr_sub].height = 20
-            
-            for col_i in range(1, 4):
-                c = ws.cell(row=r_hdr_sub, column=col_i)
-                c.font = font_tbl_header
-                c.fill = fill_main_header
-                c.alignment = Alignment(horizontal="center", vertical="center")
+    current_r = ws.max_row + 2
+    ws.merge_cells(f"A{current_r}:E{current_r}")
+    ws[f"A{current_r}"] = "1. PERSONAL Y CUADRILLAS EN FRENTE DE TRABAJO"
+    ws[f"A{current_r}"].font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
+    ws[f"A{current_r}"].fill = fill_sub
 
-            total_items = len(items)
-            for idx_it, it in enumerate(items, 1):
-                it_nombre = it.get("Item") or it.get("Aspecto") or it.get("Revisar") or it.get("Equipo", "")
-                it_estado = it.get("Cumple") or it.get("Estado", "") or "N/A"
-                it_obs = it.get("Observación", "")
+    current_r += 1
+    ws.append(["N°", "Nombre del Personal", "Cargo / Especialidad", "Edificio", "Estado"])
+    for c_i in range(1, 6):
+        cell = ws.cell(row=current_r, column=c_i)
+        cell.font = Font(name="Arial", bold=True, color="FFFFFF", size=9)
+        cell.fill = fill_main
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
 
-                ws.append([it_nombre, it_estado, it_obs])
-                r_i = ws.max_row
-                
-                c1 = ws.cell(row=r_i, column=1)
-                c2 = ws.cell(row=r_i, column=2)
-                c3 = ws.cell(row=r_i, column=3)
+    for idx_p, p in enumerate(cuadrilla, 1):
+        ws.append([idx_p, p.get("nombre", ""), p.get("cargo", ""), p.get("edificio", ""), "Presente"])
+        r_c = ws.max_row
+        for col_idx in range(1, 6):
+            ws.cell(row=r_c, column=col_idx).border = thin_border
+            ws.cell(row=r_c, column=col_idx).font = Font(name="Arial", size=9)
 
-                c1.font = font_regular
-                c2.font = font_regular
-                c3.font = font_regular
+    current_r = ws.max_row + 2
+    ws.merge_cells(f"A{current_r}:E{current_r}")
+    ws[f"A{current_r}"] = "2. ACTIVIDADES EJECUTADAS (CONCILIADAS CON CHECKLIST)"
+    ws[f"A{current_r}"].font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
+    ws[f"A{current_r}"].fill = fill_sub
 
-                b_style = thick_bottom if idx_it == total_items else thin_border
-                c1.border = b_style
-                c2.border = b_style
-                c3.border = b_style
+    current_r += 1
+    ws.append(["N°", "Actividad / Trabajo", "Personal Asignado", "Observaciones Técnicas", ""])
+    for c_i in range(1, 6):
+        cell = ws.cell(row=current_r, column=c_i)
+        cell.font = Font(name="Arial", bold=True, color="FFFFFF", size=9)
+        cell.fill = fill_main
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
 
-                c1.alignment = Alignment(vertical="center", wrap_text=True)
-                c2.alignment = Alignment(horizontal="center", vertical="center")
-                c3.alignment = Alignment(vertical="center", wrap_text=True)
+    for idx_a, act in enumerate(actividades, 1):
+        ws.append([idx_a, act.get("actividad", ""), act.get("encargados", ""), act.get("observaciones", ""), ""])
+        r_c = ws.max_row
+        for col_idx in range(1, 6):
+            ws.cell(row=r_c, column=col_idx).border = thin_border
+            ws.cell(row=r_c, column=col_idx).font = Font(name="Arial", size=9)
 
-    ws.column_dimensions['A'].width = 38
-    ws.column_dimensions['B'].width = 24
-    ws.column_dimensions['C'].width = 45
+    if controles:
+        current_r = ws.max_row + 2
+        ws.merge_cells(f"A{current_r}:E{current_r}")
+        ws[f"A{current_r}"] = "3. CONTROLES Y VERIFICACIONES TÉCNICAS"
+        ws[f"A{current_r}"].font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
+        ws[f"A{current_r}"].fill = fill_sub
+
+        current_r += 1
+        ws.append(["N°", "Punto de Control", "Cumplimiento", "Detalles", ""])
+        for c_i in range(1, 6):
+            cell = ws.cell(row=current_r, column=c_i)
+            cell.font = Font(name="Arial", bold=True, color="FFFFFF", size=9)
+            cell.fill = fill_main
+            cell.alignment = Alignment(horizontal="center")
+            cell.border = thin_border
+
+        for idx_c, ctrl in enumerate(controles, 1):
+            ws.append([idx_c, ctrl.get("item", ""), ctrl.get("cumple", ""), ctrl.get("obs", ""), ""])
+            r_c = ws.max_row
+            for col_idx in range(1, 6):
+                ws.cell(row=r_c, column=col_idx).border = thin_border
+                ws.cell(row=r_c, column=col_idx).font = Font(name="Arial", size=9)
+
+    ws.column_dimensions['A'].width = 6
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 25
+    ws.column_dimensions['D'].width = 35
+    ws.column_dimensions['E'].width = 15
 
     output = io.BytesIO()
     wb.save(output)
@@ -1129,53 +1066,80 @@ def export_inspeccion_to_pdf_file(insp_dict):
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=25)
     story = []
 
-    title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=6)
-    sub_title = ParagraphStyle('SubTitle', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#121318'), spaceBefore=8, spaceAfter=4)
-    sec_header_style = ParagraphStyle('SecHeaderStyle', fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.HexColor('#1e293b'), spaceBefore=6, spaceAfter=2)
+    title_style = ParagraphStyle('TitleStyle', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=6)
+    sec_style = ParagraphStyle('SecStyle', fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#1e293b'), spaceBefore=6, spaceAfter=3)
     header_style = ParagraphStyle('HeaderStyle', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=1)
     cell_style = ParagraphStyle('CellStyle', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'))
 
-    story.append(Paragraph(f"LIBRO DE OBRA", title_style))
-    
-    meta_text = f"<b>Proyecto:</b> {insp_dict.get('Proyecto', '')} | <b>Fecha:</b> {insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})<br/>" \
-                f"<b>Residente:</b> {insp_dict.get('Residente', '')} | <b>Frente:</b> {insp_dict.get('Frente', '')}<br/>" \
-                f"<b>Clima:</b> {insp_dict.get('Clima', '')} | <b>Horario:</b> {insp_dict.get('Hora_Inicio', '')} - {insp_dict.get('Hora_Fin', '')}"
-    
+    story.append(Paragraph(f"LIBRO DE OBRA — {insp_dict.get('Proyecto', '').upper()}", title_style))
+    meta_text = f"<b>Fecha:</b> {insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')}) | <b>Horario:</b> {insp_dict.get('Hora_Inicio', '')} - {insp_dict.get('Hora_Fin', '')}<br/>" \
+                f"<b>Residente:</b> {insp_dict.get('Residente', '')} | <b>Frente:</b> {insp_dict.get('Frente', '')} | <b>Clima:</b> {insp_dict.get('Clima', '')}"
     story.append(Paragraph(meta_text, cell_style))
     story.append(Spacer(1, 6))
 
     datos = insp_dict.get("Datos", {})
-    checklist_groups = datos.get("Checklist", {})
+    cuadrilla = datos.get("Cuadrilla_Presente", [])
+    actividades = datos.get("Actividades_Ejecutadas", [])
+    controles = datos.get("Controles_Calidad", [])
 
-    for sec_name, items in checklist_groups.items():
-        if items:
-            story.append(Paragraph(f"📌 <b>{sec_name.upper()}</b>", sec_header_style))
-            chk_data = [[
-                Paragraph("<b>Ítem / Aspecto Inspeccionado</b>", header_style),
-                Paragraph("<b>Cumple / Estado</b>", header_style),
-                Paragraph("<b>Observación</b>", header_style)
-            ]]
+    if cuadrilla:
+        story.append(Paragraph("1. PERSONAL EN FRENTE DE TRABAJO", sec_style))
+        data_p = [[Paragraph("<b>N°</b>", header_style), Paragraph("<b>Nombre</b>", header_style), Paragraph("<b>Cargo</b>", header_style), Paragraph("<b>Edificio</b>", header_style)]]
+        for idx, p in enumerate(cuadrilla, 1):
+            data_p.append([
+                Paragraph(str(idx), cell_style),
+                Paragraph(p.get("nombre", ""), cell_style),
+                Paragraph(p.get("cargo", ""), cell_style),
+                Paragraph(p.get("edificio", ""), cell_style)
+            ])
+        t_p = Table(data_p, colWidths=[25, 230, 180, 115])
+        t_p.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+            ('TOPPADDING', (0,0), (-1,-1), 3),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ]))
+        story.append(t_p)
+        story.append(Spacer(1, 4))
 
-            for it in items:
-                it_nombre = it.get("Item") or it.get("Aspecto") or it.get("Revisar") or it.get("Equipo", "")
-                it_estado = it.get("Cumple") or it.get("Estado", "") or "N/A"
-                it_obs = it.get("Observación", "")
+    if actividades:
+        story.append(Paragraph("2. ACTIVIDADES Y AVANCE EJECUTADO", sec_style))
+        data_a = [[Paragraph("<b>N°</b>", header_style), Paragraph("<b>Actividad</b>", header_style), Paragraph("<b>Personal</b>", header_style), Paragraph("<b>Observaciones</b>", header_style)]]
+        for idx, a in enumerate(actividades, 1):
+            data_a.append([
+                Paragraph(str(idx), cell_style),
+                Paragraph(a.get("actividad", ""), cell_style),
+                Paragraph(a.get("encargados", ""), cell_style),
+                Paragraph(a.get("observaciones", ""), cell_style)
+            ])
+        t_a = Table(data_a, colWidths=[25, 200, 150, 175])
+        t_a.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e293b')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+            ('TOPPADDING', (0,0), (-1,-1), 3),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ]))
+        story.append(t_a)
+        story.append(Spacer(1, 4))
 
-                chk_data.append([
-                    Paragraph(str(it_nombre), cell_style),
-                    Paragraph(str(it_estado), cell_style),
-                    Paragraph(str(it_obs), cell_style)
-                ])
-
-            t_sec = Table(chk_data, colWidths=[240, 100, 210])
-            t_sec.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-                ('TOPPADDING', (0,0), (-1,-1), 3),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ]))
-            story.append(t_sec)
-            story.append(Spacer(1, 4))
+    if controles:
+        story.append(Paragraph("3. VERIFICACIONES DE CALIDAD", sec_style))
+        data_c = [[Paragraph("<b>N°</b>", header_style), Paragraph("<b>Control Técnico</b>", header_style), Paragraph("<b>Estado</b>", header_style), Paragraph("<b>Detalles</b>", header_style)]]
+        for idx, c in enumerate(controles, 1):
+            data_c.append([
+                Paragraph(str(idx), cell_style),
+                Paragraph(c.get("item", ""), cell_style),
+                Paragraph(c.get("cumple", ""), cell_style),
+                Paragraph(c.get("obs", ""), cell_style)
+            ])
+        t_c = Table(data_c, colWidths=[25, 230, 95, 200])
+        t_c.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#334155')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+            ('TOPPADDING', (0,0), (-1,-1), 3),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ]))
+        story.append(t_c)
 
     doc.build(story)
     buffer.seek(0)
@@ -1185,23 +1149,12 @@ def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Incidencias"
-
-    thin_border = Border(
-        left=Side(style='thin', color='CBD5E1'), 
-        right=Side(style='thin', color='CBD5E1'),
-        top=Side(style='thin', color='CBD5E1'), 
-        bottom=Side(style='thin', color='CBD5E1')
-    )
+    thin_border = Border(left=Side(style='thin', color='CBD5E1'), right=Side(style='thin', color='CBD5E1'), top=Side(style='thin', color='CBD5E1'), bottom=Side(style='thin', color='CBD5E1'))
     fill_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
-    font_title = Font(name="Arial", bold=True, color="FFFFFF", size=11)
-    font_tbl_header = Font(name="Arial", bold=True, color="FFFFFF", size=9)
-    font_regular = Font(name="Arial", size=9)
-    font_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    font_left = Alignment(horizontal="left", vertical="center", wrap_text=True)
-
+    
     ws.merge_cells("A1:G1")
     ws["A1"] = f"LEVANTAMIENTO DE INCIDENCIAS - {proyecto_nombre.upper()}"
-    ws["A1"].font = font_title
+    ws["A1"].font = Font(name="Arial", bold=True, color="FFFFFF", size=11)
     ws["A1"].fill = fill_header
     ws["A1"].alignment = Alignment(horizontal="left", vertical="center", indent=1)
     ws.row_dimensions[1].height = 28
@@ -1212,36 +1165,22 @@ def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
 
     for col_i in range(1, 8):
         c = ws.cell(row=2, column=col_i)
-        c.font = font_tbl_header
+        c.font = Font(name="Arial", bold=True, color="FFFFFF", size=9)
         c.fill = fill_header
-        c.alignment = font_center
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         c.border = thin_border
 
     for idx, inc in enumerate(incidencias_list, 1):
         prio_str = f"Alta {'[X]' if inc.get('Prioridad')=='Alta' else '[ ]'}\nMedia {'[X]' if inc.get('Prioridad')=='Media' else '[ ]'}\nBaja {'[X]' if inc.get('Prioridad')=='Baja' else '[ ]'}"
         est_str = f"Abierta {'[X]' if inc.get('Estado')=='Abierta' else '[ ]'}\nCerrada {'[X]' if inc.get('Estado')=='Cerrada' else '[ ]'}"
-        
-        ws.append([
-            idx,
-            inc.get("Area", ""),
-            inc.get("Descripcion", ""),
-            inc.get("Responsable", ""),
-            prio_str,
-            str(inc.get("Fecha_Compromiso", "")),
-            est_str
-        ])
-        
+        ws.append([idx, inc.get("Area", ""), inc.get("Descripcion", ""), inc.get("Responsable", ""), prio_str, str(inc.get("Fecha_Compromiso", "")), est_str])
         r_i = ws.max_row
         ws.row_dimensions[r_i].height = 55
-        
         for c_idx in range(1, 8):
             cell = ws.cell(row=r_i, column=c_idx)
-            cell.font = font_regular
+            cell.font = Font(name="Arial", size=9)
             cell.border = thin_border
-            if c_idx in [1, 5, 6, 7]:
-                cell.alignment = font_center
-            else:
-                cell.alignment = font_left
+            cell.alignment = Alignment(horizontal="center" if c_idx in [1, 5, 6, 7] else "left", vertical="center", wrap_text=True)
 
     ws.column_dimensions['A'].width = 6
     ws.column_dimensions['B'].width = 20
@@ -1270,12 +1209,8 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     story.append(Spacer(1, 6))
 
     table_data = [[
-        Paragraph("<b>N°</b>", header_style),
-        Paragraph("<b>Área</b>", header_style),
-        Paragraph("<b>Descripción</b>", header_style),
-        Paragraph("<b>Responsable</b>", header_style),
-        Paragraph("<b>Prioridad</b>", header_style),
-        Paragraph("<b>Fecha compromiso</b>", header_style),
+        Paragraph("<b>N°</b>", header_style), Paragraph("<b>Área</b>", header_style), Paragraph("<b>Descripción</b>", header_style),
+        Paragraph("<b>Responsable</b>", header_style), Paragraph("<b>Prioridad</b>", header_style), Paragraph("<b>Fecha compromiso</b>", header_style),
         Paragraph("<b>Estado</b>", header_style)
     ]]
 
@@ -1290,12 +1225,8 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
         est_text = f"{est_abierta}<br/>{est_cerrada}"
 
         table_data.append([
-            Paragraph(str(idx), cell_center),
-            Paragraph(str(item.get("Area", "")), cell_style),
-            Paragraph(str(item.get("Descripcion", "")), cell_style),
-            Paragraph(str(item.get("Responsable", "")), cell_style),
-            Paragraph(prio_text, cell_style),
-            Paragraph(str(item.get("Fecha_Compromiso", "")), cell_center),
+            Paragraph(str(idx), cell_center), Paragraph(str(item.get("Area", "")), cell_style), Paragraph(str(item.get("Descripcion", "")), cell_style),
+            Paragraph(str(item.get("Responsable", "")), cell_style), Paragraph(prio_text, cell_style), Paragraph(str(item.get("Fecha_Compromiso", "")), cell_center),
             Paragraph(est_text, cell_style)
         ])
 
@@ -1308,7 +1239,6 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
         ('TOPPADDING', (0,0), (-1,-1), 4),
         ('BOTTOMPADDING', (0,0), (-1,-1), 4),
     ]))
-
     story.append(table)
     doc.build(story)
     buffer.seek(0)
@@ -1342,11 +1272,254 @@ ACTIVIDADES_TARDE_CLEAN = [
     "Revisión del cumplimiento de la meta diaria",
 ]
 # ==============================================================================
-# PARTE 2 DE 4: AUTENTICACIÓN, GESTIÓN DE EDIFICIOS, SIDEBAR Y DASHBOARD
+# PARTE 2 DE 4: AUTENTICACIÓN, BARRA LATERAL, SMART DASHBOARD Y EXPORTADORES PDF/EXCEL OFICIALES
 # ==============================================================================
 
 # ==============================================================================
-# 6. MÓDULO DE AUTENTICACIÓN: LOGIN, REGISTRO Y RECUPERACIÓN DE CONTRASEÑA
+# 5. GENERADORES DE EXCEL Y PDF (FORMATO OFICIAL L-O ALPHA BUILDERS)
+# ==============================================================================
+def export_libro_obra_formato_excel(insp_dict):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Libro de Obra"
+
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+    fill_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
+    fill_sub = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    font_bold = Font(name="Arial", bold=True, color="000000", size=9)
+    font_regular = Font(name="Arial", size=8.5)
+
+    ws.merge_cells("A1:G1")
+    ws["A1"] = f"LIBRO DE OBRA — {insp_dict.get('Proyecto', '').upper()} (HOJA: {insp_dict.get('Hoja', '001')})"
+    ws["A1"].font = Font(name="Arial", bold=True, color="FFFFFF", size=12)
+    ws["A1"].fill = fill_header
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 26
+
+    meta = [
+        ["CIUDAD:", "QUITO", "SUPERINTENDENTE:", insp_dict.get("Superintendente", "ING. PABLO ESPINOSA"), "", "FECHA:", f"{insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})"],
+        ["UBICACIÓN:", insp_dict.get("Ubicacion", "CALLE LUXEMBURGO Y HOLANDA"), "RESIDENTE:", insp_dict.get("Residente", ""), "", "HORARIO:", f"{insp_dict.get('Hora_Inicio', '07:00')} - {insp_dict.get('Hora_Fin', '16:00')}"],
+        ["BARRIO:", insp_dict.get("Barrio", "BENALCAZAR"), "FISCALIZADOR:", insp_dict.get("Fiscalizador", "ING. DIEGO CHARVET"), "", "PROYECTO:", insp_dict.get("Proyecto", "")]
+    ]
+    for row_m in meta:
+        ws.append(row_m)
+        r_i = ws.max_row
+        for col_i in range(1, 8):
+            c = ws.cell(row=r_i, column=col_i)
+            c.font = font_bold if col_i in [1, 3, 6] else font_regular
+            c.border = thin_border
+
+    ws.append([])
+    r_s = ws.max_row + 1
+    ws.merge_cells(f"A{r_s}:G{r_s}")
+    ws[f"A{r_s}"] = "1. JORNADA DE TRABAJO Y NÓMINA DE PERSONAL"
+    ws[f"A{r_s}"].font = Font(name="Arial", bold=True, color="FFFFFF", size=9.5)
+    ws[f"A{r_s}"].fill = fill_sub
+    ws.row_dimensions[r_s].height = 20
+
+    ws.append(["PERSONAL NÓMINA", "No.", "ENTRADA", "SALIDA", "PERSONAL ROTATIVO / SUBCONTRATO", "No.", "HORARIO"])
+    r_hdr_p = ws.max_row
+    for col_i in range(1, 8):
+        c = ws.cell(row=r_hdr_p, column=col_i)
+        c.font = Font(name="Arial", bold=True, color="FFFFFF", size=8.5)
+        c.fill = fill_header
+        c.border = thin_border
+        c.alignment = Alignment(horizontal="center", vertical="center")
+
+    datos = insp_dict.get("Datos", {})
+    nomina_map = datos.get("Nomina_Conteo", {})
+    rotativo_map = datos.get("Rotativo_Conteo", {})
+
+    max_len = max(len(OFICIOS_NOMINA_FORMATO), len(RUROS_ROTATIVOS_FORMATO))
+    for i in range(max_len):
+        oficio_nom = OFICIOS_NOMINA_FORMATO[i] if i < len(OFICIOS_NOMINA_FORMATO) else ""
+        cant_nom = nomina_map.get(oficio_nom, 0) if oficio_nom else ""
+        ent_nom = "7:00AM" if (oficio_nom and cant_nom and int(cant_nom) > 0) else ""
+        sal_nom = "4:00PM" if (oficio_nom and cant_nom and int(cant_nom) > 0) else ""
+
+        rubro_rot = RUROS_ROTATIVOS_FORMATO[i] if i < len(RUROS_ROTATIVOS_FORMATO) else ""
+        cant_rot = rotativo_map.get(rubro_rot, 0) if rubro_rot else ""
+        hor_rot = "7:00AM - 4:00PM" if (rubro_rot and cant_rot and int(cant_rot) > 0) else ""
+
+        ws.append([oficio_nom, cant_nom if cant_nom else "", ent_nom, sal_nom, rubro_rot, cant_rot if cant_rot else "", hor_rot])
+        r_row = ws.max_row
+        for col_i in range(1, 8):
+            c = ws.cell(row=r_row, column=col_i)
+            c.font = font_regular
+            c.border = thin_border
+            if col_i in [2, 3, 4, 6, 7]:
+                c.alignment = Alignment(horizontal="center", vertical="center")
+
+    ws.append([])
+    r_act = ws.max_row + 1
+    ws.merge_cells(f"A{r_act}:G{r_act}")
+    ws[f"A{r_act}"] = "2. ACTIVIDADES REALIZADAS DENTRO DE LA JORNADA LABORAL"
+    ws[f"A{r_act}"].font = Font(name="Arial", bold=True, color="FFFFFF", size=9.5)
+    ws[f"A{r_act}"].fill = fill_sub
+    ws.row_dimensions[r_act].height = 20
+
+    ws.append(["N°", "DESCRIPCIÓN DE LA ACTIVIDAD", "ÁREA DE TRABAJO", "PERSONAL ENCARGADO", "UNIDAD", "CANT. REALIZADA", "OBSERVACIONES"])
+    r_hdr_a = ws.max_row
+    for col_i in range(1, 8):
+        c = ws.cell(row=r_hdr_a, column=col_i)
+        c.font = Font(name="Arial", bold=True, color="FFFFFF", size=8.5)
+        c.fill = fill_header
+        c.border = thin_border
+        c.alignment = Alignment(horizontal="center", vertical="center")
+
+    acts = datos.get("Actividades_Ejecutadas", [])
+    for idx_a, a in enumerate(acts, 1):
+        ws.append([
+            idx_a,
+            a.get("Descripcion", a.get("actividad", "")),
+            a.get("Area", ""),
+            a.get("Encargados", a.get("encargados", "")),
+            a.get("Unidad", "m2"),
+            a.get("Cantidad", 0.0),
+            a.get("Observaciones", a.get("observaciones", ""))
+        ])
+        r_row_a = ws.max_row
+        for col_i in range(1, 8):
+            c = ws.cell(row=r_row_a, column=col_i)
+            c.font = font_regular
+            c.border = thin_border
+            if col_i in [1, 5, 6]:
+                c.alignment = Alignment(horizontal="center", vertical="center")
+
+    ws.append([])
+    r_eq = ws.max_row + 1
+    ws.merge_cells(f"A{r_eq}:G{r_eq}")
+    ws[f"A{r_eq}"] = "3. CONDICIONES CLIMÁTICAS, EQUIPOS Y SEGURIDAD"
+    ws[f"A{r_eq}"].font = Font(name="Arial", bold=True, color="FFFFFF", size=9.5)
+    ws[f"A{r_eq}"].fill = fill_sub
+
+    clima_val = insp_dict.get("Clima", "Soleado")
+    maq_map = datos.get("Maquinaria_Conteo", {})
+    seg_list = datos.get("Seguridad_Check", [])
+
+    ws.append(["Clima Registrado:", clima_val, "Obs. Clima:", datos.get("Clima_Obs", ""), "Equipos Operativos:", ", ".join([f"{k}: {v}" for k, v in maq_map.items() if v > 0]), ""])
+    r_row_e = ws.max_row
+    for col_i in range(1, 8):
+        ws.cell(row=r_row_e, column=col_i).font = font_regular
+        ws.cell(row=r_row_e, column=col_i).border = thin_border
+
+    ws.append([])
+    r_nov = ws.max_row + 1
+    ws.merge_cells(f"A{r_nov}:G{r_nov}")
+    ws[f"A{r_nov}"] = "4. NOVEDADES Y RECOMENDACIONES"
+    ws[f"A{r_nov}"].font = Font(name="Arial", bold=True, color="FFFFFF", size=9.5)
+    ws[f"A{r_nov}"].fill = fill_sub
+
+    ws.merge_cells(f"A{r_nov+1}:G{r_nov+2}")
+    ws[f"A{r_nov+1}"] = datos.get("Novedades", "Sin novedades técnicas en la jornada laboral.")
+    ws[f"A{r_nov+1}"].font = font_regular
+    ws[f"A{r_nov+1}"].alignment = Alignment(vertical="top", wrap_text=True)
+
+    ws.column_dimensions['A'].width = 24
+    ws.column_dimensions['B'].width = 10
+    ws.column_dimensions['C'].width = 16
+    ws.column_dimensions['D'].width = 22
+    ws.column_dimensions['E'].width = 28
+    ws.column_dimensions['F'].width = 10
+    ws.column_dimensions['G'].width = 24
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+def export_libro_obra_formato_pdf(insp_dict):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20)
+    story = []
+
+    title_style = ParagraphStyle('TitleL', fontName='Helvetica-Bold', fontSize=11, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=4)
+    hdr_tbl = ParagraphStyle('HdrL', fontName='Helvetica-Bold', fontSize=7, textColor=colors.white, alignment=1)
+    cell_style = ParagraphStyle('CellL', fontName='Helvetica', fontSize=6.5, textColor=colors.HexColor('#0f172a'))
+    cell_center = ParagraphStyle('CellC', fontName='Helvetica', fontSize=6.5, textColor=colors.HexColor('#0f172a'), alignment=1)
+
+    story.append(Paragraph(f"<b>LIBRO DE OBRA — {insp_dict.get('Proyecto', '').upper()}</b> (HOJA N° {insp_dict.get('Hoja', '001')})", title_style))
+
+    datos = insp_dict.get("Datos", {})
+    meta_data = [
+        [Paragraph("<b>CIUDAD:</b> QUITO", cell_style), Paragraph(f"<b>SUPERINTENDENTE:</b> {insp_dict.get('Superintendente', 'ING. PABLO ESPINOSA')}", cell_style), Paragraph(f"<b>FECHA:</b> {insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})", cell_style)],
+        [Paragraph(f"<b>UBICACIÓN:</b> {insp_dict.get('Ubicacion', 'CALLE LUXEMBURGO Y HOLANDA')}", cell_style), Paragraph(f"<b>RESIDENTE:</b> {insp_dict.get('Residente', '')}", cell_style), Paragraph(f"<b>HORARIO:</b> {insp_dict.get('Hora_Inicio', '07:00')} - {insp_dict.get('Hora_Fin', '16:00')}", cell_style)],
+        [Paragraph(f"<b>BARRIO:</b> {insp_dict.get('Barrio', 'BENALCAZAR')}", cell_style), Paragraph(f"<b>FISCALIZADOR:</b> {insp_dict.get('Fiscalizador', 'ING. DIEGO CHARVET')}", cell_style), Paragraph(f"<b>PROYECTO:</b> {insp_dict.get('Proyecto', '')}", cell_style)]
+    ]
+    t_meta = Table(meta_data, colWidths=[240, 260, 250])
+    t_meta.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+    ]))
+    story.append(t_meta)
+    story.append(Spacer(1, 4))
+
+    nomina_map = datos.get("Nomina_Conteo", {})
+    rotativo_map = datos.get("Rotativo_Conteo", {})
+    p_data = [[Paragraph("<b>PERSONAL NÓMINA</b>", hdr_tbl), Paragraph("<b>No.</b>", hdr_tbl), Paragraph("<b>HORARIO</b>", hdr_tbl), Paragraph("<b>PERSONAL ROTATIVO / SUBCONTRATO</b>", hdr_tbl), Paragraph("<b>No.</b>", hdr_tbl), Paragraph("<b>HORARIO</b>", hdr_tbl)]]
+
+    max_len = max(len(OFICIOS_NOMINA_FORMATO), len(RUROS_ROTATIVOS_FORMATO))
+    for i in range(max_len):
+        oficio_nom = OFICIOS_NOMINA_FORMATO[i] if i < len(OFICIOS_NOMINA_FORMATO) else ""
+        cant_nom = str(nomina_map.get(oficio_nom, 0)) if (oficio_nom and int(nomina_map.get(oficio_nom, 0)) > 0) else ""
+        hor_nom = "7:00AM - 4:00PM" if cant_nom else ""
+
+        rubro_rot = RUROS_ROTATIVOS_FORMATO[i] if i < len(RUROS_ROTATIVOS_FORMATO) else ""
+        cant_rot = str(rotativo_map.get(rubro_rot, 0)) if (rubro_rot and int(rotativo_map.get(rubro_rot, 0)) > 0) else ""
+        hor_rot = "7:00AM - 4:00PM" if cant_rot else ""
+
+        p_data.append([
+            Paragraph(oficio_nom, cell_style),
+            Paragraph(cant_nom, cell_center),
+            Paragraph(hor_nom, cell_center),
+            Paragraph(rubro_rot, cell_style),
+            Paragraph(cant_rot, cell_center),
+            Paragraph(hor_rot, cell_center)
+        ])
+
+    t_pers = Table(p_data, colWidths=[150, 40, 110, 290, 40, 120])
+    t_pers.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 1.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 1.5),
+    ]))
+    story.append(t_pers)
+    story.append(Spacer(1, 4))
+
+    acts = datos.get("Actividades_Ejecutadas", [])
+    if acts:
+        a_data = [[Paragraph("<b>N°</b>", hdr_tbl), Paragraph("<b>DESCRIPCIÓN DE LA ACTIVIDAD</b>", hdr_tbl), Paragraph("<b>ÁREA DE TRABAJO</b>", hdr_tbl), Paragraph("<b>PERSONAL ENCARGADO</b>", hdr_tbl), Paragraph("<b>UNID</b>", hdr_tbl), Paragraph("<b>CANT.</b>", hdr_tbl)]]
+        for idx_a, a in enumerate(acts, 1):
+            a_data.append([
+                Paragraph(str(idx_a), cell_center),
+                Paragraph(a.get("Descripcion", a.get("actividad", "")), cell_style),
+                Paragraph(a.get("Area", "Frente Principal"), cell_style),
+                Paragraph(a.get("Encargados", a.get("encargados", "")), cell_style),
+                Paragraph(a.get("Unidad", "m2"), cell_center),
+                Paragraph(str(a.get("Cantidad", 0.0)), cell_center)
+            ])
+        t_acts = Table(a_data, colWidths=[25, 295, 150, 180, 40, 60])
+        t_acts.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e293b')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ]))
+        story.append(t_acts)
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+# ==============================================================================
+# 6. MÓDULO DE AUTENTICACIÓN: LOGIN, REGISTRO Y RECUPERACIÓN
 # ==============================================================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -1424,7 +1597,6 @@ if not st.session_state.autenticado:
                     reg_pass_repeat = st.text_input("Repetir contraseña:*", type="password", key="reg_pass_rep")
 
                 reg_cargo = st.selectbox("Cargo / Rol en Obra:*", ["Residente", "Asistente", "Ayudante"])
-                
                 reg_edificios_sel = st.multiselect(
                     "Edificios / Proyectos asignados:*",
                     options=EDIFICIOS_ALPHA,
@@ -1432,16 +1604,14 @@ if not st.session_state.autenticado:
                     placeholder="Seleccione los proyectos en los que trabaja...",
                     key="reg_edif_multisel"
                 )
-
                 reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):*", type="password", max_chars=4, placeholder="****", key="reg_pin")
-
                 btn_reg = st.form_submit_button("Completar Registro", type="primary", use_container_width=True)
 
             if btn_reg:
                 if reg_nombres and reg_apellidos and reg_email and reg_pass and reg_pass_repeat and reg_pin:
                     current_pin = st.session_state.get("access_pin", "1254")
                     if reg_pin.strip() != current_pin:
-                        st.error("⚠️ Código de Seguridad (PIN) incorrecto. No se puede crear la cuenta.")
+                        st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
                     elif reg_pass != reg_pass_repeat:
                         st.error("Las contraseñas no coinciden.")
                     else:
@@ -1484,7 +1654,7 @@ if not st.session_state.autenticado:
                             except Exception as e:
                                 st.error(f"Error al guardar usuario: {e}")
                 else:
-                    st.error("Por favor complete todos los campos requeridos (*), incluyendo el código PIN.")
+                    st.error("Por favor complete todos los campos requeridos (*).")
 
         with tab_reset:
             st.markdown("### Recuperación de Contraseña")
@@ -1492,13 +1662,11 @@ if not st.session_state.autenticado:
 
             with st.form("form_reset_clean"):
                 reset_email = st.text_input("Ingrese su correo registrado:", placeholder="ejemplo@correo.com", key="rst_email")
-                
                 col_rp1, col_rp2 = st.columns(2)
                 with col_rp1:
                     new_pass = st.text_input("Nueva contraseña:", type="password", key="rst_pass")
                 with col_rp2:
                     new_pass_rep = st.text_input("Repetir nueva contraseña:", type="password", key="rst_pass_rep")
-
                 btn_reset = st.form_submit_button("Restablecer Contraseña", type="primary", use_container_width=True)
 
             if btn_reset:
@@ -1508,7 +1676,6 @@ if not st.session_state.autenticado:
                     else:
                         mail_clean = reset_email.strip().lower()
                         u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
-
                         if u_match:
                             try:
                                 supabase.table("usuarios").update({"password": new_pass}).eq("correo", mail_clean).execute()
@@ -1557,7 +1724,6 @@ with st.sidebar:
         b64_foto = get_repo_image_b64(["perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png"])
 
     img_obj = base64_to_image(b64_foto)
-
     if img_obj is not None:
         st.image(img_obj, use_container_width=True)
 
@@ -1602,10 +1768,8 @@ with st.sidebar:
             default=[e for e in user_edificios if e in EDIFICIOS_ALPHA],
             key="sb_edif_edit"
         )
-
         edit_pass = st.text_input("Nueva Contraseña:", type="password", key="sb_pass")
         edit_pass_rep = st.text_input("Repetir Contraseña:", type="password", key="sb_pass_rep")
-
         nueva_foto_file = st.file_uploader("Actualizar Foto de Perfil", type=["jpg", "jpeg", "png"], key="sb_foto_file")
 
         if st.button("Guardar Ajustes", type="primary", use_container_width=True):
@@ -1619,10 +1783,8 @@ with st.sidebar:
                 "apellidos": edit_apellidos.strip(),
                 "cargo": edit_cargo
             }
-
             if edit_pass.strip():
                 base_update_data["password"] = edit_pass.strip()
-
             if nueva_foto_file is not None:
                 b64_str = image_to_base64(nueva_foto_file)
                 if b64_str:
@@ -1645,24 +1807,21 @@ with st.sidebar:
                 st.session_state.usuario_cargo = edit_cargo
                 st.session_state.usuario_edificios = edit_edificios
                 st.session_state.db_loaded = False
-                
                 st.success("Configuración actualizada correctamente.")
                 st.rerun()
             except Exception as e:
                 st.error(f"Error actualizando perfil: {e}")
 
     st.markdown("<hr>", unsafe_allow_html=True)
-    
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         local_storage.deleteItem("user_session_email")
         st.rerun()
 
 # ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM UI (INCIDENCIAS VINCULADAS A TUS PROYECTOS)
+# 8. SMART DASHBOARD GLASSMORPHISM UI
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
-
 local_dt = get_local_datetime_ecuador()
 fecha_hoy_iso = local_dt.strftime("%Y-%m-%d")
 
@@ -1672,10 +1831,8 @@ meses_nombre_es = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio
 dia_semana_actual = dias_nombre_es[local_dt.weekday()]
 mes_actual = meses_nombre_es[local_dt.month - 1]
 fecha_widget_texto = f"{dia_semana_actual}, {local_dt.day} de {mes_actual} de {local_dt.year}"
-
 clima_actual_str = get_realtime_weather()
 
-# Hitos e información calculada estrictamente para el usuario activo
 mis_chks_list = st.session_state.get("db_checklists", {}).get(user_email, [])
 mis_insps_list = st.session_state.get("db_inspecciones", {}).get(user_email, [])
 mis_rnds_list = st.session_state.get("db_rendimientos", {}).get(user_email, [])
@@ -1686,7 +1843,6 @@ insp_hoy_cumplida = any(i.get("Fecha") == fecha_hoy_iso for i in mis_insps_list)
 tag_chk_html = '<span class="milestone-status-done">✓ Cumplido</span>' if chk_hoy_cumplido else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 tag_insp_html = '<span class="milestone-status-done">✓ Cumplido</span>' if insp_hoy_cumplida else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 
-# Rendimiento propio del usuario activo
 if len(mis_rnds_list) > 0:
     total_eficientes = sum(1 for r in mis_rnds_list if r.get("Estado") in ["EFICIENTE", "CUMPLE META"])
     porc_rendimiento = int(round((total_eficientes / len(mis_rnds_list)) * 100))
@@ -1699,7 +1855,6 @@ circunferencia_circulo = 100.53
 progreso_dona_stroke = round((porc_rendimiento / 100) * circunferencia_circulo, 2)
 color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
 
-# Incidencias abiertas de los proyectos en los que estás asignado (en común)
 todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
 if len(user_edificios) > 0:
     incs_mis_proyectos = [inc for inc in todas_las_incidencias_db if inc.get("Proyecto") in user_edificios]
@@ -1707,8 +1862,6 @@ else:
     incs_mis_proyectos = [inc for inc in todas_las_incidencias_db if inc.get("Usuario") == user_email]
 
 incs_abiertas_count = sum(1 for inc in incs_mis_proyectos if inc.get("Estado") == "Abierta")
-
-# Personal a cargo registrado por este usuario
 mi_personal_lista = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
 total_personal_count = len(mi_personal_lista)
 
@@ -1737,7 +1890,7 @@ dashboard_html = (
     '<div class="donut-container">'
     f'<svg class="donut-chart-svg" viewBox="0 0 36 36">'
     f'<circle class="donut-bg" cx="18" cy="18" r="16" />'
-    f'<circle class="donut-progress" cx="18" cy="18" r="16" stroke="{color_dona}" stroke-dasharray="{progreso_dona_stroke} {circunferencia_circulo}" />'
+    f'<circle class="donut-progress" cx="18" cy="18" stroke="{color_dona}" stroke-dasharray="{progreso_dona_stroke} {circunferencia_circulo}" />'
     f'</svg>'
     f'<div><div class="donut-info-val" style="color: {color_dona} !important;">{porc_rendimiento}%</div>'
     f'<div class="donut-info-lbl">{lbl_rend_prom}</div></div>'
@@ -1760,7 +1913,6 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# Pestañas con bordes delimitados
 pestanas = [
     "Checklist", 
     "Libro de Obra", 
@@ -1774,11 +1926,11 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 3 DE 4: CHECKLIST Y LIBRO DE OBRA (100% AUTÓNOMOS POR USUARIO)
+# PARTE 3 DE 4: CHECKLIST Y LIBRO DE OBRA (FORMATO OFICIAL L-O VINCULADO)
 # ==============================================================================
 
 # ==============================================================================
-# 9. MÓDULO 1: CHECKLIST (AUTÓNOMO POR USUARIO)
+# 9. MÓDULO 1: CHECKLIST (CONTROL DIARIO DE OBRA)
 # ==============================================================================
 tab_chk = tabs_app[0]
 tab_libro = tabs_app[1]
@@ -1791,13 +1943,11 @@ with tab_chk:
     if "creando_jornada" not in st.session_state:
         st.session_state.creando_jornada = False
 
-    # Lista dinámica de filas de supervisión
     if "filas_supervision" not in st.session_state:
         st.session_state.filas_supervision = [
             {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
         ]
 
-    # Conteo dinámico de observaciones integradas por actividad (+)
     if "chk_obs_counts" not in st.session_state:
         st.session_state.chk_obs_counts = {}
 
@@ -1817,7 +1967,6 @@ with tab_chk:
         st.markdown("---")
         with st.container():
             st.markdown("#### Configuración de la Nueva Jornada")
-            
             cfg_c1, cfg_c2, cfg_c3, cfg_c4, cfg_c5 = st.columns([2, 2, 2, 1.5, 1.5])
             with cfg_c1:
                 proyectos_disponibles = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
@@ -1845,33 +1994,19 @@ with tab_chk:
                 if item_key not in st.session_state.chk_obs_counts:
                     st.session_state.chk_obs_counts[item_key] = 1
 
-                st.markdown(
-                    f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""",
-                    unsafe_allow_html=True
-                )
-
+                st.markdown(f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""", unsafe_allow_html=True)
                 st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                 c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
 
                 with c_col1:
                     st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
-                    est = st.segmented_control(
-                        f"M_Est_{idx}", 
-                        ["✓ Cumple", "✗ No Cumple"], 
-                        key=f"m_st_{idx}", 
-                        label_visibility="collapsed"
-                    )
+                    est = st.segmented_control(f"M_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], key=f"m_st_{idx}", label_visibility="collapsed")
 
                 with c_col2:
                     st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
                     obs_vals_item = []
                     for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                        o_txt = st.text_input(
-                            f"Obs {idx}_{sub_o}",
-                            key=f"m_ob_{idx}_{sub_o}",
-                            placeholder=f"Observación {sub_o}...",
-                            label_visibility="collapsed"
-                        )
+                        o_txt = st.text_input(f"Obs {idx}_{sub_o}", key=f"m_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
                         if o_txt.strip():
                             obs_vals_item.append(o_txt.strip())
                     
@@ -1892,15 +2027,7 @@ with tab_chk:
                         ft_b64 = None
 
                 st.markdown('</div>', unsafe_allow_html=True)
-
-                resp_manana.append({
-                    "Jornada": "Mañana",
-                    "N°": idx,
-                    "Actividad": act,
-                    "Estado": est,
-                    "Observaciones": obs_vals_item,
-                    "Foto_B64": ft_b64
-                })
+                resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1915,33 +2042,19 @@ with tab_chk:
                 if item_key not in st.session_state.chk_obs_counts:
                     st.session_state.chk_obs_counts[item_key] = 1
 
-                st.markdown(
-                    f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""",
-                    unsafe_allow_html=True
-                )
-
+                st.markdown(f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""", unsafe_allow_html=True)
                 st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                 c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
 
                 with c_col1:
                     st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
-                    est = st.segmented_control(
-                        f"T_Est_{idx}", 
-                        ["✓ Cumple", "✗ No Cumple"], 
-                        key=f"t_st_{idx}", 
-                        label_visibility="collapsed"
-                    )
+                    est = st.segmented_control(f"T_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], key=f"t_st_{idx}", label_visibility="collapsed")
 
                 with c_col2:
                     st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
                     obs_vals_item = []
                     for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                        o_txt = st.text_input(
-                            f"Obs T_{idx}_{sub_o}",
-                            key=f"t_ob_{idx}_{sub_o}",
-                            placeholder=f"Observación {sub_o}...",
-                            label_visibility="collapsed"
-                        )
+                        o_txt = st.text_input(f"Obs T_{idx}_{sub_o}", key=f"t_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
                         if o_txt.strip():
                             obs_vals_item.append(o_txt.strip())
                     
@@ -1957,24 +2070,14 @@ with tab_chk:
                     ft_b64 = image_to_base64(ft) if ft is not None else None
 
                 st.markdown('</div>', unsafe_allow_html=True)
-
-                resp_tarde.append({
-                    "Jornada": "Tarde",
-                    "N°": idx,
-                    "Actividad": act,
-                    "Estado": est,
-                    "Observaciones": obs_vals_item,
-                    "Foto_B64": ft_b64
-                })
+                resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
 
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 3. SUPERVISIÓN DE TRABAJOS (PERSONAL AUTÓNOMO DEL USUARIO)
+            # 3. SUPERVISIÓN DE TRABAJOS
             # ------------------------------------------------------------------
             st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.filas_supervision)} registros)")
-            st.caption("Agregue actividades ejecutadas en campo, asigne personal a cargo y adjunte fotos.")
-
             mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
             lista_nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
             indices_a_eliminar = []
@@ -1982,110 +2085,46 @@ with tab_chk:
 
             for idx_f, f_data in enumerate(st.session_state.filas_supervision, 1):
                 f_id = f_data["id"]
-
-                st.markdown(
-                    f"""<div class="banner-item-header" style="background-color:#1e293b !important; display:flex; justify-content:space-between; align-items:center;"><span>Fila de Supervisión N° {idx_f}</span></div>""",
-                    unsafe_allow_html=True
-                )
-
+                st.markdown(f"""<div class="banner-item-header" style="background-color:#1e293b !important;"><span>Fila de Supervisión N° {idx_f}</span></div>""", unsafe_allow_html=True)
                 st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                 s1, s2, s3, s4 = st.columns([1.6, 1.4, 1.4, 0.4])
 
                 with s1:
-                    st.markdown("<small style='font-weight:700; color:#334155;'>Actividad / Trabajo:*</small>", unsafe_allow_html=True)
-                    act_val = st.text_input(
-                        f"Actividad {f_id}",
-                        value=f_data.get("actividad", ""),
-                        placeholder="Ej. Enlucido fachada posterior...",
-                        key=f"dyn_act_{f_id}",
-                        label_visibility="collapsed"
-                    )
-
-                    st.markdown("<small style='font-weight:700; color:#334155; margin-top:4px;'>Observaciones del Trabajo:</small>", unsafe_allow_html=True)
-                    obs_val_s = st.text_input(
-                        f"Obs {f_id}",
-                        value=f_data.get("observaciones", ""),
-                        placeholder="Observaciones adicionales...",
-                        key=f"dyn_obs_{f_id}",
-                        label_visibility="collapsed"
-                    )
+                    act_val = st.text_input(f"Actividad {f_id}", value=f_data.get("actividad", ""), placeholder="Ej. Enlucido fachada posterior...", key=f"dyn_act_{f_id}")
+                    obs_val_s = st.text_input(f"Obs {f_id}", value=f_data.get("observaciones", ""), placeholder="Observaciones adicionales...", key=f"dyn_obs_{f_id}")
 
                 with s2:
-                    st.markdown("<small style='font-weight:700; color:#334155;'>Personal Encargado:*</small>", unsafe_allow_html=True)
                     if lista_nombres_personal:
-                        enc_val = st.multiselect(
-                            f"Personal {f_id}",
-                            options=lista_nombres_personal,
-                            default=f_data.get("encargados", []),
-                            key=f"dyn_enc_{f_id}",
-                            placeholder="Seleccionar personal...",
-                            label_visibility="collapsed"
-                        )
+                        enc_val = st.multiselect(f"Personal {f_id}", options=lista_nombres_personal, default=f_data.get("encargados", []), key=f"dyn_enc_{f_id}", placeholder="Seleccionar personal...")
                         enc_str = ", ".join(enc_val) if enc_val else ""
                     else:
-                        enc_str = st.text_input(
-                            f"Personal manual {f_id}",
-                            value=f_data.get("encargados_manual", ""),
-                            placeholder="Escribir nombres...",
-                            key=f"dyn_enc_man_{f_id}",
-                            label_visibility="collapsed"
-                        )
-                        enc_val = [enc_str] if enc_str else []
+                        enc_str = st.text_input(f"Personal manual {f_id}", value=f_data.get("encargados_manual", ""), placeholder="Escribir nombres...", key=f"dyn_enc_man_{f_id}")
 
                 with s3:
-                    st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                    ft_file = st.file_uploader(
-                        f"Foto {f_id}",
-                        type=["jpg", "jpeg", "png"],
-                        key=f"dyn_ft_{f_id}",
-                        label_visibility="collapsed"
-                    )
-                    if ft_file is not None:
-                        foto_b64_f = image_to_base64(ft_file)
-                    else:
-                        foto_b64_f = f_data.get("foto_b64")
+                    ft_file = st.file_uploader(f"Foto {f_id}", type=["jpg", "jpeg", "png"], key=f"dyn_ft_{f_id}")
+                    foto_b64_f = image_to_base64(ft_file) if ft_file is not None else f_data.get("foto_b64")
 
                 with s4:
-                    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
-                    if st.button("🗑️", key=f"btn_del_row_{f_id}", help="Eliminar fila", use_container_width=True):
+                    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+                    if st.button("🗑️", key=f"btn_del_row_{f_id}", help="Eliminar fila"):
                         indices_a_eliminar.append(idx_f - 1)
 
                 st.markdown('</div>', unsafe_allow_html=True)
-
-                supervision_payload_data.append({
-                    "N°": idx_f,
-                    "Actividad": act_val.strip(),
-                    "Encargados": enc_str,
-                    "Observaciones": obs_val_s.strip(),
-                    "Foto_B64": foto_b64_f
-                })
+                supervision_payload_data.append({"N°": idx_f, "Actividad": act_val.strip(), "Encargados": enc_str, "Observaciones": obs_val_s.strip(), "Foto_B64": foto_b64_f})
 
             if indices_a_eliminar:
                 for del_i in sorted(indices_a_eliminar, reverse=True):
                     if len(st.session_state.filas_supervision) > 1:
                         st.session_state.filas_supervision.pop(del_i)
                     else:
-                        st.session_state.filas_supervision = [
-                            {"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
-                        ]
+                        st.session_state.filas_supervision = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
                 st.rerun()
 
-            col_add_btn, _ = st.columns([2.5, 5])
-            with col_add_btn:
-                if st.button("➕ Agregar Fila de Trabajo", key="btn_add_dyn_supervision_row", use_container_width=True):
-                    new_id = int(datetime.datetime.now().timestamp() * 1000)
-                    st.session_state.filas_supervision.append({
-                        "id": new_id,
-                        "actividad": "",
-                        "encargados": [],
-                        "observaciones": "",
-                        "foto_b64": None
-                    })
-                    st.rerun()
+            if st.button("➕ Agregar Fila de Trabajo", key="btn_add_dyn_supervision_row"):
+                st.session_state.filas_supervision.append({"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None})
+                st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
-
-            # Botón Guardar Checklist de Obra
             if st.button("💾 Guardar Checklist de Obra", type="primary", use_container_width=True):
                 if edificio_val == "-- Seleccione --" or not edificio_val:
                     st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
@@ -2094,14 +2133,10 @@ with tab_chk:
                     tarde_respondida = [item for item in resp_tarde if item["Estado"] is not None]
                     supervisiones_validas = [item for item in supervision_payload_data if item["Actividad"]]
 
-                    if len(manana_respondida) == 0 and len(tarde_respondida) == 0 and len(supervisiones_validas) == 0:
-                        st.error("⚠️ Por favor registre al menos una verificación o actividad de supervisión para guardar.")
+                    if not manana_respondida and not tarde_respondida and not supervisiones_validas:
+                        st.error("⚠️ Ingrese información antes de guardar.")
                     else:
-                        payload_jornada = {
-                            "Verificaciones": manana_respondida + tarde_respondida,
-                            "Supervision_Trabajos": supervisiones_validas
-                        }
-
+                        payload_jornada = {"Verificaciones": manana_respondida + tarde_respondida, "Supervision_Trabajos": supervisiones_validas}
                         try:
                             supabase.table("checklists").insert({
                                 "usuario_email": user_email,
@@ -2118,440 +2153,338 @@ with tab_chk:
                             st.session_state.db_loaded = False
                             st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
                             st.session_state.creando_jornada = False
-                            st.session_state.filas_supervision = [
-                                {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
-                            ]
+                            st.session_state.filas_supervision = [{"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
                             st.session_state.chk_obs_counts = {}
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al guardar checklist: {e}")
 
     st.markdown("---")
-
-    # HISTORIAL EXCLUSIVO DEL USUARIO ACTIVO
     st.markdown("### Historial General de Checklists Creados")
-
     mis_jornadas = st.session_state.get("db_checklists", {}).get(user_email, [])
 
     if len(mis_jornadas) > 0:
         col_edif_sel, _ = st.columns([2, 2])
         with col_edif_sel:
-            edificio_filtro = st.selectbox(
-                "🏢 Seleccionar Edificio / Proyecto:",
-                ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA,
-                key="filtro_edificio_historial"
-            )
+            edificio_filtro = st.selectbox("🏢 Seleccionar Edificio / Proyecto:", ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA, key="filtro_edificio_historial")
 
         jornadas_filtradas = [j for j in mis_jornadas if j.get("Edificio") == edificio_filtro] if edificio_filtro != "-- Todos los Edificios --" else mis_jornadas.copy()
+        st.caption(f"Mostrando **{len(jornadas_filtradas)}** checklist(s).")
 
-        st.caption(f"Mostrando **{len(jornadas_filtradas)}** de **{len(mis_jornadas)}** checklist(s) registrados.")
-
-        if len(jornadas_filtradas) > 0:
-            meses_nombres = {
-                "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
-                "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
-                "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
-            }
-
-            jornadas_con_index = [(orig_idx, j_item) for orig_idx, j_item in enumerate(mis_jornadas) if j_item in jornadas_filtradas]
-            jornadas_con_index.sort(key=lambda x: x[1]['Fecha'], reverse=True)
-
-            grupos_meses = {}
-            for orig_idx, j in jornadas_con_index:
-                f_str = j['Fecha']
-                try:
-                    partes = f_str.split("-")
-                    nombre_mes = f"{meses_nombres.get(partes[1], 'Mes')} {partes[0]}"
-                except Exception:
-                    nombre_mes = "Otros"
-                
-                if nombre_mes not in grupos_meses:
-                    grupos_meses[nombre_mes] = []
-                grupos_meses[nombre_mes].append((orig_idx, j))
-
-            for mes_anio, lista_j in grupos_meses.items():
-                with st.expander(f"📅 {mes_anio} ({len(lista_j)} checklists)", expanded=False):
-                    for idx_rel, (orig_idx, j) in enumerate(lista_j):
-                        col_j_info, col_j_del = st.columns([8, 1])
-                        
-                        with col_j_del:
-                            if st.button("🗑️", key=f"quick_del_{orig_idx}", help="Borrar checklist permanentemente"):
-                                try:
-                                    supabase.table("checklists").delete().eq("id", j["db_id"]).execute()
-                                    st.session_state.db_loaded = False
-                                    st.success("¡Checklist eliminado!")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error al eliminar: {e}")
-
-                        with col_j_info:
-                            with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})", expanded=False):
-                                datos_item = j.get("Datos", {})
-                                if isinstance(datos_item, dict):
-                                    v_list = datos_item.get("Verificaciones", [])
-                                    s_list = datos_item.get("Supervision_Trabajos", [])
-                                else:
-                                    v_list = datos_item
-                                    s_list = []
-
-                                st.markdown("##### 1. Verificaciones con Observaciones Integradas:")
-                                for row in v_list:
-                                    estado_badge = render_estado_badge(row.get('Estado'))
-                                    st.markdown(f"- **[{row.get('Jornada')}] N° {row.get('N°')}. {row.get('Actividad')}**: {estado_badge}", unsafe_allow_html=True)
-                                    obs_r = row.get('Observaciones')
-                                    if obs_r:
-                                        if isinstance(obs_r, list):
-                                            for sub_o_txt in obs_r:
-                                                st.caption(f"  ▫️ *Obs:* {sub_o_txt}")
-                                        else:
-                                            st.caption(f"  ▫️ *Obs:* {obs_r}")
-                                    if row.get("Foto_B64"):
-                                        img_ev = base64_to_image(row["Foto_B64"])
-                                        if img_ev:
-                                            with st.popover("📷 Ver Foto"):
-                                                st.image(img_ev, caption=row.get('Actividad'), use_container_width=True)
-
-                                if s_list:
-                                    st.markdown("##### 2. Supervisión de Trabajos (Tabla Histórica):")
-                                    hist_rows_html = ""
-                                    for idx_sup, sup_r in enumerate(s_list, 1):
-                                        hist_rows_html += (
-                                            f"<tr>"
-                                            f"<td class='center' style='font-weight:700; width:45px;'>{idx_sup}</td>"
-                                            f"<td style='width:240px;'><b>{sup_r.get('Actividad', '')}</b></td>"
-                                            f"<td style='width:180px;'>{sup_r.get('Encargados', 'No especificado')}</td>"
-                                            f"<td>{sup_r.get('Observaciones', '')}</td>"
-                                            f"</tr>"
-                                        )
-                                    tbl_hist_html = (
-                                        f"<table class='supervision-table'>"
-                                        f"<thead><tr><th class='center' style='width:45px;'>N°</th><th style='width:240px;'>Actividad</th><th style='width:180px;'>Personal Encargado</th><th>Observaciones</th></tr></thead>"
-                                        f"<tbody>{hist_rows_html}</tbody>"
-                                        f"</table>"
-                                    )
-                                    st.markdown(tbl_hist_html, unsafe_allow_html=True)
-
-                                    for idx_sup, sup_r in enumerate(s_list, 1):
-                                        if sup_r.get("Foto_B64"):
-                                            img_sup = base64_to_image(sup_r["Foto_B64"])
-                                            if img_sup:
-                                                with st.popover(f"📷 Evidencia Foto N° {idx_sup}: {sup_r.get('Actividad')}"):
-                                                    st.image(img_sup, caption=sup_r.get('Actividad'), use_container_width=True)
-
-                                c_dl1, c_dl2 = st.columns(2)
-                                with c_dl1:
-                                    excel_bytes = export_checklist_to_excel_file(j)
-                                    st.download_button(
-                                        label="📊 Descargar Excel (.xlsx)",
-                                        data=excel_bytes,
-                                        file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.xlsx",
-                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                        key=f"dl_xlsx_{orig_idx}"
-                                    )
-                                with c_dl2:
-                                    pdf_bytes = export_checklist_to_pdf_file(j)
-                                    st.download_button(
-                                        label="📄 Descargar PDF (.pdf)",
-                                        data=pdf_bytes,
-                                        file_name=f"Checklist_{j['Edificio'].replace(' ', '_')}_{j['Fecha']}.pdf",
-                                        mime="application/pdf",
-                                        key=f"dl_pdf_{orig_idx}"
-                                    )
-        else:
-            st.warning("No hay checklists registrados para el edificio seleccionado.")
+        for orig_idx, j in enumerate(jornadas_filtradas):
+            with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})", expanded=False):
+                c_dl1, c_dl2 = st.columns(2)
+                with c_dl1:
+                    st.download_button("📊 Descargar Excel (.xlsx)", export_checklist_to_excel_file(j), file_name=f"Checklist_{j['Edificio']}_{j['Fecha']}.xlsx", key=f"dl_xlsx_{orig_idx}")
+                with c_dl2:
+                    st.download_button("📄 Descargar PDF (.pdf)", export_checklist_to_pdf_file(j), file_name=f"Checklist_{j['Edificio']}_{j['Fecha']}.pdf", key=f"dl_pdf_{orig_idx}")
     else:
         st.info("Aún no hay checklists guardados en tu cuenta.")
 
 # ==============================================================================
-# 10. MÓDULO 2: LIBRO DE OBRA (AUTÓNOMO POR USUARIO)
+# 10. MÓDULO 2: LIBRO DE OBRA (FORMATO OFICIAL L-O CON VINCULACIÓN AL CHECKLIST)
 # ==============================================================================
 with tab_libro:
-    st.markdown("### Libro de Obra")
-    st.caption("Supervisión técnica de rubros, control de personal, materiales y equipos.")
+    st.markdown("### Libro de Obra – Formato Oficial")[cite: 1]
+    st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")[cite: 1]
 
     dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-    
-    col_f_out, _ = st.columns([1, 2])
-    with col_f_out:
-        local_today_insp = get_local_datetime_ecuador().date()
-        did_fecha_fuera = st.date_input("Fecha de Registro en Libro de Obra:", local_today_insp, key="did_fecha_live")
-    
-    dia_auto_es = dias_es[did_fecha_fuera.weekday()]
+    local_today_insp = get_local_datetime_ecuador().date()
 
-    with st.form("form_libro_obra_clean"):
-        st.markdown("#### 1. Información General")
-        c1, c2 = st.columns(2)
-        with c1:
-            proyectos_libro = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
-            did_proyecto = st.selectbox("Proyecto / Edificio:*", ["-- Seleccione --"] + proyectos_libro, index=0, key="did_proy")
-            did_dia = st.text_input("Día:", value=dia_auto_es, disabled=True)
-            did_residente = st.text_input("Residente de Obra:", value=user_nombre_completo, key="did_res")
+    col_lo1, col_lo2 = st.columns([1.5, 2.5])
+    with col_lo1:
+        lo_fecha = st.date_input("Fecha de Reporte:", local_today_insp, key="lo_official_fecha")
+        lo_dia = dias_es[lo_fecha.weekday()]
+        st.caption(f"Día seleccionado: **{lo_dia}**")
 
-        with c2:
-            did_frente = st.text_input("Frente Inspeccionado:*", placeholder="Ej. Bloque A - Piso 3", key="did_fre")
-            did_clima = st.selectbox("Clima:*", ["Soleado", "Nublado", "Lluvia"], index=None, placeholder="Seleccionar clima...", key="did_cli_single")
-            c_h1, c_h2 = st.columns(2)
-            with c_h1:
-                did_h_ini = st.time_input("Hora inicio:", datetime.time(7, 0), key="did_hini")
-            with c_h2:
-                did_h_fin = st.time_input("Hora fin:", datetime.time(17, 0), key="did_hfin")
+    # Detección de Checklist en la misma fecha para autocompletar
+    fecha_lo_str = lo_fecha.strftime("%Y-%m-%d")
+    chk_asociado = next((c for c in mis_jornadas if c.get("Fecha") == fecha_lo_str), None)
 
-        st.markdown("---")
+    proyectos_libro = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+    idx_proy_lo = 0
+    if chk_asociado and chk_asociado.get("Edificio") in proyectos_libro:
+        idx_proy_lo = proyectos_libro.index(chk_asociado.get("Edificio")) + 1
 
-        # 2. CHECK LIST Y CONTROL GENERAL DE OBRA
-        st.markdown("#### 2. Check List y Control General de Obra")
-        
-        tab_sec1, tab_sec2, tab_sec3, tab_sec4, tab_sec5 = st.tabs([
-            "🛡️ Seguridad Industrial", "🧱 Mampostería", "🏗️ Hormigón", "🔌 Instalaciones", "🎨 Acabados"
-        ])
+    with col_lo2:
+        if chk_asociado:
+            st.success(f"🔗 **Checklist Vinculado:** Se importarán automáticamente las actividades y los horarios del edificio **{chk_asociado.get('Edificio')}** para evitar doble ingreso.")
+        else:
+            st.info("💡 Si llenas el Checklist del día, los trabajos y horarios se precargarán automáticamente aquí.")
 
-        with tab_sec1:
-            sec_seguridad = ["Personal con casco", "Uso correcto de EPP", "Arnés", "Andamios", "Señalización", "Orden y limpieza", "Extintores", "Botiquín"]
-            seg_resp = []
-            for item in sec_seguridad:
-                cs1, cs2, cs3 = st.columns([3, 2, 3])
-                with cs1:
-                    st.write(f"• {item}")
-                with cs2:
-                    st_val = st.segmented_control(f"Seg_{item}", ["Sí", "No"], key=f"seg_{item}", label_visibility="collapsed")
-                with cs3:
-                    obs_val = st.text_input(f"Obs_{item}", placeholder="Observaciones...", key=f"seg_obs_{item}", label_visibility="collapsed")
-                seg_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
+    with st.form("form_libro_obra_oficial_lo"):
+        # ENCABEZADO OFICIAL
+        st.markdown("#### 1. Datos Generales de la Obra")[cite: 1]
+        c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
+        with c_lo_a1:
+            lo_proyecto = st.selectbox("Proyecto:*", ["-- Seleccione --"] + proyectos_libro, index=idx_proy_lo, key="lo_proy_sel_off")[cite: 1]
+            lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")[cite: 1]
+            lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")[cite: 1]
 
-        with tab_sec2:
-            sec_mamp = ["Muros aplomados", "Muros nivelados", "Chicotes", "Tensores", "Juntas", "Limpieza"]
-            mamp_resp = []
-            for item in sec_mamp:
-                cm1, cm2, cm3 = st.columns([3, 2, 3])
-                with cm1:
-                    st.write(f"• {item}")
-                with cm2:
-                    st_val = st.segmented_control(f"Mamp_{item}", ["Sí", "No"], key=f"mamp_{item}", label_visibility="collapsed")
-                with cm3:
-                    obs_val = st.text_input(f"Obs_mamp_{item}", placeholder="Observaciones...", key=f"mamp_obs_{item}", label_visibility="collapsed")
-                mamp_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
+        with c_lo_a2:
+            lo_superintendente = st.text_input("Superintendente:*", value="ING. PABLO ESPINOSA", key="lo_super_in")[cite: 1]
+            lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")[cite: 1]
+            lo_fiscalizador = st.text_input("Fiscalizador:*", value="ING. DIEGO CHARVET", key="lo_fisc_in")[cite: 1]
 
-        with tab_sec3:
-            sec_horm = ["Acero conforme planos", "Recubrimiento", "Vibrado", "Sin cangrejeras", "Sin juntas frías", "Curado"]
-            horm_resp = []
-            for item in sec_horm:
-                ch1, ch2, ch3 = st.columns([3, 2, 3])
-                with ch1:
-                    st.write(f"• {item}")
-                with ch2:
-                    st_val = st.segmented_control(f"Horm_{item}", ["Sí", "No"], key=f"horm_{item}", label_visibility="collapsed")
-                with ch3:
-                    obs_val = st.text_input(f"Obs_horm_{item}", placeholder="Observaciones...", key=f"horm_obs_{item}", label_visibility="collapsed")
-                horm_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
-
-        with tab_sec4:
-            sec_inst = ["Eléctrica", "Sanitaria", "Hidráulica", "Ductería", "Cajas niveladas"]
-            inst_resp = []
-            for item in sec_inst:
-                ci1, ci2, ci3 = st.columns([3, 2, 3])
-                with ci1:
-                    st.write(f"• {item}")
-                with ci2:
-                    st_val = st.segmented_control(f"Inst_{item}", ["Sí", "No"], key=f"inst_{item}", label_visibility="collapsed")
-                with ci3:
-                    obs_val = st.text_input(f"Obs_inst_{item}", placeholder="Observaciones...", key=f"inst_obs_{item}", label_visibility="collapsed")
-                inst_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
-
-        with tab_sec5:
-            sec_acab = ["Enlucidos", "Cerámica", "Pintura", "Puertas", "Ventanas"]
-            acab_resp = []
-            for item in sec_acab:
-                ca1, ca2, ca3 = st.columns([3, 2, 3])
-                with ca1:
-                    st.write(f"• {item}")
-                with ca2:
-                    st_val = st.segmented_control(f"Acab_{item}", ["Sí", "No"], key=f"acab_{item}", label_visibility="collapsed")
-                with ca3:
-                    obs_val = st.text_input(f"Obs_acab_{item}", placeholder="Observaciones...", key=f"acab_obs_{item}", label_visibility="collapsed")
-                acab_resp.append({"Item": item, "Cumple": st_val, "Observación": obs_val})
+        with c_lo_a3:
+            lo_hoja = st.text_input("Hoja N°:*", value="000053", key="lo_hoja_in")[cite: 1]
+            lo_h_ini = st.time_input("Hora Entrada:*", datetime.time(7, 0), key="lo_hini_off")[cite: 1]
+            lo_h_fin = st.time_input("Hora Salida:*", datetime.time(16, 0), key="lo_hfin_off")[cite: 1]
 
         st.markdown("---")
 
-        # 3. CONTROL DE PERSONAL
-        st.markdown("#### 3. Control de Personal")
-        sec_pers = ["Personal completo", "Contratistas completos", "Rendimiento adecuado", "Retrasos"]
-        pers_resp = []
-        for item in sec_pers:
-            cp1, cp2, cp3 = st.columns([3, 2, 3])
-            with cp1:
-                st.write(f"• {item}")
-            with cp2:
-                st_val = st.segmented_control(f"Pers_{item}", ["Sí", "No"], key=f"pers_{item}", label_visibility="collapsed")
-            with cp3:
-                obs_val = st.text_input(f"Obs_pers_{item}", placeholder="Observación...", key=f"pers_obs_{item}", label_visibility="collapsed")
-            pers_resp.append({"Aspecto": item, "Cumple": st_val, "Observación": obs_val})
+        # NÓMINA DE PERSONAL Y PERSONAL ROTATIVO
+        st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")[cite: 1]
+        st.caption("Cálculo automático de obreros según tu cuadrilla activa en el proyecto seleccionado.")
+
+        # Recopilación de trabajadores cargados en la nómina para el edificio
+        edif_filtro_pers = lo_proyecto if lo_proyecto != "-- Seleccione --" else None
+        mi_personal_guardado = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+        if edif_filtro_pers:
+            personal_edif = [p for p in mi_personal_guardado if (p.get("edificio") or "General") in [edif_filtro_pers, "General"]]
+        else:
+            personal_edif = mi_personal_guardado
+
+        # Conteo automático por oficio
+        conteo_auto_nomina = {}
+        for ofi in OFICIOS_NOMINA_FORMATO:
+            conteo_auto_nomina[ofi] = 0
+
+        for p in personal_edif:
+            c_upper = p.get("cargo", "").upper()
+            asignado = False
+            for ofi in OFICIOS_NOMINA_FORMATO:
+                if ofi in c_upper or (ofi == "ALBAÑILES" and "ALBAÑIL" in c_upper) or (ofi == "ELECTRICOS" and "ELECTR" in c_upper) or (ofi == "PINTORES" and "PINTOR" in c_upper) or (ofi == "PLOMEROS" and "PLOMER" in c_upper) or (ofi == "GYPSEROS" and "GYPS" in c_upper):
+                    conteo_auto_nomina[ofi] += 1
+                    asignado = True
+                    break
+            if not asignado and "AYUDANTE" in c_upper:
+                conteo_auto_nomina["AYUDANTE"] += 1
+
+        c_nom1, c_nom2 = st.columns(2)
+        with c_nom1:
+            st.markdown("##### 👷 Personal Nómina")[cite: 1]
+            nomina_input_map = {}
+            for ofi in OFICIOS_NOMINA_FORMATO:
+                col_n_l, col_n_v = st.columns([3, 1])
+                with col_n_l:
+                    st.write(f"• {ofi} (7:00AM - 4:00PM)")[cite: 1]
+                with col_n_v:
+                    nomina_input_map[ofi] = st.number_input(f"N_{ofi}", min_value=0, value=int(conteo_auto_nomina.get(ofi, 0)), key=f"lo_nom_{ofi}", label_visibility="collapsed")[cite: 1]
+
+        with c_nom2:
+            st.markdown("##### 🔄 Personal Rotativo / Subcontratos")[cite: 1]
+            rotativo_input_map = {}
+            for rubro in RUROS_ROTATIVOS_FORMATO:
+                col_r_l, col_r_v = st.columns([3, 1])
+                with col_r_l:
+                    st.write(f"• {rubro}")[cite: 1]
+                with col_r_v:
+                    rotativo_input_map[rubro] = st.number_input(f"R_{rubro}", min_value=0, value=0, key=f"lo_rot_{rubro}", label_visibility="collapsed")[cite: 1]
 
         st.markdown("---")
 
-        # 4. MATERIALES
-        st.markdown("#### 4. Materiales")
-        sec_mat = ["Material suficiente", "Material conforme", "Material almacenado correctamente", "Material deteriorado"]
-        mat_resp = []
-        for item in sec_mat:
-            cmat1, cmat2, cmat3 = st.columns([3, 2, 3])
-            with cmat1:
-                st.write(f"• {item}")
-            with cmat2:
-                st_val = st.segmented_control(f"Mat_{item}", ["Sí", "No"], key=f"mat_{item}", label_visibility="collapsed")
-            with cmat3:
-                obs_val = st.text_input(f"Obs_mat_{item}", placeholder="Observación...", key=f"mat_obs_{item}", label_visibility="collapsed")
-            mat_resp.append({"Revisar": item, "Cumple": st_val, "Observación": obs_val})
+        # CONDICIONES CLIMÁTICAS Y MAQUINARIA / HERRAMIENTAS
+        st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")[cite: 1]
+        c_cl1, c_cl2 = st.columns(2)
+        with c_cl1:
+            st.markdown("##### ⛅ Condiciones Climáticas")[cite: 1]
+            clima_cond_sel = st.selectbox("Estado del Clima:*", ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"], index=0, key="lo_clima_cond")[cite: 1]
+            clima_obs = st.text_input("Observaciones del Clima en Obra:", placeholder="Ej. Lluvia de 14:00 a 15:30 interrumpió trabajos en terraza", key="lo_clima_obs")[cite: 1]
+
+        with c_cl2:
+            st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")[cite: 1]
+            maq_input_map = {}
+            for maq in MAQUINARIAS_FORMATO:
+                c_m_l, c_m_v = st.columns([3, 1])
+                with c_m_l:
+                    st.write(f"• {maq}")[cite: 1]
+                with c_m_v:
+                    def_v = 2 if "SOLDADORA" in maq else 0[cite: 1]
+                    maq_input_map[maq] = st.number_input(f"M_{maq}", min_value=0, value=def_v, key=f"lo_maq_{maq}", label_visibility="collapsed")[cite: 1]
 
         st.markdown("---")
 
-        # 5. EQUIPOS
-        st.markdown("#### 5. Equipos")
-        sec_eq = ["Mezcladora", "Vibrador", "Cortadora", "Compresor", "Herramienta eléctrica"]
-        eq_resp = []
-        for item in sec_eq:
-            ceq1, ceq2, ceq3 = st.columns([3, 2, 3])
-            with ceq1:
-                st.write(f"• {item}")
-            with ceq2:
-                st_val = st.segmented_control(f"Eq_{item}", ["Operativo", "Fuera de servicio"], key=f"eq_{item}", label_visibility="collapsed")
-            with ceq3:
-                obs_val = st.text_input(f"Obs_eq_{item}", placeholder="Observación...", key=f"eq_obs_{item}", label_visibility="collapsed")
-            eq_resp.append({"Equipo": item, "Estado": st_val, "Observación": obs_val})
+        # SEGURIDAD, SEÑALIZACIÓN Y MITIGACIÓN
+        st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")[cite: 1]
+        c_ss1, c_ss2, c_ss3 = st.columns(3)
+        with c_ss1:
+            st.markdown("##### 🛡️ Seguridad")[cite: 1]
+            seg_casco = st.checkbox("Casco", value=True)[cite: 1]
+            seg_chaleco = st.checkbox("Chalecos", value=True)[cite: 1]
+            seg_guantes = st.checkbox("Guantes", value=True)[cite: 1]
+            seg_gafas = st.checkbox("Gafas", value=True)[cite: 1]
+            seg_mascarilla = st.checkbox("Mascarilla", value=True)[cite: 1]
+            seg_auditivo = st.checkbox("Auditivo", value=True)[cite: 1]
 
-        btn_guardar_did = st.form_submit_button("💾 Guardar Registro en Libro de Obra", type="primary")
+        with c_ss2:
+            st.markdown("##### 🚧 Señalización")[cite: 1]
+            sen_conos = st.checkbox("Conos", value=True)[cite: 1]
+            sen_cintas = st.checkbox("Cintas", value=True)[cite: 1]
+            sen_rotulos = st.checkbox("Rótulos", value=False)[cite: 1]
+            sen_vallas = st.checkbox("Vallas", value=False)[cite: 1]
+            sen_extintor = st.checkbox("Extintor", value=True)[cite: 1]
+            sen_botiquin = st.checkbox("Botiquín", value=True)[cite: 1]
 
-        if btn_guardar_did:
-            if did_proyecto == "-- Seleccione --":
-                st.error("⚠️ Por favor seleccione un Proyecto.")
-            elif not did_clima:
-                st.error("⚠️ Por favor seleccione las condiciones del clima.")
-            elif not did_frente.strip():
-                st.error("⚠️ Por favor ingrese el frente inspeccionado.")
+        with c_ss3:
+            st.markdown("##### 🧹 Mitigación")[cite: 1]
+            mit_polvo = st.checkbox("Control de Polvo", value=False)[cite: 1]
+            mit_ruido = st.checkbox("Control de Ruido", value=True)[cite: 1]
+            mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)[cite: 1]
+            mit_cerramiento = st.checkbox("Cerramiento", value=False)[cite: 1]
+            mit_limpieza = st.checkbox("Limpieza y Orden", value=True)[cite: 1]
+
+        st.markdown("---")
+
+        # ACTIVIDADES REALIZADAS EN LA JORNADA
+        st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")[cite: 1]
+        st.caption("Rubros ejecutados en campo. Si llenaste el Checklist de hoy, se copiarán sus actividades automáticamente.")
+
+        lista_actividades_lo = []
+        if chk_asociado:
+            datos_chk = chk_asociado.get("Datos", {})
+            sup_items = datos_chk.get("Supervision_Trabajos", []) if isinstance(datos_chk, dict) else []
+            for s_it in sup_items:
+                if s_it.get("Actividad"):
+                    lista_actividades_lo.append({
+                        "Descripcion": s_it.get("Actividad"),
+                        "Area": "Frente Principal",
+                        "Encargados": s_it.get("Encargados", ""),
+                        "Unidad": "m2",
+                        "Cantidad": 1.0,
+                        "Observaciones": s_it.get("Observaciones", "")
+                    })
+
+        if not lista_actividades_lo:
+            lista_actividades_lo = [
+                {"Descripcion": "Albañilería - Gypsum - Pintura y Porcelanato", "Area": "Piso 3 / Bloque A", "Encargados": "Cuadrilla Alpha", "Unidad": "m2", "Cantidad": 15.0, "Observaciones": "Conforme plano"},[cite: 1]
+                {"Descripcion": "Enlucido y masillado de fajas interiores", "Area": "Torre Principal", "Encargados": "Albañiles", "Unidad": "m2", "Cantidad": 22.5, "Observaciones": "Sin novedades"}
+            ]
+
+        acts_final_payload = []
+        for idx_act_form, a_item in enumerate(lista_actividades_lo, 1):
+            st.markdown(f"**Actividad N° {idx_act_form}:**")[cite: 1]
+            c_af1, c_af2, c_af3, c_af4 = st.columns([2.5, 1.5, 1, 1])
+            with c_af1:
+                d_in = st.text_input(f"Descripción {idx_act_form}:", value=a_item["Descripcion"], key=f"lo_act_d_{idx_act_form}")[cite: 1]
+            with c_af2:
+                ar_in = st.text_input(f"Área {idx_act_form}:", value=a_item["Area"], key=f"lo_act_ar_{idx_act_form}")[cite: 1]
+            with c_af3:
+                u_in = st.selectbox(f"Unidad {idx_act_form}:", ["m2", "m", "m3", "kg", "pto", "unid"], index=0, key=f"lo_act_u_{idx_act_form}")[cite: 1]
+            with c_af4:
+                ct_in = st.number_input(f"Cant. {idx_act_form}:", min_value=0.0, value=float(a_item["Cantidad"]), step=0.5, key=f"lo_act_ct_{idx_act_form}")[cite: 1]
+            
+            acts_final_payload.append({
+                "Descripcion": d_in.strip(),
+                "Area": ar_in.strip(),
+                "Encargados": a_item.get("Encargados", ""),
+                "Unidad": u_in,
+                "Cantidad": ct_in,
+                "Observaciones": a_item.get("Observaciones", "")
+            })
+
+        st.markdown("---")
+
+        # NOVEDADES Y RECOMENDACIONES
+        st.markdown("#### 6. Novedades y Recomendaciones")[cite: 1]
+        lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="ALBAÑILERIA - GYPSUM - PINTURA Y PORCELANATO CONFORME AVANCE PROGRAMADO.", height=90, key="lo_nov_in")[cite: 1]
+
+        btn_guardar_lo_oficial = st.form_submit_button("💾 Guardar Formato Oficial de Libro de Obra", type="primary", use_container_width=True)
+
+        if btn_guardar_lo_oficial:
+            if lo_proyecto == "-- Seleccione --":
+                st.error("⚠️ Seleccione un Proyecto o Edificio.")
             else:
-                payload_insp = {
-                    "Avance": [],
-                    "Checklist": {
-                        "Seguridad Industrial": seg_resp,
-                        "Mampostería": mamp_resp,
-                        "Hormigón": horm_resp,
-                        "Instalaciones": inst_resp,
-                        "Acabados": acab_resp,
-                        "Control de Personal": pers_resp,
-                        "Materiales": mat_resp,
-                        "Equipos": eq_resp
-                    }
+                seguridad_checks = {
+                    "Casco": seg_casco, "Chalecos": seg_chaleco, "Guantes": seg_guantes, "Gafas": seg_gafas, "Mascarilla": seg_mascarilla, "Auditivo": seg_auditivo,[cite: 1]
+                    "Conos": sen_conos, "Cintas": sen_cintas, "Rótulos": sen_rotulos, "Vallas": sen_vallas, "Extintor": sen_extintor, "Botiquin": sen_botiquin,[cite: 1]
+                    "Polvo": mit_polvo, "Ruido": mit_ruido, "Liquidos": mit_liquidos, "Cerramiento": mit_cerramiento, "Limpieza": mit_limpieza[cite: 1]
                 }
+
+                payload_libro_oficial = {
+                    "Superintendente": lo_superintendente,[cite: 1]
+                    "Fiscalizador": lo_fiscalizador,[cite: 1]
+                    "Ubicacion": lo_ubicacion,[cite: 1]
+                    "Barrio": lo_barrio,[cite: 1]
+                    "Hoja": lo_hoja,[cite: 1]
+                    "Nomina_Conteo": nomina_input_map,[cite: 1]
+                    "Rotativo_Conteo": rotativo_input_map,[cite: 1]
+                    "Clima_Condicion": clima_cond_sel,[cite: 1]
+                    "Clima_Obs": clima_obs,[cite: 1]
+                    "Maquinaria_Conteo": maq_input_map,[cite: 1]
+                    "Seguridad_Check": seguridad_checks,[cite: 1]
+                    "Actividades_Ejecutadas": acts_final_payload,[cite: 1]
+                    "Novedades": lo_novedades[cite: 1]
+                }
+
                 try:
                     supabase.table("inspecciones").insert({
                         "usuario_email": user_email,
-                        "proyecto": did_proyecto,
-                        "fecha": did_fecha_fuera.strftime("%Y-%m-%d"),
-                        "dia": dia_auto_es,
-                        "residente": did_residente,
-                        "frente": did_frente.strip(),
-                        "clima": did_clima,
-                        "hora_inicio": did_h_ini.strftime("%H:%M"),
-                        "hora_fin": did_h_fin.strftime("%H:%M"),
-                        "datos": payload_insp
+                        "proyecto": lo_proyecto,
+                        "fecha": lo_fecha.strftime("%Y-%m-%d"),
+                        "dia": lo_dia,
+                        "residente": lo_residente,
+                        "frente": lo_ubicacion,
+                        "clima": clima_cond_sel,
+                        "hora_inicio": lo_h_ini.strftime("%H:%M"),
+                        "hora_fin": lo_h_fin.strftime("%H:%M"),
+                        "datos": payload_libro_oficial
                     }).execute()
 
                     st.session_state.db_loaded = False
-                    st.success(f"¡Registro en Libro de Obra guardado exitosamente para **{did_proyecto}**!")
+                    st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error al guardar registro: {e}")
+                    st.error(f"Error al guardar: {e}")
 
     st.markdown("---")
 
-    # HISTORIAL EXCLUSIVO DEL USUARIO ACTIVO
-    st.markdown("### Historial de Libro de Obra")
-
+    # HISTORIAL DE FORMATOS
+    st.markdown("### Historial de Formatos en Libro de Obra")
     mis_inspecciones = st.session_state.get("db_inspecciones", {}).get(user_email, [])
 
     if len(mis_inspecciones) > 0:
         col_edif_insp, _ = st.columns([2, 2])
         with col_edif_insp:
-            edif_insp_filtro = st.selectbox("🏢 Seleccionar Proyecto para consultar:", ["-- Todos los Proyectos --"] + EDIFICIOS_ALPHA, key="filtro_edif_inspecciones")
+            edif_insp_filtro = st.selectbox("🏢 Filtrar Proyecto:", ["-- Todos los Proyectos --"] + EDIFICIOS_ALPHA, key="filtro_edif_inspecciones")
 
         insps_filtradas = [i for i in mis_inspecciones if i.get("Proyecto") == edif_insp_filtro] if edif_insp_filtro != "-- Todos los Proyectos --" else mis_inspecciones.copy()
+        st.caption(f"Mostrando **{len(insps_filtradas)}** registro(s) en Libro de Obra.")
 
-        st.caption(f"Mostrando **{len(insps_filtradas)}** de **{len(mis_inspecciones)}** registro(s) en Libro de Obra.")
+        for idx_insp, insp in enumerate(insps_filtradas, 1):
+            with st.expander(f"📌 {insp['Proyecto']} — {insp['Fecha']} ({insp['Dia']}) | Residente: {insp.get('Residente', 'N/A')}", expanded=False):
+                d_insp = insp.get("Datos", {})
+                st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp.get('Frente', ''))} | **Clima:** {insp.get('Clima', '')}")
+                st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
 
-        if len(insps_filtradas) > 0:
-            insps_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
-
-            for idx_insp, insp in enumerate(insps_filtradas, 1):
-                col_i_info, col_i_del = st.columns([8, 1])
-
-                with col_i_del:
-                    if st.button("🗑️", key=f"del_insp_{idx_insp}", help="Borrar registro permanentemente"):
-                        try:
-                            supabase.table("inspecciones").delete().eq("id", insp["db_id"]).execute()
-                            st.session_state.db_loaded = False
-                            st.success("¡Registro eliminado!")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error al eliminar: {e}")
-
-                with col_i_info:
-                    with st.expander(f"📌 {insp['Proyecto']} — {insp['Fecha']} ({insp['Dia']}) | Frente: {insp.get('Frente', 'N/A')}", expanded=False):
-                        st.markdown(f"**Residente:** {insp.get('Residente', '')} | **Clima:** {insp.get('Clima', '')}")
-                        st.markdown(f"**Horario:** {insp.get('Hora_Inicio', '')} - {insp.get('Hora_Fin', '')}")
-
-                        with st.popover("✏️ Editar Libro de Obra"):
-                            st.markdown(f"#### Modificar Registro — {insp['Proyecto']} ({insp['Fecha']})")
-                            with st.form(f"form_edit_insp_{insp['db_id']}"):
-                                e_frente = st.text_input("Frente Inspeccionado:", value=insp.get("Frente", ""))
-                                e_clima = st.selectbox("Clima:", ["Soleado", "Nublado", "Lluvia"], index=["Soleado", "Nublado", "Lluvia"].index(insp.get("Clima", "Soleado")) if insp.get("Clima") in ["Soleado", "Nublado", "Lluvia"] else 0)
-                                e_residente = st.text_input("Residente:", value=insp.get("Residente", ""))
-
-                                btn_save_edit = st.form_submit_button("💾 Guardar Cambios", type="primary")
-
-                                if btn_save_edit:
-                                    try:
-                                        supabase.table("inspecciones").update({
-                                            "frente": e_frente,
-                                            "clima": e_clima,
-                                            "residente": e_residente
-                                        }).eq("id", insp["db_id"]).execute()
-
-                                        st.session_state.db_loaded = False
-                                        st.success("¡Registro actualizado correctamente!")
-                                        st.rerun()
-                                    except Exception as err:
-                                        st.error(f"Error al actualizar: {err}")
-
-                        st.markdown("<br>", unsafe_allow_html=True)
-
-                        c_dl_i1, c_dl_i2 = st.columns(2)
-                        with c_dl_i1:
-                            excel_insp_bytes = export_inspeccion_to_excel_file(insp)
-                            st.download_button(
-                                label="📊 Descargar Excel (.xlsx)",
-                                data=excel_insp_bytes,
-                                file_name=f"Libro_Obra_{insp['Proyecto'].replace(' ', '_')}_{insp['Fecha']}.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                key=f"dl_insp_xlsx_{idx_insp}"
-                            )
-                        with c_dl_i2:
-                            pdf_insp_bytes = export_inspeccion_to_pdf_file(insp)
-                            st.download_button(
-                                label="📄 Descargar PDF (.pdf)",
-                                data=pdf_insp_bytes,
-                                file_name=f"Libro_Obra_{insp['Proyecto'].replace(' ', '_')}_{insp['Fecha']}.pdf",
-                                mime="application/pdf",
-                                key=f"dl_insp_pdf_{idx_insp}"
-                            )
-        else:
-            st.warning("No hay registros en Libro de Obra para el proyecto seleccionado.")
+                c_dl_i1, c_dl_i2 = st.columns(2)
+                with c_dl_i1:
+                    st.download_button(
+                        "📊 Descargar Formato Excel (.xlsx)",
+                        export_libro_obra_formato_excel(insp),
+                        file_name=f"Libro_Obra_{insp['Proyecto']}_{insp['Fecha']}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"dl_lo_off_x_{idx_insp}",
+                        use_container_width=True
+                    )
+                with c_dl_i2:
+                    st.download_button(
+                        "📄 Descargar Formato PDF (.pdf)",
+                        export_libro_obra_formato_pdf(insp),
+                        file_name=f"Libro_Obra_{insp['Proyecto']}_{insp['Fecha']}.pdf",
+                        mime="application/pdf",
+                        key=f"dl_lo_off_p_{idx_insp}",
+                        use_container_width=True
+                    )
     else:
-        st.info("Aún no hay registros guardados en tu Libro de Obra.")
+        st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
-# PARTE 4 DE 4: NÓMINA POR EDIFICIOS (MOBILE RESPONSIVE), INCIDENCIAS, RENDIMIENTO, COLABORATIVO Y PANEL ADMIN
+# PARTE 4 DE 4: PERSONAL A CARGO (POR EDIFICIOS Y RESPONSIVE), INCIDENCIAS, 
+#               RENDIMIENTO, COLABORATIVO Y PANEL ADMINISTRADOR
 # ==============================================================================
 
 # ==============================================================================
-# 11. MÓDULO 3: PERSONAL A CARGO (CON EDIFICIOS Y TABLAS SEPARADAS)
+# 11. MÓDULO 3: PERSONAL A CARGO (POR EDIFICIOS Y ADAPTABLE A MÓVIL)
 # ==============================================================================
 with tab_personal:
     st.markdown("### Nómina de Personal a Cargo")
@@ -2559,7 +2492,7 @@ with tab_personal:
 
     proyectos_personal_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
 
-    # 3 Botones superiores en diseño adaptable
+    # Botones superiores de gestión
     col_btn_ob1, col_btn_ob2, col_btn_ob3 = st.columns([1.5, 1.6, 2.0])
 
     with col_btn_ob1:
@@ -2574,7 +2507,7 @@ with tab_personal:
                 if btn_save_pers_pop:
                     if nom_pers_in.strip() and car_pers_in.strip():
                         try:
-                            # 1. Inserción directa en base de datos
+                            # Inserción en Supabase
                             try:
                                 supabase.table("trabajadores").insert({
                                     "usuario_email": user_email,
@@ -2585,7 +2518,7 @@ with tab_personal:
                             except Exception:
                                 pass
                             
-                            # 2. Respaldo garantizado en app_config
+                            # Respaldo en app_config
                             cur_p = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
                             new_entry = {
                                 "id": int(datetime.datetime.now().timestamp() * 1000),
@@ -2612,16 +2545,12 @@ with tab_personal:
         with st.popover("📂 Importación Masiva", use_container_width=True):
             st.markdown("#### Cargar Archivo Masivo")
             st.caption("El archivo (.xlsx o .csv) debe contener columnas: Nombre, Cargo y opcionalmente Edificio.")
-            edif_default_masivo = st.selectbox("Asignar a este edificio por defecto si no viene en el archivo:", proyectos_personal_disp, key="edif_masivo_sel")
-            archivo_excel_pop = st.file_uploader("Seleccione archivo:", type=["xlsx", "csv"], key="upl_personal_modal_pop")
+            edif_default_masivo = st.selectbox("Asignar a este edificio por defecto:", proyectos_personal_disp, key="edif_masivo_sel_tab3")
+            archivo_excel_pop = st.file_uploader("Seleccione archivo:", type=["xlsx", "csv"], key="upl_personal_modal_tab3")
             
             if archivo_excel_pop is not None:
                 try:
-                    if archivo_excel_pop.name.endswith(".csv"):
-                        df_sub_pop = pd.read_csv(archivo_excel_pop)
-                    else:
-                        df_sub_pop = pd.read_excel(archivo_excel_pop)
-                    
+                    df_sub_pop = pd.read_csv(archivo_excel_pop) if archivo_excel_pop.name.endswith(".csv") else pd.read_excel(archivo_excel_pop)
                     if len(df_sub_pop.columns) >= 2:
                         if st.button("Confirmar Carga Masiva", type="primary", use_container_width=True):
                             registrados_cnt = 0
@@ -2670,21 +2599,19 @@ with tab_personal:
     with col_btn_ob3:
         with st.popover("👥 Cargar Nómina Colaborativa", use_container_width=True):
             st.markdown("#### Importar Nómina de Compañero")
-            st.caption("Copia la lista de personal de un compañero que comparta proyectos contigo a tu propia nómina.")
+            st.caption("Copia la lista de personal de un compañero con proyectos compartidos.")
             
             mis_edifs_set = set(st.session_state.get("usuario_edificios", []))
             companeros_nomina = []
             for u in st.session_state.get("db_usuarios", []):
-                if u["Correo"] != user_email:
-                    u_edifs_set = set(u.get("Edificios", []))
-                    if len(mis_edifs_set.intersection(u_edifs_set)) > 0:
-                        pers_comp = st.session_state.get("db_trabajadores_por_usuario", {}).get(u["Correo"], [])
-                        if len(pers_comp) > 0:
-                            companeros_nomina.append((u, pers_comp))
+                if u["Correo"] != user_email and len(mis_edifs_set.intersection(set(u.get("Edificios", [])))) > 0:
+                    pers_comp = st.session_state.get("db_trabajadores_por_usuario", {}).get(u["Correo"], [])
+                    if len(pers_comp) > 0:
+                        companeros_nomina.append((u, pers_comp))
 
             if len(companeros_nomina) > 0:
                 map_comp_nom = {f"{u['Nombres']} {u['Apellidos']} ({len(p_list)} trabajadores)": (u, p_list) for u, p_list in companeros_nomina}
-                sel_comp_label = st.selectbox("Seleccione compañero:", list(map_comp_nom.keys()), key="sel_comp_nom_pop")
+                sel_comp_label = st.selectbox("Seleccione compañero:", list(map_comp_nom.keys()), key="sel_comp_nom_pop_tab3")
                 comp_elegido_u, lista_p_elegida = map_comp_nom[sel_comp_label]
                 
                 comunes_n = list(mis_edifs_set.intersection(set(comp_elegido_u.get("Edificios", []))))
@@ -2697,7 +2624,7 @@ with tab_personal:
 
                     for p_item in lista_p_elegida:
                         if p_item["nombre"] not in mi_personal_nombres:
-                            edif_dest = p_item.get("edificio") or comunes_n[0] if len(comunes_n) > 0 else "General"
+                            edif_dest = p_item.get("edificio") or (comunes_n[0] if len(comunes_n) > 0 else "General")
                             try:
                                 supabase.table("trabajadores").insert({
                                     "usuario_email": user_email,
@@ -2733,14 +2660,11 @@ with tab_personal:
 
     st.markdown("---")
 
-    # =========================================================================
-    # TABLAS SEPARADAS POR EDIFICIO CON TARJETAS ADAPTABLES (MOBILE FRIENDLY)
-    # =========================================================================
+    # Vista responsive agrupada por edificios
     mi_personal_actual = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
     st.markdown(f"#### Tu Nómina de Personal a Cargo ({len(mi_personal_actual)} integrantes)")
 
     if len(mi_personal_actual) > 0:
-        # Agrupar trabajadores por su edificio asignado
         edificios_con_personal = sorted(list(set([p.get("edificio") or "General" for p in mi_personal_actual])))
         pestanas_edificios = ["🏢 Todos los Edificios"] + [f"📍 {e}" for e in edificios_con_personal]
         tabs_edificios = st.tabs(pestanas_edificios)
@@ -2917,7 +2841,7 @@ with tab_personal:
         st.info("Aún no has registrado personal a cargo en tu cuenta. Agrega integrantes con '➕ Registrar Personal' o importa la nómina de un compañero.")
 
 # ==============================================================================
-# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS (PROYECTOS ASIGNADOS Y EN COMÚN)
+# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS (EN TUS PROYECTOS Y EN COMÚN)
 # ==============================================================================
 with tab_incidencias:
     st.markdown("### Levantamiento de Incidencias")
@@ -2987,7 +2911,6 @@ with tab_incidencias:
                     except Exception as e:
                         st.error(f"Error al registrar la incidencia: {e}")
 
-    # Filtrar incidencias de los proyectos asignados al usuario
     todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
     if len(user_edificios) > 0:
         lista_incs_vista = [inc for inc in todas_las_incidencias_db if inc.get("Proyecto") in user_edificios]
@@ -3014,14 +2937,12 @@ with tab_incidencias:
             p_med_ck = "☒ Media" if prio_val == 'Media' else "☐ Media"
             p_baj_st = "font-weight:800; color:#16a34a;" if prio_val == 'Baja' else "font-weight:400; color:#64748b;"
             p_baj_ck = "☒ Baja" if prio_val == 'Baja' else "☐ Baja"
-            
             prio_cell = f'<div style="font-size:0.75rem; line-height:1.3;"><span style="{p_alta_st}">{p_alta_ck}</span><br/><span style="{p_med_st}">{p_med_ck}</span><br/><span style="{p_baj_st}">{p_baj_ck}</span></div>'
             
             e_ab_st = "font-weight:800; color:#dc2626;" if est_val == 'Abierta' else "font-weight:400; color:#64748b;"
             e_ab_ck = "☒ Abierta" if est_val == 'Abierta' else "☐ Abierta"
             e_ce_st = "font-weight:800; color:#16a34a;" if est_val == 'Cerrada' else "font-weight:400; color:#64748b;"
             e_ce_ck = "☒ Cerrada" if est_val == 'Cerrada' else "☐ Cerrada"
-            
             est_cell = f'<div style="font-size:0.75rem; line-height:1.3;"><span style="{e_ab_st}">{e_ab_ck}</span><br/><span style="{e_ce_st}">{e_ce_ck}</span></div>'
             
             creador_tag = f"<br/><small style='color: #2563eb;'>👤 {inc.get('Usuario', '')}</small>" if inc.get('Usuario') != user_email else ""
@@ -3429,10 +3350,10 @@ with tab_colab:
                             st.markdown(f"**Residente:** {i_col.get('Residente', '')} | **Clima:** {i_col.get('Clima', '')}")
                             col_dl_i1, col_dl_i2 = st.columns(2)
                             with col_dl_i1:
-                                xlsx_insp_b = export_inspeccion_to_excel_file(i_col)
+                                xlsx_insp_b = export_libro_obra_formato_excel(i_col)
                                 st.download_button("📊 Descargar Excel", xlsx_insp_b, file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}", use_container_width=True)
                             with col_dl_i2:
-                                pdf_insp_b = export_inspeccion_to_pdf_file(i_col)
+                                pdf_insp_b = export_libro_obra_formato_pdf(i_col)
                                 st.download_button("📄 Descargar PDF", pdf_insp_b, file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}", use_container_width=True)
                 else:
                     st.info(f"{colega_u['Nombres']} aún no ha registrado formatos de Libro de Obra.")
@@ -3567,7 +3488,7 @@ if es_admin:
                     with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label=f"📊 Descargar Excel",
+                            label="📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3577,7 +3498,7 @@ if es_admin:
                     with c_ad_dl2:
                         pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
                         st.download_button(
-                            label=f"📄 Descargar PDF",
+                            label="📄 Descargar PDF",
                             data=pdf_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                             mime="application/pdf",
@@ -3615,13 +3536,15 @@ if es_admin:
 
             for idx_i_adm, i_adm in enumerate(insps_admin_filtradas, 1):
                 with st.expander(f"📌 [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} ({i_adm['Dia']}) — Usuario: {i_adm['Usuario_Correo']}", expanded=False):
-                    st.markdown(f"**Residente:** {i_adm.get('Residente', '')} | **Clima:** {i_adm.get('Clima', '')}")
+                    d_i_adm = i_adm.get("Datos", {})
+                    st.markdown(f"**Ubicación:** {d_i_adm.get('Ubicacion', i_adm.get('Frente', ''))} | **Clima:** {i_adm.get('Clima', '')}")
+                    st.markdown(f"**Superintendente:** {d_i_adm.get('Superintendente', '')} | **Fiscalizador:** {d_i_adm.get('Fiscalizador', '')}")
                     
                     c_ad_idl1, c_ad_idl2 = st.columns(2)
                     with c_ad_idl1:
-                        excel_insp_bytes_adm = export_inspeccion_to_excel_file(i_adm)
+                        excel_insp_bytes_adm = export_libro_obra_formato_excel(i_adm)
                         st.download_button(
-                            label="📊 Descargar Excel (.xlsx)",
+                            label="📊 Descargar Formato Excel (.xlsx)",
                             data=excel_insp_bytes_adm,
                             file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3629,9 +3552,9 @@ if es_admin:
                             use_container_width=True
                         )
                     with c_ad_idl2:
-                        pdf_insp_bytes_adm = export_inspeccion_to_pdf_file(i_adm)
+                        pdf_insp_bytes_adm = export_libro_obra_formato_pdf(i_adm)
                         st.download_button(
-                            label="📄 Descargar PDF (.pdf)",
+                            label="📄 Descargar Formato PDF (.pdf)",
                             data=pdf_insp_bytes_adm,
                             file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf",
                             mime="application/pdf",
