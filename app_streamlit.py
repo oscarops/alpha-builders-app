@@ -1,6 +1,3 @@
-# ==============================================================================
-# PARTE 1 DE 4: CONFIGURACIÓN, ESTILOS UI CON BORDES, SUPABASE Y EXPORTADORES
-# ==============================================================================
 import base64
 import datetime
 import io
@@ -17,7 +14,6 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
-# ReportLab para reportes en PDF
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -147,9 +143,7 @@ st.markdown(
 
     [data-testid="stSidebar"] hr { margin: 4px 0 !important; border-color: #1f2937 !important; }
 
-    /* =========================================================================
-       GLASSMORPHISM WIDGET CONTAINER & CARDS
-       ========================================================================= */
+    /* GLASSMORPHISM DASHBOARD */
     .smart-dashboard-container {
         background: radial-gradient(120% 120% at 50% 0%, #1e293b 0%, #0f172a 60%, #090d16 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
@@ -369,36 +363,64 @@ st.markdown(
         margin-bottom: 6px;
     }
 
-    .custom-table-header {
-        background-color: #0f172a;
-        color: #ffffff !important;
-        border-radius: 8px 8px 0 0;
+    /* CARD RESPONSIVE PARA PERSONAL EN MÓVILES */
+    .worker-card-row {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
         padding: 8px 12px;
-        font-size: 0.76rem;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .worker-info-block {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+    }
+    .worker-name-title {
+        font-size: 0.82rem;
         font-weight: 800;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
+        color: #0f172a;
+        line-height: 1.2;
+        word-break: break-word;
+    }
+    .worker-meta-tags {
         display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
         align-items: center;
     }
-    .custom-table-header * { color: #ffffff !important; }
-
-    .custom-table-row {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-top: none;
-        padding: 6px 10px;
-        display: flex;
-        align-items: center;
+    .tag-cargo-chip {
+        background: #e2e8f0;
+        color: #1e293b;
+        font-size: 0.68rem;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 12px;
+        border: 1px solid #cbd5e1;
     }
-    .custom-table-row:nth-child(even) {
-        background-color: #f8fafc;
+    .tag-edif-chip {
+        background: rgba(59, 130, 246, 0.15);
+        color: #1d4ed8;
+        font-size: 0.68rem;
+        font-weight: 800;
+        padding: 2px 8px;
+        border-radius: 12px;
+        border: 1px solid rgba(59, 130, 246, 0.35);
     }
 
     @media (max-width: 768px) {
-        .block-container { padding-top: 3.8rem !important; padding-left: 0.4rem !important; padding-right: 0.4rem !important; }
+        .block-container { padding-top: 3.6rem !important; padding-left: 0.4rem !important; padding-right: 0.4rem !important; }
         .widgets-grid { grid-template-columns: 1fr 1fr; }
         .smart-title { font-size: 0.95rem !important; }
+        .worker-card-row { padding: 6px 8px; }
+        .worker-name-title { font-size: 0.78rem; }
     }
 
     .incidencias-table, .supervision-table, .checklist-table {
@@ -494,7 +516,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 3. BASE DE DATOS SUPABASE CON AISLAMIENTO POR USUARIO
+# 3. BASE DE DATOS SUPABASE CON AISLAMIENTO POR USUARIO Y RESPALDO
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -577,7 +599,7 @@ def load_db_from_supabase():
     if "oscarsebitas2013@gmail.com" not in admin_emails:
         admin_emails.append("oscarsebitas2013@gmail.com")
 
-    # Personal a cargo aislado por usuario_email
+    # Personal a cargo aislado por usuario con campo Edificio
     db_trabajadores_por_usuario = {}
     for u_k, t_list in fallback_trabajadores_map.items():
         db_trabajadores_por_usuario[u_k] = t_list
@@ -591,11 +613,14 @@ def load_db_from_supabase():
             if u_owner not in db_trabajadores_por_usuario:
                 db_trabajadores_por_usuario[u_owner] = []
             
+            edif_val = r.get("edificio") or "General"
+            
             if not any(x.get("id") == r["id"] or x.get("nombre") == r["nombre"] for x in db_trabajadores_por_usuario[u_owner]):
                 db_trabajadores_por_usuario[u_owner].append({
                     "id": r["id"],
                     "nombre": r["nombre"],
                     "cargo": r["cargo"],
+                    "edificio": edif_val,
                     "usuario_email": u_owner
                 })
     except Exception:
@@ -705,7 +730,6 @@ def load_db_from_supabase():
         "db_trabajadores_por_usuario": db_trabajadores_por_usuario,
     }
 
-# Inicialización segura en Session State
 if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     p_data = load_db_from_supabase()
     st.session_state.access_pin = p_data["access_pin"]
@@ -719,7 +743,7 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     st.session_state.db_trabajadores_por_usuario = p_data["db_trabajadores_por_usuario"]
     st.session_state.db_loaded = True
 
-# Fallbacks garantizados contra posibles KeyError o AttributeError
+# Fallbacks garantizados contra errores de Session State
 if "db_incidencias_all" not in st.session_state:
     st.session_state.db_incidencias_all = []
 if "db_trabajadores_por_usuario" not in st.session_state:
@@ -1675,7 +1699,7 @@ circunferencia_circulo = 100.53
 progreso_dona_stroke = round((porc_rendimiento / 100) * circunferencia_circulo, 2)
 color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
 
-# Incidencias abiertas de los proyectos en los que estás asignado
+# Incidencias abiertas de los proyectos en los que estás asignado (en común)
 todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
 if len(user_edificios) > 0:
     incs_mis_proyectos = [inc for inc in todas_las_incidencias_db if inc.get("Proyecto") in user_edificios]
@@ -1952,7 +1976,7 @@ with tab_chk:
             st.caption("Agregue actividades ejecutadas en campo, asigne personal a cargo y adjunte fotos.")
 
             mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-            lista_nombres_personal = [t["nombre"] for t in mi_personal_propio]
+            lista_nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
             indices_a_eliminar = []
             supervision_payload_data = []
 
@@ -2523,17 +2547,19 @@ with tab_libro:
     else:
         st.info("Aún no hay registros guardados en tu Libro de Obra.")
 # ==============================================================================
-# PARTE 4 DE 4: PERSONAL AUTÓNOMO, INCIDENCIAS, RENDIMIENTO, COLABORATIVO Y PANEL ADMIN
+# PARTE 4 DE 4: NÓMINA POR EDIFICIOS (MOBILE RESPONSIVE), INCIDENCIAS, RENDIMIENTO, COLABORATIVO Y PANEL ADMIN
 # ==============================================================================
 
 # ==============================================================================
-# 11. MÓDULO 3: PERSONAL A CARGO (AUTÓNOMO POR USUARIO + SINCRONIZACIÓN COLABORATIVA)
+# 11. MÓDULO 3: PERSONAL A CARGO (CON EDIFICIOS Y TABLAS SEPARADAS)
 # ==============================================================================
 with tab_personal:
     st.markdown("### Nómina de Personal a Cargo")
-    st.caption("Administración de personal en obra, edición de cargos y sincronización colaborativa opcional.")
+    st.caption("Administración de personal en obra por edificio, edición de cargos y sincronización colaborativa.")
 
-    # 3 Botones superiores: Registrar, Importación Masiva y Cargar Nómina Colaborativa
+    proyectos_personal_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+
+    # 3 Botones superiores en diseño adaptable
     col_btn_ob1, col_btn_ob2, col_btn_ob3 = st.columns([1.5, 1.6, 2.0])
 
     with col_btn_ob1:
@@ -2541,18 +2567,20 @@ with tab_personal:
             st.markdown("#### Nuevo Integrante")
             with st.form("form_pop_reg_personal"):
                 nom_pers_in = st.text_input("Nombre Completo:*", placeholder="Ej. Juan Carlos Pérez")
-                car_pers_in = st.text_input("Cargo / Especialidad:*", placeholder="Ej. ALBAÑIL, FIERRERO, AYUDANTE")
+                car_pers_in = st.text_input("Cargo / Especialidad:*", placeholder="Ej. GYPSERO, ALBAÑIL, AYUDANTE")
+                edif_pers_in = st.selectbox("Edificio / Proyecto Asignado:*", proyectos_personal_disp, index=0)
                 btn_save_pers_pop = st.form_submit_button("💾 Guardar Personal", type="primary", use_container_width=True)
 
                 if btn_save_pers_pop:
                     if nom_pers_in.strip() and car_pers_in.strip():
                         try:
-                            # 1. Inserción directa en tabla trabajadores con usuario_email
+                            # 1. Inserción directa en base de datos
                             try:
                                 supabase.table("trabajadores").insert({
                                     "usuario_email": user_email,
                                     "nombre": nom_pers_in.strip().upper(),
-                                    "cargo": car_pers_in.strip().upper()
+                                    "cargo": car_pers_in.strip().upper(),
+                                    "edificio": edif_pers_in
                                 }).execute()
                             except Exception:
                                 pass
@@ -2563,6 +2591,7 @@ with tab_personal:
                                 "id": int(datetime.datetime.now().timestamp() * 1000),
                                 "nombre": nom_pers_in.strip().upper(),
                                 "cargo": car_pers_in.strip().upper(),
+                                "edificio": edif_pers_in,
                                 "usuario_email": user_email
                             }
                             cur_p.append(new_entry)
@@ -2572,7 +2601,7 @@ with tab_personal:
                             }).execute()
 
                             st.session_state.db_loaded = False
-                            st.success("¡Personal registrado en tu nómina exitosamente!")
+                            st.success(f"¡Personal registrado en **{edif_pers_in}** exitosamente!")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al registrar: {e}")
@@ -2582,8 +2611,10 @@ with tab_personal:
     with col_btn_ob2:
         with st.popover("📂 Importación Masiva", use_container_width=True):
             st.markdown("#### Cargar Archivo Masivo")
-            st.caption("El archivo (.xlsx o .csv) debe contener al menos 2 columnas: Nombre y Cargo.")
+            st.caption("El archivo (.xlsx o .csv) debe contener columnas: Nombre, Cargo y opcionalmente Edificio.")
+            edif_default_masivo = st.selectbox("Asignar a este edificio por defecto si no viene en el archivo:", proyectos_personal_disp, key="edif_masivo_sel")
             archivo_excel_pop = st.file_uploader("Seleccione archivo:", type=["xlsx", "csv"], key="upl_personal_modal_pop")
+            
             if archivo_excel_pop is not None:
                 try:
                     if archivo_excel_pop.name.endswith(".csv"):
@@ -2599,12 +2630,15 @@ with tab_personal:
                             for _, r_data in df_sub_pop.iterrows():
                                 n_val = str(r_data.iloc[0]).strip().upper()
                                 c_val = str(r_data.iloc[1]).strip().upper()
+                                e_val = str(r_data.iloc[2]).strip() if len(r_data) >= 3 and str(r_data.iloc[2]).strip() != "nan" else edif_default_masivo
+                                
                                 if n_val and n_val != "NAN":
                                     try:
                                         supabase.table("trabajadores").insert({
                                             "usuario_email": user_email,
                                             "nombre": n_val,
-                                            "cargo": c_val
+                                            "cargo": c_val,
+                                            "edificio": e_val
                                         }).execute()
                                     except Exception:
                                         pass
@@ -2612,6 +2646,7 @@ with tab_personal:
                                         "id": int(datetime.datetime.now().timestamp() * 1000) + registrados_cnt,
                                         "nombre": n_val,
                                         "cargo": c_val,
+                                        "edificio": e_val,
                                         "usuario_email": user_email
                                     })
                                     registrados_cnt += 1
@@ -2628,12 +2663,11 @@ with tab_personal:
                             st.success(f"¡{registrados_cnt} personas importadas a tu nómina!")
                             st.rerun()
                     else:
-                        st.error("El archivo debe contener mínimo 2 columnas.")
+                        st.error("El archivo debe contener mínimo 2 columnas (Nombre y Cargo).")
                 except Exception as e:
                     st.error(f"Error al procesar archivo: {e}")
 
     with col_btn_ob3:
-        # Cargar nómina compartida de un compañero del grupo colaborativo hacia la cuenta propia
         with st.popover("👥 Cargar Nómina Colaborativa", use_container_width=True):
             st.markdown("#### Importar Nómina de Compañero")
             st.caption("Copia la lista de personal de un compañero que comparta proyectos contigo a tu propia nómina.")
@@ -2649,7 +2683,7 @@ with tab_personal:
                             companeros_nomina.append((u, pers_comp))
 
             if len(companeros_nomina) > 0:
-                map_comp_nom = {f"{u['Nombres']} {u['Apellidos']} ({len(p_list)} personas)": (u, p_list) for u, p_list in companeros_nomina}
+                map_comp_nom = {f"{u['Nombres']} {u['Apellidos']} ({len(p_list)} trabajadores)": (u, p_list) for u, p_list in companeros_nomina}
                 sel_comp_label = st.selectbox("Seleccione compañero:", list(map_comp_nom.keys()), key="sel_comp_nom_pop")
                 comp_elegido_u, lista_p_elegida = map_comp_nom[sel_comp_label]
                 
@@ -2663,11 +2697,13 @@ with tab_personal:
 
                     for p_item in lista_p_elegida:
                         if p_item["nombre"] not in mi_personal_nombres:
+                            edif_dest = p_item.get("edificio") or comunes_n[0] if len(comunes_n) > 0 else "General"
                             try:
                                 supabase.table("trabajadores").insert({
                                     "usuario_email": user_email,
                                     "nombre": p_item["nombre"],
-                                    "cargo": p_item["cargo"]
+                                    "cargo": p_item["cargo"],
+                                    "edificio": edif_dest
                                 }).execute()
                             except Exception:
                                 pass
@@ -2675,6 +2711,7 @@ with tab_personal:
                                 "id": int(datetime.datetime.now().timestamp() * 1000) + importados_cnt,
                                 "nombre": p_item["nombre"],
                                 "cargo": p_item["cargo"],
+                                "edificio": edif_dest,
                                 "usuario_email": user_email
                             })
                             mi_personal_nombres.append(p_item["nombre"])
@@ -2696,70 +2733,75 @@ with tab_personal:
 
     st.markdown("---")
 
-    # Tabla de Personal Activo exclusivo del usuario
+    # =========================================================================
+    # TABLAS SEPARADAS POR EDIFICIO CON TARJETAS ADAPTABLES (MOBILE FRIENDLY)
+    # =========================================================================
     mi_personal_actual = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
     st.markdown(f"#### Tu Nómina de Personal a Cargo ({len(mi_personal_actual)} integrantes)")
 
     if len(mi_personal_actual) > 0:
-        st.markdown(
-            """
-            <div class="custom-table-header">
-                <div style="width: 6%; text-align: center;">N°</div>
-                <div style="width: 50%; padding-left: 8px;">Nombre Completo</div>
-                <div style="width: 30%; padding-left: 8px;">Cargo / Especialidad</div>
-                <div style="width: 14%; text-align: center;">Acciones</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        # Agrupar trabajadores por su edificio asignado
+        edificios_con_personal = sorted(list(set([p.get("edificio") or "General" for p in mi_personal_actual])))
+        pestanas_edificios = ["🏢 Todos los Edificios"] + [f"📍 {e}" for e in edificios_con_personal]
+        tabs_edificios = st.tabs(pestanas_edificios)
 
-        for idx_t, pers in enumerate(mi_personal_actual):
-            t_id = pers.get("id", idx_t)
-            t_nom = pers["nombre"]
-            t_car = pers["cargo"]
+        # Tab General (Todos los Edificios)
+        with tabs_edificios[0]:
+            st.caption(f"Mostrando el total de **{len(mi_personal_actual)}** integrantes de tu nómina.")
+            for idx_t, pers in enumerate(mi_personal_actual, 1):
+                t_id = pers.get("id", idx_t)
+                t_nom = pers["nombre"]
+                t_car = pers["cargo"]
+                t_edif = pers.get("edificio") or "General"
 
-            st.markdown('<div class="custom-table-row">', unsafe_allow_html=True)
-            col_num, col_nom, col_car, col_act = st.columns([0.6, 5.0, 3.0, 1.4])
-
-            with col_num:
-                st.markdown(f"<div style='text-align: center; font-weight: 800; color: #64748b; padding-top: 6px;'>{idx_t + 1}.</div>", unsafe_allow_html=True)
-
-            with col_nom:
-                st.markdown(f"<div style='font-weight: 700; color: #0f172a; padding-top: 6px;'>{t_nom}</div>", unsafe_allow_html=True)
-
-            with col_car:
-                st.markdown(f"<div style='padding-top: 5px;'><span style='background: #e2e8f0; color: #1e293b; font-size: 0.72rem; font-weight: 800; padding: 3px 10px; border-radius: 12px; border: 1px solid #cbd5e1;'>{t_car}</span></div>", unsafe_allow_html=True)
-
-            with col_act:
-                c_edit, c_del = st.columns(2)
+                c_info, c_edit, c_del = st.columns([7, 1.5, 1.5])
+                with c_info:
+                    st.markdown(
+                        f"""
+                        <div class="worker-card-row">
+                            <div class="worker-info-block">
+                                <div class="worker-name-title">{idx_t}. {t_nom}</div>
+                                <div class="worker-meta-tags">
+                                    <span class="tag-cargo-chip">{t_car}</span>
+                                    <span class="tag-edif-chip">🏢 {t_edif}</span>
+                                </div>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
                 with c_edit:
-                    with st.popover("✏️", help=f"Editar cargo de {t_nom}"):
-                        st.markdown("**Modificar Cargo**")
-                        st.caption(f"Personal: **{t_nom}**")
-                        nuevo_cargo_input = st.text_input("Nuevo Cargo / Especialidad:", value=t_car, key=f"pop_in_car_{idx_t}_{t_id}")
-                        if st.button("Guardar", key=f"btn_pop_save_{idx_t}_{t_id}", type="primary", use_container_width=True):
-                            if nuevo_cargo_input.strip() and nuevo_cargo_input.strip().upper() != t_car:
+                    with st.popover("✏️", help=f"Editar datos de {t_nom}", use_container_width=True):
+                        st.markdown("**Modificar Trabajador**")
+                        nuevo_cargo_input = st.text_input("Cargo / Especialidad:", value=t_car, key=f"pop_all_car_{t_id}_{idx_t}")
+                        nuevo_edif_input = st.selectbox("Edificio Asignado:", proyectos_personal_disp, index=proyectos_personal_disp.index(t_edif) if t_edif in proyectos_personal_disp else 0, key=f"pop_all_edif_{t_id}_{idx_t}")
+                        
+                        if st.button("Guardar", key=f"btn_save_all_{t_id}_{idx_t}", type="primary", use_container_width=True):
+                            try:
                                 try:
-                                    try:
-                                        supabase.table("trabajadores").update({"cargo": nuevo_cargo_input.strip().upper()}).eq("id", t_id).execute()
-                                    except Exception:
-                                        pass
-                                    for p in mi_personal_actual:
-                                        if p.get("id") == t_id or p.get("nombre") == t_nom:
-                                            p["cargo"] = nuevo_cargo_input.strip().upper()
-                                    supabase.table("app_config").upsert({
-                                        "key": f"user_trabajadores_{user_email}",
-                                        "value": json.dumps(mi_personal_actual)
-                                    }).execute()
+                                    supabase.table("trabajadores").update({
+                                        "cargo": nuevo_cargo_input.strip().upper(),
+                                        "edificio": nuevo_edif_input
+                                    }).eq("id", t_id).execute()
+                                except Exception:
+                                    pass
+                                for p in mi_personal_actual:
+                                    if p.get("id") == t_id or p.get("nombre") == t_nom:
+                                        p["cargo"] = nuevo_cargo_input.strip().upper()
+                                        p["edificio"] = nuevo_edif_input
+                                supabase.table("app_config").upsert({
+                                    "key": f"user_trabajadores_{user_email}",
+                                    "value": json.dumps(mi_personal_actual)
+                                }).execute()
 
-                                    st.session_state.db_loaded = False
-                                    st.success("Cargo actualizado correctamente.")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error: {e}")
+                                st.session_state.db_loaded = False
+                                st.success("Datos actualizados correctamente.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error: {e}")
 
                 with c_del:
-                    if st.button("➖", key=f"btn_del_ob_{idx_t}_{t_id}", help=f"Remover a {t_nom}", use_container_width=True):
+                    if st.button("🗑️", key=f"btn_del_all_{t_id}_{idx_t}", help=f"Remover a {t_nom}", use_container_width=True):
                         try:
                             try:
                                 supabase.table("trabajadores").delete().eq("id", t_id).execute()
@@ -2777,17 +2819,94 @@ with tab_personal:
                         except Exception as e:
                             st.error(f"Error al eliminar: {e}")
 
-            st.markdown('</div>', unsafe_allow_html=True)
+        # Tabs Separados por Edificio
+        for idx_tab, edif_name in enumerate(edificios_con_personal, 1):
+            with tabs_edificios[idx_tab]:
+                personal_del_edificio = [p for p in mi_personal_actual if (p.get("edificio") or "General") == edif_name]
+                st.caption(f"Cuadrilla asignada a **{edif_name}** ({len(personal_del_edificio)} trabajadores):")
+
+                for idx_sub, pers in enumerate(personal_del_edificio, 1):
+                    t_id = pers.get("id", idx_sub)
+                    t_nom = pers["nombre"]
+                    t_car = pers["cargo"]
+
+                    c_info_e, c_edit_e, c_del_e = st.columns([7, 1.5, 1.5])
+                    with c_info_e:
+                        st.markdown(
+                            f"""
+                            <div class="worker-card-row">
+                                <div class="worker-info-block">
+                                    <div class="worker-name-title">{idx_sub}. {t_nom}</div>
+                                    <div class="worker-meta-tags">
+                                        <span class="tag-cargo-chip">{t_car}</span>
+                                        <span class="tag-edif-chip">📍 {edif_name}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    with c_edit_e:
+                        with st.popover("✏️", help=f"Editar datos de {t_nom}", key=f"pop_edif_tab_{t_id}_{idx_sub}", use_container_width=True):
+                            st.markdown(f"**Modificar — {t_nom}**")
+                            n_car = st.text_input("Cargo:", value=t_car, key=f"car_e_{t_id}_{idx_sub}")
+                            n_ed = st.selectbox("Cambiar Edificio:", proyectos_personal_disp, index=proyectos_personal_disp.index(edif_name) if edif_name in proyectos_personal_disp else 0, key=f"ed_e_{t_id}_{idx_sub}")
+                            
+                            if st.button("Guardar", key=f"btn_s_e_{t_id}_{idx_sub}", type="primary", use_container_width=True):
+                                try:
+                                    try:
+                                        supabase.table("trabajadores").update({
+                                            "cargo": n_car.strip().upper(),
+                                            "edificio": n_ed
+                                        }).eq("id", t_id).execute()
+                                    except Exception:
+                                        pass
+                                    for p in mi_personal_actual:
+                                        if p.get("id") == t_id or p.get("nombre") == t_nom:
+                                            p["cargo"] = n_car.strip().upper()
+                                            p["edificio"] = n_ed
+                                    supabase.table("app_config").upsert({
+                                        "key": f"user_trabajadores_{user_email}",
+                                        "value": json.dumps(mi_personal_actual)
+                                    }).execute()
+
+                                    st.session_state.db_loaded = False
+                                    st.success("Actualizado correctamente.")
+                                    st.rerun()
+                                except Exception as err:
+                                    st.error(f"Error: {err}")
+
+                    with c_del_e:
+                        if st.button("🗑️", key=f"btn_d_e_{t_id}_{idx_sub}", help=f"Remover a {t_nom}", use_container_width=True):
+                            try:
+                                try:
+                                    supabase.table("trabajadores").delete().eq("id", t_id).execute()
+                                except Exception:
+                                    pass
+                                mi_personal_actual = [p for p in mi_personal_actual if p.get("id") != t_id and p.get("nombre") != t_nom]
+                                supabase.table("app_config").upsert({
+                                    "key": f"user_trabajadores_{user_email}",
+                                    "value": json.dumps(mi_personal_actual)
+                                }).execute()
+
+                                st.session_state.db_loaded = False
+                                st.success(f"{t_nom} removido.")
+                                st.rerun()
+                            except Exception as err:
+                                st.error(f"Error: {err}")
 
         st.markdown("<br>", unsafe_allow_html=True)
         df_export_personal = pd.DataFrame(mi_personal_actual)
         df_export_personal = df_export_personal.drop(columns=["id", "usuario_email"], errors="ignore")
-        df_export_personal.columns = ["Nombre Completo", "Cargo / Especialidad"]
+        if "edificio" not in df_export_personal.columns:
+            df_export_personal["edificio"] = "General"
+        df_export_personal = df_export_personal[["nombre", "cargo", "edificio"]]
+        df_export_personal.columns = ["Nombre Completo", "Cargo / Especialidad", "Edificio Asignado"]
         df_export_personal.index = range(1, len(df_export_personal) + 1)
         csv_personal_bytes = export_dataframe_to_excel_csv(df_export_personal)
         
         st.download_button(
-            label="📥 Descargar Tu Nómina en CSV (Excel)",
+            label="📥 Descargar Tu Nómina Completa en CSV (Excel)",
             data=csv_personal_bytes,
             file_name=f"Personal_A_Cargo_{user_email}_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
             mime="text/csv",
@@ -2795,10 +2914,10 @@ with tab_personal:
             use_container_width=True
         )
     else:
-        st.info("Aún no has registrado personal a cargo en tu cuenta. Agrega integrantes con '➕ Registrar Personal' o importa la lista de un compañero.")
+        st.info("Aún no has registrado personal a cargo en tu cuenta. Agrega integrantes con '➕ Registrar Personal' o importa la nómina de un compañero.")
 
 # ==============================================================================
-# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS (EN TUS PROYECTOS Y EDIFICIOS EN COMÚN)
+# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS (PROYECTOS ASIGNADOS Y EN COMÚN)
 # ==============================================================================
 with tab_incidencias:
     st.markdown("### Levantamiento de Incidencias")
@@ -3005,7 +3124,7 @@ with tab_rend:
     st.caption("Asignación de rubros, ingreso manual de horario/HH, cantidades ejecutadas y diagnóstico de productividad.")
 
     mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-    nombres_personal = [t["nombre"] for t in mi_personal_propio]
+    nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
 
     col1, col2 = st.columns(2)
     with col1:
@@ -3018,7 +3137,8 @@ with tab_rend:
         )
         
         if personal_sel != "-- Seleccione un Integrante --":
-            cargo_actual = next((t["cargo"] for t in mi_personal_propio if t["nombre"] == personal_sel), "PERSONAL")
+            nom_p_clean = personal_sel.split(" (")[0]
+            cargo_actual = next((t["cargo"] for t in mi_personal_propio if t["nombre"] == nom_p_clean), "PERSONAL")
             st.info(f"**Cargo en obra:** {cargo_actual}")
         else:
             cargo_actual = "PERSONAL"
@@ -3100,7 +3220,7 @@ with tab_rend:
                     "usuario_email": user_email,
                     "cargo_obrero": cargo_actual,
                     "fecha": local_fecha_r,
-                    "trabajador": personal_sel,
+                    "trabajador": personal_sel.split(" (")[0],
                     "rubro": rubro_sel,
                     "intervalo": intervalo_manual.strip(),
                     "horas_hh": hh_manual,
@@ -3113,7 +3233,7 @@ with tab_rend:
                 }).execute()
 
                 st.session_state.db_loaded = False
-                st.success(f"¡Rendimiento registrado exitosamente para {personal_sel}!")
+                st.success(f"¡Rendimiento registrado exitosamente para {personal_sel.split(' (')[0]}!")
                 st.rerun()
             except Exception as e:
                 st.error(f"Error registrando rendimiento: {e}")
@@ -3203,7 +3323,7 @@ with tab_rend:
         st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
 # ==============================================================================
-# 14. MÓDULO 6: ESPACIO COLABORATIVO (DETECCIÓN DE EDIFICIOS EN COMÚN Y VISOR CRUZADO)
+# 14. MÓDULO 6: ESPACIO COLABORATIVO (INCIDENCIAS DE LA PERSONA Y SINCRONIZACIÓN)
 # ==============================================================================
 with tab_colab:
     st.markdown("### Espacio de Trabajo Colaborativo")
@@ -3214,7 +3334,6 @@ with tab_colab:
     if len(mis_proyectos_set) == 0:
         st.warning("⚠️ No tienes proyectos asignados a tu cuenta. Agrega tus edificios en '⚙️ Configuración de Cuenta' en la barra lateral para unirte a grupos colaborativos.")
     else:
-        # Detectar todos los compañeros con al menos un edificio en común
         companeros_colab = []
         for u in st.session_state.get("db_usuarios", []):
             if u["Correo"] != user_email:
@@ -3257,7 +3376,6 @@ with tab_colab:
 
             st.markdown("---")
 
-            # Pestañas internas para consultar Checklists, Libro de Obra, Incidencias y Rendimientos del compañero
             sub_tab_chk, sub_tab_libro, sub_tab_inc, sub_tab_rend = st.tabs([
                 "📋 Checklists del Compañero",
                 "📖 Libro de Obra del Compañero",
@@ -3319,7 +3437,7 @@ with tab_colab:
                 else:
                     st.info(f"{colega_u['Nombres']} aún no ha registrado formatos de Libro de Obra.")
 
-            # 3. Incidencias registradas por la persona seleccionada
+            # 3. Incidencias registradas individualmente por la persona
             with sub_tab_inc:
                 todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
                 incs_de_la_persona = [
@@ -3351,7 +3469,7 @@ with tab_colab:
 # 15. MÓDULO 7: PANEL DE CONTROL ADMINISTRADOR
 # ==============================================================================
 if es_admin:
-    tab_admin = tabs_app[6]
+    tab_admin = tabs_app[6] if len(tabs_app) > 6 else tabs_app[-1]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
         st.caption("Módulo exclusivo para supervisar checklists, libro de obra, incidencias, rendimientos, usuarios y configuración.")
@@ -3449,7 +3567,7 @@ if es_admin:
                     with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label="📊 Descargar Excel",
+                            label=f"📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3459,7 +3577,7 @@ if es_admin:
                     with c_ad_dl2:
                         pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
                         st.download_button(
-                            label="📄 Descargar PDF",
+                            label=f"📄 Descargar PDF",
                             data=pdf_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                             mime="application/pdf",
