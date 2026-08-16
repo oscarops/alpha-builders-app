@@ -1,3 +1,6 @@
+# ==============================================================================
+# PARTE 1 DE 4: ESTILOS, WEATHER API, SUPABASE Y MÓDULOS DE EXPORTACIÓN
+# ==============================================================================
 import base64
 import datetime
 import io
@@ -491,7 +494,6 @@ def load_db_from_supabase():
     except Exception:
         access_pin = "1254"
 
-    # Cargar configuraciones globales de respaldo para edificios de usuarios
     fallback_edificios_map = {}
     try:
         res_cfg = supabase.table("app_config").select("*").like("key", "user_edificios_%").execute()
@@ -512,7 +514,6 @@ def load_db_from_supabase():
         for row in res_usr.data:
             c = row["correo"].lower().strip()
             
-            # Carga de edificios asignados con fallback
             edifs = row.get("edificios")
             if isinstance(edifs, list):
                 edifs_list = edifs
@@ -907,7 +908,7 @@ def export_checklist_to_pdf_file(jornada_dict):
         data_s = [[
             Paragraph("<b>N°</b>", header_style),
             Paragraph("<b>Actividad a Ejecutar</b>", header_style),
-            Paragraph("<b>Trabajadores Encargados</b>", header_style),
+            Paragraph("<b>Personal Encargado</b>", header_style),
             Paragraph("<b>Observaciones</b>", header_style)
         ]]
         for idx_s, sup in enumerate(items_sup, 1):
@@ -1254,6 +1255,10 @@ ACTIVIDADES_TARDE_CLEAN = [
     "Revisión del cumplimiento de la meta diaria",
 ]
 # ==============================================================================
+# PARTE 2 DE 4: AUTENTICACIÓN, GESTIÓN DE EDIFICIOS, SIDEBAR Y DASHBOARD
+# ==============================================================================
+
+# ==============================================================================
 # 6. MÓDULO DE AUTENTICACIÓN: LOGIN, REGISTRO Y RECUPERACIÓN DE CONTRASEÑA
 # ==============================================================================
 if not st.session_state.autenticado:
@@ -1367,13 +1372,11 @@ if not st.session_state.autenticado:
                                     "cargo": reg_cargo,
                                     "es_admin": False
                                 }
-                                # Intento 1: Guardar con la columna edificios
                                 try:
                                     payload_full = insert_payload.copy()
                                     payload_full["edificios"] = reg_edificios_sel
                                     supabase.table("usuarios").insert(payload_full).execute()
                                 except Exception:
-                                    # Fallback seguro si la columna no existe en Supabase
                                     supabase.table("usuarios").insert(insert_payload).execute()
                                     supabase.table("app_config").upsert({
                                         "key": f"user_edificios_{mail_clean}",
@@ -1471,7 +1474,6 @@ with st.sidebar:
     if img_obj is not None:
         st.image(img_obj, use_container_width=True)
 
-    # Badges de edificios para la barra lateral (debajo del nombre y cargo)
     if len(user_edificios) > 0:
         tags_edif_sidebar = "".join([f"<span class='edificio-tag-badge' style='margin: 1px;'>{e}</span>" for e in user_edificios])
     else:
@@ -1539,7 +1541,6 @@ with st.sidebar:
                 if b64_str:
                     base_update_data["foto_b64"] = b64_str
 
-            # Intento de actualización con manejo seguro del campo edificios
             try:
                 try:
                     full_update = base_update_data.copy()
@@ -1571,7 +1572,7 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM UI (EDIFICIOS AL LADO DEL CARGO)
+# 8. SMART DASHBOARD GLASSMORPHISM UI
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
@@ -1614,14 +1615,13 @@ circunferencia_circulo = 100.53
 progreso_dona_stroke = round((porc_rendimiento / 100) * circunferencia_circulo, 2)
 color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
 
-# 5. Incidencias Abiertas y Total Obreros
+# 5. Incidencias Abiertas y Total Personal Activo
 incs_abiertas_count = sum(1 for inc in st.session_state.db_incidencias if inc.get("Estado") == "Abierta")
-total_obreros_count = len(st.session_state.db_trabajadores)
+total_personal_count = len(st.session_state.db_trabajadores)
 
-# Insignias de edificios colocadas al lado del cargo en el Dashboard
 tags_edificios_html = "".join([f"<span class='edificio-tag-badge'>{ed}</span>" for ed in user_edificios])
 
-# Renderizado HTML limpio y continuo sin sangrías
+# Renderizado HTML limpio y continuo
 dashboard_html = (
     '<div class="smart-dashboard-container">'
     '<div class="smart-header-bar">'
@@ -1657,9 +1657,9 @@ dashboard_html = (
     '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">Por resolver en obra</div>'
     '</div>'
     '<div class="widget-glass-card">'
-    '<div class="w-card-title"><span>👷 Obreros</span><span>Activos</span></div>'
-    f'<div class="stat-hero-number" style="color: #60a5fa !important;">{total_obreros_count}</div>'
-    '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">Personal en planilla</div>'
+    '<div class="w-card-title"><span>👷 Personal</span><span>Activos</span></div>'
+    f'<div class="stat-hero-number" style="color: #60a5fa !important;">{total_personal_count}</div>'
+    '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">Personal a cargo</div>'
     '</div>'
     '</div>'
     '</div>'
@@ -1668,11 +1668,11 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# Pestañas del portal
+# Pestañas del portal renombradas a Personal a Cargo
 pestanas = [
     "Checklist", 
     "Libro de Obra", 
-    "Plantilla de Obreros",
+    "Personal a Cargo",
     "Levantamiento de Incidencias", 
     "Control de Rendimiento"
 ]
@@ -1681,11 +1681,15 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
+# PARTE 3 DE 4: CHECKLIST Y LIBRO DE OBRA
+# ==============================================================================
+
+# ==============================================================================
 # 9. MÓDULO 1: CHECKLIST
 # ==============================================================================
 tab_chk = tabs_app[0]
 tab_libro = tabs_app[1]
-tab_obreros = tabs_app[2]
+tab_personal = tabs_app[2]
 tab_incidencias = tabs_app[3]
 tab_rend = tabs_app[4]
 
@@ -1704,7 +1708,7 @@ with tab_chk:
         st.session_state.chk_obs_counts = {}
 
     st.markdown("### Checklist – Control de Obra")
-    st.caption("Supervisión técnica diaria con formato ultra-compacto, alta visibilidad, foto a la derecha y sin opción N/A.")
+    st.caption("Supervisión técnica y control de ejecución diaria en obra.")
 
     if not st.session_state.creando_jornada:
         if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -1736,7 +1740,7 @@ with tab_chk:
             st.markdown("---")
 
             # ------------------------------------------------------------------
-            # 1. JORNADA DE LA MAÑANA (COMPACTO, LÍNEA BLANCA, FOTO A LA DERECHA)
+            # 1. JORNADA DE LA MAÑANA
             # ------------------------------------------------------------------
             st.markdown("#### 🌅 Jornada de la Mañana")
             resp_manana = []
@@ -1806,7 +1810,7 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 2. JORNADA DE LA TARDE (COMPACTO, LÍNEA BLANCA, FOTO A LA DERECHA)
+            # 2. JORNADA DE LA TARDE
             # ------------------------------------------------------------------
             st.markdown("#### 🌆 Jornada de la Tarde")
             resp_tarde = []
@@ -1871,12 +1875,12 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 3. SUPERVISIÓN DE TRABAJOS (COMPACTO Y BALANCEADO)
+            # 3. SUPERVISIÓN DE TRABAJOS
             # ------------------------------------------------------------------
             st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.filas_supervision)} registros)")
-            st.caption("Agregue actividades ejecutadas en campo, asigne personal de la cuadrilla y adjunte fotos a la derecha.")
+            st.caption("Agregue actividades ejecutadas en campo, asigne personal a cargo y adjunte fotos.")
 
-            lista_nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
+            lista_nombres_personal = [t["nombre"] for t in st.session_state.db_trabajadores]
             indices_a_eliminar = []
             supervision_payload_data = []
 
@@ -1911,20 +1915,20 @@ with tab_chk:
                     )
 
                 with s2:
-                    st.markdown("<small style='font-weight:700; color:#334155;'>Trabajadores Encargados:*</small>", unsafe_allow_html=True)
-                    if lista_nombres_obreros:
+                    st.markdown("<small style='font-weight:700; color:#334155;'>Personal Encargado:*</small>", unsafe_allow_html=True)
+                    if lista_nombres_personal:
                         enc_val = st.multiselect(
-                            f"Obreros {f_id}",
-                            options=lista_nombres_obreros,
+                            f"Personal {f_id}",
+                            options=lista_nombres_personal,
                             default=f_data.get("encargados", []),
                             key=f"dyn_enc_{f_id}",
-                            placeholder="Seleccionar obreros...",
+                            placeholder="Seleccionar personal...",
                             label_visibility="collapsed"
                         )
                         enc_str = ", ".join(enc_val) if enc_val else ""
                     else:
                         enc_str = st.text_input(
-                            f"Obreros manual {f_id}",
+                            f"Personal manual {f_id}",
                             value=f_data.get("encargados_manual", ""),
                             placeholder="Escribir nombres...",
                             key=f"dyn_enc_man_{f_id}",
@@ -1933,7 +1937,7 @@ with tab_chk:
                         enc_val = [enc_str] if enc_str else []
 
                 with s3:
-                    st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia Propia:</small>", unsafe_allow_html=True)
+                    st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
                     ft_file = st.file_uploader(
                         f"Foto {f_id}",
                         type=["jpg", "jpeg", "png"],
@@ -2069,7 +2073,7 @@ with tab_chk:
                     grupos_meses[nombre_mes] = []
                 grupos_meses[nombre_mes].append((orig_idx, j))
 
-            # Cada grupo mensual inicia cerrado (expanded=False) para que solo se abra al hacer clic
+            # Inician colapsados por defecto (expanded=False)
             for mes_anio, lista_j in grupos_meses.items():
                 with st.expander(f"📅 {mes_anio} ({len(lista_j)} checklists)", expanded=False):
                     for idx_rel, (orig_idx, j) in enumerate(lista_j):
@@ -2098,7 +2102,7 @@ with tab_chk:
                                 st.markdown("##### 1. Verificaciones con Observaciones Integradas:")
                                 for row in v_list:
                                     estado_badge = render_estado_badge(row.get('Estado'))
-                                    st.markdown(f"- **[{row.get('Jornada')}] N° {row.get('N°')}. {row.get('Actividad')}**: {estado_badge}", unsafe_allow_html=True)
+                                    st.markdown(f"- **[{row.get('Jornada')}] N° {row.get('N°')}. {row.get('Actividad')}**: {badge_adm_temp if 'badge_adm_temp' in locals() else estado_badge}", unsafe_allow_html=True)
                                     obs_r = row.get('Observaciones')
                                     if obs_r:
                                         if isinstance(obs_r, list):
@@ -2126,7 +2130,7 @@ with tab_chk:
                                         )
                                     tbl_hist_html = (
                                         f"<table class='supervision-table'>"
-                                        f"<thead><tr><th class='center' style='width:45px;'>N°</th><th style='width:240px;'>Actividad</th><th style='width:180px;'>Encargados</th><th>Observaciones</th></tr></thead>"
+                                        f"<thead><tr><th class='center' style='width:45px;'>N°</th><th style='width:240px;'>Actividad</th><th style='width:180px;'>Personal Encargado</th><th>Observaciones</th></tr></thead>"
                                         f"<tbody>{hist_rows_html}</tbody>"
                                         f"</table>"
                                     )
@@ -2447,35 +2451,39 @@ with tab_libro:
     else:
         st.info("Aún no hay registros guardados en Libro de Obra.")
 # ==============================================================================
-# 11. MÓDULO 3: PLANTILLA DE OBREROS (TABLA CON MODAL DE EDICIÓN Y SIN FLECHAS)
+# PARTE 4 DE 4: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTO MANUAL Y PANEL ADMIN
 # ==============================================================================
-with tab_obreros:
-    st.markdown("### Plantilla de Obreros Activos")
-    st.caption("Administración de personal en obra, edición de cargos mediante ventana emergente y control de cuadrilla.")
 
-    # Botones compactos superiores con Popover
-    col_btn_ob1, col_btn_ob2, _ = st.columns([1.5, 1.8, 3])
+# ==============================================================================
+# 11. MÓDULO 3: PERSONAL A CARGO (TABLA CON MODAL DE EDICIÓN Y GESTIÓN)
+# ==============================================================================
+with tab_personal:
+    st.markdown("### Nómina de Personal a Cargo")
+    st.caption("Administración de personal en obra, edición de cargos mediante ventana emergente y control de cuadrillas.")
+
+    # Botones superiores compactos con Popover
+    col_btn_ob1, col_btn_ob2, _ = st.columns([1.6, 1.8, 3])
 
     with col_btn_ob1:
-        with st.popover("➕ Registrar Obrero", use_container_width=True):
-            st.markdown("#### Nuevo Obrero")
-            with st.form("form_pop_reg_obrero"):
-                nom_obrero_in = st.text_input("Nombre Completo:*", placeholder="Ej. Juan Carlos Pérez")
-                car_obrero_in = st.text_input("Cargo / Especialidad:*", placeholder="Ej. ALBAÑIL, FIERRERO, AYUDANTE")
-                btn_save_obrero_pop = st.form_submit_button("💾 Guardar Obrero", type="primary", use_container_width=True)
+        with st.popover("➕ Registrar Personal", use_container_width=True):
+            st.markdown("#### Nuevo Integrante")
+            with st.form("form_pop_reg_personal"):
+                nom_pers_in = st.text_input("Nombre Completo:*", placeholder="Ej. Juan Carlos Pérez")
+                car_pers_in = st.text_input("Cargo / Especialidad:*", placeholder="Ej. ALBAÑIL, FIERRERO, AYUDANTE")
+                btn_save_pers_pop = st.form_submit_button("💾 Guardar Personal", type="primary", use_container_width=True)
 
-                if btn_save_obrero_pop:
-                    if nom_obrero_in.strip() and car_obrero_in.strip():
+                if btn_save_pers_pop:
+                    if nom_pers_in.strip() and car_pers_in.strip():
                         try:
                             supabase.table("trabajadores").insert({
-                                "nombre": nom_obrero_in.strip().upper(),
-                                "cargo": car_obrero_in.strip().upper()
+                                "nombre": nom_pers_in.strip().upper(),
+                                "cargo": car_pers_in.strip().upper()
                             }).execute()
                             st.session_state.db_loaded = False
-                            st.success("¡Obrero registrado exitosamente!")
+                            st.success("¡Personal registrado exitosamente!")
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Error al registrar obrero: {e}")
+                            st.error(f"Error al registrar: {e}")
                     else:
                         st.error("⚠️ Complete todos los campos obligatorios.")
 
@@ -2483,7 +2491,7 @@ with tab_obreros:
         with st.popover("📂 Importación Masiva", use_container_width=True):
             st.markdown("#### Cargar Archivo Masivo")
             st.caption("El archivo (.xlsx o .csv) debe contener al menos 2 columnas: Nombre y Cargo.")
-            archivo_excel_pop = st.file_uploader("Seleccione archivo:", type=["xlsx", "csv"], key="upl_obreros_modal_pop")
+            archivo_excel_pop = st.file_uploader("Seleccione archivo:", type=["xlsx", "csv"], key="upl_personal_modal_pop")
             if archivo_excel_pop is not None:
                 try:
                     if archivo_excel_pop.name.endswith(".csv"):
@@ -2507,7 +2515,7 @@ with tab_obreros:
                                     except Exception:
                                         pass
                             st.session_state.db_loaded = False
-                            st.success(f"¡{registrados_cnt} obreros importados exitosamente!")
+                            st.success(f"¡{registrados_cnt} personas importadas exitosamente!")
                             st.rerun()
                     else:
                         st.error("El archivo debe contener mínimo 2 columnas.")
@@ -2516,15 +2524,15 @@ with tab_obreros:
 
     st.markdown("---")
 
-    # Tabla de Cuadrilla Activa
-    st.markdown(f"#### Nómina de Cuadrilla Activa ({len(st.session_state.db_trabajadores)} trabajadores)")
+    # Tabla de Personal Activo
+    st.markdown(f"#### Nómina de Personal Activo ({len(st.session_state.db_trabajadores)} integrantes)")
 
     if len(st.session_state.db_trabajadores) > 0:
         st.markdown(
             """
             <div class="custom-table-header">
                 <div style="width: 6%; text-align: center;">N°</div>
-                <div style="width: 50%; padding-left: 8px;">Nombre del Trabajador</div>
+                <div style="width: 50%; padding-left: 8px;">Nombre Completo</div>
                 <div style="width: 30%; padding-left: 8px;">Cargo / Especialidad</div>
                 <div style="width: 14%; text-align: center;">Acciones</div>
             </div>
@@ -2532,12 +2540,12 @@ with tab_obreros:
             unsafe_allow_html=True
         )
 
-        lista_trabajadores_actual = st.session_state.db_trabajadores
+        lista_personal_actual = st.session_state.db_trabajadores
 
-        for idx_t, trab in enumerate(lista_trabajadores_actual):
-            t_id = trab.get("id", idx_t)
-            t_nom = trab["nombre"]
-            t_car = trab["cargo"]
+        for idx_t, pers in enumerate(lista_personal_actual):
+            t_id = pers.get("id", idx_t)
+            t_nom = pers["nombre"]
+            t_car = pers["cargo"]
 
             st.markdown('<div class="custom-table-row">', unsafe_allow_html=True)
             col_num, col_nom, col_car, col_act = st.columns([0.6, 5.0, 3.0, 1.4])
@@ -2556,7 +2564,7 @@ with tab_obreros:
                 with c_edit:
                     with st.popover("✏️", help=f"Editar cargo de {t_nom}"):
                         st.markdown("**Modificar Cargo**")
-                        st.caption(f"Trabajador: **{t_nom}**")
+                        st.caption(f"Personal: **{t_nom}**")
                         nuevo_cargo_input = st.text_input("Nuevo Cargo / Especialidad:", value=t_car, key=f"pop_in_car_{idx_t}_{t_id}")
                         if st.button("Guardar", key=f"btn_pop_save_{idx_t}_{t_id}", type="primary", use_container_width=True):
                             if nuevo_cargo_input.strip() and nuevo_cargo_input.strip().upper() != t_car:
@@ -2569,11 +2577,11 @@ with tab_obreros:
                                     st.error(f"Error: {e}")
 
                 with c_del:
-                    if st.button("➖", key=f"btn_del_ob_{idx_t}_{t_id}", help=f"Remover a {t_nom} de la cuadrilla", use_container_width=True):
+                    if st.button("➖", key=f"btn_del_ob_{idx_t}_{t_id}", help=f"Remover a {t_nom}", use_container_width=True):
                         try:
                             supabase.table("trabajadores").delete().eq("nombre", t_nom).execute()
                             st.session_state.db_loaded = False
-                            st.success(f"Trabajador {t_nom} removido.")
+                            st.success(f"{t_nom} removido exitosamente.")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al eliminar: {e}")
@@ -2581,22 +2589,22 @@ with tab_obreros:
             st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        df_export_obreros = pd.DataFrame(st.session_state.db_trabajadores)
-        df_export_obreros = df_export_obreros.drop(columns=["id"], errors="ignore")
-        df_export_obreros.columns = ["Nombre Completo", "Cargo / Especialidad"]
-        df_export_obreros.index = range(1, len(df_export_obreros) + 1)
-        csv_obreros_bytes = export_dataframe_to_excel_csv(df_export_obreros)
+        df_export_personal = pd.DataFrame(st.session_state.db_trabajadores)
+        df_export_personal = df_export_personal.drop(columns=["id"], errors="ignore")
+        df_export_personal.columns = ["Nombre Completo", "Cargo / Especialidad"]
+        df_export_personal.index = range(1, len(df_export_personal) + 1)
+        csv_personal_bytes = export_dataframe_to_excel_csv(df_export_personal)
         
         st.download_button(
-            label="📥 Descargar Nómina de Cuadrilla en CSV (Excel)",
-            data=csv_obreros_bytes,
-            file_name=f"Plantilla_Obreros_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
+            label="📥 Descargar Nómina de Personal en CSV (Excel)",
+            data=csv_personal_bytes,
+            file_name=f"Personal_A_Cargo_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
             mime="text/csv",
-            key="dl_csv_nomina_obreros_tab",
+            key="dl_csv_nomina_personal_tab",
             use_container_width=True
         )
     else:
-        st.info("No existen obreros activos registrados en la nómina.")
+        st.info("No existe personal activo registrado en la nómina.")
 
 # ==============================================================================
 # 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS
@@ -2793,25 +2801,25 @@ with tab_incidencias:
 # 13. MÓDULO 5: CONTROL DE RENDIMIENTO (INTERVALO Y HH 100% MANUALES)
 # ==============================================================================
 with tab_rend:
-    st.markdown("### Control de Rendimiento por Trabajador")
+    st.markdown("### Control de Rendimiento por Personal")
     st.caption("Asignación de rubros, ingreso manual de horario/HH, cantidades ejecutadas y diagnóstico de productividad.")
 
     col1, col2 = st.columns(2)
     with col1:
-        nombres_obreros = [t["nombre"] for t in st.session_state.db_trabajadores]
-        opciones_trabajador = ["-- Seleccione un Trabajador --"] + nombres_obreros
-        trabajador_sel = st.selectbox(
-            f"Seleccionar Trabajador ({len(nombres_obreros)} Activos):*",
-            opciones_trabajador,
+        nombres_personal = [t["nombre"] for t in st.session_state.db_trabajadores]
+        opciones_personal = ["-- Seleccione un Integrante --"] + nombres_personal
+        personal_sel = st.selectbox(
+            f"Seleccionar Personal ({len(nombres_personal)} Activos):*",
+            opciones_personal,
             index=0,
             key="sel_trabajador_rend"
         )
         
-        if trabajador_sel != "-- Seleccione un Trabajador --":
-            cargo_actual = next((t["cargo"] for t in st.session_state.db_trabajadores if t["nombre"] == trabajador_sel), "OBRERO")
+        if personal_sel != "-- Seleccione un Integrante --":
+            cargo_actual = next((t["cargo"] for t in st.session_state.db_trabajadores if t["nombre"] == personal_sel), "PERSONAL")
             st.info(f"**Cargo en obra:** {cargo_actual}")
         else:
-            cargo_actual = "OBRERO"
+            cargo_actual = "PERSONAL"
 
     with col2:
         opciones_rubros = ["-- Seleccione un Rubro --", "Enlucidos", "Fijos", "Fajas", "Dinteles"]
@@ -2865,8 +2873,8 @@ with tab_rend:
         )
 
     if st.button("💾 Registrar Rendimiento", type="primary", use_container_width=True):
-        if trabajador_sel == "-- Seleccione un Trabajador --":
-            st.error("⚠️ Por favor seleccione un trabajador de la lista.")
+        if personal_sel == "-- Seleccione un Integrante --":
+            st.error("⚠️ Por favor seleccione un integrante del personal de la lista.")
         elif rubro_sel == "-- Seleccione un Rubro --":
             st.error("⚠️ Por favor seleccione un rubro.")
         elif not intervalo_manual.strip():
@@ -2891,7 +2899,7 @@ with tab_rend:
                     "usuario_email": user_email,
                     "cargo_obrero": cargo_actual,
                     "fecha": local_fecha_r,
-                    "trabajador": trabajador_sel,
+                    "trabajador": personal_sel,
                     "rubro": rubro_sel,
                     "intervalo": intervalo_manual.strip(),
                     "horas_hh": hh_manual,
@@ -2904,7 +2912,7 @@ with tab_rend:
                 }).execute()
 
                 st.session_state.db_loaded = False
-                st.success(f"¡Rendimiento registrado exitosamente para {trabajador_sel}!")
+                st.success(f"¡Rendimiento registrado exitosamente para {personal_sel}!")
                 st.rerun()
             except Exception as e:
                 st.error(f"Error registrando rendimiento: {e}")
@@ -2920,7 +2928,7 @@ with tab_rend:
             <div class="custom-table-header">
                 <div style="width: 4%; text-align: center;">N°</div>
                 <div style="width: 10%;">Fecha</div>
-                <div style="width: 22%;">Trabajador / Cargo</div>
+                <div style="width: 22%;">Personal / Cargo</div>
                 <div style="width: 12%;">Rubro</div>
                 <div style="width: 13%;">Intervalo / HH</div>
                 <div style="width: 13%;">Ejec. / Meta</div>
@@ -2946,7 +2954,7 @@ with tab_rend:
                 st.markdown(f"<div style='font-size: 0.78rem; font-weight: 600; padding-top: 4px;'>{r_item.get('Fecha')}</div>", unsafe_allow_html=True)
 
             with c_r3:
-                st.markdown(f"<div style='font-size: 0.80rem; font-weight: 700; color: #0f172a;'>{r_item.get('Trabajador')}<br/><small style='color: #64748b; font-weight: 600;'>{r_item.get('Cargo_Obrero', 'OBRERO')}</small></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size: 0.80rem; font-weight: 700; color: #0f172a;'>{r_item.get('Trabajador')}<br/><small style='color: #64748b; font-weight: 600;'>{r_item.get('Cargo_Obrero', 'PERSONAL')}</small></div>", unsafe_allow_html=True)
 
             with c_r4:
                 st.markdown(f"<div style='font-size: 0.80rem; font-weight: 600; padding-top: 4px;'>{r_item.get('Rubro')}</div>", unsafe_allow_html=True)
@@ -3089,13 +3097,13 @@ if es_admin:
                                 f"<td>{sup_adm.get('Observaciones', '')}</td>"
                                 f"</tr>"
                             )
-                        st.markdown(f"<div style='overflow-x:auto;'><table class='supervision-table'><thead><tr><th class='center' style='width:45px;'>N°</th><th style='width:240px;'>Actividad</th><th style='width:180px;'>Encargados</th><th>Observaciones</th></tr></thead><tbody>{hist_admin_rows}</tbody></table></div>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='overflow-x:auto;'><table class='supervision-table'><thead><tr><th class='center' style='width:45px;'>N°</th><th style='width:240px;'>Actividad</th><th style='width:180px;'>Personal Encargado</th><th>Observaciones</th></tr></thead><tbody>{hist_admin_rows}</tbody></table></div>", unsafe_allow_html=True)
 
                     c_ad_dl1, c_ad_dl2 = st.columns(2)
                     with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label=f"📊 Descargar Excel",
+                            label="📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3105,7 +3113,7 @@ if es_admin:
                     with c_ad_dl2:
                         pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
                         st.download_button(
-                            label=f"📄 Descargar PDF",
+                            label="📄 Descargar PDF",
                             data=pdf_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                             mime="application/pdf",
