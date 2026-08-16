@@ -1,6 +1,3 @@
-# ==============================================================================
-# PARTE 1 DE 4: ESTILOS CON PESTAÑAS DELIMITADAS, SUPABASE Y EXPORTADORES
-# ==============================================================================
 import base64
 import datetime
 import io
@@ -24,7 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES CON BORDES EN PESTAÑAS
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES
 # ==============================================================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -147,9 +144,7 @@ st.markdown(
 
     [data-testid="stSidebar"] hr { margin: 4px 0 !important; border-color: #1f2937 !important; }
 
-    /* =========================================================================
-       GLASSMORPHISM WIDGET CONTAINER & CARDS
-       ========================================================================= */
+    /* GLASSMORPHISM DASHBOARD */
     .smart-dashboard-container {
         background: radial-gradient(120% 120% at 50% 0%, #1e293b 0%, #0f172a 60%, #090d16 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
@@ -299,7 +294,7 @@ st.markdown(
         margin-bottom: 2px;
     }
 
-    /* PESTAÑAS DELIMITADAS CON BORDES CLAROS Y SEPARACIÓN VISUAL */
+    /* PESTAÑAS INDIVIDUALES DELIMITADAS CON BORDES */
     .stTabs [data-baseweb="tab-list"] { 
         gap: 6px !important; 
         background-color: #e2e8f0 !important; 
@@ -494,7 +489,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 3. BASE DE DATOS SUPABASE RESILIENTE
+# 3. BASE DE DATOS SUPABASE CON AISLAMIENTO POR USUARIO
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -507,8 +502,6 @@ def init_supabase():
 
 supabase = init_supabase()
 local_storage = LocalStorage()
-
-DEFAULT_TRABAJADORES = []
 
 def load_db_from_supabase():
     try:
@@ -570,11 +563,25 @@ def load_db_from_supabase():
     if "oscarsebitas2013@gmail.com" not in admin_emails:
         admin_emails.append("oscarsebitas2013@gmail.com")
 
+    # Personal a cargo aislado por usuario_email
+    db_trabajadores_por_usuario = {}
     try:
         res_trab = supabase.table("trabajadores").select("*").order("id", desc=False).execute()
-        db_trabajadores = [{"id": r["id"], "nombre": r["nombre"], "cargo": r["cargo"]} for r in res_trab.data] if res_trab.data else DEFAULT_TRABAJADORES
+        for r in res_trab.data:
+            u_owner = str(r.get("usuario_email", "")).lower().strip()
+            if not u_owner:
+                # Si es un registro previo sin dueño, se asigna al admin general
+                u_owner = "oscarsebitas2013@gmail.com"
+            if u_owner not in db_trabajadores_por_usuario:
+                db_trabajadores_por_usuario[u_owner] = []
+            db_trabajadores_por_usuario[u_owner].append({
+                "id": r["id"],
+                "nombre": r["nombre"],
+                "cargo": r["cargo"],
+                "usuario_email": u_owner
+            })
     except Exception:
-        db_trabajadores = DEFAULT_TRABAJADORES
+        db_trabajadores_por_usuario = {}
 
     db_checklists = {}
     try:
@@ -623,11 +630,12 @@ def load_db_from_supabase():
     except Exception:
         pass
 
-    db_incidencias = []
+    # Incidencias estructuradas por usuario y globales
+    db_incidencias_all = []
     try:
         res_inc = supabase.table("incidencias").select("*").execute()
         for r in res_inc.data:
-            db_incidencias.append({
+            db_incidencias_all.append({
                 "db_id": r["id"],
                 "Area": r["area"],
                 "Descripcion": r["descripcion"],
@@ -636,7 +644,7 @@ def load_db_from_supabase():
                 "Fecha_Compromiso": str(r["fecha_compromiso"]),
                 "Estado": r["estado"],
                 "Proyecto": r.get("proyecto", ""),
-                "Usuario": r.get("usuario_email", "")
+                "Usuario": str(r.get("usuario_email", "")).lower().strip()
             })
     except Exception:
         pass
@@ -675,9 +683,9 @@ def load_db_from_supabase():
         "db_usuarios": db_usuarios,
         "db_checklists": db_checklists,
         "db_inspecciones": db_inspecciones,
-        "db_incidencias": db_incidencias,
+        "db_incidencias_all": db_incidencias_all,
         "db_rendimientos": db_rendimientos,
-        "db_trabajadores": db_trabajadores,
+        "db_trabajadores_por_usuario": db_trabajadores_por_usuario,
     }
 
 if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
@@ -688,9 +696,9 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     st.session_state.db_usuarios = p_data["db_usuarios"]
     st.session_state.db_checklists = p_data["db_checklists"]
     st.session_state.db_inspecciones = p_data["db_inspecciones"]
-    st.session_state.db_incidencias = p_data["db_incidencias"]
+    st.session_state.db_incidencias_all = p_data["db_incidencias_all"]
     st.session_state.db_rendimientos = p_data["db_rendimientos"]
-    st.session_state.db_trabajadores = p_data["db_trabajadores"]
+    st.session_state.db_trabajadores_por_usuario = p_data["db_trabajadores_por_usuario"]
     st.session_state.db_loaded = True
 
 if "autenticado" not in st.session_state:
@@ -761,7 +769,7 @@ def get_repo_image_b64(filenames):
     return None
 
 def export_dataframe_to_excel_csv(df):
-    df_clean = df.drop(columns=["Foto_B64", "db_id", "id"], errors="ignore")
+    df_clean = df.drop(columns=["Foto_B64", "db_id", "id", "usuario_email"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 def export_checklist_to_excel_file(jornada_dict):
@@ -1595,7 +1603,7 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM UI
+# 8. SMART DASHBOARD GLASSMORPHISM UI (CONTEOS INDIVIDUALES AUTÓNOMOS)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
@@ -1611,6 +1619,7 @@ fecha_widget_texto = f"{dia_semana_actual}, {local_dt.day} de {mes_actual} de {l
 
 clima_actual_str = get_realtime_weather()
 
+# Hitos e información calculada estrictamente para el usuario activo
 mis_chks_list = st.session_state.db_checklists.get(user_email, [])
 mis_insps_list = st.session_state.db_inspecciones.get(user_email, [])
 mis_rnds_list = st.session_state.db_rendimientos.get(user_email, [])
@@ -1621,6 +1630,7 @@ insp_hoy_cumplida = any(i.get("Fecha") == fecha_hoy_iso for i in mis_insps_list)
 tag_chk_html = '<span class="milestone-status-done">✓ Cumplido</span>' if chk_hoy_cumplido else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 tag_insp_html = '<span class="milestone-status-done">✓ Cumplido</span>' if insp_hoy_cumplida else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 
+# Rendimiento propio del usuario activo
 if len(mis_rnds_list) > 0:
     total_eficientes = sum(1 for r in mis_rnds_list if r.get("Estado") in ["EFICIENTE", "CUMPLE META"])
     porc_rendimiento = int(round((total_eficientes / len(mis_rnds_list)) * 100))
@@ -1633,8 +1643,13 @@ circunferencia_circulo = 100.53
 progreso_dona_stroke = round((porc_rendimiento / 100) * circunferencia_circulo, 2)
 color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
 
-incs_abiertas_count = sum(1 for inc in st.session_state.db_incidencias if inc.get("Estado") == "Abierta")
-total_personal_count = len(st.session_state.db_trabajadores)
+# Incidencias propias abiertas del usuario activo
+incs_propias = [inc for inc in st.session_state.db_incidencias_all if inc.get("Usuario") == user_email]
+incs_abiertas_count = sum(1 for inc in incs_propias if inc.get("Estado") == "Abierta")
+
+# Personal a cargo registrado por este usuario
+mi_personal_lista = st.session_state.db_trabajadores_por_usuario.get(user_email, [])
+total_personal_count = len(mi_personal_lista)
 
 tags_edificios_html = "".join([f"<span class='edificio-tag-badge'>{ed}</span>" for ed in user_edificios])
 
@@ -1675,7 +1690,7 @@ dashboard_html = (
     '<div class="widget-glass-card">'
     '<div class="w-card-title"><span>👷 Personal</span><span>Activos</span></div>'
     f'<div class="stat-hero-number" style="color: #60a5fa !important;">{total_personal_count}</div>'
-    '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">Personal a cargo</div>'
+    '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">Personal a tu cargo</div>'
     '</div>'
     '</div>'
     '</div>'
@@ -1684,7 +1699,7 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# Pestañas del portal con la nueva pestaña 'Colaborativo' después de 'Control de Rendimiento'
+# Pestañas con bordes estilizados
 pestanas = [
     "Checklist", 
     "Libro de Obra", 
@@ -1698,11 +1713,11 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 3 DE 4: CHECKLIST Y LIBRO DE OBRA
+# PARTE 3 DE 4: CHECKLIST Y LIBRO DE OBRA (100% AUTÓNOMOS)
 # ==============================================================================
 
 # ==============================================================================
-# 9. MÓDULO 1: CHECKLIST
+# 9. MÓDULO 1: CHECKLIST (AUTÓNOMO POR USUARIO)
 # ==============================================================================
 tab_chk = tabs_app[0]
 tab_libro = tabs_app[1]
@@ -1744,7 +1759,9 @@ with tab_chk:
             
             cfg_c1, cfg_c2, cfg_c3, cfg_c4, cfg_c5 = st.columns([2, 2, 2, 1.5, 1.5])
             with cfg_c1:
-                edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="sel_edificio")
+                # Priorizar los proyectos asignados al usuario en la lista
+                proyectos_disponibles = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+                edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + proyectos_disponibles, index=0, key="sel_edificio")
             with cfg_c2:
                 st.text_input("Responsable:", value=user_nombre_completo, disabled=True)
             with cfg_c3:
@@ -1893,12 +1910,13 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 3. SUPERVISIÓN DE TRABAJOS
+            # 3. SUPERVISIÓN DE TRABAJOS (USA EL PERSONAL AUTÓNOMO DEL USUARIO)
             # ------------------------------------------------------------------
             st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.filas_supervision)} registros)")
             st.caption("Agregue actividades ejecutadas en campo, asigne personal a cargo y adjunte fotos.")
 
-            lista_nombres_personal = [t["nombre"] for t in st.session_state.db_trabajadores]
+            mi_personal_propio = st.session_state.db_trabajadores_por_usuario.get(user_email, [])
+            lista_nombres_personal = [t["nombre"] for t in mi_personal_propio]
             indices_a_eliminar = []
             supervision_payload_data = []
 
@@ -2007,7 +2025,7 @@ with tab_chk:
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Botón Guardar Jornada Completa
+            # Botón Guardar Checklist de Obra
             if st.button("💾 Guardar Checklist de Obra", type="primary", use_container_width=True):
                 if edificio_val == "-- Seleccione --" or not edificio_val:
                     st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
@@ -2050,7 +2068,7 @@ with tab_chk:
 
     st.markdown("---")
 
-    # HISTORIAL GENERAL DE CHECKLISTS POR EDIFICIO (COLAPSADO POR DEFECTO)
+    # HISTORIAL EXCLUSIVO DEL USUARIO ACTIVO
     st.markdown("### Historial General de Checklists Creados")
 
     mis_jornadas = st.session_state.db_checklists.get(user_email, [])
@@ -2091,7 +2109,6 @@ with tab_chk:
                     grupos_meses[nombre_mes] = []
                 grupos_meses[nombre_mes].append((orig_idx, j))
 
-            # Inician colapsados por defecto (expanded=False)
             for mes_anio, lista_j in grupos_meses.items():
                 with st.expander(f"📅 {mes_anio} ({len(lista_j)} checklists)", expanded=False):
                     for idx_rel, (orig_idx, j) in enumerate(lista_j):
@@ -2183,10 +2200,10 @@ with tab_chk:
         else:
             st.warning("No hay checklists registrados para el edificio seleccionado.")
     else:
-        st.info("Aún no hay checklists guardados.")
+        st.info("Aún no hay checklists guardados en tu cuenta.")
 
 # ==============================================================================
-# 10. MÓDULO 2: LIBRO DE OBRA (SIN AVANCE GENERAL)
+# 10. MÓDULO 2: LIBRO DE OBRA (AUTÓNOMO POR USUARIO)
 # ==============================================================================
 with tab_libro:
     st.markdown("### Libro de Obra")
@@ -2205,7 +2222,8 @@ with tab_libro:
         st.markdown("#### 1. Información General")
         c1, c2 = st.columns(2)
         with c1:
-            did_proyecto = st.selectbox("Proyecto / Edificio:*", ["-- Seleccione --"] + EDIFICIOS_ALPHA, index=0, key="did_proy")
+            proyectos_libro = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+            did_proyecto = st.selectbox("Proyecto / Edificio:*", ["-- Seleccione --"] + proyectos_libro, index=0, key="did_proy")
             did_dia = st.text_input("Día:", value=dia_auto_es, disabled=True)
             did_residente = st.text_input("Residente de Obra:", value=user_nombre_completo, key="did_res")
 
@@ -2385,7 +2403,7 @@ with tab_libro:
 
     st.markdown("---")
 
-    # HISTORIAL GENERAL DE LIBRO DE OBRA (CON EDICIÓN Y ELIMINACIÓN)
+    # HISTORIAL EXCLUSIVO DEL USUARIO ACTIVO
     st.markdown("### Historial de Libro de Obra")
 
     mis_inspecciones = st.session_state.db_inspecciones.get(user_email, [])
@@ -2467,17 +2485,17 @@ with tab_libro:
         else:
             st.warning("No hay registros en Libro de Obra para el proyecto seleccionado.")
     else:
-        st.info("Aún no hay registros guardados en Libro de Obra.")
+        st.info("Aún no hay registros guardados en tu Libro de Obra.")
 # ==============================================================================
-# PARTE 4 DE 4: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTO, COLABORATIVO Y ADMIN
+# PARTE 4 DE 4: PERSONAL AUTÓNOMO, INCIDENCIAS, RENDIMIENTO, COLABORATIVO Y ADMIN
 # ==============================================================================
 
 # ==============================================================================
-# 11. MÓDULO 3: PERSONAL A CARGO (CON CARGA DE NÓMINA COLABORATIVA)
+# 11. MÓDULO 3: PERSONAL A CARGO (AUTÓNOMO POR USUARIO + COPIADO COLABORATIVO)
 # ==============================================================================
 with tab_personal:
     st.markdown("### Nómina de Personal a Cargo")
-    st.caption("Administración de personal en obra, edición de cargos mediante ventana emergente y sincronización colaborativa.")
+    st.caption("Administración de personal en obra, edición de cargos y sincronización colaborativa opcional.")
 
     # 3 Botones superiores: Registrar, Importación Masiva y Cargar Nómina Colaborativa
     col_btn_ob1, col_btn_ob2, col_btn_ob3 = st.columns([1.5, 1.6, 2.0])
@@ -2494,11 +2512,12 @@ with tab_personal:
                     if nom_pers_in.strip() and car_pers_in.strip():
                         try:
                             supabase.table("trabajadores").insert({
+                                "usuario_email": user_email,
                                 "nombre": nom_pers_in.strip().upper(),
                                 "cargo": car_pers_in.strip().upper()
                             }).execute()
                             st.session_state.db_loaded = False
-                            st.success("¡Personal registrado exitosamente!")
+                            st.success("¡Personal registrado en tu nómina exitosamente!")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al registrar: {e}")
@@ -2526,6 +2545,7 @@ with tab_personal:
                                 if n_val and n_val != "NAN":
                                     try:
                                         supabase.table("trabajadores").insert({
+                                            "usuario_email": user_email,
                                             "nombre": n_val,
                                             "cargo": c_val
                                         }).execute()
@@ -2533,7 +2553,7 @@ with tab_personal:
                                     except Exception:
                                         pass
                             st.session_state.db_loaded = False
-                            st.success(f"¡{registrados_cnt} personas importadas exitosamente!")
+                            st.success(f"¡{registrados_cnt} personas importadas a tu nómina!")
                             st.rerun()
                     else:
                         st.error("El archivo debe contener mínimo 2 columnas.")
@@ -2541,44 +2561,57 @@ with tab_personal:
                     st.error(f"Error al procesar archivo: {e}")
 
     with col_btn_ob3:
-        # Cargar nómina compartida de un compañero del grupo colaborativo
+        # Cargar nómina compartida de un compañero del grupo colaborativo hacia la cuenta propia
         with st.popover("👥 Cargar Nómina Colaborativa", use_container_width=True):
-            st.markdown("#### Sincronizar Nómina Compartida")
-            st.caption("Importa la cuadrilla de un compañero de trabajo que comparta proyectos contigo.")
+            st.markdown("#### Importar Nómina de Compañero")
+            st.caption("Copia la lista de personal de un compañero que comparta proyectos contigo a tu propia nómina.")
             
-            # Buscar compañeros con al menos un edificio en común
             mis_edifs_set = set(st.session_state.get("usuario_edificios", []))
             companeros_nomina = []
             for u in st.session_state.db_usuarios:
                 if u["Correo"] != user_email:
                     u_edifs_set = set(u.get("Edificios", []))
                     if len(mis_edifs_set.intersection(u_edifs_set)) > 0:
-                        companeros_nomina.append(u)
+                        # Verificar si tiene personal registrado
+                        pers_comp = st.session_state.db_trabajadores_por_usuario.get(u["Correo"], [])
+                        if len(pers_comp) > 0:
+                            companeros_nomina.append((u, pers_comp))
 
             if len(companeros_nomina) > 0:
-                map_comp_nom = {f"{c['Nombres']} {c['Apellidos']} ({c['Cargo']})": c for c in companeros_nomina}
-                sel_comp_label = st.selectbox("Seleccione al compañero:", list(map_comp_nom.keys()), key="sel_comp_nom_pop")
-                comp_elegido = map_comp_nom[sel_comp_label]
+                map_comp_nom = {f"{u['Nombres']} {u['Apellidos']} ({len(p_list)} personas)": (u, p_list) for u, p_list in companeros_nomina}
+                sel_comp_label = st.selectbox("Seleccione compañero:", list(map_comp_nom.keys()), key="sel_comp_nom_pop")
+                comp_elegido_u, lista_p_elegida = map_comp_nom[sel_comp_label]
                 
-                comunes_n = list(mis_edifs_set.intersection(set(comp_elegido.get("Edificios", []))))
+                comunes_n = list(mis_edifs_set.intersection(set(comp_elegido_u.get("Edificios", []))))
                 st.info(f"Proyectos en común: **{', '.join(comunes_n)}**")
                 
-                if st.button("🔄 Sincronizar y Actualizar Nómina", type="primary", use_container_width=True):
-                    try:
-                        st.session_state.db_loaded = False
-                        st.success(f"¡Nómina de {comp_elegido['Nombres']} sincronizada con éxito!")
-                        st.rerun()
-                    except Exception as err:
-                        st.error(f"Error al sincronizar: {err}")
+                if st.button("📥 Importar a Mi Nómina Personal", type="primary", use_container_width=True):
+                    importados_cnt = 0
+                    mi_personal_nombres = [t["nombre"] for t in st.session_state.db_trabajadores_por_usuario.get(user_email, [])]
+                    for p_item in lista_p_elegida:
+                        if p_item["nombre"] not in mi_personal_nombres:
+                            try:
+                                supabase.table("trabajadores").insert({
+                                    "usuario_email": user_email,
+                                    "nombre": p_item["nombre"],
+                                    "cargo": p_item["cargo"]
+                                }).execute()
+                                importados_cnt += 1
+                            except Exception:
+                                pass
+                    st.session_state.db_loaded = False
+                    st.success(f"¡Se copiaron {importados_cnt} personas a tu nómina personal!")
+                    st.rerun()
             else:
-                st.info("No hay compañeros registrados que compartan tus mismos proyectos actualmente.")
+                st.info("No hay compañeros con proyectos en común que tengan personal registrado aún.")
 
     st.markdown("---")
 
-    # Tabla de Personal Activo
-    st.markdown(f"#### Nómina de Personal Activo ({len(st.session_state.db_trabajadores)} integrantes)")
+    # Tabla de Personal Activo exclusivo del usuario
+    mi_personal_actual = st.session_state.db_trabajadores_por_usuario.get(user_email, [])
+    st.markdown(f"#### Tu Nómina de Personal a Cargo ({len(mi_personal_actual)} integrantes)")
 
-    if len(st.session_state.db_trabajadores) > 0:
+    if len(mi_personal_actual) > 0:
         st.markdown(
             """
             <div class="custom-table-header">
@@ -2591,9 +2624,7 @@ with tab_personal:
             unsafe_allow_html=True
         )
 
-        lista_personal_actual = st.session_state.db_trabajadores
-
-        for idx_t, pers in enumerate(lista_personal_actual):
+        for idx_t, pers in enumerate(mi_personal_actual):
             t_id = pers.get("id", idx_t)
             t_nom = pers["nombre"]
             t_car = pers["cargo"]
@@ -2620,7 +2651,7 @@ with tab_personal:
                         if st.button("Guardar", key=f"btn_pop_save_{idx_t}_{t_id}", type="primary", use_container_width=True):
                             if nuevo_cargo_input.strip() and nuevo_cargo_input.strip().upper() != t_car:
                                 try:
-                                    supabase.table("trabajadores").update({"cargo": nuevo_cargo_input.strip().upper()}).eq("nombre", t_nom).execute()
+                                    supabase.table("trabajadores").update({"cargo": nuevo_cargo_input.strip().upper()}).eq("id", t_id).execute()
                                     st.session_state.db_loaded = False
                                     st.success("Cargo actualizado correctamente.")
                                     st.rerun()
@@ -2630,9 +2661,9 @@ with tab_personal:
                 with c_del:
                     if st.button("➖", key=f"btn_del_ob_{idx_t}_{t_id}", help=f"Remover a {t_nom}", use_container_width=True):
                         try:
-                            supabase.table("trabajadores").delete().eq("nombre", t_nom).execute()
+                            supabase.table("trabajadores").delete().eq("id", t_id).execute()
                             st.session_state.db_loaded = False
-                            st.success(f"{t_nom} removido exitosamente.")
+                            st.success(f"{t_nom} removido de tu nómina.")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al eliminar: {e}")
@@ -2640,35 +2671,37 @@ with tab_personal:
             st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        df_export_personal = pd.DataFrame(st.session_state.db_trabajadores)
-        df_export_personal = df_export_personal.drop(columns=["id"], errors="ignore")
+        df_export_personal = pd.DataFrame(mi_personal_actual)
+        df_export_personal = df_export_personal.drop(columns=["id", "usuario_email"], errors="ignore")
         df_export_personal.columns = ["Nombre Completo", "Cargo / Especialidad"]
         df_export_personal.index = range(1, len(df_export_personal) + 1)
         csv_personal_bytes = export_dataframe_to_excel_csv(df_export_personal)
         
         st.download_button(
-            label="📥 Descargar Nómina de Personal en CSV (Excel)",
+            label="📥 Descargar Tu Nómina en CSV (Excel)",
             data=csv_personal_bytes,
-            file_name=f"Personal_A_Cargo_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
+            file_name=f"Personal_A_Cargo_{user_email}_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
             mime="text/csv",
             key="dl_csv_nomina_personal_tab",
             use_container_width=True
         )
     else:
-        st.info("No existe personal activo registrado en la nómina.")
+        st.info("Aún no has registrado personal a cargo en tu cuenta. Agrega integrantes con '➕ Registrar Personal' o importa la lista de un compañero.")
 
 # ==============================================================================
-# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS
+# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS (AUTÓNOMO)
 # ==============================================================================
 with tab_incidencias:
     st.markdown("### Levantamiento de Incidencias")
-    st.caption("Control de no conformidades, responsables, plazos de atención y seguimiento de cierre en obra.")
+    st.caption("Control de no conformidades, responsables, plazos de atención y seguimiento en tus proyectos.")
+
+    proyectos_inc_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
 
     col_fil_inc1, col_fil_inc2 = st.columns([2, 2])
     with col_fil_inc1:
         proy_inc_sel = st.selectbox(
             "🏢 Seleccionar Proyecto / Edificio:",
-            ["-- Todos los Proyectos --"] + EDIFICIOS_ALPHA,
+            ["-- Todos los Proyectos --"] + proyectos_inc_disp,
             key="sel_proy_incidencias"
         )
     with col_fil_inc2:
@@ -2681,14 +2714,14 @@ with tab_incidencias:
 
     st.markdown("---")
 
-    with st.expander("➕ Registrar Nueva Incidencia / Hallazgo en Obra", expanded=False):
+    with st.expander("➕ Registrar Nueva Incidencia en Obra", expanded=False):
         with st.form("form_nueva_incidencia"):
             c_i1, c_i2 = st.columns(2)
             with c_i1:
                 proy_nuevo = st.selectbox(
                     "Proyecto / Edificio:*",
-                    EDIFICIOS_ALPHA,
-                    index=0 if proy_inc_sel == "-- Todos los Proyectos --" else EDIFICIOS_ALPHA.index(proy_inc_sel) if proy_inc_sel in EDIFICIOS_ALPHA else 0,
+                    proyectos_inc_disp,
+                    index=0 if proy_inc_sel == "-- Todos los Proyectos --" else proyectos_inc_disp.index(proy_inc_sel) if proy_inc_sel in proyectos_inc_disp else 0,
                     key="f_inc_proy"
                 )
                 area_nueva = st.text_input("Área / Ubicación:*", placeholder="Ej. Losa Piso 3 / Eje B-4", key="f_inc_area")
@@ -2726,19 +2759,20 @@ with tab_incidencias:
                     except Exception as e:
                         st.error(f"Error al registrar la incidencia: {e}")
 
-    lista_incs = st.session_state.db_incidencias.copy()
+    # Filtrar incidencias propias
+    lista_incs_propias = [inc for inc in st.session_state.db_incidencias_all if inc.get("Usuario") == user_email]
 
     if proy_inc_sel != "-- Todos los Proyectos --":
-        lista_incs = [i for i in lista_incs if i.get("Proyecto") == proy_inc_sel]
+        lista_incs_propias = [i for i in lista_incs_propias if i.get("Proyecto") == proy_inc_sel]
 
     if filtro_estado_vista != "Todos":
-        lista_incs = [i for i in lista_incs if i.get("Estado") == filtro_estado_vista]
+        lista_incs_propias = [i for i in lista_incs_propias if i.get("Estado") == filtro_estado_vista]
 
-    st.markdown(f"#### Matriz de Incidencias ({len(lista_incs)} registros)")
+    st.markdown(f"#### Matriz de Incidencias Propias ({len(lista_incs_propias)} registros)")
 
-    if len(lista_incs) > 0:
+    if len(lista_incs_propias) > 0:
         table_rows_html = ""
-        for idx, inc in enumerate(lista_incs, 1):
+        for idx, inc in enumerate(lista_incs_propias, 1):
             prio_val = inc.get('Prioridad', 'Media')
             est_val = inc.get('Estado', 'Abierta')
             
@@ -2793,7 +2827,7 @@ with tab_incidencias:
 
         with st.expander("⚙️ Administrar Estado o Eliminar Incidencias"):
             col_g1, col_g2, col_g3 = st.columns([2, 1.5, 1])
-            inc_map = {f"N° {i} - {inc.get('Area')} ({inc.get('Proyecto')})": inc for i, inc in enumerate(lista_incs, 1)}
+            inc_map = {f"N° {i} - {inc.get('Area')} ({inc.get('Proyecto')})": inc for i, inc in enumerate(lista_incs_propias, 1)}
             
             with col_g1:
                 sel_inc_label = st.selectbox("Seleccione el registro:", list(inc_map.keys()), key="sel_inc_gest")
@@ -2822,11 +2856,11 @@ with tab_incidencias:
 
         st.markdown("<br>", unsafe_allow_html=True)
         c_exp1, c_exp2 = st.columns(2)
-        nombre_proy_rep = proy_inc_sel if proy_inc_sel != "-- Todos los Proyectos --" else "Alpha_Builders_General"
+        nombre_proy_rep = proy_inc_sel if proy_inc_sel != "-- Todos los Proyectos --" else "Alpha_Builders_Mis_Incidencias"
         local_today_str = get_local_datetime_ecuador().strftime('%Y%m%d')
         
         with c_exp1:
-            excel_inc_bytes = export_incidencias_to_excel(lista_incs, nombre_proy_rep)
+            excel_inc_bytes = export_incidencias_to_excel(lista_incs_propias, nombre_proy_rep)
             st.download_button(
                 label="📊 Descargar Incidencias en Excel (.xlsx)",
                 data=excel_inc_bytes,
@@ -2836,7 +2870,7 @@ with tab_incidencias:
                 use_container_width=True
             )
         with c_exp2:
-            pdf_inc_bytes = export_incidencias_to_pdf(lista_incs, nombre_proy_rep)
+            pdf_inc_bytes = export_incidencias_to_pdf(lista_incs_propias, nombre_proy_rep)
             st.download_button(
                 label="📄 Descargar Incidencias en PDF (.pdf)",
                 data=pdf_inc_bytes,
@@ -2846,28 +2880,30 @@ with tab_incidencias:
                 use_container_width=True
             )
     else:
-        st.info("No se encontraron incidencias registradas con los filtros seleccionados.")
+        st.info("No tienes incidencias registradas con los filtros seleccionados.")
 
 # ==============================================================================
-# 13. MÓDULO 5: CONTROL DE RENDIMIENTO (INTERVALO Y HH 100% MANUALES)
+# 13. MÓDULO 5: CONTROL DE RENDIMIENTO (AUTÓNOMO 100% MANUAL)
 # ==============================================================================
 with tab_rend:
     st.markdown("### Control de Rendimiento por Personal")
     st.caption("Asignación de rubros, ingreso manual de horario/HH, cantidades ejecutadas y diagnóstico de productividad.")
 
+    mi_personal_propio = st.session_state.db_trabajadores_por_usuario.get(user_email, [])
+    nombres_personal = [t["nombre"] for t in mi_personal_propio]
+
     col1, col2 = st.columns(2)
     with col1:
-        nombres_personal = [t["nombre"] for t in st.session_state.db_trabajadores]
         opciones_personal = ["-- Seleccione un Integrante --"] + nombres_personal
         personal_sel = st.selectbox(
-            f"Seleccionar Personal ({len(nombres_personal)} Activos):*",
+            f"Seleccionar de tu Personal ({len(nombres_personal)} Activos):*",
             opciones_personal,
             index=0,
             key="sel_trabajador_rend"
         )
         
         if personal_sel != "-- Seleccione un Integrante --":
-            cargo_actual = next((t["cargo"] for t in st.session_state.db_trabajadores if t["nombre"] == personal_sel), "PERSONAL")
+            cargo_actual = next((t["cargo"] for t in mi_personal_propio if t["nombre"] == personal_sel), "PERSONAL")
             st.info(f"**Cargo en obra:** {cargo_actual}")
         else:
             cargo_actual = "PERSONAL"
@@ -2924,7 +2960,7 @@ with tab_rend:
 
     if st.button("💾 Registrar Rendimiento", type="primary", use_container_width=True):
         if personal_sel == "-- Seleccione un Integrante --":
-            st.error("⚠️ Por favor seleccione un integrante del personal de la lista.")
+            st.error("⚠️ Por favor seleccione un integrante de tu nómina de personal.")
         elif rubro_sel == "-- Seleccione un Rubro --":
             st.error("⚠️ Por favor seleccione un rubro.")
         elif not intervalo_manual.strip():
@@ -2968,7 +3004,7 @@ with tab_rend:
                 st.error(f"Error registrando rendimiento: {e}")
 
     st.markdown("---")
-    st.markdown("### Tabla de Resultados de Rendimiento")
+    st.markdown("### Tabla de Resultados de Rendimiento Propios")
 
     mis_rendimientos = st.session_state.db_rendimientos.get(user_email, [])
 
@@ -3049,10 +3085,10 @@ with tab_rend:
             use_container_width=True
         )
     else:
-        st.info("Aún no existen registros de rendimiento en su historial.")
+        st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
 # ==============================================================================
-# 14. MÓDULO 6: ESPACIO COLABORATIVO (GRUPOS CON PROYECTOS EN COMÚN)
+# 14. MÓDULO 6: ESPACIO COLABORATIVO (SINCRONIZACIÓN CON PROYECTOS COMPARTIDOS)
 # ==============================================================================
 with tab_colab:
     st.markdown("### Espacio de Trabajo Colaborativo")
@@ -3110,7 +3146,7 @@ with tab_colab:
             sub_tab_chk, sub_tab_libro, sub_tab_inc, sub_tab_rend = st.tabs([
                 "📋 Checklists del Compañero",
                 "📖 Libro de Obra del Compañero",
-                "🚨 Incidencias Registradas",
+                "🚨 Incidencias Compartidas",
                 "⚡ Rendimientos del Compañero"
             ])
 
@@ -3171,7 +3207,7 @@ with tab_colab:
             # 3. Incidencias registradas en proyectos en común
             with sub_tab_inc:
                 incs_comunes = [
-                    inc for inc in st.session_state.db_incidencias
+                    inc for inc in st.session_state.db_incidencias_all
                     if inc.get("Proyecto") in item_colega_sel["proyectos_comunes"]
                 ]
                 if len(incs_comunes) > 0:
@@ -3374,7 +3410,7 @@ if es_admin:
         st.markdown("---")
 
         st.markdown("#### 🚨 Levantamiento de Incidencias - Vista Administrador")
-        todas_las_incidencias_admin = st.session_state.db_incidencias
+        todas_las_incidencias_admin = st.session_state.db_incidencias_all
         if len(todas_las_incidencias_admin) > 0:
             df_inc_admin = pd.DataFrame(todas_las_incidencias_admin)
             st.dataframe(df_inc_admin, use_container_width=True)
@@ -3488,13 +3524,15 @@ if es_admin:
             e = u["Correo"]
             num_c = len(st.session_state.db_checklists.get(e, []))
             num_i = len(st.session_state.db_inspecciones.get(e, []))
-            num_inc = len([inc for inc in st.session_state.db_incidencias if inc.get("Usuario") == e])
+            num_inc = len([inc for inc in st.session_state.db_incidencias_all if inc.get("Usuario") == e])
             num_r = len(st.session_state.db_rendimientos.get(e, []))
+            num_p = len(st.session_state.db_trabajadores_por_usuario.get(e, []))
             resumen_actividad.append({
                 "Usuario": f"{u['Nombres']} {u['Apellidos']}".strip() or e,
                 "Correo": e,
                 "Cargo": u["Cargo"],
                 "Edificios": ", ".join(u.get("Edificios", [])) if u.get("Edificios") else "Ninguno",
+                "Personal a Cargo": num_p,
                 "Checklists": num_c,
                 "Libro de Obra": num_i,
                 "Incidencias": num_inc,
