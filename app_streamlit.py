@@ -550,7 +550,7 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] No se pudo leer access_pin: {e}")
 
-    # 2. Configuración de respaldo (Edificios y Trabajadores)
+    # 2. Configuración de respaldo (Edificios y Trabajadores aislados por clave exacta)
     fallback_edificios_map = {}
     fallback_trabajadores_map = {}
     try:
@@ -566,7 +566,12 @@ def load_db_from_supabase():
             elif k.startswith("user_trabajadores_"):
                 u_k = k.replace("user_trabajadores_", "").lower().strip()
                 try:
-                    fallback_trabajadores_map[u_k] = json.loads(r_cfg["value"])
+                    parsed_val = json.loads(r_cfg["value"])
+                    if isinstance(parsed_val, list):
+                        fallback_trabajadores_map[u_k] = [
+                            item for item in parsed_val 
+                            if str(item.get("usuario_email", "")).lower().strip() == u_k
+                        ]
                 except Exception:
                     pass
     except Exception as e:
@@ -623,8 +628,8 @@ def load_db_from_supabase():
         if res_trab.data:
             for r in res_trab.data:
                 u_owner = str(r.get("usuario_email", "")).lower().strip()
-                # Si el registro no tiene dueño explícito, se ignora para no contaminar cuentas
-                if not u_owner:
+                # Si el registro no tiene un correo válido o no coincide con un usuario registrado, se omite
+                if not u_owner or u_owner in ["none", "null", ""]:
                     continue
 
                 if u_owner not in db_trabajadores_por_usuario:
@@ -1990,7 +1995,7 @@ with tab_chk:
             st.markdown("<br>", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
-            # 3. SUPERVISIÓN DE TRABAJOS
+            # 3. SUPERVISIÓN DE TRABAJOS (CON PERSONAL AISLADO POR USUARIO)
             # ------------------------------------------------------------------
             st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.filas_supervision)} registros)")
             mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
@@ -3351,7 +3356,7 @@ if es_admin:
                     with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label="📊 Descargar Excel",
+                            label=f"📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3361,7 +3366,7 @@ if es_admin:
                     with c_ad_dl2:
                         pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
                         st.download_button(
-                            label="📄 Descargar PDF",
+                            label=f"📄 Descargar PDF",
                             data=pdf_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                             mime="application/pdf",
