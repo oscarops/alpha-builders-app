@@ -466,7 +466,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA RESILIENTE CON DOBLE LECTURA (TABLA + APP_CONFIG AISLADO)
+# PARTE 2 DE 5: CARGA RÁPIDA SIN TIMEOUT Y EXPORTADORES CON BOTONES DE ELIMINACIÓN
 # ==============================================================================
 
 # ==============================================================================
@@ -526,7 +526,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 4. BASE DE DATOS SUPABASE - CARGA ROBUSTA CON DOBLE LECTURA ASEGURADA
+# 4. BASE DE DATOS SUPABASE - CARGA LIGERA (SIN TRAER FOTOS BASE64 PESADAS)
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -577,12 +577,11 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] No se pudo leer app_config: {e}")
 
-    # 3. Usuarios y Fotos
+    # 3. Usuarios (CONSULTA LIGERA: Omitimos foto_b64 para eliminar el error 57014 de Timeout)
     db_usuarios = []
-    db_fotos = {}
     admin_emails = ["oscarsebitas2013@gmail.com"]
     try:
-        res_usr = supabase.table("usuarios").select("*").execute()
+        res_usr = supabase.table("usuarios").select("correo, nombres, apellidos, password, cargo, edificios, fecha_registro, estado, es_admin").execute()
         if res_usr.data:
             for row in res_usr.data:
                 c = str(row.get("correo", "")).lower().strip()
@@ -609,14 +608,12 @@ def load_db_from_supabase():
                     "Fecha_Registro": str(row.get("fecha_registro", "")),
                     "Estado": row.get("estado", "Activo")
                 })
-                if row.get("foto_b64"):
-                    db_fotos[c] = row["foto_b64"]
                 if row.get("es_admin") and c not in admin_emails:
                     admin_emails.append(c)
     except Exception as e:
-        st.error(f"Error consultando tabla usuarios: {e}")
+        print(f"[Warn] Error en consulta ligera usuarios: {e}")
 
-    # 4. Trabajadores: Se inicializa con el respaldo de app_config y se complementa con la tabla
+    # 4. Trabajadores: Inicialización limpia y respaldo de app_config + tabla
     db_trabajadores_por_usuario = {u["Correo"]: [] for u in db_usuarios}
     for u_k, t_list in fallback_trabajadores_map.items():
         if u_k not in db_trabajadores_por_usuario:
@@ -759,7 +756,6 @@ def load_db_from_supabase():
     return {
         "access_pin": access_pin,
         "admin_emails": admin_emails,
-        "db_fotos_perfil_b64": db_fotos,
         "db_usuarios": db_usuarios,
         "db_checklists": db_checklists,
         "db_inspecciones": db_inspecciones,
@@ -772,7 +768,6 @@ if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     p_data = load_db_from_supabase()
     st.session_state.access_pin = p_data["access_pin"]
     st.session_state.admin_emails = p_data["admin_emails"]
-    st.session_state.db_fotos_perfil_b64 = p_data["db_fotos_perfil_b64"]
     st.session_state.db_usuarios = p_data["db_usuarios"]
     st.session_state.db_checklists = p_data["db_checklists"]
     st.session_state.db_inspecciones = p_data["db_inspecciones"]
@@ -1385,7 +1380,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 # ==============================================================================
-# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA, BARRA LATERAL Y SMART DASHBOARD
+# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA, BARRA LATERAL CON FOTO INDIVIDUAL Y DASHBOARD
 # ==============================================================================
 
 # ==============================================================================
@@ -1426,17 +1421,18 @@ if not st.session_state.autenticado:
 
                     u_match = None
                     try:
-                        res_direct = supabase.table("usuarios").select("*").ilike("correo", mail_clean).execute()
+                        res_direct = supabase.table("usuarios").select("correo, nombres, apellidos, password, cargo, edificios").ilike("correo", mail_clean).execute()
                         if res_direct.data and len(res_direct.data) > 0:
                             row = res_direct.data[0]
                             edifs = row.get("edificios")
                             if isinstance(edifs, list):
-                                edifs_list = edifs
+                                edifs_list = [str(x).strip() for x in edifs if str(x).strip()]
                             elif isinstance(edifs, str):
                                 try:
-                                    edifs_list = json.loads(edifs)
+                                    parsed_edifs = json.loads(edifs)
+                                    edifs_list = [str(x).strip() for x in parsed_edifs if str(x).strip()] if isinstance(parsed_edifs, list) else [edifs.strip()]
                                 except Exception:
-                                    edifs_list = [edifs] if edifs else []
+                                    edifs_list = [edifs.strip()] if edifs.strip() else []
                             else:
                                 edifs_list = []
 
@@ -1476,7 +1472,6 @@ if not st.session_state.autenticado:
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
                                 
-                                # Consulta directa para cargar exclusivamente sus propios trabajadores
                                 try:
                                     res_t_user = supabase.table("trabajadores").select("*").ilike("usuario_email", mail_clean).order("id", desc=False).execute()
                                     st.session_state.db_trabajadores_por_usuario[mail_clean] = [
@@ -1643,7 +1638,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==============================================================================
-# 7. BARRA LATERAL (USUARIO AUTENTICADO)
+# 7. BARRA LATERAL (USUARIO AUTENTICADO) - FOTO CARGADA BAJO DEMANDA
 # ==============================================================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -1651,6 +1646,17 @@ user_apellidos = st.session_state.usuario_apellidos
 user_cargo = st.session_state.usuario_cargo
 user_edificios = st.session_state.get("usuario_edificios", [])
 es_admin = user_email in st.session_state.admin_emails
+
+# Consulta ligera exclusiva de la foto del usuario en sesión
+if f"foto_user_{user_email}" not in st.session_state:
+    try:
+        res_f = supabase.table("usuarios").select("foto_b64").ilike("correo", user_email).execute()
+        if res_f.data and len(res_f.data) > 0 and res_f.data[0].get("foto_b64"):
+            st.session_state[f"foto_user_{user_email}"] = res_f.data[0]["foto_b64"]
+        else:
+            st.session_state[f"foto_user_{user_email}"] = None
+    except Exception:
+        st.session_state[f"foto_user_{user_email}"] = None
 
 with st.sidebar:
     logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
@@ -1670,7 +1676,7 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
-    b64_foto = st.session_state.db_fotos_perfil_b64.get(user_email, None)
+    b64_foto = st.session_state.get(f"foto_user_{user_email}")
     if not b64_foto:
         b64_foto = get_repo_image_b64(["perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png"])
 
@@ -1740,6 +1746,7 @@ with st.sidebar:
                 b64_str = image_to_base64(nueva_foto_file)
                 if b64_str:
                     base_update_data["foto_b64"] = b64_str
+                    st.session_state[f"foto_user_{user_email}"] = b64_str
 
             try:
                 try:
@@ -2453,8 +2460,8 @@ with tab_libro:
     else:
         st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
-# PARTE 5 DE 5: PERSONAL A CARGO (GUARDADO Y PERSISTENCIA ASEGURADA), INCIDENCIAS,
-#               CONTROL DE RENDIMIENTO, ESPACIO COLABORATIVO Y PANEL ADMINISTRADOR
+# PARTE 5 DE 5: PERSONAL A CARGO (DOBLE PERSISTENCIA), INCIDENCIAS,
+#               RENDIMIENTOS, ESPACIO COLABORATIVO (SINCRONIZADO) Y ADMIN
 # ==============================================================================
 
 # ==============================================================================
@@ -2592,13 +2599,13 @@ with tab_personal:
             st.markdown("#### Importar Nómina de Compañero")
             st.caption("Copia la lista de personal de un compañero que comparta proyectos contigo a tu propia nómina.")
             
-            mis_edifs_set = set(st.session_state.get("usuario_edificios", []))
+            mis_edifs_norm = set([str(x).strip().lower() for x in st.session_state.get("usuario_edificios", [])])
             companeros_nomina = []
             for u in st.session_state.get("db_usuarios", []):
                 u_mail_chk = str(u["Correo"]).lower().strip()
                 if u_mail_chk != user_email:
-                    u_edifs_set = set(u.get("Edificios", []))
-                    if len(mis_edifs_set.intersection(u_edifs_set)) > 0:
+                    u_edifs_norm = set([str(x).strip().lower() for x in u.get("Edificios", [])])
+                    if len(mis_edifs_norm.intersection(u_edifs_norm)) > 0:
                         pers_comp = st.session_state.get("db_trabajadores_por_usuario", {}).get(u_mail_chk, [])
                         if len(pers_comp) > 0:
                             companeros_nomina.append((u, pers_comp))
@@ -2608,7 +2615,7 @@ with tab_personal:
                 sel_comp_label = st.selectbox("Seleccione compañero:", list(map_comp_nom.keys()), key="sel_comp_nom_pop_p5")
                 comp_elegido_u, lista_p_elegida = map_comp_nom[sel_comp_label]
                 
-                comunes_n = list(mis_edifs_set.intersection(set(comp_elegido_u.get("Edificios", []))))
+                comunes_n = [e for e in st.session_state.get("usuario_edificios", []) if str(e).strip().lower() in [str(x).strip().lower() for x in comp_elegido_u.get("Edificios", [])]]
                 st.info(f"Proyectos en común: **{', '.join(comunes_n)}**")
                 
                 if st.button("📥 Importar a Mi Nómina Personal", type="primary", use_container_width=True):
@@ -3215,26 +3222,33 @@ with tab_rend:
         st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
 # ==============================================================================
-# 14. MÓDULO 6: ESPACIO COLABORATIVO (INCIDENCIAS DE LA PERSONA Y SINCRONIZACIÓN)
+# 14. MÓDULO 6: ESPACIO COLABORATIVO (SINCRONIZACIÓN BLINDADA POR EDIFICIO)
 # ==============================================================================
 with tab_colab:
     st.markdown("### Espacio de Trabajo Colaborativo")
     st.caption("Visualización cruzada de datos, incidencias y cuadrillas con compañeros que comparten proyectos contigo.")
 
-    mis_proyectos_set = set(st.session_state.get("usuario_edificios", []))
+    # Normalización de edificios para evitar fallas por mayúsculas o espacios
+    mis_edificios_raw = st.session_state.get("usuario_edificios", [])
+    mis_proyectos_norm = set([str(x).strip().lower() for x in mis_edificios_raw if str(x).strip()])
 
-    if len(mis_proyectos_set) == 0:
+    if len(mis_proyectos_norm) == 0:
         st.warning("⚠️ No tienes proyectos asignados a tu cuenta. Agrega tus edificios en '⚙️ Configuración de Cuenta' en la barra lateral para unirte a grupos colaborativos.")
     else:
         companeros_colab = []
         for u in st.session_state.get("db_usuarios", []):
-            if u["Correo"].lower().strip() != user_email:
-                u_edifs = set(u.get("Edificios", []))
-                interseccion = mis_proyectos_set.intersection(u_edifs)
-                if len(interseccion) > 0:
+            u_correo_norm = str(u["Correo"]).lower().strip()
+            if u_correo_norm != user_email:
+                u_edifs_raw = u.get("Edificios", [])
+                u_edifs_norm = set([str(x).strip().lower() for x in u_edifs_raw if str(x).strip()])
+                interseccion_norm = mis_proyectos_norm.intersection(u_edifs_norm)
+                
+                if len(interseccion_norm) > 0:
+                    # Recupera los nombres legibles originales
+                    nombres_comunes = [e for e in mis_edificios_raw if str(e).strip().lower() in interseccion_norm]
                     companeros_colab.append({
                         "usuario": u,
-                        "proyectos_comunes": list(interseccion)
+                        "proyectos_comunes": nombres_comunes if nombres_comunes else list(interseccion_norm)
                     })
 
         if len(companeros_colab) > 0:
@@ -3253,7 +3267,7 @@ with tab_colab:
                 )
                 item_colega_sel = map_colegas[sel_colega_str]
                 colega_u = item_colega_sel["usuario"]
-                c_mail = colega_u["Correo"].lower().strip()
+                c_mail = str(colega_u["Correo"]).lower().strip()
 
             with c_sel_col2:
                 st.markdown(
@@ -3314,7 +3328,7 @@ with tab_colab:
                 todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
                 incs_de_la_persona = [
                     inc for inc in todas_las_incidencias_db
-                    if inc.get("Usuario") == c_mail
+                    if str(inc.get("Usuario", "")).lower().strip() == c_mail
                 ]
                 if len(incs_de_la_persona) > 0:
                     st.caption(f"Mostrando **{len(incs_de_la_persona)}** incidencia(s) levantadas por **{colega_u['Nombres']}**:")
@@ -3597,7 +3611,7 @@ if es_admin:
             e = u["Correo"]
             num_c = len(st.session_state.get("db_checklists", {}).get(e, []))
             num_i = len(st.session_state.get("db_inspecciones", {}).get(e, []))
-            num_inc = len([inc for inc in st.session_state.get("db_incidencias_all", []) if inc.get("Usuario") == e])
+            num_inc = len([inc for inc in st.session_state.get("db_incidencias_all", []) if str(inc.get("Usuario", "")).lower().strip() == e])
             num_r = len(st.session_state.get("db_rendimientos", {}).get(e, []))
             num_p = len(st.session_state.get("db_trabajadores_por_usuario", {}).get(e, []))
             resumen_actividad.append({
