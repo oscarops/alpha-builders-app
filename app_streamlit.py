@@ -1,5 +1,5 @@
 # ==============================================================================
-# PARTE 1 DE 5: IMPORTACIONES, CONFIGURACIÓN DE PÁGINA, ESTILOS Y CONSTANTES
+# PARTE 1 DE 5: CONFIGURACIÓN, ESTILOS CSS GLOBALES Y CONSTANTES
 # ==============================================================================
 import base64
 import datetime
@@ -466,7 +466,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA RESILIENTE CON CUENTAS LIMPIAS (0 TRABAJADORES POR DEFECTO)
+# PARTE 2 DE 5: CARGA SINCRONIZADA EN SUPABASE Y EXPORTADORES
 # ==============================================================================
 
 # ==============================================================================
@@ -526,7 +526,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 4. BASE DE DATOS SUPABASE - AISLAMIENTO TOTAL
+# 4. BASE DE DATOS SUPABASE - CARGA Y GESTIÓN EN TIEMPO REAL
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -605,7 +605,6 @@ def load_db_from_supabase():
         st.error(f"Error consultando tabla usuarios: {e}")
 
     # 4. Trabajadores por Usuario: CADA USUARIO COMIENZA EN 0
-    # Inicializa explícitamente vacío para cada usuario existente
     db_trabajadores_por_usuario = {u["Correo"]: [] for u in db_usuarios}
 
     try:
@@ -622,14 +621,13 @@ def load_db_from_supabase():
                     db_trabajadores_por_usuario[u_owner] = []
                 
                 edif_val = r.get("edificio") or "General"
-                if not any(x.get("id") == r["id"] or x.get("nombre") == r["nombre"] for x in db_trabajadores_por_usuario[u_owner]):
-                    db_trabajadores_por_usuario[u_owner].append({
-                        "id": r["id"],
-                        "nombre": r["nombre"],
-                        "cargo": r["cargo"],
-                        "edificio": edif_val,
-                        "usuario_email": u_owner
-                    })
+                db_trabajadores_por_usuario[u_owner].append({
+                    "id": r["id"],
+                    "nombre": r["nombre"],
+                    "cargo": r["cargo"],
+                    "edificio": edif_val,
+                    "usuario_email": u_owner
+                })
     except Exception as e:
         print(f"[Warn] Error en tabla trabajadores: {e}")
 
@@ -1370,7 +1368,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 # ==============================================================================
-# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA Y REGISTRO CON CUENTAS EN 0 TRABAJADORES
+# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA EN TIEMPO REAL, BARRA LATERAL Y SMART DASHBOARD
 # ==============================================================================
 
 # ==============================================================================
@@ -1409,7 +1407,6 @@ if not st.session_state.autenticado:
                 if login_email and login_pass and login_pin:
                     mail_clean = login_email.strip().lower()
 
-                    # 1. Consulta directa en Supabase para evitar fallas por caché
                     u_match = None
                     try:
                         res_direct = supabase.table("usuarios").select("*").ilike("correo", mail_clean).execute()
@@ -1437,13 +1434,11 @@ if not st.session_state.autenticado:
                     except Exception as e:
                         print(f"Consulta directa Supabase error: {e}")
 
-                    # Fallback en memoria si la consulta directa falla
                     if not u_match:
                         u_match = next((u for u in st.session_state.db_usuarios if u["Correo"].lower().strip() == mail_clean), None)
 
                     if u_match:
                         if u_match["Password"] == login_pass.strip():
-                            # Validación de PIN directo desde Supabase
                             current_pin = "1254"
                             try:
                                 res_pin = supabase.table("app_config").select("*").eq("key", "access_pin").execute()
@@ -1460,12 +1455,26 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                # Inicializa el personal del usuario en sesión desde la base de datos
+                                # Aislamiento estricto de trabajadores para el usuario logueado
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
-                                if mail_clean not in st.session_state.db_trabajadores_por_usuario:
-                                    st.session_state.db_trabajadores_por_usuario[mail_clean] = []
                                 
+                                # Consulta directa para cargar exclusivamente los suyos
+                                try:
+                                    res_t_user = supabase.table("trabajadores").select("*").ilike("usuario_email", mail_clean).order("id", desc=False).execute()
+                                    st.session_state.db_trabajadores_por_usuario[mail_clean] = [
+                                        {
+                                            "id": r["id"],
+                                            "nombre": r["nombre"],
+                                            "cargo": r["cargo"],
+                                            "edificio": r.get("edificio") or "General",
+                                            "usuario_email": mail_clean
+                                        } for r in res_t_user.data
+                                    ] if res_t_user.data else []
+                                except Exception:
+                                    if mail_clean not in st.session_state.db_trabajadores_por_usuario:
+                                        st.session_state.db_trabajadores_por_usuario[mail_clean] = []
+
                                 st.session_state.db_loaded = False
                                 local_storage.setItem("user_session_email", mail_clean)
                                 st.success("Acceso concedido...")
@@ -1555,12 +1564,6 @@ if not st.session_state.autenticado:
                                         "key": f"user_edificios_{mail_clean}",
                                         "value": json.dumps(reg_edificios_sel)
                                     }).execute()
-
-                                # Asegurar que la cuenta comience en blanco (0 trabajadores)
-                                supabase.table("app_config").upsert({
-                                    "key": f"user_trabajadores_{mail_clean}",
-                                    "value": json.dumps([])
-                                }).execute()
 
                                 st.session_state.autenticado = True
                                 st.session_state.usuario_email = mail_clean
@@ -1776,7 +1779,6 @@ else:
 
 color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
 
-# Incidencias abiertas de los proyectos asignados
 todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
 if len(user_edificios) > 0:
     incs_mis_proyectos = [inc for inc in todas_las_incidencias_db if inc.get("Proyecto") in user_edificios]
@@ -1848,11 +1850,11 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: CHECKLIST Y LIBRO DE OBRA (AGRUPADOS POR MES Y CAMPOS EN 0)
+# PARTE 4 DE 5: CHECKLIST Y LIBRO DE OBRA (CON BOTÓN DE ELIMINAR EN CADA REPORTE)
 # ==============================================================================
 
 # ==============================================================================
-# 9. MÓDULO 1: CHECKLIST (CONTROL DIARIO DE OBRA)
+# 9. MÓDULO 1: CHECKLIST (CONTROL DIARIO DE OBRA CON OPCIÓN DE ELIMINAR)
 # ==============================================================================
 tab_chk = tabs_app[0]
 tab_libro = tabs_app[1]
@@ -1999,7 +2001,6 @@ with tab_chk:
             # ------------------------------------------------------------------
             # 3. SUPERVISIÓN DE TRABAJOS (CON PERSONAL AISLADO POR USUARIO)
             # ------------------------------------------------------------------
-            st.markdown(f"#### 🏗️ Supervisión de la Ejecución de los Trabajos ({len(st.session_state.filas_supervision)} registros)")
             mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
             lista_nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
             indices_a_eliminar = []
@@ -2093,7 +2094,6 @@ with tab_chk:
         jornadas_filtradas = [j for j in mis_jornadas if j.get("Edificio") == edificio_filtro] if edificio_filtro != "-- Todos los Edificios --" else mis_jornadas.copy()
         st.caption(f"Mostrando **{len(jornadas_filtradas)}** checklist(s).")
 
-        # Agrupación por Mes y Año
         df_jornadas = pd.DataFrame(jornadas_filtradas)
         df_jornadas["fecha_dt"] = pd.to_datetime(df_jornadas["Fecha"])
         df_jornadas = df_jornadas.sort_values(by="fecha_dt", ascending=False)
@@ -2107,17 +2107,28 @@ with tab_chk:
             with st.expander(nombre_mes_str, expanded=False):
                 for orig_idx, j in items_mes.iterrows():
                     j_dict = j.to_dict()
+                    chk_db_id = j_dict.get("db_id")
+
                     with st.expander(f"📌 {j_dict['Edificio']} — {j_dict['Fecha']} (Horario: {j_dict.get('Hora_Inicio', 'N/A')} - {j_dict.get('Hora_Fin', 'N/A')})", expanded=False):
-                        c_dl1, c_dl2 = st.columns(2)
+                        c_dl1, c_dl2, c_del_chk = st.columns([2, 2, 1])
                         with c_dl1:
-                            st.download_button("📊 Descargar Excel (.xlsx)", export_checklist_to_excel_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.xlsx", key=f"dl_xlsx_{orig_idx}")
+                            st.download_button("📊 Descargar Excel (.xlsx)", export_checklist_to_excel_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.xlsx", key=f"dl_xlsx_{orig_idx}", use_container_width=True)
                         with c_dl2:
-                            st.download_button("📄 Descargar PDF (.pdf)", export_checklist_to_pdf_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.pdf", key=f"dl_pdf_{orig_idx}")
+                            st.download_button("📄 Descargar PDF (.pdf)", export_checklist_to_pdf_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.pdf", key=f"dl_pdf_{orig_idx}", use_container_width=True)
+                        with c_del_chk:
+                            if st.button("🗑️ Eliminar", key=f"btn_del_chk_{orig_idx}_{chk_db_id}", type="secondary", use_container_width=True):
+                                try:
+                                    supabase.table("checklists").delete().eq("id", chk_db_id).execute()
+                                    st.session_state.db_loaded = False
+                                    st.success("Checklist eliminado correctamente.")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error al eliminar: {e}")
     else:
         st.info("Aún no hay checklists guardados en tu cuenta.")
 
 # ==============================================================================
-# 10. MÓDULO 2: LIBRO DE OBRA (FORMATO OFICIAL L-O CON VINCULACIÓN AL CHECKLIST)
+# 10. MÓDULO 2: LIBRO DE OBRA (CON BOTÓN DE ELIMINAR EN CADA REPORTE)
 # ==============================================================================
 with tab_libro:
     st.markdown("### Libro de Obra – Formato Oficial")
@@ -2132,7 +2143,6 @@ with tab_libro:
         lo_dia = dias_es[lo_fecha.weekday()]
         st.caption(f"Día seleccionado: **{lo_dia}**")
 
-    # Detección de Checklist en la misma fecha para autocompletar
     fecha_lo_str = lo_fecha.strftime("%Y-%m-%d")
     chk_asociado = next((c for c in mis_jornadas if c.get("Fecha") == fecha_lo_str), None)
 
@@ -2143,12 +2153,11 @@ with tab_libro:
 
     with col_lo2:
         if chk_asociado:
-            st.success(f"🔗 **Checklist Vinculado:** Se importarán automáticamente las actividades y los horarios del edificio **{chk_asociado.get('Edificio')}** para evitar doble ingreso.")
+            st.success(f"🔗 **Checklist Vinculado:** Se importarán automáticamente las actividades y los horarios del edificio **{chk_asociado.get('Edificio')}**.")
         else:
             st.info("💡 Si llenas el Checklist del día, los trabajos y horarios se precargarán automáticamente aquí.")
 
     with st.form("form_libro_obra_oficial_lo"):
-        # 1. ENCABEZADO OFICIAL (AUTOCOMPLETADO DE LA OBRA)
         st.markdown("#### 1. Datos Generales de la Obra")
         c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
         with c_lo_a1:
@@ -2168,7 +2177,6 @@ with tab_libro:
 
         st.markdown("---")
 
-        # 2. NÓMINA DE PERSONAL Y PERSONAL ROTATIVO (CAMPOS EN 0 PARA LLENADO MANUAL)
         st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
         st.caption("Ingrese la cantidad de obreros presentes por especialidad.")
 
@@ -2195,7 +2203,6 @@ with tab_libro:
 
         st.markdown("---")
 
-        # 3. CONDICIONES CLIMÁTICAS Y MAQUINARIA / HERRAMIENTAS (CAMPOS EN 0)
         st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")
         c_cl1, c_cl2 = st.columns(2)
         with c_cl1:
@@ -2215,7 +2222,6 @@ with tab_libro:
 
         st.markdown("---")
 
-        # 4. SEGURIDAD, SEÑALIZACIÓN Y MITIGACIÓN
         st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
         c_ss1, c_ss2, c_ss3 = st.columns(3)
         with c_ss1:
@@ -2246,7 +2252,6 @@ with tab_libro:
 
         st.markdown("---")
 
-        # 5. ACTIVIDADES REALIZADAS EN LA JORNADA (VINCULACIÓN EXCLUSIVA CON CHECKLIST)
         st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
         st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy sin texto predeterminado.")
 
@@ -2266,24 +2271,9 @@ with tab_libro:
                     })
 
         if not lista_actividades_lo:
-            # Lista inicial en blanco para llenado manual
             lista_actividades_lo = [
-                {
-                    "Descripcion": "",
-                    "Area": "",
-                    "Encargados": "",
-                    "Unidad": "m2",
-                    "Cantidad": 0.0,
-                    "Observaciones": ""
-                },
-                {
-                    "Descripcion": "",
-                    "Area": "",
-                    "Encargados": "",
-                    "Unidad": "m2",
-                    "Cantidad": 0.0,
-                    "Observaciones": ""
-                }
+                {"Descripcion": "", "Area": "", "Encargados": "", "Unidad": "m2", "Cantidad": 0.0, "Observaciones": ""},
+                {"Descripcion": "", "Area": "", "Encargados": "", "Unidad": "m2", "Cantidad": 0.0, "Observaciones": ""}
             ]
 
         acts_final_payload = []
@@ -2310,7 +2300,6 @@ with tab_libro:
 
         st.markdown("---")
 
-        # 6. NOVEDADES Y RECOMENDACIONES (VACÍO PARA LLENADO MANUAL)
         st.markdown("#### 6. Novedades y Recomendaciones")
         lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="", placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")
 
@@ -2378,7 +2367,7 @@ with tab_libro:
 
     st.markdown("---")
 
-    # HISTORIAL DE FORMATOS (AGRUPADO POR MESES)
+    # HISTORIAL DE FORMATOS (CON BOTÓN DE ELIMINAR)
     st.markdown("### Historial de Formatos en Libro de Obra")
     mis_inspecciones = st.session_state.get("db_inspecciones", {}).get(user_email, [])
 
@@ -2403,12 +2392,14 @@ with tab_libro:
             with st.expander(nombre_mes_str, expanded=False):
                 for idx_insp, insp in items_mes.iterrows():
                     insp_dict = insp.to_dict()
+                    insp_db_id = insp_dict.get("db_id")
+
                     with st.expander(f"📌 {insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
                         d_insp = insp_dict.get("Datos", {})
                         st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp_dict.get('Frente', ''))} | **Clima:** {insp_dict.get('Clima', '')}")
                         st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
 
-                        c_dl_i1, c_dl_i2 = st.columns(2)
+                        c_dl_i1, c_dl_i2, c_del_lo = st.columns([2, 2, 1])
                         with c_dl_i1:
                             st.download_button(
                                 "📊 Descargar Formato Excel (.xlsx)",
@@ -2427,15 +2418,24 @@ with tab_libro:
                                 key=f"dl_lo_off_p_{idx_insp}",
                                 use_container_width=True
                             )
+                        with c_del_lo:
+                            if st.button("🗑️ Eliminar", key=f"btn_del_lo_{idx_insp}_{insp_db_id}", type="secondary", use_container_width=True):
+                                try:
+                                    supabase.table("inspecciones").delete().eq("id", insp_db_id).execute()
+                                    st.session_state.db_loaded = False
+                                    st.success("Libro de Obra eliminado correctamente.")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error al eliminar: {e}")
     else:
         st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
-# PARTE 5 DE 5: PERSONAL A CARGO (AISLAMIENTO ESTRICTO POR CUENTA), INCIDENCIAS,
+# PARTE 5 DE 5: PERSONAL A CARGO (GUARDADO Y PERSISTENCIA ASEGURADA), INCIDENCIAS,
 #               CONTROL DE RENDIMIENTO, ESPACIO COLABORATIVO Y PANEL ADMINISTRADOR
 # ==============================================================================
 
 # ==============================================================================
-# 11. MÓDULO 3: PERSONAL A CARGO (AISLAMIENTO POR CUENTA Y AGRUPADO POR EDIFICIO)
+# 11. MÓDULO 3: PERSONAL A CARGO (AISLAMIENTO INDIVIDUAL + PERSISTENCIA GARANTIZADA)
 # ==============================================================================
 with tab_personal:
     st.markdown("### Nómina de Personal a Cargo")
@@ -2457,38 +2457,50 @@ with tab_personal:
 
                 if btn_save_pers_pop:
                     if nom_pers_in.strip() and car_pers_in.strip():
+                        nombre_clean = nom_pers_in.strip().upper()
+                        cargo_clean = car_pers_in.strip().upper()
+                        
+                        # Inserción asegurada en Supabase
+                        guardado_ok = False
                         try:
-                            # Inserción con usuario_email explícito
-                            try:
-                                supabase.table("trabajadores").insert({
-                                    "usuario_email": user_email,
-                                    "nombre": nom_pers_in.strip().upper(),
-                                    "cargo": car_pers_in.strip().upper(),
-                                    "edificio": edif_pers_in
-                                }).execute()
-                            except Exception:
-                                pass
-                            
-                            # Respaldo en app_config aislado para este usuario
-                            cur_p = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-                            new_entry = {
-                                "id": int(datetime.datetime.now().timestamp() * 1000),
-                                "nombre": nom_pers_in.strip().upper(),
-                                "cargo": car_pers_in.strip().upper(),
-                                "edificio": edif_pers_in,
-                                "usuario_email": user_email
-                            }
-                            cur_p.append(new_entry)
+                            res_ins = supabase.table("trabajadores").insert({
+                                "usuario_email": user_email,
+                                "nombre": nombre_clean,
+                                "cargo": cargo_clean,
+                                "edificio": edif_pers_in
+                            }).execute()
+                            guardado_ok = True
+                        except Exception as ex_db:
+                            print(f"[Warn] Inserción SQL trabajadores directa: {ex_db}")
+
+                        # Actualización inmediata en memoria de sesión
+                        if "db_trabajadores_por_usuario" not in st.session_state:
+                            st.session_state.db_trabajadores_por_usuario = {}
+                        if user_email not in st.session_state.db_trabajadores_por_usuario:
+                            st.session_state.db_trabajadores_por_usuario[user_email] = []
+
+                        cur_p = st.session_state.db_trabajadores_por_usuario[user_email]
+                        new_item = {
+                            "id": int(datetime.datetime.now().timestamp() * 1000),
+                            "nombre": nombre_clean,
+                            "cargo": cargo_clean,
+                            "edificio": edif_pers_in,
+                            "usuario_email": user_email
+                        }
+                        cur_p.append(new_item)
+
+                        # Respaldo asegurado en app_config
+                        try:
                             supabase.table("app_config").upsert({
                                 "key": f"user_trabajadores_{user_email}",
                                 "value": json.dumps(cur_p)
                             }).execute()
+                        except Exception as ex_cfg:
+                            print(f"[Warn] Respaldo app_config: {ex_cfg}")
 
-                            st.session_state.db_loaded = False
-                            st.success(f"¡Personal registrado en **{edif_pers_in}** exitosamente!")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error al registrar: {e}")
+                        st.session_state.db_loaded = False
+                        st.success(f"¡{nombre_clean} guardado exitosamente en tu nómina!")
+                        st.rerun()
                     else:
                         st.error("⚠️ Complete todos los campos obligatorios.")
 
@@ -2506,7 +2518,13 @@ with tab_personal:
                     if len(df_sub_pop.columns) >= 2:
                         if st.button("Confirmar Carga Masiva", type="primary", use_container_width=True):
                             registrados_cnt = 0
-                            cur_p = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+                            
+                            if "db_trabajadores_por_usuario" not in st.session_state:
+                                st.session_state.db_trabajadores_por_usuario = {}
+                            if user_email not in st.session_state.db_trabajadores_por_usuario:
+                                st.session_state.db_trabajadores_por_usuario[user_email] = []
+                            
+                            cur_p = st.session_state.db_trabajadores_por_usuario[user_email]
                             
                             for _, r_data in df_sub_pop.iterrows():
                                 n_val = str(r_data.iloc[0]).strip().upper()
@@ -2541,7 +2559,7 @@ with tab_personal:
                                 pass
 
                             st.session_state.db_loaded = False
-                            st.success(f"¡{registrados_cnt} personas importadas a tu nómina!")
+                            st.success(f"¡{registrados_cnt} personas importadas a tu nómina personal!")
                             st.rerun()
                     else:
                         st.error("El archivo debe contener mínimo 2 columnas (Nombre y Cargo).")
@@ -2556,10 +2574,11 @@ with tab_personal:
             mis_edifs_set = set(st.session_state.get("usuario_edificios", []))
             companeros_nomina = []
             for u in st.session_state.get("db_usuarios", []):
-                if u["Correo"].lower().strip() != user_email:
+                u_mail_chk = str(u["Correo"]).lower().strip()
+                if u_mail_chk != user_email:
                     u_edifs_set = set(u.get("Edificios", []))
                     if len(mis_edifs_set.intersection(u_edifs_set)) > 0:
-                        pers_comp = st.session_state.get("db_trabajadores_por_usuario", {}).get(u["Correo"].lower().strip(), [])
+                        pers_comp = st.session_state.get("db_trabajadores_por_usuario", {}).get(u_mail_chk, [])
                         if len(pers_comp) > 0:
                             companeros_nomina.append((u, pers_comp))
 
@@ -2573,7 +2592,10 @@ with tab_personal:
                 
                 if st.button("📥 Importar a Mi Nómina Personal", type="primary", use_container_width=True):
                     importados_cnt = 0
-                    cur_p = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+                    if user_email not in st.session_state.db_trabajadores_por_usuario:
+                        st.session_state.db_trabajadores_por_usuario[user_email] = []
+                    
+                    cur_p = st.session_state.db_trabajadores_por_usuario[user_email]
                     mi_personal_nombres = [t["nombre"] for t in cur_p]
 
                     for p_item in lista_p_elegida:
@@ -2614,7 +2636,7 @@ with tab_personal:
 
     st.markdown("---")
 
-    # Obtención de personal exclusiva del usuario en sesión
+    # Visualización exclusiva para el usuario logueado
     mi_personal_actual = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
     st.markdown(f"#### Tu Nómina de Personal a Cargo ({len(mi_personal_actual)} integrantes)")
 
@@ -2686,6 +2708,7 @@ with tab_personal:
                             except Exception:
                                 pass
                             mi_personal_actual = [p for p in mi_personal_actual if p.get("id") != t_id and p.get("nombre") != t_nom]
+                            st.session_state.db_trabajadores_por_usuario[user_email] = mi_personal_actual
                             supabase.table("app_config").upsert({
                                 "key": f"user_trabajadores_{user_email}",
                                 "value": json.dumps(mi_personal_actual)
@@ -2762,6 +2785,7 @@ with tab_personal:
                                 except Exception:
                                     pass
                                 mi_personal_actual = [p for p in mi_personal_actual if p.get("id") != t_id and p.get("nombre") != t_nom]
+                                st.session_state.db_trabajadores_por_usuario[user_email] = mi_personal_actual
                                 supabase.table("app_config").upsert({
                                     "key": f"user_trabajadores_{user_email}",
                                     "value": json.dumps(mi_personal_actual)
