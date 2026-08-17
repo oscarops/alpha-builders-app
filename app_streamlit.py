@@ -10,6 +10,7 @@ import zoneinfo
 import pandas as pd
 from PIL import Image, ImageOps
 import streamlit as st
+import streamlit.components.v1 as components
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.drawing.image import Image as OpenpyxlImage
@@ -464,7 +465,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA RÁPIDA NO BLOQUEANTE Y EXPORTADORES DE DOCUMENTOS
+# PARTE 2 DE 5: CARGA RÁPIDA DE DATOS Y EXPORTADORES DE DOCUMENTOS
 # ==============================================================================
 
 # ==============================================================================
@@ -754,7 +755,7 @@ if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = []
 
 # ==============================================================================
-# PERSISTENCIA DE SESIÓN NATIVA CON QUERY_PARAMS (NO SE CIERRA AL REFRESCAR)
+# PERSISTENCIA INQUEBRANTABLE: COOKIE + LOCALSTORAGE + QUERY_PARAMS
 # ==============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -764,19 +765,37 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-# Recuperación automática de sesión desde query_params
+# 1. Intento inmediato vía query_params
+url_user = st.query_params.get("u")
+if url_user and not st.session_state.autenticado:
+    m_clean = str(url_user).strip().lower()
+    u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == m_clean), None)
+    if u_match:
+        st.session_state.autenticado = True
+        st.session_state.usuario_email = m_clean
+        st.session_state.usuario_nombres = u_match["Nombres"]
+        st.session_state.usuario_apellidos = u_match["Apellidos"]
+        st.session_state.usuario_cargo = u_match["Cargo"]
+        st.session_state.usuario_edificios = u_match.get("Edificios", [])
+
+# 2. Inyección de script JS invisible para restaurar la sesión desde LocalStorage si la URL se limpió
 if not st.session_state.autenticado:
-    url_user_param = st.query_params.get("u")
-    if url_user_param:
-        mail_param_clean = str(url_user_param).strip().lower()
-        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_param_clean), None)
-        if u_match:
-            st.session_state.autenticado = True
-            st.session_state.usuario_email = mail_param_clean
-            st.session_state.usuario_nombres = u_match["Nombres"]
-            st.session_state.usuario_apellidos = u_match["Apellidos"]
-            st.session_state.usuario_cargo = u_match["Cargo"]
-            st.session_state.usuario_edificios = u_match.get("Edificios", [])
+    components.html(
+        """
+        <script>
+        const saved = localStorage.getItem('alpha_user_session');
+        if (saved) {
+            const url = new URL(window.location.href);
+            if (!url.searchParams.get('u')) {
+                url.searchParams.set('u', saved);
+                window.location.href = url.href;
+            }
+        }
+        </script>
+        """,
+        height=0,
+        width=0
+    )
 
 # ==============================================================================
 # 5. FUNCIONES DE FORMATO Y EXPORTADORES
@@ -1524,8 +1543,17 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                # Persistencia activa en URL (no se cierra la sesión al recargar la página)
+                                # Persistencia activa en URL y en LocalStorage de JS
                                 st.query_params["u"] = mail_clean
+                                components.html(
+                                    f"""
+                                    <script>
+                                    localStorage.setItem('alpha_user_session', '{mail_clean}');
+                                    </script>
+                                    """,
+                                    height=0,
+                                    width=0
+                                )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -1648,6 +1676,15 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_edificios = reg_edificios_sel
                                 
                                 st.query_params["u"] = mail_clean
+                                components.html(
+                                    f"""
+                                    <script>
+                                    localStorage.setItem('alpha_user_session', '{mail_clean}');
+                                    </script>
+                                    """,
+                                    height=0,
+                                    width=0
+                                )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -1831,9 +1868,21 @@ with st.sidebar:
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         st.session_state.usuario_email = ""
-        # Limpieza de parámetro para cerrar sesión definitivamente
+        # Limpieza permanente de sesión
         if "u" in st.query_params:
             del st.query_params["u"]
+        components.html(
+            """
+            <script>
+            localStorage.removeItem('alpha_user_session');
+            const url = new URL(window.location.href);
+            url.searchParams.delete('u');
+            window.location.href = url.href;
+            </script>
+            """,
+            height=0,
+            width=0
+        )
         st.rerun()
 
 # ==============================================================================
@@ -2691,7 +2740,7 @@ else:
                         insp_dict = insp.to_dict()
                         insp_db_id = insp_dict.get("db_id")
 
-                        with st.expander(f"📌 [{insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
+                        with st.expander(f"📌 {insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
                             d_insp = insp_dict.get("Datos", {})
                             st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp_dict.get('Frente', ''))} | **Clima:** {insp_dict.get('Clima', '')}")
                             st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
@@ -2728,7 +2777,7 @@ else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTOS, ESPACIO COLABORATIVO
-#               (SINCRONIZACIÓN CON MAESTRO MAYOR) Y PANEL ADMINISTRADOR
+#               (SINCRONIZADO CON MAESTRO MAYOR) Y PANEL ADMINISTRADOR
 # ==============================================================================
 
 # ==============================================================================
