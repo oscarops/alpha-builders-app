@@ -2715,7 +2715,7 @@ else:
                 sen_extintor = st.checkbox("Extintor", value=False)
                 sen_botiquin = st.checkbox("Botiquín", value=False)
 
-with c_ss3:
+            with c_ss3:
                 st.markdown("##### 🧹 Mitigación")
                 mit_polvo = st.checkbox("Control de Polvo", value=False)
                 mit_ruido = st.checkbox("Control de Ruido", value=False)
