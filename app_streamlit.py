@@ -637,7 +637,7 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en tabla checklists: {e}")
 
-    # 6. Inspecciones / Libros de Obra
+    # 6. Inspecciones / Libros de Obra (Incluye Libros de Maestro Mayor)
     db_inspecciones = {}
     try:
         res_insp = supabase.table("inspecciones").select("*").execute()
@@ -753,6 +753,9 @@ if "db_rendimientos" not in st.session_state:
 if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = []
 
+# ==============================================================================
+# PERSISTENCIA DE SESIÓN NATIVA CON QUERY_PARAMS (NO SE CIERRA AL REFRESCAR)
+# ==============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
@@ -760,6 +763,20 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
+
+# Recuperación automática de sesión desde query_params
+if not st.session_state.autenticado:
+    url_user_param = st.query_params.get("u")
+    if url_user_param:
+        mail_param_clean = str(url_user_param).strip().lower()
+        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_param_clean), None)
+        if u_match:
+            st.session_state.autenticado = True
+            st.session_state.usuario_email = mail_param_clean
+            st.session_state.usuario_nombres = u_match["Nombres"]
+            st.session_state.usuario_apellidos = u_match["Apellidos"]
+            st.session_state.usuario_cargo = u_match["Cargo"]
+            st.session_state.usuario_edificios = u_match.get("Edificios", [])
 
 # ==============================================================================
 # 5. FUNCIONES DE FORMATO Y EXPORTADORES
@@ -984,8 +1001,8 @@ def export_checklist_to_pdf_file(jornada_dict):
         table_s.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e293b')),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
         ]))
         story.append(table_s)
 
@@ -1024,7 +1041,7 @@ def export_libro_obra_maestro_excel(insp_dict):
 
     acts = insp_dict.get("Datos", {}).get("Actividades_Maestro", [])
     for idx_m, a_m in enumerate(acts, 1):
-        ws.append([idx_m, a_m.get("Actividad", ""), a_m.get("Cantidad", ""), a_m.get("Observaciones", "")])
+        ws.append([idx_m, a_m.get("Actividad", ""), str(a_m.get("Cantidad", "")), a_m.get("Observaciones", "")])
         r_idx = ws.max_row
         for col_i in range(1, 5):
             cell = ws.cell(row=r_idx, column=col_i)
@@ -1419,11 +1436,11 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 # ==============================================================================
-# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA, BARRA LATERAL Y SMART DASHBOARD ADAPTABLE
+# PARTE 3 DE 5: AUTENTICACIÓN PERSISTENTE NATIVA, SIDEBAR Y SMART DASHBOARD
 # ==============================================================================
 
 # ==============================================================================
-# 6. MÓDULO DE AUTENTICACIÓN: LOGIN DIRECTO A SUPABASE, REGISTRO Y RECUPERACIÓN
+# 6. MÓDULO DE AUTENTICACIÓN: LOGIN DIRECTO, REGISTRO Y RECUPERACIÓN
 # ==============================================================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -1507,7 +1524,9 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                # Aislamiento estricto de trabajadores para el usuario en sesión
+                                # Persistencia activa en URL (no se cierra la sesión al recargar la página)
+                                st.query_params["u"] = mail_clean
+                                
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
                                 
@@ -1627,6 +1646,8 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_apellidos = reg_apellidos.strip()
                                 st.session_state.usuario_cargo = reg_cargo
                                 st.session_state.usuario_edificios = reg_edificios_sel
+                                
+                                st.query_params["u"] = mail_clean
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -1810,6 +1831,9 @@ with st.sidebar:
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         st.session_state.usuario_email = ""
+        # Limpieza de parámetro para cerrar sesión definitivamente
+        if "u" in st.query_params:
+            del st.query_params["u"]
         st.rerun()
 
 # ==============================================================================
@@ -1935,7 +1959,8 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (CHECKLIST / LIBRO RESIDENTE Y LIBRO MAESTRO)
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (LIBRO MAESTRO CON CANTIDAD LIBRE,
+#               CHECKLIST DIARIO Y LIBRO DE OBRA OFICIAL)
 # ==============================================================================
 
 # ==============================================================================
@@ -1965,7 +1990,7 @@ if es_maestro_mayor:
 
         if "filas_maestro_act" not in st.session_state:
             st.session_state.filas_maestro_act = [
-                {"id": 1, "actividad": "", "cantidad": 0.0, "observaciones": ""}
+                {"id": 1, "actividad": "", "cantidad": "", "observaciones": ""}
             ]
 
         local_today_mm = get_local_datetime_ecuador().date()
@@ -1994,7 +2019,7 @@ if es_maestro_mayor:
             f_id = f_data["id"]
             st.markdown(f"""<div class="banner-item-header"><span>Actividad N° {idx_m}</span></div>""", unsafe_allow_html=True)
             st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
-            c_m1, c_m2, c_m3, c_m4 = st.columns([3, 1.2, 2.3, 0.5])
+            c_m1, c_m2, c_m3, c_m4 = st.columns([3, 1.5, 2, 0.5])
 
             with c_m1:
                 act_m_txt = st.text_input(
@@ -2004,12 +2029,11 @@ if es_maestro_mayor:
                     key=f"mm_act_txt_{f_id}"
                 )
             with c_m2:
-                cant_m_val = st.number_input(
+                cant_m_txt = st.text_input(
                     f"Cantidad / Avance {f_id}:",
-                    min_value=0.0,
-                    step=0.5,
-                    value=float(f_data.get("cantidad", 0.0)),
-                    key=f"mm_cant_num_{f_id}"
+                    value=str(f_data.get("cantidad", "")),
+                    placeholder="Ej. 15 m2, 3 puertas, 2 tramos...",
+                    key=f"mm_cant_txt_{f_id}"
                 )
             with c_m3:
                 obs_m_txt = st.text_input(
@@ -2026,7 +2050,7 @@ if es_maestro_mayor:
             st.markdown('</div>', unsafe_allow_html=True)
             payload_actividades_m.append({
                 "Actividad": act_m_txt.strip(),
-                "Cantidad": cant_m_val,
+                "Cantidad": cant_m_txt.strip(),
                 "Observaciones": obs_m_txt.strip()
             })
 
@@ -2035,11 +2059,11 @@ if es_maestro_mayor:
                 if len(st.session_state.filas_maestro_act) > 1:
                     st.session_state.filas_maestro_act.pop(del_i)
                 else:
-                    st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": 0.0, "observaciones": ""}]
+                    st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "observaciones": ""}]
             st.rerun()
 
         if st.button("➕ Agregar Otra Actividad", key="btn_add_mm_act_row"):
-            st.session_state.filas_maestro_act.append({"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": 0.0, "observaciones": ""})
+            st.session_state.filas_maestro_act.append({"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "observaciones": ""})
             st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -2078,7 +2102,7 @@ if es_maestro_mayor:
 
                         st.session_state.db_loaded = False
                         st.success(f"¡Reporte del Maestro guardado exitosamente para **{edificio_maestro_val}**!")
-                        st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": 0.0, "observaciones": ""}]
+                        st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "observaciones": ""}]
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al guardar: {e}")
@@ -2106,7 +2130,7 @@ if es_maestro_mayor:
                         with st.expander(f"📌 [{insp_dict_m.get('Proyecto')}] {insp_dict_m.get('Fecha')} ({insp_dict_m.get('Dia')})", expanded=False):
                             acts_guardadas = insp_dict_m.get("Datos", {}).get("Actividades_Maestro", [])
                             for a_g in acts_guardadas:
-                                st.write(f"• **{a_g.get('Actividad')}**: {a_g.get('Cantidad')} ({a_g.get('Observaciones', '')})")
+                                st.write(f"• **{a_g.get('Actividad')}**: `{a_g.get('Cantidad')}` — *{a_g.get('Observaciones', 'Sin observaciones')}*")
 
                             c_dl_m1, c_dl_m2, c_del_m = st.columns([2, 2, 1])
                             with c_dl_m1:
@@ -2266,14 +2290,9 @@ else:
                                 st.rerun()
 
                     with c_col3:
-                        if idx not in [1, 2]:
-                            st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                            ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
-                            ft_b64 = image_to_base64(ft) if ft is not None else None
-                        else:
-                            st.markdown("<small style='font-weight:700; color:#94a3b8;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                            st.caption("📷 *No requerida*")
-                            ft_b64 = None
+                        st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
+                        ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
+                        ft_b64 = image_to_base64(ft) if ft is not None else None
 
                     st.markdown('</div>', unsafe_allow_html=True)
                     resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
@@ -2672,7 +2691,7 @@ else:
                         insp_dict = insp.to_dict()
                         insp_db_id = insp_dict.get("db_id")
 
-                        with st.expander(f"📌 {insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
+                        with st.expander(f"📌 [{insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
                             d_insp = insp_dict.get("Datos", {})
                             st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp_dict.get('Frente', ''))} | **Clima:** {insp_dict.get('Clima', '')}")
                             st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
@@ -2709,7 +2728,7 @@ else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTOS, ESPACIO COLABORATIVO
-#               (SINCRONIZADO CON MAESTRO MAYOR) Y PANEL ADMINISTRADOR
+#               (SINCRONIZACIÓN CON MAESTRO MAYOR) Y PANEL ADMINISTRADOR
 # ==============================================================================
 
 # ==============================================================================
@@ -3549,7 +3568,7 @@ with tab_colab:
                                 if acts_m:
                                     st.markdown("**Actividades y Metrajes Reportados:**")
                                     for a_it in acts_m:
-                                        st.write(f"• **{a_it.get('Actividad')}**: `{a_it.get('Cantidad')} unidades` — *{a_it.get('Observaciones', 'Sin observaciones')}*")
+                                        st.write(f"• **{a_it.get('Actividad')}**: `{a_it.get('Cantidad')}` — *{a_it.get('Observaciones', 'Sin observaciones')}*")
                                 
                                 col_dl_mm1, col_dl_mm2 = st.columns(2)
                                 with col_dl_mm1:
@@ -3767,7 +3786,7 @@ if es_admin:
                     if es_tipo_mm:
                         acts_mm = d_i_adm.get("Actividades_Maestro", [])
                         for a in acts_mm:
-                            st.write(f"• **{a.get('Actividad')}**: {a.get('Cantidad')} ({a.get('Observaciones', '')})")
+                            st.write(f"• **{a.get('Actividad')}**: `{a.get('Cantidad')}` — *{a.get('Observaciones', 'Sin observaciones')}*")
                         c_ad_idl1, c_ad_idl2 = st.columns(2)
                         with c_ad_idl1:
                             st.download_button("📊 Descargar Excel", export_libro_obra_maestro_excel(i_adm), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.xlsx", key=f"dl_mm_adm_x_{idx_i_adm}", use_container_width=True)
