@@ -466,7 +466,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA ROBUSTA SUPABASE, SERVICIOS EN VIVO Y EXPORTADORES EXCEL/PDF
+# PARTE 2 DE 5: CARGA RESILIENTE CON AISLAMIENTO ESTRICTO DE PERSONAL
 # ==============================================================================
 
 # ==============================================================================
@@ -526,7 +526,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 4. BASE DE DATOS SUPABASE CON CARGA AISLADA Y RESILIENTE (NO PIERDE DATOS)
+# 4. BASE DE DATOS SUPABASE CON AISLAMIENTO ESTRICTO POR USUARIO
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -611,18 +611,22 @@ def load_db_from_supabase():
     except Exception as e:
         st.error(f"Error crítico consultando tabla usuarios: {e}")
 
-    # 4. Trabajadores por Usuario
+    # 4. Trabajadores por Usuario (AISLAMIENTO ESTRICTO: NO SE ASIGNAN POR DEFECTO A OTROS)
     db_trabajadores_por_usuario = {}
     for u_k, t_list in fallback_trabajadores_map.items():
-        db_trabajadores_por_usuario[u_k] = t_list
+        db_trabajadores_por_usuario[u_k] = [
+            t for t in t_list if str(t.get("usuario_email", "")).lower().strip() == u_k
+        ]
 
     try:
         res_trab = supabase.table("trabajadores").select("*").order("id", desc=False).execute()
         if res_trab.data:
             for r in res_trab.data:
                 u_owner = str(r.get("usuario_email", "")).lower().strip()
+                # Si el registro no tiene dueño explícito, se ignora para no contaminar cuentas
                 if not u_owner:
-                    u_owner = "oscarsebitas2013@gmail.com"
+                    continue
+
                 if u_owner not in db_trabajadores_por_usuario:
                     db_trabajadores_por_usuario[u_owner] = []
                 
@@ -645,6 +649,8 @@ def load_db_from_supabase():
         if res_chk.data:
             for r in res_chk.data:
                 c = str(r.get("usuario_email", "")).lower().strip()
+                if not c:
+                    continue
                 if c not in db_checklists:
                     db_checklists[c] = []
                 
@@ -671,6 +677,8 @@ def load_db_from_supabase():
         if res_insp.data:
             for r in res_insp.data:
                 c = str(r.get("usuario_email", "")).lower().strip()
+                if not c:
+                    continue
                 if c not in db_inspecciones:
                     db_inspecciones[c] = []
                 
@@ -718,6 +726,8 @@ def load_db_from_supabase():
         if res_rnd.data:
             for r in res_rnd.data:
                 c = str(r.get("usuario_email", "")).lower().strip()
+                if not c:
+                    continue
                 if c not in db_rendimientos:
                     db_rendimientos[c] = []
                 db_rendimientos[c].append({
@@ -2413,12 +2423,12 @@ with tab_libro:
     else:
         st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
-# PARTE 5 DE 5: PERSONAL A CARGO (MOBILE RESPONSIVE POR EDIFICIOS), INCIDENCIAS,
+# PARTE 5 DE 5: PERSONAL A CARGO (AISLAMIENTO ESTRICTO POR CUENTA), INCIDENCIAS,
 #               CONTROL DE RENDIMIENTO, ESPACIO COLABORATIVO Y PANEL ADMINISTRADOR
 # ==============================================================================
 
 # ==============================================================================
-# 11. MÓDULO 3: PERSONAL A CARGO (TABLAS SEPARADAS POR EDIFICIO Y TARJETAS MOBILE)
+# 11. MÓDULO 3: PERSONAL A CARGO (AISLAMIENTO POR CUENTA Y AGRUPADO POR EDIFICIO)
 # ==============================================================================
 with tab_personal:
     st.markdown("### Nómina de Personal a Cargo")
@@ -2441,7 +2451,7 @@ with tab_personal:
                 if btn_save_pers_pop:
                     if nom_pers_in.strip() and car_pers_in.strip():
                         try:
-                            # Inserción directa en base de datos
+                            # Inserción con usuario_email explícito
                             try:
                                 supabase.table("trabajadores").insert({
                                     "usuario_email": user_email,
@@ -2452,7 +2462,7 @@ with tab_personal:
                             except Exception:
                                 pass
                             
-                            # Respaldo garantizado en app_config
+                            # Respaldo en app_config aislado para este usuario
                             cur_p = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
                             new_entry = {
                                 "id": int(datetime.datetime.now().timestamp() * 1000),
@@ -2539,10 +2549,10 @@ with tab_personal:
             mis_edifs_set = set(st.session_state.get("usuario_edificios", []))
             companeros_nomina = []
             for u in st.session_state.get("db_usuarios", []):
-                if u["Correo"] != user_email:
+                if u["Correo"].lower().strip() != user_email:
                     u_edifs_set = set(u.get("Edificios", []))
                     if len(mis_edifs_set.intersection(u_edifs_set)) > 0:
-                        pers_comp = st.session_state.get("db_trabajadores_por_usuario", {}).get(u["Correo"], [])
+                        pers_comp = st.session_state.get("db_trabajadores_por_usuario", {}).get(u["Correo"].lower().strip(), [])
                         if len(pers_comp) > 0:
                             companeros_nomina.append((u, pers_comp))
 
@@ -3166,7 +3176,7 @@ with tab_colab:
     else:
         companeros_colab = []
         for u in st.session_state.get("db_usuarios", []):
-            if u["Correo"] != user_email:
+            if u["Correo"].lower().strip() != user_email:
                 u_edifs = set(u.get("Edificios", []))
                 interseccion = mis_proyectos_set.intersection(u_edifs)
                 if len(interseccion) > 0:
@@ -3191,7 +3201,7 @@ with tab_colab:
                 )
                 item_colega_sel = map_colegas[sel_colega_str]
                 colega_u = item_colega_sel["usuario"]
-                c_mail = colega_u["Correo"]
+                c_mail = colega_u["Correo"].lower().strip()
 
             with c_sel_col2:
                 st.markdown(
@@ -3341,7 +3351,7 @@ if es_admin:
                     with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label=f"📊 Descargar Excel",
+                            label="📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3351,7 +3361,7 @@ if es_admin:
                     with c_ad_dl2:
                         pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
                         st.download_button(
-                            label=f"📄 Descargar PDF",
+                            label="📄 Descargar PDF",
                             data=pdf_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                             mime="application/pdf",
