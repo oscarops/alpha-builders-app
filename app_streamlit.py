@@ -1040,18 +1040,18 @@ def export_libro_obra_maestro_excel(insp_dict):
     )
     fill_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
 
-    ws.merge_cells("A1:D1")
+    ws.merge_cells("A1:E1")
     ws["A1"] = f"LIBRO DE OBRA — MAESTRO MAYOR ({insp_dict.get('Proyecto', '')})"
     ws["A1"].font = Font(name="Arial", bold=True, color="FFFFFF", size=12)
     ws["A1"].fill = fill_header
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 26
 
-    ws.append([f"Fecha: {insp_dict.get('Fecha', '')}", f"Proyecto: {insp_dict.get('Proyecto', '')}", f"Maestro: {insp_dict.get('Residente', '')}", ""])
+    ws.append([f"Fecha: {insp_dict.get('Fecha', '')}", f"Proyecto: {insp_dict.get('Proyecto', '')}", f"Maestro: {insp_dict.get('Residente', '')}", "", ""])
     ws.append([])
-    ws.append(["N°", "Actividad Ejecutada", "Cantidad Realizada", "Observaciones"])
+    ws.append(["N°", "Actividad Ejecutada", "Personal a Cargo", "Cantidad Realizada", "Observaciones"])
 
-    for col_i in range(1, 5):
+    for col_i in range(1, 6):
         c = ws.cell(row=4, column=col_i)
         c.font = Font(name="Arial", bold=True, color="FFFFFF", size=9.5)
         c.fill = fill_header
@@ -1060,19 +1060,21 @@ def export_libro_obra_maestro_excel(insp_dict):
 
     acts = insp_dict.get("Datos", {}).get("Actividades_Maestro", [])
     for idx_m, a_m in enumerate(acts, 1):
-        ws.append([idx_m, a_m.get("Actividad", ""), str(a_m.get("Cantidad", "")), a_m.get("Observaciones", "")])
+        pers_str = ", ".join(a_m.get("Personal_A_Cargo", [])) if isinstance(a_m.get("Personal_A_Cargo"), list) else str(a_m.get("Personal_A_Cargo", ""))
+        ws.append([idx_m, a_m.get("Actividad", ""), pers_str, str(a_m.get("Cantidad", "")), a_m.get("Observaciones", "")])
         r_idx = ws.max_row
-        for col_i in range(1, 5):
+        for col_i in range(1, 6):
             cell = ws.cell(row=r_idx, column=col_i)
             cell.font = Font(name="Arial", size=9)
             cell.border = thin_border
-            if col_i in [1, 3]:
+            if col_i in [1, 4]:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
     ws.column_dimensions['A'].width = 8
-    ws.column_dimensions['B'].width = 45
-    ws.column_dimensions['C'].width = 25
-    ws.column_dimensions['D'].width = 35
+    ws.column_dimensions['B'].width = 38
+    ws.column_dimensions['C'].width = 30
+    ws.column_dimensions['D'].width = 22
+    ws.column_dimensions['E'].width = 32
 
     output = io.BytesIO()
     wb.save(output)
@@ -1081,30 +1083,32 @@ def export_libro_obra_maestro_excel(insp_dict):
 
 def export_libro_obra_maestro_pdf(insp_dict):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=25)
     story = []
 
     title_style = ParagraphStyle('TitleM', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=6)
     sub_style = ParagraphStyle('SubM', fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#333333'), spaceAfter=8)
-    hdr_tbl = ParagraphStyle('HdrM', fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.white, alignment=1)
-    cell_style = ParagraphStyle('CellM', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#0f172a'))
-    cell_center = ParagraphStyle('CellMC', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#0f172a'), alignment=1)
+    hdr_tbl = ParagraphStyle('HdrM', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=1)
+    cell_style = ParagraphStyle('CellM', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#0f172a'))
+    cell_center = ParagraphStyle('CellMC', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#0f172a'), alignment=1)
 
     story.append(Paragraph(f"LIBRO DE OBRA — MAESTRO MAYOR ({insp_dict.get('Proyecto', '').upper()})", title_style))
     story.append(Paragraph(f"<b>Fecha:</b> {insp_dict.get('Fecha', '')} | <b>Maestro Mayor:</b> {insp_dict.get('Residente', '')}", sub_style))
 
-    data_m = [[Paragraph("<b>N°</b>", hdr_tbl), Paragraph("<b>Actividad Ejecutada</b>", hdr_tbl), Paragraph("<b>Cantidad</b>", hdr_tbl), Paragraph("<b>Observaciones</b>", hdr_tbl)]]
+    data_m = [[Paragraph("<b>N°</b>", hdr_tbl), Paragraph("<b>Actividad</b>", hdr_tbl), Paragraph("<b>Personal a Cargo</b>", hdr_tbl), Paragraph("<b>Cantidad</b>", hdr_tbl), Paragraph("<b>Observaciones</b>", hdr_tbl)]]
     acts = insp_dict.get("Datos", {}).get("Actividades_Maestro", [])
 
     for idx_m, a_m in enumerate(acts, 1):
+        pers_str = ", ".join(a_m.get("Personal_A_Cargo", [])) if isinstance(a_m.get("Personal_A_Cargo"), list) else str(a_m.get("Personal_A_Cargo", ""))
         data_m.append([
             Paragraph(str(idx_m), cell_center),
             Paragraph(str(a_m.get("Actividad", "")), cell_style),
+            Paragraph(pers_str, cell_style),
             Paragraph(str(a_m.get("Cantidad", "")), cell_center),
             Paragraph(str(a_m.get("Observaciones", "")), cell_style)
         ])
 
-    table_m = Table(data_m, colWidths=[30, 260, 110, 150])
+    table_m = Table(data_m, colWidths=[25, 175, 140, 95, 125])
     table_m.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
@@ -1919,7 +1923,6 @@ insp_hoy_cumplida = any(i.get("Fecha") == fecha_hoy_iso for i in mis_insps_list)
 tag_chk_html = '<span class="milestone-status-done">✓ Cumplido</span>' if chk_hoy_cumplido else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 tag_insp_html = '<span class="milestone-status-done">✓ Cumplido</span>' if insp_hoy_cumplida else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 
-# Estructura del Hito Diario según el Cargo (Maestro Mayor no ve Checklist)
 if es_maestro_mayor:
     hitos_body_html = f'<div class="milestone-item"><span class="milestone-name">Libro de Obra Maestro</span>{tag_insp_html}</div>'
 else:
@@ -1995,7 +1998,6 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# Configuración dinámica de Pestañas según el Rol
 if es_maestro_mayor:
     pestanas = [
         "Libro de Obra Maestro",
@@ -2019,8 +2021,8 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (LIBRO MAESTRO CON PERSONAL A CARGO
-#               DINÁMICO, CHECKLIST DIARIO Y LIBRO DE OBRA OFICIAL)
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (LIBRO MAESTRO CON TEXTO LIBRE
+#               EN CANTIDADES Y DESCARGAS OPTIMIZADAS SIN DESCONEXIONES)
 # ==============================================================================
 
 # ==============================================================================
@@ -2072,7 +2074,6 @@ if es_maestro_mayor:
         st.markdown("---")
         st.markdown(f"#### 🔨 Actividades Realizadas, Personal y Metrajes ({len(st.session_state.filas_maestro_act)} registros)")
 
-        # Obtener nómina de personal activo cargada para el usuario
         mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
         if edificio_maestro_val != "-- Seleccione un Proyecto --":
             personal_filtrado_edif = [
@@ -2230,29 +2231,31 @@ if es_maestro_mayor:
 
                             c_dl_m1, c_dl_m2, c_del_m = st.columns([2, 2, 1])
                             with c_dl_m1:
-                                st.download_button(
-                                    "📊 Descargar Excel (.xlsx)",
-                                    export_libro_obra_maestro_excel(insp_dict_m),
-                                    file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.xlsx",
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                    key=f"dl_mm_xlsx_{idx_insp_m}",
-                                    use_container_width=True
-                                )
+                                with st.popover("📊 Exportar Excel", use_container_width=True):
+                                    st.download_button(
+                                        "Confirmar Descarga (.xlsx)",
+                                        export_libro_obra_maestro_excel(insp_dict_m),
+                                        file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.xlsx",
+                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                        key=f"dl_mm_xlsx_{idx_insp_m}",
+                                        use_container_width=True
+                                    )
                             with c_dl_m2:
-                                st.download_button(
-                                    "📄 Descargar PDF (.pdf)",
-                                    export_libro_obra_maestro_pdf(insp_dict_m),
-                                    file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.pdf",
-                                    mime="application/pdf",
-                                    key=f"dl_mm_pdf_{idx_insp_m}",
-                                    use_container_width=True
-                                )
+                                with st.popover("📄 Exportar PDF", use_container_width=True):
+                                    st.download_button(
+                                        "Confirmar Descarga (.pdf)",
+                                        export_libro_obra_maestro_pdf(insp_dict_m),
+                                        file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.pdf",
+                                        mime="application/pdf",
+                                        key=f"dl_mm_pdf_{idx_insp_m}",
+                                        use_container_width=True
+                                    )
                             with c_del_m:
-                                if st.button("🗑️ Eliminar", key=f"btn_del_mm_{idx_insp_m}_{insp_db_id_m}", type="secondary", use_container_width=True):
+                                if st.button("🗑️", key=f"btn_del_mm_{idx_insp_m}_{insp_db_id_m}", help="Eliminar reporte", use_container_width=True):
                                     try:
                                         supabase.table("inspecciones").delete().eq("id", insp_db_id_m).execute()
                                         st.session_state.db_loaded = False
-                                        st.success("Reporte eliminado correctamente.")
+                                        st.success("Reporte eliminado.")
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Error al eliminar: {e}")
@@ -2507,11 +2510,25 @@ else:
                         with st.expander(f"📌 {j_dict['Edificio']} — {j_dict['Fecha']} (Horario: {j_dict.get('Hora_Inicio', 'N/A')} - {j_dict.get('Hora_Fin', 'N/A')})", expanded=False):
                             c_dl1, c_dl2, c_del_chk = st.columns([2, 2, 1])
                             with c_dl1:
-                                st.download_button("📊 Descargar Excel (.xlsx)", export_checklist_to_excel_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.xlsx", key=f"dl_xlsx_{orig_idx}", use_container_width=True)
+                                with st.popover("📊 Exportar Excel", use_container_width=True):
+                                    st.download_button(
+                                        "Confirmar Descarga (.xlsx)", 
+                                        export_checklist_to_excel_file(j_dict), 
+                                        file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.xlsx", 
+                                        key=f"dl_xlsx_{orig_idx}", 
+                                        use_container_width=True
+                                    )
                             with c_dl2:
-                                st.download_button("📄 Descargar PDF (.pdf)", export_checklist_to_pdf_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.pdf", key=f"dl_pdf_{orig_idx}", use_container_width=True)
+                                with st.popover("📄 Exportar PDF", use_container_width=True):
+                                    st.download_button(
+                                        "Confirmar Descarga (.pdf)", 
+                                        export_checklist_to_pdf_file(j_dict), 
+                                        file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.pdf", 
+                                        key=f"dl_pdf_{orig_idx}", 
+                                        use_container_width=True
+                                    )
                             with c_del_chk:
-                                if st.button("🗑️ Eliminar", key=f"btn_del_chk_{orig_idx}_{chk_db_id}", type="secondary", use_container_width=True):
+                                if st.button("🗑️", key=f"btn_del_chk_{orig_idx}_{chk_db_id}", help="Eliminar checklist", use_container_width=True):
                                     try:
                                         supabase.table("checklists").delete().eq("id", chk_db_id).execute()
                                         st.session_state.db_loaded = False
@@ -2794,25 +2811,27 @@ else:
 
                             c_dl_i1, c_dl_i2, c_del_lo = st.columns([2, 2, 1])
                             with c_dl_i1:
-                                st.download_button(
-                                    "📊 Descargar Formato Excel (.xlsx)",
-                                    export_libro_obra_formato_excel(insp_dict),
-                                    file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.xlsx",
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                    key=f"dl_lo_off_x_{idx_insp}",
-                                    use_container_width=True
-                                )
+                                with st.popover("📊 Exportar Excel", use_container_width=True):
+                                    st.download_button(
+                                        "Confirmar Descarga (.xlsx)",
+                                        export_libro_obra_formato_excel(insp_dict),
+                                        file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.xlsx",
+                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                        key=f"dl_lo_off_x_{idx_insp}",
+                                        use_container_width=True
+                                    )
                             with c_dl_i2:
-                                st.download_button(
-                                    "📄 Descargar Formato PDF (.pdf)",
-                                    export_libro_obra_formato_pdf(insp_dict),
-                                    file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.pdf",
-                                    mime="application/pdf",
-                                    key=f"dl_lo_off_p_{idx_insp}",
-                                    use_container_width=True
-                                )
+                                with st.popover("📄 Exportar PDF", use_container_width=True):
+                                    st.download_button(
+                                        "Confirmar Descarga (.pdf)",
+                                        export_libro_obra_formato_pdf(insp_dict),
+                                        file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.pdf",
+                                        mime="application/pdf",
+                                        key=f"dl_lo_off_p_{idx_insp}",
+                                        use_container_width=True
+                                    )
                             with c_del_lo:
-                                if st.button("🗑️ Eliminar", key=f"btn_del_lo_{idx_insp}_{insp_db_id}", type="secondary", use_container_width=True):
+                                if st.button("🗑️", key=f"btn_del_lo_{idx_insp}_{insp_db_id}", help="Eliminar registro", use_container_width=True):
                                     try:
                                         supabase.table("inspecciones").delete().eq("id", insp_db_id).execute()
                                         st.session_state.db_loaded = False
@@ -2824,7 +2843,7 @@ else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTOS, ESPACIO COLABORATIVO
-#               (SINCRONIZADO CON MAESTRO MAYOR) Y PANEL ADMINISTRADOR
+#               (CON DESCARGAS OPTIMIZADAS BAJO DEMANDA) Y PANEL ADMINISTRADOR
 # ==============================================================================
 
 # ==============================================================================
@@ -2853,7 +2872,6 @@ with tab_personal:
                         nombre_clean = nom_pers_in.strip().upper()
                         cargo_clean = car_pers_in.strip().upper()
                         
-                        # Inserción asegurada en Supabase
                         try:
                             supabase.table("trabajadores").insert({
                                 "usuario_email": user_email,
@@ -2864,7 +2882,6 @@ with tab_personal:
                         except Exception as ex_db:
                             print(f"[Warn] Inserción SQL trabajadores directa: {ex_db}")
 
-                        # Actualización inmediata en memoria de sesión
                         if "db_trabajadores_por_usuario" not in st.session_state:
                             st.session_state.db_trabajadores_por_usuario = {}
                         if user_email not in st.session_state.db_trabajadores_por_usuario:
@@ -2880,7 +2897,6 @@ with tab_personal:
                         }
                         cur_p.append(new_item)
 
-                        # Respaldo asegurado en app_config
                         try:
                             supabase.table("app_config").upsert({
                                 "key": f"user_trabajadores_{user_email}",
@@ -3386,25 +3402,25 @@ with tab_incidencias:
         local_today_str = get_local_datetime_ecuador().strftime('%Y%m%d')
         
         with c_exp1:
-            excel_inc_bytes = export_incidencias_to_excel(lista_incs_vista, nombre_proy_rep)
-            st.download_button(
-                label="📊 Descargar Incidencias en Excel (.xlsx)",
-                data=excel_inc_bytes,
-                file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="dl_excel_incidencias_tab_p5",
-                use_container_width=True
-            )
+            with st.popover("📊 Exportar Incidencias en Excel", use_container_width=True):
+                st.download_button(
+                    label="Confirmar Descarga (.xlsx)",
+                    data=export_incidencias_to_excel(lista_incs_vista, nombre_proy_rep),
+                    file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_excel_incidencias_tab_p5",
+                    use_container_width=True
+                )
         with c_exp2:
-            pdf_inc_bytes = export_incidencias_to_pdf(lista_incs_vista, nombre_proy_rep)
-            st.download_button(
-                label="📄 Descargar Incidencias en PDF (.pdf)",
-                data=pdf_inc_bytes,
-                file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.pdf",
-                mime="application/pdf",
-                key="dl_pdf_incidencias_tab_p5",
-                use_container_width=True
-            )
+            with st.popover("📄 Exportar Incidencias en PDF", use_container_width=True):
+                st.download_button(
+                    label="Confirmar Descarga (.pdf)",
+                    data=export_incidencias_to_pdf(lista_incs_vista, nombre_proy_rep),
+                    file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.pdf",
+                    mime="application/pdf",
+                    key="dl_pdf_incidencias_tab_p5",
+                    use_container_width=True
+                )
     else:
         st.info("No hay incidencias registradas para los proyectos seleccionados.")
 
@@ -3644,7 +3660,6 @@ with tab_colab:
 
             st.markdown("---")
 
-            # Pestañas adaptadas si el compañero seleccionado es Maestro Mayor
             if c_cargo == "Maestro Mayor":
                 sub_tabs_colab = st.tabs([
                     "🔨 Libro de Obra del Maestro",
@@ -3652,7 +3667,6 @@ with tab_colab:
                     "⚡ Rendimientos del Compañero"
                 ])
 
-                # 1. Reportes y actividades del Maestro Mayor
                 with sub_tabs_colab[0]:
                     insps_maestro = st.session_state.get("db_inspecciones", {}).get(c_mail, [])
                     if len(insps_maestro) > 0:
@@ -3662,19 +3676,22 @@ with tab_colab:
                                 d_m = m_rep.get("Datos", {})
                                 acts_m = d_m.get("Actividades_Maestro", [])
                                 if acts_m:
-                                    st.markdown("**Actividades y Metrajes Reportados:**")
+                                    st.markdown("**Actividades, Personal y Metrajes Reportados:**")
                                     for a_it in acts_m:
-                                        st.write(f"• **{a_it.get('Actividad')}**: `{a_it.get('Cantidad')}` — *{a_it.get('Observaciones', 'Sin observaciones')}*")
+                                        pers_str = ", ".join(a_it.get("Personal_A_Cargo", [])) if isinstance(a_it.get("Personal_A_Cargo"), list) else str(a_it.get("Personal_A_Cargo", ""))
+                                        pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
+                                        st.write(f"• **{a_it.get('Actividad')}**: `{a_it.get('Cantidad')}`{pers_tag} — *{a_it.get('Observaciones', 'Sin observaciones')}*")
                                 
                                 col_dl_mm1, col_dl_mm2 = st.columns(2)
                                 with col_dl_mm1:
-                                    st.download_button("📊 Descargar Excel", export_libro_obra_maestro_excel(m_rep), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
+                                    with st.popover("📊 Exportar Excel", use_container_width=True):
+                                        st.download_button("Confirmar (.xlsx)", export_libro_obra_maestro_excel(m_rep), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
                                 with col_dl_mm2:
-                                    st.download_button("📄 Descargar PDF", export_libro_obra_maestro_pdf(m_rep), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
+                                    with st.popover("📄 Exportar PDF", use_container_width=True):
+                                        st.download_button("Confirmar (.pdf)", export_libro_obra_maestro_pdf(m_rep), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha cargado actividades en su Libro de Obra.")
 
-                # 2. Incidencias
                 with sub_tabs_colab[1]:
                     todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
                     incs_de_la_persona = [inc for inc in todas_las_incidencias_db if str(inc.get("Usuario", "")).lower().strip() == c_mail]
@@ -3685,7 +3702,6 @@ with tab_colab:
                     else:
                         st.info(f"{colega_u['Nombres']} no tiene incidencias registradas.")
 
-                # 3. Rendimientos
                 with sub_tabs_colab[2]:
                     rnds_colega = st.session_state.get("db_rendimientos", {}).get(c_mail, [])
                     if len(rnds_colega) > 0:
@@ -3698,7 +3714,6 @@ with tab_colab:
                         st.info(f"{colega_u['Nombres']} aún no ha ingresado rendimientos.")
 
             else:
-                # Compañero es Residente o Asistente
                 sub_tabs_colab = st.tabs([
                     "📋 Checklists del Compañero",
                     "📖 Libro de Obra del Compañero",
@@ -3714,11 +3729,11 @@ with tab_colab:
                             with st.expander(f"📌 [{j_col.get('Edificio', '')}] {j_col.get('Fecha', '')} (Horario: {j_col.get('Hora_Inicio', '')} - {j_col.get('Hora_Fin', '')})", expanded=False):
                                 col_dl_c1, col_dl_c2 = st.columns(2)
                                 with col_dl_c1:
-                                    xlsx_col_b = export_checklist_to_excel_file(j_col)
-                                    st.download_button("📊 Descargar Excel", xlsx_col_b, file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}_p5", use_container_width=True)
+                                    with st.popover("📊 Exportar Excel", use_container_width=True):
+                                        st.download_button("Confirmar (.xlsx)", export_checklist_to_excel_file(j_col), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}_p5", use_container_width=True)
                                 with col_dl_c2:
-                                    pdf_col_b = export_checklist_to_pdf_file(j_col)
-                                    st.download_button("📄 Descargar PDF", pdf_col_b, file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}_p5", use_container_width=True)
+                                    with st.popover("📄 Exportar PDF", use_container_width=True):
+                                        st.download_button("Confirmar (.pdf)", export_checklist_to_pdf_file(j_col), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha registrado checklists.")
 
@@ -3730,11 +3745,11 @@ with tab_colab:
                             with st.expander(f"📌 [{i_col.get('Proyecto', '')}] {i_col.get('Fecha', '')} ({i_col.get('Dia', '')}) | Residente: {i_col.get('Residente', '')}", expanded=False):
                                 col_dl_i1, col_dl_i2 = st.columns(2)
                                 with col_dl_i1:
-                                    xlsx_insp_b = export_libro_obra_formato_excel(i_col)
-                                    st.download_button("📊 Descargar Excel", xlsx_insp_b, file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}_p5", use_container_width=True)
+                                    with st.popover("📊 Exportar Excel", use_container_width=True):
+                                        st.download_button("Confirmar (.xlsx)", export_libro_obra_formato_excel(i_col), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}_p5", use_container_width=True)
                                 with col_dl_i2:
-                                    pdf_insp_b = export_libro_obra_formato_pdf(i_col)
-                                    st.download_button("📄 Descargar PDF", pdf_insp_b, file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}_p5", use_container_width=True)
+                                    with st.popover("📄 Exportar PDF", use_container_width=True):
+                                        st.download_button("Confirmar (.pdf)", export_libro_obra_formato_pdf(i_col), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha registrado formatos de Libro de Obra.")
 
@@ -3825,25 +3840,25 @@ if es_admin:
                 with st.expander(f"📌 [{j_adm.get('Edificio', 'N/A')}] {j_adm['Fecha']} — {resp_str} ({j_adm['Usuario_Correo']})", expanded=False):
                     c_ad_dl1, c_ad_dl2 = st.columns(2)
                     with c_ad_dl1:
-                        excel_bytes_adm = export_checklist_to_excel_file(j_adm)
-                        st.download_button(
-                            label=f"📊 Descargar Excel",
-                            data=excel_bytes_adm,
-                            file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key=f"dl_xlsx_adm_{idx_adm}_p5",
-                            use_container_width=True
-                        )
+                        with st.popover("📊 Exportar Excel", use_container_width=True):
+                            st.download_button(
+                                label="Confirmar (.xlsx)",
+                                data=export_checklist_to_excel_file(j_adm),
+                                file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key=f"dl_xlsx_adm_{idx_adm}_p5",
+                                use_container_width=True
+                            )
                     with c_ad_dl2:
-                        pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
-                        st.download_button(
-                            label=f"📄 Descargar PDF",
-                            data=pdf_bytes_adm,
-                            file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
-                            mime="application/pdf",
-                            key=f"dl_pdf_adm_{idx_adm}_p5",
-                            use_container_width=True
-                        )
+                        with st.popover("📄 Exportar PDF", use_container_width=True):
+                            st.download_button(
+                                label="Confirmar (.pdf)",
+                                data=export_checklist_to_pdf_file(j_adm),
+                                file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
+                                mime="application/pdf",
+                                key=f"dl_pdf_adm_{idx_adm}_p5",
+                                use_container_width=True
+                            )
         else:
             st.info("Ningún participante ha registrado checklists aún.")
 
@@ -3882,20 +3897,26 @@ if es_admin:
                     if es_tipo_mm:
                         acts_mm = d_i_adm.get("Actividades_Maestro", [])
                         for a in acts_mm:
-                            st.write(f"• **{a.get('Actividad')}**: `{a.get('Cantidad')}` — *{a.get('Observaciones', 'Sin observaciones')}*")
+                            pers_str = ", ".join(a.get("Personal_A_Cargo", [])) if isinstance(a.get("Personal_A_Cargo"), list) else str(a.get("Personal_A_Cargo", ""))
+                            pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
+                            st.write(f"• **{a.get('Actividad')}**: `{a.get('Cantidad')}`{pers_tag} — *{a.get('Observaciones', '')}*")
                         c_ad_idl1, c_ad_idl2 = st.columns(2)
                         with c_ad_idl1:
-                            st.download_button("📊 Descargar Excel", export_libro_obra_maestro_excel(i_adm), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.xlsx", key=f"dl_mm_adm_x_{idx_i_adm}", use_container_width=True)
+                            with st.popover("📊 Exportar Excel", use_container_width=True):
+                                st.download_button("Confirmar (.xlsx)", export_libro_obra_maestro_excel(i_adm), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.xlsx", key=f"dl_mm_adm_x_{idx_i_adm}", use_container_width=True)
                         with c_ad_idl2:
-                            st.download_button("📄 Descargar PDF", export_libro_obra_maestro_pdf(i_adm), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.pdf", key=f"dl_mm_adm_p_{idx_i_adm}", use_container_width=True)
+                            with st.popover("📄 Exportar PDF", use_container_width=True):
+                                st.download_button("Confirmar (.pdf)", export_libro_obra_maestro_pdf(i_adm), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.pdf", key=f"dl_mm_adm_p_{idx_i_adm}", use_container_width=True)
                     else:
                         st.markdown(f"**Ubicación:** {d_i_adm.get('Ubicacion', i_adm.get('Frente', ''))} | **Clima:** {i_adm.get('Clima', '')}")
                         st.markdown(f"**Superintendente:** {d_i_adm.get('Superintendente', '')} | **Fiscalizador:** {d_i_adm.get('Fiscalizador', '')}")
                         c_ad_idl1, c_ad_idl2 = st.columns(2)
                         with c_ad_idl1:
-                            st.download_button("📊 Descargar Formato Excel (.xlsx)", export_libro_obra_formato_excel(i_adm), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_insp_xlsx_adm_{idx_i_adm}_p5", use_container_width=True)
+                            with st.popover("📊 Exportar Excel", use_container_width=True):
+                                st.download_button("Confirmar (.xlsx)", export_libro_obra_formato_excel(i_adm), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_insp_xlsx_adm_{idx_i_adm}_p5", use_container_width=True)
                         with c_ad_idl2:
-                            st.download_button("📄 Descargar Formato PDF (.pdf)", export_libro_obra_formato_pdf(i_adm), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf", mime="application/pdf", key=f"dl_insp_pdf_adm_{idx_i_adm}_p5", use_container_width=True)
+                            with st.popover("📄 Exportar PDF", use_container_width=True):
+                                st.download_button("Confirmar (.pdf)", export_libro_obra_formato_pdf(i_adm), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf", mime="application/pdf", key=f"dl_insp_pdf_adm_{idx_i_adm}_p5", use_container_width=True)
         else:
             st.info("Ningún participante ha registrado formatos de Libro de Obra aún.")
 
