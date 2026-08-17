@@ -2307,7 +2307,7 @@ else:
                 with cfg_c4:
                     hora_inicio_val = st.time_input("Hora Inicio:", datetime.time(7, 0), key="sel_hora_inicio")
                 with cfg_c5:
-                    hora_fin_val = st.time_input("Hora Fin:", datetime.time(17, 0), key="sel_hora_fin")
+                    hora_fin_val = st.time_input("Hora Fin:", datetime.time(16, 0), key="sel_hora_fin")
 
                 st.markdown("---")
 
