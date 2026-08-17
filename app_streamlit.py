@@ -2723,15 +2723,14 @@ else:
                 mit_cerramiento = st.checkbox("Cerramiento", value=False)
                 mit_limpieza = st.checkbox("Limpieza y Orden", value=False)
 
-            st.markdown("---")
+st.markdown("---")
 
             st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
-            st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más con el botón inferior.")
+            st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más filas de trabajo.")
 
             if "filas_lo_actividades" not in st.session_state:
                 st.session_state.filas_lo_actividades = []
 
-            # Sincronización inicial automática con el checklist del día si existe y está vacío
             checklist_clave_sesion = f"init_chk_lo_{fecha_lo_str}_{lo_proyecto}"
             if chk_asociado and checklist_clave_sesion not in st.session_state:
                 datos_chk = chk_asociado.get("Datos", {})
@@ -2779,7 +2778,6 @@ else:
                         key=f"lo_act_ar_{f_act_id}"
                     )
                 with c_af3:
-                    # Sin selección por defecto (campo libre de texto para que cada quien elija su unidad)
                     u_in = st.text_input(
                         f"Unidad {f_act_id}:",
                         value=item_f.get("unidad", ""),
@@ -2815,7 +2813,7 @@ else:
                         st.session_state.filas_lo_actividades = [{"id": int(datetime.datetime.now().timestamp() * 1000), "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
                 st.rerun()
 
-            if st.button("➕ Agregar Otra Actividad al Libro de Obra", key="btn_add_lo_actividad_extra"):
+            if st.button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
                 st.session_state.filas_lo_actividades.append({
                     "id": int(datetime.datetime.now().timestamp() * 1000),
                     "descripcion": "",
