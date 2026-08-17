@@ -1,5 +1,5 @@
 # ==============================================================================
-# PARTE 1 DE 5: IMPORTACIONES, ESTILOS CSS, CONSTANTES Y CONEXIÓN SUPABASE
+# PARTE 1 DE 5: IMPORTACIONES, CONFIGURACIÓN DE PÁGINA, ESTILOS Y CONSTANTES
 # ==============================================================================
 import base64
 import datetime
@@ -17,7 +17,7 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
-# ReportLab para exportación en formatos PDF
+# ReportLab para exportación de reportes PDF oficiales
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -55,7 +55,7 @@ st.markdown(
     [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
     [data-testid="stHeader"] { background: transparent !important; z-index: 100 !important; }
 
-    /* TOGGLE SIDEBAR */
+    /* BOTONES DE TOGGLE SIDEBAR */
     [data-testid="stSidebarCollapseButton"] { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important; }
     [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 12px !important; left: 15px !important; z-index: 999999 !important; }
 
@@ -268,7 +268,7 @@ st.markdown(
         border-radius: 10px;
     }
 
-    /* DONA SVG CON CONTRASTE COMPLETO */
+    /* DONA SVG CON CONTRASTE DEFINIDO */
     .donut-container { display: flex; align-items: center; gap: 8px; }
     .donut-chart-svg { width: 44px; height: 44px; transform: rotate(-90deg); flex-shrink: 0; }
     .donut-bg { fill: none; stroke: #334155 !important; stroke-width: 4.5; }
@@ -466,7 +466,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: SERVICIOS EN TIEMPO REAL, SUPABASE Y EXPORTADORES EXCEL/PDF
+# PARTE 2 DE 5: CARGA ROBUSTA SUPABASE, SERVICIOS EN VIVO Y EXPORTADORES EXCEL/PDF
 # ==============================================================================
 
 # ==============================================================================
@@ -526,7 +526,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 4. BASE DE DATOS SUPABASE CON AISLAMIENTO POR USUARIO
+# 4. BASE DE DATOS SUPABASE CON CARGA AISLADA Y RESILIENTE (NO PIERDE DATOS)
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -541,12 +541,16 @@ supabase = init_supabase()
 local_storage = LocalStorage()
 
 def load_db_from_supabase():
+    # 1. PIN de Seguridad
+    access_pin = "1254"
     try:
         res_pin = supabase.table("app_config").select("*").eq("key", "access_pin").execute()
-        access_pin = res_pin.data[0]["value"] if res_pin.data else "1254"
-    except Exception:
-        access_pin = "1254"
+        if res_pin.data and len(res_pin.data) > 0:
+            access_pin = res_pin.data[0]["value"]
+    except Exception as e:
+        print(f"[Warn] No se pudo leer access_pin: {e}")
 
+    # 2. Configuración de respaldo (Edificios y Trabajadores)
     fallback_edificios_map = {}
     fallback_trabajadores_map = {}
     try:
@@ -565,165 +569,176 @@ def load_db_from_supabase():
                     fallback_trabajadores_map[u_k] = json.loads(r_cfg["value"])
                 except Exception:
                     pass
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[Warn] No se pudo leer app_config: {e}")
 
+    # 3. Usuarios y Fotos
+    db_usuarios = []
+    db_fotos = {}
+    admin_emails = ["oscarsebitas2013@gmail.com"]
     try:
         res_usr = supabase.table("usuarios").select("*").execute()
-        db_usuarios = []
-        db_fotos = {}
-        admin_emails = []
-        for row in res_usr.data:
-            c = row["correo"].lower().strip()
-            edifs = row.get("edificios")
-            if isinstance(edifs, list):
-                edifs_list = edifs
-            elif isinstance(edifs, str):
-                try:
-                    edifs_list = json.loads(edifs)
-                except Exception:
-                    edifs_list = [edifs] if edifs else []
-            else:
-                edifs_list = fallback_edificios_map.get(c, [])
+        if res_usr.data:
+            for row in res_usr.data:
+                c = str(row.get("correo", "")).lower().strip()
+                if not c:
+                    continue
+                edifs = row.get("edificios")
+                if isinstance(edifs, list):
+                    edifs_list = edifs
+                elif isinstance(edifs, str):
+                    try:
+                        edifs_list = json.loads(edifs)
+                    except Exception:
+                        edifs_list = [edifs] if edifs else []
+                else:
+                    edifs_list = fallback_edificios_map.get(c, [])
 
-            db_usuarios.append({
-                "Nombres": row["nombres"],
-                "Apellidos": row["apellidos"],
-                "Correo": c,
-                "Password": row["password"],
-                "Cargo": row["cargo"],
-                "Edificios": edifs_list,
-                "Fecha_Registro": str(row["fecha_registro"]),
-                "Estado": row.get("estado", "Activo")
-            })
-            if row.get("foto_b64"):
-                db_fotos[c] = row["foto_b64"]
-            if row.get("es_admin"):
-                admin_emails.append(c)
-    except Exception:
-        db_usuarios = []
-        db_fotos = {}
-        admin_emails = ["oscarsebitas2013@gmail.com"]
+                db_usuarios.append({
+                    "Nombres": row.get("nombres", ""),
+                    "Apellidos": row.get("apellidos", ""),
+                    "Correo": c,
+                    "Password": str(row.get("password", "")),
+                    "Cargo": row.get("cargo", "Residente"),
+                    "Edificios": edifs_list,
+                    "Fecha_Registro": str(row.get("fecha_registro", "")),
+                    "Estado": row.get("estado", "Activo")
+                })
+                if row.get("foto_b64"):
+                    db_fotos[c] = row["foto_b64"]
+                if row.get("es_admin") and c not in admin_emails:
+                    admin_emails.append(c)
+    except Exception as e:
+        st.error(f"Error crítico consultando tabla usuarios: {e}")
 
-    if "oscarsebitas2013@gmail.com" not in admin_emails:
-        admin_emails.append("oscarsebitas2013@gmail.com")
-
+    # 4. Trabajadores por Usuario
     db_trabajadores_por_usuario = {}
     for u_k, t_list in fallback_trabajadores_map.items():
         db_trabajadores_por_usuario[u_k] = t_list
 
     try:
         res_trab = supabase.table("trabajadores").select("*").order("id", desc=False).execute()
-        for r in res_trab.data:
-            u_owner = str(r.get("usuario_email", "")).lower().strip()
-            if not u_owner:
-                u_owner = "oscarsebitas2013@gmail.com"
-            if u_owner not in db_trabajadores_por_usuario:
-                db_trabajadores_por_usuario[u_owner] = []
-            
-            edif_val = r.get("edificio") or "General"
-            if not any(x.get("id") == r["id"] or x.get("nombre") == r["nombre"] for x in db_trabajadores_por_usuario[u_owner]):
-                db_trabajadores_por_usuario[u_owner].append({
-                    "id": r["id"],
-                    "nombre": r["nombre"],
-                    "cargo": r["cargo"],
-                    "edificio": edif_val,
-                    "usuario_email": u_owner
-                })
-    except Exception:
-        pass
+        if res_trab.data:
+            for r in res_trab.data:
+                u_owner = str(r.get("usuario_email", "")).lower().strip()
+                if not u_owner:
+                    u_owner = "oscarsebitas2013@gmail.com"
+                if u_owner not in db_trabajadores_por_usuario:
+                    db_trabajadores_por_usuario[u_owner] = []
+                
+                edif_val = r.get("edificio") or "General"
+                if not any(x.get("id") == r["id"] or x.get("nombre") == r["nombre"] for x in db_trabajadores_por_usuario[u_owner]):
+                    db_trabajadores_por_usuario[u_owner].append({
+                        "id": r["id"],
+                        "nombre": r["nombre"],
+                        "cargo": r["cargo"],
+                        "edificio": edif_val,
+                        "usuario_email": u_owner
+                    })
+    except Exception as e:
+        print(f"[Warn] Error en tabla trabajadores: {e}")
 
+    # 5. Checklists
     db_checklists = {}
     try:
         res_chk = supabase.table("checklists").select("*").execute()
-        for r in res_chk.data:
-            c = r["usuario_email"].lower().strip()
-            if c not in db_checklists:
-                db_checklists[c] = []
-            
-            datos_parsed = r["datos"] if isinstance(r["datos"], (list, dict)) else json.loads(r["datos"])
-            db_checklists[c].append({
-                "db_id": r["id"],
-                "Fecha": str(r["fecha"]),
-                "Hora_Inicio": r.get("hora_inicio", "07:00"),
-                "Hora_Fin": r.get("hora_fin", "17:00"),
-                "Edificio": r["edificio"],
-                "Responsable": r.get("responsable", ""),
-                "Cargo": r.get("cargo", ""),
-                "Observacion_General": r.get("observacion_general", ""),
-                "Datos": datos_parsed
-            })
-    except Exception:
-        pass
+        if res_chk.data:
+            for r in res_chk.data:
+                c = str(r.get("usuario_email", "")).lower().strip()
+                if c not in db_checklists:
+                    db_checklists[c] = []
+                
+                raw_d = r.get("datos")
+                datos_parsed = raw_d if isinstance(raw_d, (list, dict)) else json.loads(raw_d or "{}")
+                db_checklists[c].append({
+                    "db_id": r["id"],
+                    "Fecha": str(r.get("fecha", "")),
+                    "Hora_Inicio": r.get("hora_inicio", "07:00"),
+                    "Hora_Fin": r.get("hora_fin", "17:00"),
+                    "Edificio": r.get("edificio", ""),
+                    "Responsable": r.get("responsable", ""),
+                    "Cargo": r.get("cargo", ""),
+                    "Observacion_General": r.get("observacion_general", ""),
+                    "Datos": datos_parsed
+                })
+    except Exception as e:
+        print(f"[Warn] Error en tabla checklists: {e}")
 
+    # 6. Inspecciones / Libros de Obra
     db_inspecciones = {}
     try:
         res_insp = supabase.table("inspecciones").select("*").execute()
-        for r in res_insp.data:
-            c = r["usuario_email"].lower().strip()
-            if c not in db_inspecciones:
-                db_inspecciones[c] = []
-            
-            datos_parsed = r["datos"] if isinstance(r["datos"], dict) else json.loads(r["datos"])
-            db_inspecciones[c].append({
-                "db_id": r["id"],
-                "Fecha": str(r["fecha"]),
-                "Dia": r.get("dia", ""),
-                "Proyecto": r["proyecto"],
-                "Residente": r.get("residente", ""),
-                "Frente": r.get("frente", ""),
-                "Clima": r.get("clima", ""),
-                "Hora_Inicio": r.get("hora_inicio", "07:00"),
-                "Hora_Fin": r.get("hora_fin", "17:00"),
-                "Datos": datos_parsed
-            })
-    except Exception:
-        pass
+        if res_insp.data:
+            for r in res_insp.data:
+                c = str(r.get("usuario_email", "")).lower().strip()
+                if c not in db_inspecciones:
+                    db_inspecciones[c] = []
+                
+                raw_d = r.get("datos")
+                datos_parsed = raw_d if isinstance(raw_d, dict) else json.loads(raw_d or "{}")
+                db_inspecciones[c].append({
+                    "db_id": r["id"],
+                    "Fecha": str(r.get("fecha", "")),
+                    "Dia": r.get("dia", ""),
+                    "Proyecto": r.get("proyecto", ""),
+                    "Residente": r.get("residente", ""),
+                    "Frente": r.get("frente", ""),
+                    "Clima": r.get("clima", ""),
+                    "Hora_Inicio": r.get("hora_inicio", "07:00"),
+                    "Hora_Fin": r.get("hora_fin", "17:00"),
+                    "Datos": datos_parsed
+                })
+    except Exception as e:
+        print(f"[Warn] Error en tabla inspecciones: {e}")
 
+    # 7. Incidencias
     db_incidencias_all = []
     try:
         res_inc = supabase.table("incidencias").select("*").execute()
-        for r in res_inc.data:
-            db_incidencias_all.append({
-                "db_id": r["id"],
-                "Area": r["area"],
-                "Descripcion": r["descripcion"],
-                "Responsable": r["responsable"],
-                "Prioridad": r["prioridad"],
-                "Fecha_Compromiso": str(r["fecha_compromiso"]),
-                "Estado": r["estado"],
-                "Proyecto": r.get("proyecto", ""),
-                "Usuario": str(r.get("usuario_email", "")).lower().strip()
-            })
-    except Exception:
-        pass
+        if res_inc.data:
+            for r in res_inc.data:
+                db_incidencias_all.append({
+                    "db_id": r["id"],
+                    "Area": r.get("area", ""),
+                    "Descripcion": r.get("descripcion", ""),
+                    "Responsable": r.get("responsable", ""),
+                    "Prioridad": r.get("prioridad", "Media"),
+                    "Fecha_Compromiso": str(r.get("fecha_compromiso", "")),
+                    "Estado": r.get("estado", "Abierta"),
+                    "Proyecto": r.get("proyecto", ""),
+                    "Usuario": str(r.get("usuario_email", "")).lower().strip()
+                })
+    except Exception as e:
+        print(f"[Warn] Error en tabla incidencias: {e}")
 
+    # 8. Rendimientos
     db_rendimientos = {}
     try:
         res_rnd = supabase.table("rendimientos").select("*").execute()
-        for r in res_rnd.data:
-            c = r["usuario_email"].lower().strip()
-            if c not in db_rendimientos:
-                db_rendimientos[c] = []
-            db_rendimientos[c].append({
-                "db_id": r["id"],
-                "Usuario_Registro": c,
-                "Cargo_Registrador": r.get("cargo_obrero", ""),
-                "Fecha": str(r["fecha"]),
-                "Trabajador": r["trabajador"],
-                "Cargo_Obrero": r.get("cargo_obrero", ""),
-                "Rubro": r["rubro"],
-                "Intervalo": r.get("intervalo", "Jornada"),
-                "Horas Trabajadas (HH)": float(r["horas_hh"]),
-                "Avance": float(r["avance"]),
-                "Esperado": float(r.get("esperado", 0.0)),
-                "Unidad": r["unidad"],
-                "Rend. Real (HH/Unid)": float(r["rend_real"]),
-                "Rend. Teórico": float(r["rend_teorico"]),
-                "Estado": r["estado"]
-            })
-    except Exception:
-        pass
+        if res_rnd.data:
+            for r in res_rnd.data:
+                c = str(r.get("usuario_email", "")).lower().strip()
+                if c not in db_rendimientos:
+                    db_rendimientos[c] = []
+                db_rendimientos[c].append({
+                    "db_id": r["id"],
+                    "Usuario_Registro": c,
+                    "Cargo_Registrador": r.get("cargo_obrero", ""),
+                    "Fecha": str(r.get("fecha", "")),
+                    "Trabajador": r.get("trabajador", ""),
+                    "Cargo_Obrero": r.get("cargo_obrero", ""),
+                    "Rubro": r.get("rubro", ""),
+                    "Intervalo": r.get("intervalo", "Jornada"),
+                    "Horas Trabajadas (HH)": float(r.get("horas_hh", 0.0)),
+                    "Avance": float(r.get("avance", 0.0)),
+                    "Esperado": float(r.get("esperado", 0.0)),
+                    "Unidad": r.get("unidad", "m2"),
+                    "Rend. Real (HH/Unid)": float(r.get("rend_real", 0.0)),
+                    "Rend. Teórico": float(r.get("rend_teorico", 1.0)),
+                    "Estado": r.get("estado", "EFICIENTE")
+                })
+    except Exception as e:
+        print(f"[Warn] Error en tabla rendimientos: {e}")
 
     return {
         "access_pin": access_pin,
@@ -1354,11 +1369,11 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 # ==============================================================================
-# PARTE 3 DE 5: AUTENTICACIÓN, BARRA LATERAL Y SMART DASHBOARD
+# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA EN TIEMPO REAL, BARRA LATERAL Y SMART DASHBOARD
 # ==============================================================================
 
 # ==============================================================================
-# 6. MÓDULO DE AUTENTICACIÓN: LOGIN, REGISTRO Y RECUPERACIÓN DE CONTRASEÑA
+# 6. MÓDULO DE AUTENTICACIÓN: LOGIN DIRECTO A SUPABASE, REGISTRO Y RECUPERACIÓN
 # ==============================================================================
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -1392,20 +1407,61 @@ if not st.session_state.autenticado:
             if btn_log:
                 if login_email and login_pass and login_pin:
                     mail_clean = login_email.strip().lower()
-                    u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
+
+                    # 1. Consulta directa en Supabase para evitar fallas por caché
+                    u_match = None
+                    try:
+                        res_direct = supabase.table("usuarios").select("*").ilike("correo", mail_clean).execute()
+                        if res_direct.data and len(res_direct.data) > 0:
+                            row = res_direct.data[0]
+                            edifs = row.get("edificios")
+                            if isinstance(edifs, list):
+                                edifs_list = edifs
+                            elif isinstance(edifs, str):
+                                try:
+                                    edifs_list = json.loads(edifs)
+                                except Exception:
+                                    edifs_list = [edifs] if edifs else []
+                            else:
+                                edifs_list = []
+
+                            u_match = {
+                                "Nombres": row.get("nombres", ""),
+                                "Apellidos": row.get("apellidos", ""),
+                                "Correo": str(row.get("correo", "")).lower().strip(),
+                                "Password": str(row.get("password", "")),
+                                "Cargo": row.get("cargo", "Residente"),
+                                "Edificios": edifs_list
+                            }
+                    except Exception as e:
+                        print(f"Consulta directa Supabase error: {e}")
+
+                    # Fallback en memoria si la consulta directa falla
+                    if not u_match:
+                        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"].lower().strip() == mail_clean), None)
 
                     if u_match:
-                        if u_match["Password"] == login_pass:
-                            current_pin = st.session_state.get("access_pin", "1254")
-                            if login_pin.strip() == current_pin:
+                        if u_match["Password"] == login_pass.strip():
+                            # Validación de PIN directo desde Supabase
+                            current_pin = "1254"
+                            try:
+                                res_pin = supabase.table("app_config").select("*").eq("key", "access_pin").execute()
+                                if res_pin.data and len(res_pin.data) > 0:
+                                    current_pin = res_pin.data[0]["value"]
+                            except Exception:
+                                current_pin = st.session_state.get("access_pin", "1254")
+
+                            if login_pin.strip() == current_pin.strip():
                                 st.session_state.autenticado = True
                                 st.session_state.usuario_email = mail_clean
                                 st.session_state.usuario_nombres = u_match["Nombres"]
                                 st.session_state.usuario_apellidos = u_match["Apellidos"]
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
+                                st.session_state.db_loaded = False
                                 
                                 local_storage.setItem("user_session_email", mail_clean)
+                                st.success("Acceso concedido...")
                                 st.rerun()
                             else:
                                 st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
@@ -1449,13 +1505,27 @@ if not st.session_state.autenticado:
             if btn_reg:
                 if reg_nombres and reg_apellidos and reg_email and reg_pass and reg_pass_repeat and reg_pin:
                     current_pin = st.session_state.get("access_pin", "1254")
-                    if reg_pin.strip() != current_pin:
+                    try:
+                        res_pin_chk = supabase.table("app_config").select("*").eq("key", "access_pin").execute()
+                        if res_pin_chk.data and len(res_pin_chk.data) > 0:
+                            current_pin = res_pin_chk.data[0]["value"]
+                    except Exception:
+                        pass
+
+                    if reg_pin.strip() != current_pin.strip():
                         st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
                     elif reg_pass != reg_pass_repeat:
                         st.error("Las contraseñas no coinciden.")
                     else:
                         mail_clean = reg_email.strip().lower()
-                        exists = any(u["Correo"] == mail_clean for u in st.session_state.db_usuarios)
+                        exists = False
+                        try:
+                            chk_dup = supabase.table("usuarios").select("correo").ilike("correo", mail_clean).execute()
+                            if chk_dup.data and len(chk_dup.data) > 0:
+                                exists = True
+                        except Exception:
+                            exists = any(u["Correo"].lower().strip() == mail_clean for u in st.session_state.db_usuarios)
+
                         if exists:
                             st.warning("Este correo ya se encuentra registrado.")
                         else:
@@ -1464,7 +1534,7 @@ if not st.session_state.autenticado:
                                     "correo": mail_clean,
                                     "nombres": reg_nombres.strip(),
                                     "apellidos": reg_apellidos.strip(),
-                                    "password": reg_pass,
+                                    "password": reg_pass.strip(),
                                     "cargo": reg_cargo,
                                     "es_admin": False
                                 }
@@ -1514,17 +1584,16 @@ if not st.session_state.autenticado:
                         st.error("Las contraseñas no coinciden.")
                     else:
                         mail_clean = reset_email.strip().lower()
-                        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
-                        if u_match:
-                            try:
-                                supabase.table("usuarios").update({"password": new_pass}).eq("correo", mail_clean).execute()
+                        try:
+                            res_rst = supabase.table("usuarios").update({"password": new_pass.strip()}).ilike("correo", mail_clean).execute()
+                            if res_rst.data and len(res_rst.data) > 0:
                                 st.session_state.db_loaded = False
                                 st.success(f"Contraseña actualizada con éxito para {mail_clean}.")
                                 st.rerun()
-                            except Exception as e:
-                                st.error(f"Error actualizando contraseña: {e}")
-                        else:
-                            st.error("El correo ingresado no está registrado.")
+                            else:
+                                st.error("El correo ingresado no está registrado.")
+                        except Exception as e:
+                            st.error(f"Error actualizando contraseña: {e}")
                 else:
                     st.error("Complete todos los campos.")
 
@@ -1633,9 +1702,9 @@ with st.sidebar:
                 try:
                     full_update = base_update_data.copy()
                     full_update["edificios"] = edit_edificios
-                    supabase.table("usuarios").update(full_update).eq("correo", user_email).execute()
+                    supabase.table("usuarios").update(full_update).ilike("correo", user_email).execute()
                 except Exception:
-                    supabase.table("usuarios").update(base_update_data).eq("correo", user_email).execute()
+                    supabase.table("usuarios").update(base_update_data).ilike("correo", user_email).execute()
                     supabase.table("app_config").upsert({
                         "key": f"user_edificios_{user_email}",
                         "value": json.dumps(edit_edificios)
@@ -1658,7 +1727,7 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM UI (DONA CON CONTRASTE DEFINIDO)
+# 8. SMART DASHBOARD GLASSMORPHISM UI (CON DONA Y CONTRASTE OPTIMIZADO)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 local_dt = get_local_datetime_ecuador()
@@ -3412,7 +3481,7 @@ if es_admin:
                 if nuevo_admin_mail:
                     mail_clean = nuevo_admin_mail.strip().lower()
                     try:
-                        supabase.table("usuarios").update({"es_admin": True}).eq("correo", mail_clean).execute()
+                        supabase.table("usuarios").update({"es_admin": True}).ilike("correo", mail_clean).execute()
                         st.session_state.db_loaded = False
                         st.success(f"Se otorgaron permisos de administrador a: {mail_clean}")
                         st.rerun()
@@ -3440,7 +3509,7 @@ if es_admin:
                     st.error("No puedes eliminar la cuenta activa con la que estás con sesión iniciada.")
                 else:
                     try:
-                        supabase.table("usuarios").delete().eq("correo", usuario_a_eliminar).execute()
+                        supabase.table("usuarios").delete().ilike("correo", usuario_a_eliminar).execute()
                         st.session_state.db_loaded = False
                         st.success(f"Cuenta de usuario **{usuario_a_eliminar}** eliminada correctamente.")
                         st.rerun()
