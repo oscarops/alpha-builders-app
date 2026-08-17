@@ -2726,50 +2726,105 @@ else:
             st.markdown("---")
 
             st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
-            st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy sin texto predeterminado.")
+            st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más con el botón inferior.")
 
-            lista_actividades_lo = []
-            if chk_asociado:
+            if "filas_lo_actividades" not in st.session_state:
+                st.session_state.filas_lo_actividades = []
+
+            # Sincronización inicial automática con el checklist del día si existe y está vacío
+            checklist_clave_sesion = f"init_chk_lo_{fecha_lo_str}_{lo_proyecto}"
+            if chk_asociado and checklist_clave_sesion not in st.session_state:
                 datos_chk = chk_asociado.get("Datos", {})
                 sup_items = datos_chk.get("Supervision_Trabajos", []) if isinstance(datos_chk, dict) else []
+                importados_chk = []
                 for s_it in sup_items:
                     if s_it.get("Actividad"):
-                        lista_actividades_lo.append({
-                            "Descripcion": s_it.get("Actividad"),
-                            "Area": "",
-                            "Encargados": s_it.get("Encargados", ""),
-                            "Unidad": "m2",
-                            "Cantidad": 0.0,
-                            "Observaciones": s_it.get("Observaciones", "")
+                        importados_chk.append({
+                            "id": int(datetime.datetime.now().timestamp() * 1000) + len(importados_chk),
+                            "descripcion": s_it.get("Actividad"),
+                            "area": "",
+                            "unidad": "",
+                            "cantidad": 0.0,
+                            "observaciones": s_it.get("Observaciones", "")
                         })
+                if importados_chk:
+                    st.session_state.filas_lo_actividades = importados_chk
+                st.session_state[checklist_clave_sesion] = True
 
-            if not lista_actividades_lo:
-                lista_actividades_lo = [
-                    {"Descripcion": "", "Area": "", "Encargados": "", "Unidad": "m2", "Cantidad": 0.0, "Observaciones": ""},
-                    {"Descripcion": "", "Area": "", "Encargados": "", "Unidad": "m2", "Cantidad": 0.0, "Observaciones": ""}
+            if not st.session_state.filas_lo_actividades:
+                st.session_state.filas_lo_actividades = [
+                    {"id": 1, "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}
                 ]
 
+            indices_eliminar_lo = []
             acts_final_payload = []
-            for idx_act_form, a_item in enumerate(lista_actividades_lo, 1):
+
+            for idx_act_form, item_f in enumerate(st.session_state.filas_lo_actividades, 1):
+                f_act_id = item_f["id"]
                 st.markdown(f"**Actividad N° {idx_act_form}:**")
-                c_af1, c_af2, c_af3, c_af4 = st.columns([2.5, 1.5, 1, 1])
-                with c_af1:
-                    d_in = st.text_input(f"Descripción {idx_act_form}:", value=a_item["Descripcion"], placeholder="Ej. Albañilería, Pintura, Enlucido...", key=f"lo_act_d_{idx_act_form}")
-                with c_af2:
-                    ar_in = st.text_input(f"Área {idx_act_form}:", value=a_item["Area"], placeholder="Ej. Piso 3, Bloque A...", key=f"lo_act_ar_{idx_act_form}")
-                with c_af3:
-                    u_in = st.selectbox(f"Unidad {idx_act_form}:", ["m2", "m", "m3", "kg", "pto", "unid"], index=0, key=f"lo_act_u_{idx_act_form}")
-                with c_af4:
-                    ct_in = st.number_input(f"Cant. {idx_act_form}:", min_value=0.0, value=float(a_item["Cantidad"]), step=0.5, key=f"lo_act_ct_{idx_act_form}")
+                c_af1, c_af2, c_af3, c_af4, c_af5 = st.columns([2.2, 1.5, 1.2, 1.0, 0.4])
                 
+                with c_af1:
+                    d_in = st.text_input(
+                        f"Descripción {f_act_id}:",
+                        value=item_f.get("descripcion", ""),
+                        placeholder="Ej. Albañilería, Pintura, Enlucido...",
+                        key=f"lo_act_d_{f_act_id}"
+                    )
+                with c_af2:
+                    ar_in = st.text_input(
+                        f"Área {f_act_id}:",
+                        value=item_f.get("area", ""),
+                        placeholder="Ej. Piso 3, Bloque A...",
+                        key=f"lo_act_ar_{f_act_id}"
+                    )
+                with c_af3:
+                    # Sin selección por defecto (campo libre de texto para que cada quien elija su unidad)
+                    u_in = st.text_input(
+                        f"Unidad {f_act_id}:",
+                        value=item_f.get("unidad", ""),
+                        placeholder="Ej. m2, m, glb...",
+                        key=f"lo_act_u_{f_act_id}"
+                    )
+                with c_af4:
+                    ct_in = st.number_input(
+                        f"Cant. {f_act_id}:",
+                        min_value=0.0,
+                        value=float(item_f.get("cantidad", 0.0)),
+                        step=0.5,
+                        key=f"lo_act_ct_{f_act_id}"
+                    )
+                with c_af5:
+                    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+                    if st.button("🗑️", key=f"btn_del_lo_row_{f_act_id}", help="Eliminar fila"):
+                        indices_eliminar_lo.append(idx_act_form - 1)
+
                 acts_final_payload.append({
                     "Descripcion": d_in.strip(),
                     "Area": ar_in.strip(),
-                    "Encargados": a_item.get("Encargados", ""),
-                    "Unidad": u_in,
+                    "Unidad": u_in.strip(),
                     "Cantidad": ct_in,
-                    "Observaciones": a_item.get("Observaciones", "")
+                    "Observaciones": item_f.get("observaciones", "")
                 })
+
+            if indices_eliminar_lo:
+                for del_idx in sorted(indices_eliminar_lo, reverse=True):
+                    if len(st.session_state.filas_lo_actividades) > 1:
+                        st.session_state.filas_lo_actividades.pop(del_idx)
+                    else:
+                        st.session_state.filas_lo_actividades = [{"id": int(datetime.datetime.now().timestamp() * 1000), "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                st.rerun()
+
+            if st.button("➕ Agregar Otra Actividad al Libro de Obra", key="btn_add_lo_actividad_extra"):
+                st.session_state.filas_lo_actividades.append({
+                    "id": int(datetime.datetime.now().timestamp() * 1000),
+                    "descripcion": "",
+                    "area": "",
+                    "unidad": "",
+                    "cantidad": 0.0,
+                    "observaciones": ""
+                })
+                st.rerun()
 
             st.markdown("---")
 
