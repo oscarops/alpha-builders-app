@@ -466,7 +466,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA RESILIENTE CON AISLAMIENTO ESTRICTO DE PERSONAL
+# PARTE 2 DE 5: CARGA RESILIENTE CON CUENTAS LIMPIAS (0 TRABAJADORES POR DEFECTO)
 # ==============================================================================
 
 # ==============================================================================
@@ -526,7 +526,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 4. BASE DE DATOS SUPABASE CON AISLAMIENTO ESTRICTO POR USUARIO
+# 4. BASE DE DATOS SUPABASE - AISLAMIENTO TOTAL
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -550,9 +550,8 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] No se pudo leer access_pin: {e}")
 
-    # 2. Configuración de respaldo (Edificios y Trabajadores aislados por clave exacta)
+    # 2. Configuración de respaldo (Edificios asignados)
     fallback_edificios_map = {}
-    fallback_trabajadores_map = {}
     try:
         res_cfg = supabase.table("app_config").select("*").execute()
         for r_cfg in res_cfg.data:
@@ -563,17 +562,6 @@ def load_db_from_supabase():
                     fallback_edificios_map[u_k] = json.loads(r_cfg["value"])
                 except Exception:
                     fallback_edificios_map[u_k] = [r_cfg["value"]]
-            elif k.startswith("user_trabajadores_"):
-                u_k = k.replace("user_trabajadores_", "").lower().strip()
-                try:
-                    parsed_val = json.loads(r_cfg["value"])
-                    if isinstance(parsed_val, list):
-                        fallback_trabajadores_map[u_k] = [
-                            item for item in parsed_val 
-                            if str(item.get("usuario_email", "")).lower().strip() == u_k
-                        ]
-                except Exception:
-                    pass
     except Exception as e:
         print(f"[Warn] No se pudo leer app_config: {e}")
 
@@ -614,22 +602,20 @@ def load_db_from_supabase():
                 if row.get("es_admin") and c not in admin_emails:
                     admin_emails.append(c)
     except Exception as e:
-        st.error(f"Error crítico consultando tabla usuarios: {e}")
+        st.error(f"Error consultando tabla usuarios: {e}")
 
-    # 4. Trabajadores por Usuario (AISLAMIENTO ESTRICTO: NO SE ASIGNAN POR DEFECTO A OTROS)
-    db_trabajadores_por_usuario = {}
-    for u_k, t_list in fallback_trabajadores_map.items():
-        db_trabajadores_por_usuario[u_k] = [
-            t for t in t_list if str(t.get("usuario_email", "")).lower().strip() == u_k
-        ]
+    # 4. Trabajadores por Usuario: CADA USUARIO COMIENZA EN 0
+    # Inicializa explícitamente vacío para cada usuario existente
+    db_trabajadores_por_usuario = {u["Correo"]: [] for u in db_usuarios}
 
     try:
         res_trab = supabase.table("trabajadores").select("*").order("id", desc=False).execute()
         if res_trab.data:
             for r in res_trab.data:
                 u_owner = str(r.get("usuario_email", "")).lower().strip()
-                # Si el registro no tiene un correo válido o no coincide con un usuario registrado, se omite
-                if not u_owner or u_owner in ["none", "null", ""]:
+                
+                # Ignora registros sin dueño válido o nulos
+                if not u_owner or u_owner in ["none", "null", "", "undefined"]:
                     continue
 
                 if u_owner not in db_trabajadores_por_usuario:
@@ -1384,7 +1370,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 # ==============================================================================
-# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA EN TIEMPO REAL, BARRA LATERAL Y SMART DASHBOARD
+# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA Y REGISTRO CON CUENTAS EN 0 TRABAJADORES
 # ==============================================================================
 
 # ==============================================================================
@@ -1473,8 +1459,14 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_apellidos = u_match["Apellidos"]
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
-                                st.session_state.db_loaded = False
                                 
+                                # Inicializa el personal del usuario en sesión desde la base de datos
+                                if "db_trabajadores_por_usuario" not in st.session_state:
+                                    st.session_state.db_trabajadores_por_usuario = {}
+                                if mail_clean not in st.session_state.db_trabajadores_por_usuario:
+                                    st.session_state.db_trabajadores_por_usuario[mail_clean] = []
+                                
+                                st.session_state.db_loaded = False
                                 local_storage.setItem("user_session_email", mail_clean)
                                 st.success("Acceso concedido...")
                                 st.rerun()
@@ -1564,14 +1556,24 @@ if not st.session_state.autenticado:
                                         "value": json.dumps(reg_edificios_sel)
                                     }).execute()
 
+                                # Asegurar que la cuenta comience en blanco (0 trabajadores)
+                                supabase.table("app_config").upsert({
+                                    "key": f"user_trabajadores_{mail_clean}",
+                                    "value": json.dumps([])
+                                }).execute()
+
                                 st.session_state.autenticado = True
                                 st.session_state.usuario_email = mail_clean
                                 st.session_state.usuario_nombres = reg_nombres.strip()
                                 st.session_state.usuario_apellidos = reg_apellidos.strip()
                                 st.session_state.usuario_cargo = reg_cargo
                                 st.session_state.usuario_edificios = reg_edificios_sel
-                                st.session_state.db_loaded = False
                                 
+                                if "db_trabajadores_por_usuario" not in st.session_state:
+                                    st.session_state.db_trabajadores_por_usuario = {}
+                                st.session_state.db_trabajadores_por_usuario[mail_clean] = []
+
+                                st.session_state.db_loaded = False
                                 local_storage.setItem("user_session_email", mail_clean)
                                 st.success("¡Registro completado exitosamente!")
                                 st.rerun()
@@ -2612,7 +2614,7 @@ with tab_personal:
 
     st.markdown("---")
 
-    # Separación por edificio y cuadrícula fluida mobile-responsive
+    # Obtención de personal exclusiva del usuario en sesión
     mi_personal_actual = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
     st.markdown(f"#### Tu Nómina de Personal a Cargo ({len(mi_personal_actual)} integrantes)")
 
