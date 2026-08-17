@@ -2021,8 +2021,8 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (LIBRO MAESTRO CON TEXTO LIBRE
-#               EN CANTIDADES Y DESCARGAS OPTIMIZADAS SIN DESCONEXIONES)
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (MAESTRO MAYOR INDEPENDIENTE Y
+#               AUTOCÁLCULO DE NÓMINA EXCLUSIVO PARA RESIDENTES Y ASISTENTES)
 # ==============================================================================
 
 # ==============================================================================
@@ -2263,7 +2263,7 @@ if es_maestro_mayor:
             st.info("Aún no tienes reportes guardados como Maestro Mayor.")
 
 # ------------------------------------------------------------------------------
-# 9.B. MÓDULOS PARA RESIDENTE Y ASISTENTE: CHECKLIST Y LIBRO DE OBRA OFICIAL
+# 9.B. MÓDULOS EXCLUSIVOS PARA RESIDENTE Y ASISTENTE: CHECKLIST Y LIBRO DE OBRA OFICIAL
 # ------------------------------------------------------------------------------
 else:
     # 1. CHECKLIST (CONTROL DIARIO DE OBRA)
@@ -2567,11 +2567,67 @@ else:
             else:
                 st.info("💡 Si llenas el Checklist del día, los trabajos y horarios se precargarán automáticamente aquí.")
 
+        # Selector de proyecto fuera del form para sincronizar nómina de inmediato
+        lo_proyecto = st.selectbox(
+            "🏢 Proyecto Asignado:*",
+            ["-- Seleccione --"] + proyectos_libro,
+            index=idx_proy_lo,
+            key="lo_proy_sel_off"
+        )
+
+        # Mapeo y cálculo automático de cuadrilla por especialidad según nómina activa
+        mi_personal_obra = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+        if lo_proyecto != "-- Seleccione --":
+            personal_edificio = [
+                p for p in mi_personal_obra 
+                if (p.get("edificio") == lo_proyecto or p.get("edificio") == "General" or not p.get("edificio"))
+            ]
+            if not personal_edificio:
+                personal_edificio = mi_personal_obra
+        else:
+            personal_edificio = mi_personal_obra
+
+        def calcular_conteo_oficio(nombre_oficio, lista_personal):
+            ofi_clean = nombre_oficio.upper().strip()
+            total = 0
+            for persona in lista_personal:
+                cargo = persona.get("cargo", "").upper().strip()
+                if not cargo:
+                    continue
+                if ofi_clean == "ALBAÑILES" and ("ALBAÑIL" in cargo or "ALBANIL" in cargo):
+                    total += 1
+                elif ofi_clean == "AYUDANTE" and ("AYUDANTE" in cargo or "PEON" in cargo):
+                    total += 1
+                elif ofi_clean == "SOLDADOR" and ("SOLDADOR" in cargo or "SOLDA" in cargo):
+                    total += 1
+                elif ofi_clean == "OPERADOR" and ("OPERADOR" in cargo or "MAQUINISTA" in cargo):
+                    total += 1
+                elif ofi_clean == "FIERRERO" and ("FIERRERO" in cargo or "HIERRERO" in cargo or "ESTRUCTURA" in cargo):
+                    total += 1
+                elif ofi_clean == "PINTORES" and ("PINTOR" in cargo or "PINTORES" in cargo):
+                    total += 1
+                elif ofi_clean == "MAESTRO SUPERVISOR" and ("MAESTRO" in cargo or "SUPERVISOR" in cargo or "CAPATAZ" in cargo):
+                    total += 1
+                elif ofi_clean == "CARPINTERO" and ("CARPINTERO" in cargo or "MADERA" in cargo):
+                    total += 1
+                elif ofi_clean == "GUACHIMAN" and ("GUACHIMAN" in cargo or "GUARDIA" in cargo or "SEGURIDAD" in cargo):
+                    total += 1
+                elif ofi_clean == "GYPSEROS" and ("GYPS" in cargo or "TABLAYESO" in cargo):
+                    total += 1
+                elif ofi_clean == "ELECTRICOS" and ("ELECTRIC" in cargo):
+                    total += 1
+                elif ofi_clean == "PLOMEROS" and ("PLOMER" in cargo or "HIDROSANITARI" in cargo or "FONTANER" in cargo):
+                    total += 1
+                elif ofi_clean == "ALUMINIO Y VIDRIO" and ("ALUMIN" in cargo or "VIDRI" in cargo):
+                    total += 1
+                elif ofi_clean in cargo or cargo in ofi_clean:
+                    total += 1
+            return total
+
         with st.form("form_libro_obra_oficial_lo"):
             st.markdown("#### 1. Datos Generales de la Obra")
             c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
             with c_lo_a1:
-                lo_proyecto = st.selectbox("Proyecto:*", ["-- Seleccione --"] + proyectos_libro, index=idx_proy_lo, key="lo_proy_sel_off")
                 lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")
                 lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")
 
@@ -2588,18 +2644,25 @@ else:
             st.markdown("---")
 
             st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
-            st.caption("Ingrese la cantidad de obreros presentes por especialidad.")
+            st.caption(f"Cálculo automático de cuadrilla ({len(personal_edificio)} integrantes activos detectados en tu nómina para este proyecto):")
 
             c_nom1, c_nom2 = st.columns(2)
             with c_nom1:
                 st.markdown("##### 👷 Personal Nómina")
                 nomina_input_map = {}
                 for ofi in OFICIOS_NOMINA_FORMATO:
+                    conteo_auto = calcular_conteo_oficio(ofi, personal_edificio)
                     col_n_l, col_n_v = st.columns([3, 1])
                     with col_n_l:
                         st.write(f"• {ofi} (7:00AM - 4:00PM)")
                     with col_n_v:
-                        nomina_input_map[ofi] = st.number_input(f"N_{ofi}", min_value=0, value=0, key=f"lo_nom_{ofi}", label_visibility="collapsed")
+                        nomina_input_map[ofi] = st.number_input(
+                            f"N_{ofi}",
+                            min_value=0,
+                            value=int(conteo_auto),
+                            key=f"lo_nom_{ofi}_{lo_proyecto}",
+                            label_visibility="collapsed"
+                        )
 
             with c_nom2:
                 st.markdown("##### 🔄 Personal Rotativo / Subcontratos")
