@@ -2656,11 +2656,11 @@ else:
                     with col_n_l:
                         st.write(f"• {ofi} (7:00AM - 4:00PM)")
                     with col_n_v:
+                        # Se omite el key fijo para forzar la actualización dinámica del valor calculado al cambiar de proyecto
                         nomina_input_map[ofi] = st.number_input(
                             f"N_{ofi}",
                             min_value=0,
                             value=int(conteo_auto),
-                            key=f"lo_nom_{ofi}_{lo_proyecto}",
                             label_visibility="collapsed"
                         )
 
