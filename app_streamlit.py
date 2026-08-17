@@ -415,8 +415,10 @@ st.markdown(
 )
 
 # ==============================================================================
-# 2. CONSTANTES INSTITUCIONALES Y NOMBRES DE MESES
+# 2. CONSTANTES INSTITUCIONALES Y ROLES
 # ==============================================================================
+CARGOS_DISPONIBLES = ["Residente", "Asistente", "Maestro Mayor"]
+
 EDIFICIOS_ALPHA = [
     "Tesla", "Lafuente", "Imagine", "Asimov", "Rubik", "Castle Rock",
     "Musk", "Wolf", "Dablanc", "Thomas Edison", "Westinghouse", "Smart",
@@ -466,7 +468,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA RÁPIDA SIN TIMEOUT Y EXPORTADORES CON BOTONES DE ELIMINACIÓN
+# PARTE 2 DE 5: CARGA RESILIENTE SIN TIMEOUT, EXPORTADORES Y MANEJO DE DATOS
 # ==============================================================================
 
 # ==============================================================================
@@ -526,7 +528,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 4. BASE DE DATOS SUPABASE - CARGA LIGERA (SIN TRAER FOTOS BASE64 PESADAS)
+# 4. BASE DE DATOS SUPABASE - CARGA LIGERA Y AISLADA
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -550,7 +552,7 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] No se pudo leer access_pin: {e}")
 
-    # 2. Configuración de respaldo (Edificios y Trabajadores por cuenta exacta)
+    # 2. Configuración de respaldo por usuario
     fallback_edificios_map = {}
     fallback_trabajadores_map = {}
     try:
@@ -577,7 +579,7 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] No se pudo leer app_config: {e}")
 
-    # 3. Usuarios (CONSULTA LIGERA: Omitimos foto_b64 para eliminar el error 57014 de Timeout)
+    # 3. Usuarios (Consulta optimizada sin foto_b64)
     db_usuarios = []
     admin_emails = ["oscarsebitas2013@gmail.com"]
     try:
@@ -589,12 +591,13 @@ def load_db_from_supabase():
                     continue
                 edifs = row.get("edificios")
                 if isinstance(edifs, list):
-                    edifs_list = edifs
+                    edifs_list = [str(x).strip() for x in edifs if str(x).strip()]
                 elif isinstance(edifs, str):
                     try:
-                        edifs_list = json.loads(edifs)
+                        parsed_edifs = json.loads(edifs)
+                        edifs_list = [str(x).strip() for x in parsed_edifs if str(x).strip()] if isinstance(parsed_edifs, list) else [edifs.strip()]
                     except Exception:
-                        edifs_list = [edifs] if edifs else []
+                        edifs_list = [edifs.strip()] if edifs.strip() else []
                 else:
                     edifs_list = fallback_edificios_map.get(c, [])
 
@@ -611,9 +614,9 @@ def load_db_from_supabase():
                 if row.get("es_admin") and c not in admin_emails:
                     admin_emails.append(c)
     except Exception as e:
-        print(f"[Warn] Error en consulta ligera usuarios: {e}")
+        print(f"[Warn] Error en consulta de usuarios: {e}")
 
-    # 4. Trabajadores: Inicialización limpia y respaldo de app_config + tabla
+    # 4. Trabajadores por usuario
     db_trabajadores_por_usuario = {u["Correo"]: [] for u in db_usuarios}
     for u_k, t_list in fallback_trabajadores_map.items():
         if u_k not in db_trabajadores_por_usuario:
@@ -673,7 +676,7 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en tabla checklists: {e}")
 
-    # 6. Inspecciones / Libros de Obra
+    # 6. Inspecciones / Libros de Obra (Incluye Libros de Maestro Mayor)
     db_inspecciones = {}
     try:
         res_insp = supabase.table("inspecciones").select("*").execute()
@@ -1033,10 +1036,98 @@ def export_checklist_to_pdf_file(jornada_dict):
         table_s.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e293b')),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-            ('TOPPADDING', (0,0), (-1,-1), 2),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
         ]))
         story.append(table_s)
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+def export_libro_obra_maestro_excel(insp_dict):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Libro Maestro"
+
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'), right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'), bottom=Side(style='thin', color='CBD5E1')
+    )
+    fill_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
+
+    ws.merge_cells("A1:D1")
+    ws["A1"] = f"LIBRO DE OBRA — MAESTRO MAYOR ({insp_dict.get('Proyecto', '')})"
+    ws["A1"].font = Font(name="Arial", bold=True, color="FFFFFF", size=12)
+    ws["A1"].fill = fill_header
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 26
+
+    ws.append([f"Fecha: {insp_dict.get('Fecha', '')}", f"Proyecto: {insp_dict.get('Proyecto', '')}", f"Maestro: {insp_dict.get('Residente', '')}", ""])
+    ws.append([])
+    ws.append(["N°", "Actividad Ejecutada", "Cantidad Realizada", "Observaciones"])
+
+    for col_i in range(1, 5):
+        c = ws.cell(row=4, column=col_i)
+        c.font = Font(name="Arial", bold=True, color="FFFFFF", size=9.5)
+        c.fill = fill_header
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = thin_border
+
+    acts = insp_dict.get("Datos", {}).get("Actividades_Maestro", [])
+    for idx_m, a_m in enumerate(acts, 1):
+        ws.append([idx_m, a_m.get("Actividad", ""), a_m.get("Cantidad", ""), a_m.get("Observaciones", "")])
+        r_idx = ws.max_row
+        for col_i in range(1, 5):
+            cell = ws.cell(row=r_idx, column=col_i)
+            cell.font = Font(name="Arial", size=9)
+            cell.border = thin_border
+            if col_i in [1, 3]:
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 45
+    ws.column_dimensions['C'].width = 25
+    ws.column_dimensions['D'].width = 35
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+def export_libro_obra_maestro_pdf(insp_dict):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    story = []
+
+    title_style = ParagraphStyle('TitleM', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#121318'), alignment=1, spaceAfter=6)
+    sub_style = ParagraphStyle('SubM', fontName='Helvetica', fontSize=8.5, textColor=colors.HexColor('#333333'), spaceAfter=8)
+    hdr_tbl = ParagraphStyle('HdrM', fontName='Helvetica-Bold', fontSize=8.5, textColor=colors.white, alignment=1)
+    cell_style = ParagraphStyle('CellM', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#0f172a'))
+    cell_center = ParagraphStyle('CellMC', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#0f172a'), alignment=1)
+
+    story.append(Paragraph(f"LIBRO DE OBRA — MAESTRO MAYOR ({insp_dict.get('Proyecto', '').upper()})", title_style))
+    story.append(Paragraph(f"<b>Fecha:</b> {insp_dict.get('Fecha', '')} | <b>Maestro Mayor:</b> {insp_dict.get('Residente', '')}", sub_style))
+
+    data_m = [[Paragraph("<b>N°</b>", hdr_tbl), Paragraph("<b>Actividad Ejecutada</b>", hdr_tbl), Paragraph("<b>Cantidad</b>", hdr_tbl), Paragraph("<b>Observaciones</b>", hdr_tbl)]]
+    acts = insp_dict.get("Datos", {}).get("Actividades_Maestro", [])
+
+    for idx_m, a_m in enumerate(acts, 1):
+        data_m.append([
+            Paragraph(str(idx_m), cell_center),
+            Paragraph(str(a_m.get("Actividad", "")), cell_style),
+            Paragraph(str(a_m.get("Cantidad", "")), cell_center),
+            Paragraph(str(a_m.get("Observaciones", "")), cell_style)
+        ])
+
+    table_m = Table(data_m, colWidths=[30, 260, 110, 150])
+    table_m.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    story.append(table_m)
 
     doc.build(story)
     buffer.seek(0)
@@ -1380,7 +1471,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 # ==============================================================================
-# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA, BARRA LATERAL CON FOTO INDIVIDUAL Y DASHBOARD
+# PARTE 3 DE 5: AUTENTICACIÓN CON ROLES ACTUALIZADOS Y DASHBOARD ADAPTABLE
 # ==============================================================================
 
 # ==============================================================================
@@ -1468,7 +1559,6 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                # Aislamiento estricto de trabajadores para el usuario en sesión
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
                                 
@@ -1519,7 +1609,7 @@ if not st.session_state.autenticado:
                 with col_p2:
                     reg_pass_repeat = st.text_input("Repetir contraseña:*", type="password", key="reg_pass_rep")
 
-                reg_cargo = st.selectbox("Cargo / Rol en Obra:*", ["Residente", "Asistente", "Ayudante"])
+                reg_cargo = st.selectbox("Cargo / Rol en Obra:*", CARGOS_DISPONIBLES)
                 reg_edificios_sel = st.multiselect(
                     "Edificios / Proyectos asignados:*",
                     options=EDIFICIOS_ALPHA,
@@ -1577,7 +1667,6 @@ if not st.session_state.autenticado:
                                         "value": json.dumps(reg_edificios_sel)
                                     }).execute()
 
-                                # Cuentas nuevas inician estrictamente en blanco
                                 supabase.table("app_config").upsert({
                                     "key": f"user_trabajadores_{mail_clean}",
                                     "value": json.dumps([])
@@ -1638,7 +1727,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==============================================================================
-# 7. BARRA LATERAL (USUARIO AUTENTICADO) - FOTO CARGADA BAJO DEMANDA
+# 7. BARRA LATERAL (USUARIO AUTENTICADO)
 # ==============================================================================
 user_email = st.session_state.usuario_email
 user_nombres = st.session_state.usuario_nombres
@@ -1646,8 +1735,8 @@ user_apellidos = st.session_state.usuario_apellidos
 user_cargo = st.session_state.usuario_cargo
 user_edificios = st.session_state.get("usuario_edificios", [])
 es_admin = user_email in st.session_state.admin_emails
+es_maestro_mayor = (user_cargo == "Maestro Mayor")
 
-# Consulta ligera exclusiva de la foto del usuario en sesión
 if f"foto_user_{user_email}" not in st.session_state:
     try:
         res_f = supabase.table("usuarios").select("foto_b64").ilike("correo", user_email).execute()
@@ -1715,9 +1804,8 @@ with st.sidebar:
         edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
         edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
         
-        cargos_lista = ["Residente", "Asistente", "Ayudante"]
-        idx_c = cargos_lista.index(user_cargo) if user_cargo in cargos_lista else 0
-        edit_cargo = st.selectbox("Cargo:", cargos_lista, index=idx_c, key="sb_car")
+        idx_c = CARGOS_DISPONIBLES.index(user_cargo) if user_cargo in CARGOS_DISPONIBLES else 0
+        edit_cargo = st.selectbox("Cargo:", CARGOS_DISPONIBLES, index=idx_c, key="sb_car")
 
         edit_edificios = st.multiselect(
             "Edificios / Proyectos Asignados:",
@@ -1777,7 +1865,7 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM UI (CON DONA Y CONTRASTE OPTIMIZADO)
+# 8. SMART DASHBOARD GLASSMORPHISM (ADAPTABLE POR ROL)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 local_dt = get_local_datetime_ecuador()
@@ -1798,6 +1886,15 @@ insp_hoy_cumplida = any(i.get("Fecha") == fecha_hoy_iso for i in mis_insps_list)
 
 tag_chk_html = '<span class="milestone-status-done">✓ Cumplido</span>' if chk_hoy_cumplido else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 tag_insp_html = '<span class="milestone-status-done">✓ Cumplido</span>' if insp_hoy_cumplida else '<span class="milestone-status-pending">⏳ Pendiente</span>'
+
+# Estructura del Hito Diario según el Cargo
+if es_maestro_mayor:
+    hitos_body_html = f'<div class="milestone-item"><span class="milestone-name">Libro de Obra Maestro</span>{tag_insp_html}</div>'
+else:
+    hitos_body_html = (
+        f'<div class="milestone-item"><span class="milestone-name">Checklist</span>{tag_chk_html}</div>'
+        f'<div class="milestone-item"><span class="milestone-name">Libro de Obra</span>{tag_insp_html}</div>'
+    )
 
 if len(mis_rnds_list) > 0:
     total_eficientes = sum(1 for r in mis_rnds_list if r.get("Estado") in ["EFICIENTE", "CUMPLE META"])
@@ -1836,8 +1933,7 @@ dashboard_html = (
     '<div class="widgets-grid">'
     '<div class="widget-glass-card">'
     '<div class="w-card-title"><span>🎯 Hitos Diarios</span><span>Hoy</span></div>'
-    f'<div class="milestone-item"><span class="milestone-name">Checklist</span>{tag_chk_html}</div>'
-    f'<div class="milestone-item"><span class="milestone-name">Libro de Obra</span>{tag_insp_html}</div>'
+    f'{hitos_body_html}'
     '</div>'
     '<div class="widget-glass-card">'
     '<div class="w-card-title"><span>⚡ Rendimiento</span><span>Promedio</span></div>'
@@ -1867,601 +1963,800 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-pestanas = [
-    "Checklist", 
-    "Libro de Obra", 
-    "Personal a Cargo",
-    "Levantamiento de Incidencias", 
-    "Control de Rendimiento",
-    "Colaborativo"
-]
+# Configuración dinámica de Pestañas según el Rol
+if es_maestro_mayor:
+    pestanas = [
+        "Libro de Obra Maestro",
+        "Personal a Cargo",
+        "Levantamiento de Incidencias",
+        "Control de Rendimiento",
+        "Colaborativo"
+    ]
+else:
+    pestanas = [
+        "Checklist", 
+        "Libro de Obra", 
+        "Personal a Cargo",
+        "Levantamiento de Incidencias", 
+        "Control de Rendimiento",
+        "Colaborativo"
+    ]
+
 if es_admin:
     pestanas.append("Panel Admin")
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: CHECKLIST Y LIBRO DE OBRA (CON BOTÓN DE ELIMINAR EN CADA REPORTE)
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (CHECKLIST / LIBRO RESIDENTE Y LIBRO MAESTRO)
 # ==============================================================================
 
 # ==============================================================================
-# 9. MÓDULO 1: CHECKLIST (CONTROL DIARIO DE OBRA CON OPCIÓN DE ELIMINAR)
+# 9. ENRUTAMIENTO DINÁMICO DE PESTAÑAS SEGÚN EL CARGO (RESIDENTE/ASISTENTE vs MAESTRO MAYOR)
 # ==============================================================================
-tab_chk = tabs_app[0]
-tab_libro = tabs_app[1]
-tab_personal = tabs_app[2]
-tab_incidencias = tabs_app[3]
-tab_rend = tabs_app[4]
-tab_colab = tabs_app[5]
+if es_maestro_mayor:
+    tab_libro_maestro = tabs_app[0]
+    tab_personal = tabs_app[1]
+    tab_incidencias = tabs_app[2]
+    tab_rend = tabs_app[3]
+    tab_colab = tabs_app[4]
+else:
+    tab_chk = tabs_app[0]
+    tab_libro = tabs_app[1]
+    tab_personal = tabs_app[2]
+    tab_incidencias = tabs_app[3]
+    tab_rend = tabs_app[4]
+    tab_colab = tabs_app[5]
 
-with tab_chk:
-    if "creando_jornada" not in st.session_state:
-        st.session_state.creando_jornada = False
+# ------------------------------------------------------------------------------
+# 9.A. MÓDULO EXCLUSIVO PARA MAESTRO MAYOR: LIBRO DE OBRA MAESTRO
+# ------------------------------------------------------------------------------
+if es_maestro_mayor:
+    with tab_libro_maestro:
+        st.markdown("### Libro de Obra – Maestro Mayor")
+        st.caption("Registro diario de actividades y metrajes ejecutados en obra para sincronización técnica colaborativa.")
 
-    if "filas_supervision" not in st.session_state:
-        st.session_state.filas_supervision = [
-            {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
-        ]
+        if "filas_maestro_act" not in st.session_state:
+            st.session_state.filas_maestro_act = [
+                {"id": 1, "actividad": "", "cantidad": 0.0, "observaciones": ""}
+            ]
 
-    if "chk_obs_counts" not in st.session_state:
-        st.session_state.chk_obs_counts = {}
+        local_today_mm = get_local_datetime_ecuador().date()
 
-    st.markdown("### Checklist – Control de Obra")
-    st.caption("Supervisión técnica y control de ejecución diaria en obra.")
+        col_m_cfg1, col_m_cfg2, col_m_cfg3 = st.columns([1.5, 2, 1.5])
+        with col_m_cfg1:
+            fecha_maestro_val = st.date_input("Fecha de Trabajo:*", local_today_mm, key="mm_fecha_input")
+        with col_m_cfg2:
+            proyectos_maestro_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+            edificio_maestro_val = st.selectbox(
+                "Proyecto / Edificio Asignado:*",
+                ["-- Seleccione un Proyecto --"] + proyectos_maestro_disp,
+                index=0,
+                key="mm_edificio_input"
+            )
+        with col_m_cfg3:
+            st.text_input("Maestro Responsable:", value=user_nombre_completo, disabled=True)
 
-    if not st.session_state.creando_jornada:
-        if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
-            st.session_state.creando_jornada = True
+        st.markdown("---")
+        st.markdown(f"#### 🔨 Actividades Realizadas y Cantidades ({len(st.session_state.filas_maestro_act)} registros)")
+
+        indices_del_m = []
+        payload_actividades_m = []
+
+        for idx_m, f_data in enumerate(st.session_state.filas_maestro_act, 1):
+            f_id = f_data["id"]
+            st.markdown(f"""<div class="banner-item-header"><span>Actividad N° {idx_m}</span></div>""", unsafe_allow_html=True)
+            st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
+            c_m1, c_m2, c_m3, c_m4 = st.columns([3, 1.2, 2.3, 0.5])
+
+            with c_m1:
+                act_m_txt = st.text_input(
+                    f"Descripción de la Actividad {f_id}:",
+                    value=f_data.get("actividad", ""),
+                    placeholder="Ej. Enlucido paleteado en muros de fachada...",
+                    key=f"mm_act_txt_{f_id}"
+                )
+            with c_m2:
+                cant_m_val = st.number_input(
+                    f"Cantidad / Avance {f_id}:",
+                    min_value=0.0,
+                    step=0.5,
+                    value=float(f_data.get("cantidad", 0.0)),
+                    key=f"mm_cant_num_{f_id}"
+                )
+            with c_m3:
+                obs_m_txt = st.text_input(
+                    f"Observaciones / Frente {f_id}:",
+                    value=f_data.get("observaciones", ""),
+                    placeholder="Ej. Piso 2 departamento 201...",
+                    key=f"mm_obs_txt_{f_id}"
+                )
+            with c_m4:
+                st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+                if st.button("🗑️", key=f"btn_del_mm_row_{f_id}", help="Eliminar fila"):
+                    indices_del_m.append(idx_m - 1)
+
+            st.markdown('</div>', unsafe_allow_html=True)
+            payload_actividades_m.append({
+                "Actividad": act_m_txt.strip(),
+                "Cantidad": cant_m_val,
+                "Observaciones": obs_m_txt.strip()
+            })
+
+        if indices_del_m:
+            for del_i in sorted(indices_del_m, reverse=True):
+                if len(st.session_state.filas_maestro_act) > 1:
+                    st.session_state.filas_maestro_act.pop(del_i)
+                else:
+                    st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": 0.0, "observaciones": ""}]
+            st.rerun()
+
+        if st.button("➕ Agregar Otra Actividad", key="btn_add_mm_act_row"):
+            st.session_state.filas_maestro_act.append({"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": 0.0, "observaciones": ""})
+            st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("💾 Guardar Reporte de Maestro Mayor", type="primary", use_container_width=True):
+            if edificio_maestro_val == "-- Seleccione un Proyecto --":
+                st.error("⚠️ Debe seleccionar el Edificio o Proyecto donde realizó los trabajos.")
+            else:
+                actividades_validas = [a for a in payload_actividades_m if a["Actividad"]]
+                if not actividades_validas:
+                    st.error("⚠️ Ingrese al menos una actividad antes de guardar.")
+                else:
+                    dias_es_m = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+                    dia_str_m = dias_es_m[fecha_maestro_val.weekday()]
+
+                    payload_final_mm = {
+                        "Tipo_Registro": "Libro_Obra_Maestro",
+                        "Actividades_Maestro": actividades_validas,
+                        "Edificio": edificio_maestro_val,
+                        "Maestro": user_nombre_completo,
+                        "Fecha": fecha_maestro_val.strftime("%Y-%m-%d")
+                    }
+
+                    try:
+                        supabase.table("inspecciones").insert({
+                            "usuario_email": user_email,
+                            "proyecto": edificio_maestro_val,
+                            "fecha": fecha_maestro_val.strftime("%Y-%m-%d"),
+                            "dia": dia_str_m,
+                            "residente": user_nombre_completo,
+                            "frente": "Reporte de Maestro Mayor",
+                            "clima": "N/A",
+                            "hora_inicio": "07:00",
+                            "hora_fin": "16:00",
+                            "datos": payload_final_mm
+                        }).execute()
+
+                        st.session_state.db_loaded = False
+                        st.success(f"¡Reporte del Maestro guardado exitosamente para **{edificio_maestro_val}**!")
+                        st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": 0.0, "observaciones": ""}]
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al guardar: {e}")
+
+        st.markdown("---")
+        st.markdown("### Historial de Reportes del Maestro Mayor")
+        mis_libros_m = st.session_state.get("db_inspecciones", {}).get(user_email, [])
+
+        if len(mis_libros_m) > 0:
+            df_libros_m = pd.DataFrame(mis_libros_m)
+            df_libros_m["fecha_dt"] = pd.to_datetime(df_libros_m["Fecha"])
+            df_libros_m = df_libros_m.sort_values(by="fecha_dt", ascending=False)
+            df_libros_m["año"] = df_libros_m["fecha_dt"].dt.year
+            df_libros_m["mes_num"] = df_libros_m["fecha_dt"].dt.month
+
+            grupos_m = df_libros_m.groupby(["año", "mes_num"], sort=False)
+
+            for (anio, mes_num), items_mes in grupos_m:
+                nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Reportes)"
+                with st.expander(nombre_mes_str, expanded=False):
+                    for idx_insp_m, insp_m in items_mes.iterrows():
+                        insp_dict_m = insp_m.to_dict()
+                        insp_db_id_m = insp_dict_m.get("db_id")
+
+                        with st.expander(f"📌 [{insp_dict_m.get('Proyecto')}] {insp_dict_m.get('Fecha')} ({insp_dict_m.get('Dia')})", expanded=False):
+                            acts_guardadas = insp_dict_m.get("Datos", {}).get("Actividades_Maestro", [])
+                            for a_g in acts_guardadas:
+                                st.write(f"• **{a_g.get('Actividad')}**: {a_g.get('Cantidad')} ({a_g.get('Observaciones', '')})")
+
+                            c_dl_m1, c_dl_m2, c_del_m = st.columns([2, 2, 1])
+                            with c_dl_m1:
+                                st.download_button(
+                                    "📊 Descargar Excel (.xlsx)",
+                                    export_libro_obra_maestro_excel(insp_dict_m),
+                                    file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.xlsx",
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    key=f"dl_mm_xlsx_{idx_insp_m}",
+                                    use_container_width=True
+                                )
+                            with c_dl_m2:
+                                st.download_button(
+                                    "📄 Descargar PDF (.pdf)",
+                                    export_libro_obra_maestro_pdf(insp_dict_m),
+                                    file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.pdf",
+                                    mime="application/pdf",
+                                    key=f"dl_mm_pdf_{idx_insp_m}",
+                                    use_container_width=True
+                                )
+                            with c_del_m:
+                                if st.button("🗑️ Eliminar", key=f"btn_del_mm_{idx_insp_m}_{insp_db_id_m}", type="secondary", use_container_width=True):
+                                    try:
+                                        supabase.table("inspecciones").delete().eq("id", insp_db_id_m).execute()
+                                        st.session_state.db_loaded = False
+                                        st.success("Reporte eliminado correctamente.")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error al eliminar: {e}")
+        else:
+            st.info("Aún no tienes reportes guardados como Maestro Mayor.")
+
+# ------------------------------------------------------------------------------
+# 9.B. MÓDULOS PARA RESIDENTE Y ASISTENTE: CHECKLIST Y LIBRO DE OBRA OFICIAL
+# ------------------------------------------------------------------------------
+else:
+    # 1. CHECKLIST (CONTROL DIARIO DE OBRA)
+    with tab_chk:
+        if "creando_jornada" not in st.session_state:
+            st.session_state.creando_jornada = False
+
+        if "filas_supervision" not in st.session_state:
             st.session_state.filas_supervision = [
                 {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
             ]
-            st.session_state.chk_obs_counts = {}
-            st.rerun()
 
-    if st.session_state.creando_jornada:
+        if "chk_obs_counts" not in st.session_state:
+            st.session_state.chk_obs_counts = {}
+
+        st.markdown("### Checklist – Control de Obra")
+        st.caption("Supervisión técnica y control de ejecución diaria en obra.")
+
+        if not st.session_state.creando_jornada:
+            if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
+                st.session_state.creando_jornada = True
+                st.session_state.filas_supervision = [
+                    {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
+                ]
+                st.session_state.chk_obs_counts = {}
+                st.rerun()
+
+        if st.session_state.creando_jornada:
+            st.markdown("---")
+            with st.container():
+                st.markdown("#### Configuración de la Nueva Jornada")
+                cfg_c1, cfg_c2, cfg_c3, cfg_c4, cfg_c5 = st.columns([2, 2, 2, 1.5, 1.5])
+                with cfg_c1:
+                    proyectos_disponibles = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+                    edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + proyectos_disponibles, index=0, key="sel_edificio")
+                with cfg_c2:
+                    st.text_input("Responsable:", value=user_nombre_completo, disabled=True)
+                with cfg_c3:
+                    local_now_chk = get_local_datetime_ecuador().date()
+                    fecha_val = st.date_input("Fecha:", local_now_chk, key="sel_fecha")
+                with cfg_c4:
+                    hora_inicio_val = st.time_input("Hora Inicio:", datetime.time(7, 0), key="sel_hora_inicio")
+                with cfg_c5:
+                    hora_fin_val = st.time_input("Hora Fin:", datetime.time(17, 0), key="sel_hora_fin")
+
+                st.markdown("---")
+
+                # JORNADA DE LA MAÑANA
+                st.markdown("#### 🌅 Jornada de la Mañana")
+                resp_manana = []
+
+                for idx, act in enumerate(ACTIVIDADES_MANANA_CLEAN, 1):
+                    item_key = f"m_{idx}"
+                    if item_key not in st.session_state.chk_obs_counts:
+                        st.session_state.chk_obs_counts[item_key] = 1
+
+                    st.markdown(f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""", unsafe_allow_html=True)
+                    st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
+                    c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
+
+                    with c_col1:
+                        st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
+                        est = st.segmented_control(f"M_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], key=f"m_st_{idx}", label_visibility="collapsed")
+
+                    with c_col2:
+                        st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
+                        obs_vals_item = []
+                        for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
+                            o_txt = st.text_input(f"Obs {idx}_{sub_o}", key=f"m_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
+                            if o_txt.strip():
+                                obs_vals_item.append(o_txt.strip())
+                        
+                        c_btn_o, _ = st.columns([2, 2])
+                        with c_btn_o:
+                            if st.button("➕ Observación", key=f"btn_add_obs_m_{idx}", use_container_width=True):
+                                st.session_state.chk_obs_counts[item_key] += 1
+                                st.rerun()
+
+                    with c_col3:
+                        if idx not in [1, 2]:
+                            st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
+                            ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
+                            ft_b64 = image_to_base64(ft) if ft is not None else None
+                        else:
+                            st.markdown("<small style='font-weight:700; color:#94a3b8;'>Foto Evidencia:</small>", unsafe_allow_html=True)
+                            st.caption("📷 *No requerida*")
+                            ft_b64 = None
+
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # JORNADA DE LA TARDE
+                st.markdown("#### 🌆 Jornada de la Tarde")
+                resp_tarde = []
+
+                for idx, act in enumerate(ACTIVIDADES_TARDE_CLEAN, 1):
+                    item_key = f"t_{idx}"
+                    if item_key not in st.session_state.chk_obs_counts:
+                        st.session_state.chk_obs_counts[item_key] = 1
+
+                    st.markdown(f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""", unsafe_allow_html=True)
+                    st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
+                    c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
+
+                    with c_col1:
+                        st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
+                        est = st.segmented_control(f"T_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], key=f"t_st_{idx}", label_visibility="collapsed")
+
+                    with c_col2:
+                        st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
+                        obs_vals_item = []
+                        for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
+                            o_txt = st.text_input(f"Obs T_{idx}_{sub_o}", key=f"t_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
+                            if o_txt.strip():
+                                obs_vals_item.append(o_txt.strip())
+                        
+                        c_btn_o, _ = st.columns([2, 2])
+                        with c_btn_o:
+                            if st.button("➕ Observación", key=f"btn_add_obs_t_{idx}", use_container_width=True):
+                                st.session_state.chk_obs_counts[item_key] += 1
+                                st.rerun()
+
+                    with c_col3:
+                        st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
+                        ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
+                        ft_b64 = image_to_base64(ft) if ft is not None else None
+
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # SUPERVISIÓN DE TRABAJOS
+                mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+                lista_nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
+                indices_a_eliminar = []
+                supervision_payload_data = []
+
+                for idx_f, f_data in enumerate(st.session_state.filas_supervision, 1):
+                    f_id = f_data["id"]
+                    st.markdown(f"""<div class="banner-item-header" style="background-color:#1e293b !important;"><span>Fila de Supervisión N° {idx_f}</span></div>""", unsafe_allow_html=True)
+                    st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
+                    s1, s2, s3, s4 = st.columns([1.6, 1.4, 1.4, 0.4])
+
+                    with s1:
+                        act_val = st.text_input(f"Actividad {f_id}", value=f_data.get("actividad", ""), placeholder="Ej. Enlucido fachada posterior...", key=f"dyn_act_{f_id}")
+                        obs_val_s = st.text_input(f"Obs {f_id}", value=f_data.get("observaciones", ""), placeholder="Observaciones adicionales...", key=f"dyn_obs_{f_id}")
+
+                    with s2:
+                        if lista_nombres_personal:
+                            enc_val = st.multiselect(f"Personal {f_id}", options=lista_nombres_personal, default=f_data.get("encargados", []), key=f"dyn_enc_{f_id}", placeholder="Seleccionar personal...")
+                            enc_str = ", ".join(enc_val) if enc_val else ""
+                        else:
+                            enc_str = st.text_input(f"Personal manual {f_id}", value=f_data.get("encargados_manual", ""), placeholder="Escribir nombres...", key=f"dyn_enc_man_{f_id}")
+
+                    with s3:
+                        ft_file = st.file_uploader(f"Foto {f_id}", type=["jpg", "jpeg", "png"], key=f"dyn_ft_{f_id}")
+                        foto_b64_f = image_to_base64(ft_file) if ft_file is not None else f_data.get("foto_b64")
+
+                    with s4:
+                        st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+                        if st.button("🗑️", key=f"btn_del_row_{f_id}", help="Eliminar fila"):
+                            indices_a_eliminar.append(idx_f - 1)
+
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    supervision_payload_data.append({"N°": idx_f, "Actividad": act_val.strip(), "Encargados": enc_str, "Observaciones": obs_val_s.strip(), "Foto_B64": foto_b64_f})
+
+                if indices_a_eliminar:
+                    for del_i in sorted(indices_a_eliminar, reverse=True):
+                        if len(st.session_state.filas_supervision) > 1:
+                            st.session_state.filas_supervision.pop(del_i)
+                        else:
+                            st.session_state.filas_supervision = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
+                    st.rerun()
+
+                if st.button("➕ Agregar Fila de Trabajo", key="btn_add_dyn_supervision_row"):
+                    st.session_state.filas_supervision.append({"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None})
+                    st.rerun()
+
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("💾 Guardar Checklist de Obra", type="primary", use_container_width=True):
+                    if edificio_val == "-- Seleccione --" or not edificio_val:
+                        st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
+                    else:
+                        manana_respondida = [item for item in resp_manana if item["Estado"] is not None]
+                        tarde_respondida = [item for item in resp_tarde if item["Estado"] is not None]
+                        supervisiones_validas = [item for item in supervision_payload_data if item["Actividad"]]
+
+                        if not manana_respondida and not tarde_respondida and not supervisiones_validas:
+                            st.error("⚠️ Ingrese información antes de guardar.")
+                        else:
+                            payload_jornada = {"Verificaciones": manana_respondida + tarde_respondida, "Supervision_Trabajos": supervisiones_validas}
+                            try:
+                                supabase.table("checklists").insert({
+                                    "usuario_email": user_email,
+                                    "edificio": edificio_val,
+                                    "fecha": fecha_val.strftime("%Y-%m-%d"),
+                                    "hora_inicio": hora_inicio_val.strftime("%H:%M"),
+                                    "hora_fin": hora_fin_val.strftime("%H:%M"),
+                                    "responsable": user_nombre_completo,
+                                    "cargo": user_cargo,
+                                    "observacion_general": "",
+                                    "datos": payload_jornada
+                                }).execute()
+
+                                st.session_state.db_loaded = False
+                                st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
+                                st.session_state.creando_jornada = False
+                                st.session_state.filas_supervision = [{"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
+                                st.session_state.chk_obs_counts = {}
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al guardar checklist: {e}")
+
         st.markdown("---")
-        with st.container():
-            st.markdown("#### Configuración de la Nueva Jornada")
-            cfg_c1, cfg_c2, cfg_c3, cfg_c4, cfg_c5 = st.columns([2, 2, 2, 1.5, 1.5])
-            with cfg_c1:
-                proyectos_disponibles = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
-                edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + proyectos_disponibles, index=0, key="sel_edificio")
-            with cfg_c2:
-                st.text_input("Responsable:", value=user_nombre_completo, disabled=True)
-            with cfg_c3:
-                local_now_chk = get_local_datetime_ecuador().date()
-                fecha_val = st.date_input("Fecha:", local_now_chk, key="sel_fecha")
-            with cfg_c4:
-                hora_inicio_val = st.time_input("Hora Inicio:", datetime.time(7, 0), key="sel_hora_inicio")
-            with cfg_c5:
-                hora_fin_val = st.time_input("Hora Fin:", datetime.time(17, 0), key="sel_hora_fin")
+        st.markdown("### Historial General de Checklists Creados")
+        mis_jornadas = st.session_state.get("db_checklists", {}).get(user_email, [])
+
+        if len(mis_jornadas) > 0:
+            col_edif_sel, _ = st.columns([2, 2])
+            with col_edif_sel:
+                edificio_filtro = st.selectbox("🏢 Seleccionar Edificio / Proyecto:", ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA, key="filtro_edificio_historial")
+
+            jornadas_filtradas = [j for j in mis_jornadas if j.get("Edificio") == edificio_filtro] if edificio_filtro != "-- Todos los Edificios --" else mis_jornadas.copy()
+            st.caption(f"Mostrando **{len(jornadas_filtradas)}** checklist(s).")
+
+            df_jornadas = pd.DataFrame(jornadas_filtradas)
+            df_jornadas["fecha_dt"] = pd.to_datetime(df_jornadas["Fecha"])
+            df_jornadas = df_jornadas.sort_values(by="fecha_dt", ascending=False)
+            df_jornadas["año"] = df_jornadas["fecha_dt"].dt.year
+            df_jornadas["mes_num"] = df_jornadas["fecha_dt"].dt.month
+
+            grupos_chk = df_jornadas.groupby(["año", "mes_num"], sort=False)
+
+            for (anio, mes_num), items_mes in grupos_chk:
+                nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Checklists)"
+                with st.expander(nombre_mes_str, expanded=False):
+                    for orig_idx, j in items_mes.iterrows():
+                        j_dict = j.to_dict()
+                        chk_db_id = j_dict.get("db_id")
+
+                        with st.expander(f"📌 {j_dict['Edificio']} — {j_dict['Fecha']} (Horario: {j_dict.get('Hora_Inicio', 'N/A')} - {j_dict.get('Hora_Fin', 'N/A')})", expanded=False):
+                            c_dl1, c_dl2, c_del_chk = st.columns([2, 2, 1])
+                            with c_dl1:
+                                st.download_button("📊 Descargar Excel (.xlsx)", export_checklist_to_excel_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.xlsx", key=f"dl_xlsx_{orig_idx}", use_container_width=True)
+                            with c_dl2:
+                                st.download_button("📄 Descargar PDF (.pdf)", export_checklist_to_pdf_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.pdf", key=f"dl_pdf_{orig_idx}", use_container_width=True)
+                            with c_del_chk:
+                                if st.button("🗑️ Eliminar", key=f"btn_del_chk_{orig_idx}_{chk_db_id}", type="secondary", use_container_width=True):
+                                    try:
+                                        supabase.table("checklists").delete().eq("id", chk_db_id).execute()
+                                        st.session_state.db_loaded = False
+                                        st.success("Checklist eliminado correctamente.")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error al eliminar: {e}")
+        else:
+            st.info("Aún no hay checklists guardados en tu cuenta.")
+
+    # 2. LIBRO DE OBRA OFICIAL
+    with tab_libro:
+        st.markdown("### Libro de Obra – Formato Oficial")
+        st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")
+
+        dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+        local_today_insp = get_local_datetime_ecuador().date()
+
+        col_lo1, col_lo2 = st.columns([1.5, 2.5])
+        with col_lo1:
+            lo_fecha = st.date_input("Fecha de Reporte:", local_today_insp, key="lo_official_fecha")
+            lo_dia = dias_es[lo_fecha.weekday()]
+            st.caption(f"Día seleccionado: **{lo_dia}**")
+
+        fecha_lo_str = lo_fecha.strftime("%Y-%m-%d")
+        chk_asociado = next((c for c in mis_jornadas if c.get("Fecha") == fecha_lo_str), None)
+
+        proyectos_libro = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+        idx_proy_lo = 0
+        if chk_asociado and chk_asociado.get("Edificio") in proyectos_libro:
+            idx_proy_lo = proyectos_libro.index(chk_asociado.get("Edificio")) + 1
+
+        with col_lo2:
+            if chk_asociado:
+                st.success(f"🔗 **Checklist Vinculado:** Se importarán automáticamente las actividades y los horarios del edificio **{chk_asociado.get('Edificio')}**.")
+            else:
+                st.info("💡 Si llenas el Checklist del día, los trabajos y horarios se precargarán automáticamente aquí.")
+
+        with st.form("form_libro_obra_oficial_lo"):
+            st.markdown("#### 1. Datos Generales de la Obra")
+            c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
+            with c_lo_a1:
+                lo_proyecto = st.selectbox("Proyecto:*", ["-- Seleccione --"] + proyectos_libro, index=idx_proy_lo, key="lo_proy_sel_off")
+                lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")
+                lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")
+
+            with c_lo_a2:
+                lo_superintendente = st.text_input("Superintendente:*", value="ING. PABLO ESPINOSA", key="lo_super_in")
+                lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")
+                lo_fiscalizador = st.text_input("Fiscalizador:*", value="ING. DIEGO CHARVET", key="lo_fisc_in")
+
+            with c_lo_a3:
+                lo_hoja = st.text_input("Hoja N°:*", value="000053", key="lo_hoja_in")
+                lo_h_ini = st.time_input("Hora Entrada:*", datetime.time(7, 0), key="lo_hini_off")
+                lo_h_fin = st.time_input("Hora Salida:*", datetime.time(16, 0), key="lo_hfin_off")
 
             st.markdown("---")
 
-            # ------------------------------------------------------------------
-            # 1. JORNADA DE LA MAÑANA
-            # ------------------------------------------------------------------
-            st.markdown("#### 🌅 Jornada de la Mañana")
-            resp_manana = []
+            st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
+            st.caption("Ingrese la cantidad de obreros presentes por especialidad.")
 
-            for idx, act in enumerate(ACTIVIDADES_MANANA_CLEAN, 1):
-                item_key = f"m_{idx}"
-                if item_key not in st.session_state.chk_obs_counts:
-                    st.session_state.chk_obs_counts[item_key] = 1
+            c_nom1, c_nom2 = st.columns(2)
+            with c_nom1:
+                st.markdown("##### 👷 Personal Nómina")
+                nomina_input_map = {}
+                for ofi in OFICIOS_NOMINA_FORMATO:
+                    col_n_l, col_n_v = st.columns([3, 1])
+                    with col_n_l:
+                        st.write(f"• {ofi} (7:00AM - 4:00PM)")
+                    with col_n_v:
+                        nomina_input_map[ofi] = st.number_input(f"N_{ofi}", min_value=0, value=0, key=f"lo_nom_{ofi}", label_visibility="collapsed")
 
-                st.markdown(f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""", unsafe_allow_html=True)
-                st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
-                c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
+            with c_nom2:
+                st.markdown("##### 🔄 Personal Rotativo / Subcontratos")
+                rotativo_input_map = {}
+                for rubro in RUROS_ROTATIVOS_FORMATO:
+                    col_r_l, col_r_v = st.columns([3, 1])
+                    with col_r_l:
+                        st.write(f"• {rubro}")
+                    with col_r_v:
+                        rotativo_input_map[rubro] = st.number_input(f"R_{rubro}", min_value=0, value=0, key=f"lo_rot_{rubro}", label_visibility="collapsed")
 
-                with c_col1:
-                    st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
-                    est = st.segmented_control(f"M_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], key=f"m_st_{idx}", label_visibility="collapsed")
+            st.markdown("---")
 
-                with c_col2:
-                    st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
-                    obs_vals_item = []
-                    for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                        o_txt = st.text_input(f"Obs {idx}_{sub_o}", key=f"m_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
-                        if o_txt.strip():
-                            obs_vals_item.append(o_txt.strip())
-                    
-                    c_btn_o, _ = st.columns([2, 2])
-                    with c_btn_o:
-                        if st.button("➕ Observación", key=f"btn_add_obs_m_{idx}", use_container_width=True):
-                            st.session_state.chk_obs_counts[item_key] += 1
-                            st.rerun()
+            st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")
+            c_cl1, c_cl2 = st.columns(2)
+            with c_cl1:
+                st.markdown("##### ⛅ Condiciones Climáticas")
+                clima_cond_sel = st.selectbox("Estado del Clima:*", ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"], index=0, key="lo_clima_cond")
+                clima_obs = st.text_input("Observaciones del Clima en Obra:", placeholder="Describa si el clima afectó el rendimiento...", key="lo_clima_obs")
 
-                with c_col3:
-                    if idx not in [1, 2]:
-                        st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                        ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
-                        ft_b64 = image_to_base64(ft) if ft is not None else None
-                    else:
-                        st.markdown("<small style='font-weight:700; color:#94a3b8;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                        st.caption("📷 *No requerida*")
-                        ft_b64 = None
+            with c_cl2:
+                st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")
+                maq_input_map = {}
+                for maq in MAQUINARIAS_FORMATO:
+                    c_m_l, c_m_v = st.columns([3, 1])
+                    with c_m_l:
+                        st.write(f"• {maq}")
+                    with c_m_v:
+                        maq_input_map[maq] = st.number_input(f"M_{maq}", min_value=0, value=0, key=f"lo_maq_{maq}", label_visibility="collapsed")
 
-                st.markdown('</div>', unsafe_allow_html=True)
-                resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
+            st.markdown("---")
 
-            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
+            c_ss1, c_ss2, c_ss3 = st.columns(3)
+            with c_ss1:
+                st.markdown("##### 🛡️ Seguridad")
+                seg_casco = st.checkbox("Casco", value=False)
+                seg_chaleco = st.checkbox("Chalecos", value=False)
+                seg_guantes = st.checkbox("Guantes", value=False)
+                seg_gafas = st.checkbox("Gafas", value=False)
+                seg_mascarilla = st.checkbox("Mascarilla", value=False)
+                seg_auditivo = st.checkbox("Auditivo", value=False)
 
-            # ------------------------------------------------------------------
-            # 2. JORNADA DE LA TARDE
-            # ------------------------------------------------------------------
-            st.markdown("#### 🌆 Jornada de la Tarde")
-            resp_tarde = []
+            with c_ss2:
+                st.markdown("##### 🚧 Señalización")
+                sen_conos = st.checkbox("Conos", value=False)
+                sen_cintas = st.checkbox("Cintas", value=False)
+                sen_rotulos = st.checkbox("Rótulos", value=False)
+                sen_vallas = st.checkbox("Vallas", value=False)
+                sen_extintor = st.checkbox("Extintor", value=False)
+                sen_botiquin = st.checkbox("Botiquín", value=False)
 
-            for idx, act in enumerate(ACTIVIDADES_TARDE_CLEAN, 1):
-                item_key = f"t_{idx}"
-                if item_key not in st.session_state.chk_obs_counts:
-                    st.session_state.chk_obs_counts[item_key] = 1
+            with c_ss3:
+                st.markdown("##### 🧹 Mitigación")
+                mit_polvo = st.checkbox("Control de Polvo", value=False)
+                mit_ruido = st.checkbox("Control de Ruido", value=False)
+                mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)
+                mit_cerramiento = st.checkbox("Cerramiento", value=False)
+                mit_limpieza = st.checkbox("Limpieza y Orden", value=False)
 
-                st.markdown(f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""", unsafe_allow_html=True)
-                st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
-                c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
+            st.markdown("---")
 
-                with c_col1:
-                    st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
-                    est = st.segmented_control(f"T_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], key=f"t_st_{idx}", label_visibility="collapsed")
+            st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
+            st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy sin texto predeterminado.")
 
-                with c_col2:
-                    st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
-                    obs_vals_item = []
-                    for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                        o_txt = st.text_input(f"Obs T_{idx}_{sub_o}", key=f"t_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
-                        if o_txt.strip():
-                            obs_vals_item.append(o_txt.strip())
-                    
-                    c_btn_o, _ = st.columns([2, 2])
-                    with c_btn_o:
-                        if st.button("➕ Observación", key=f"btn_add_obs_t_{idx}", use_container_width=True):
-                            st.session_state.chk_obs_counts[item_key] += 1
-                            st.rerun()
+            lista_actividades_lo = []
+            if chk_asociado:
+                datos_chk = chk_asociado.get("Datos", {})
+                sup_items = datos_chk.get("Supervision_Trabajos", []) if isinstance(datos_chk, dict) else []
+                for s_it in sup_items:
+                    if s_it.get("Actividad"):
+                        lista_actividades_lo.append({
+                            "Descripcion": s_it.get("Actividad"),
+                            "Area": "",
+                            "Encargados": s_it.get("Encargados", ""),
+                            "Unidad": "m2",
+                            "Cantidad": 0.0,
+                            "Observaciones": s_it.get("Observaciones", "")
+                        })
 
-                with c_col3:
-                    st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                    ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
-                    ft_b64 = image_to_base64(ft) if ft is not None else None
+            if not lista_actividades_lo:
+                lista_actividades_lo = [
+                    {"Descripcion": "", "Area": "", "Encargados": "", "Unidad": "m2", "Cantidad": 0.0, "Observaciones": ""},
+                    {"Descripcion": "", "Area": "", "Encargados": "", "Unidad": "m2", "Cantidad": 0.0, "Observaciones": ""}
+                ]
 
-                st.markdown('</div>', unsafe_allow_html=True)
-                resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
+            acts_final_payload = []
+            for idx_act_form, a_item in enumerate(lista_actividades_lo, 1):
+                st.markdown(f"**Actividad N° {idx_act_form}:**")
+                c_af1, c_af2, c_af3, c_af4 = st.columns([2.5, 1.5, 1, 1])
+                with c_af1:
+                    d_in = st.text_input(f"Descripción {idx_act_form}:", value=a_item["Descripcion"], placeholder="Ej. Albañilería, Pintura, Enlucido...", key=f"lo_act_d_{idx_act_form}")
+                with c_af2:
+                    ar_in = st.text_input(f"Área {idx_act_form}:", value=a_item["Area"], placeholder="Ej. Piso 3, Bloque A...", key=f"lo_act_ar_{idx_act_form}")
+                with c_af3:
+                    u_in = st.selectbox(f"Unidad {idx_act_form}:", ["m2", "m", "m3", "kg", "pto", "unid"], index=0, key=f"lo_act_u_{idx_act_form}")
+                with c_af4:
+                    ct_in = st.number_input(f"Cant. {idx_act_form}:", min_value=0.0, value=float(a_item["Cantidad"]), step=0.5, key=f"lo_act_ct_{idx_act_form}")
+                
+                acts_final_payload.append({
+                    "Descripcion": d_in.strip(),
+                    "Area": ar_in.strip(),
+                    "Encargados": a_item.get("Encargados", ""),
+                    "Unidad": u_in,
+                    "Cantidad": ct_in,
+                    "Observaciones": a_item.get("Observaciones", "")
+                })
 
-            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("---")
 
-            # ------------------------------------------------------------------
-            # 3. SUPERVISIÓN DE TRABAJOS (CON PERSONAL AISLADO POR USUARIO)
-            # ------------------------------------------------------------------
-            mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-            lista_nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
-            indices_a_eliminar = []
-            supervision_payload_data = []
+            st.markdown("#### 6. Novedades y Recomendaciones")
+            lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="", placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")
 
-            for idx_f, f_data in enumerate(st.session_state.filas_supervision, 1):
-                f_id = f_data["id"]
-                st.markdown(f"""<div class="banner-item-header" style="background-color:#1e293b !important;"><span>Fila de Supervisión N° {idx_f}</span></div>""", unsafe_allow_html=True)
-                st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
-                s1, s2, s3, s4 = st.columns([1.6, 1.4, 1.4, 0.4])
+            btn_guardar_lo_oficial = st.form_submit_button("💾 Guardar Formato Oficial de Libro de Obra", type="primary", use_container_width=True)
 
-                with s1:
-                    act_val = st.text_input(f"Actividad {f_id}", value=f_data.get("actividad", ""), placeholder="Ej. Enlucido fachada posterior...", key=f"dyn_act_{f_id}")
-                    obs_val_s = st.text_input(f"Obs {f_id}", value=f_data.get("observaciones", ""), placeholder="Observaciones adicionales...", key=f"dyn_obs_{f_id}")
-
-                with s2:
-                    if lista_nombres_personal:
-                        enc_val = st.multiselect(f"Personal {f_id}", options=lista_nombres_personal, default=f_data.get("encargados", []), key=f"dyn_enc_{f_id}", placeholder="Seleccionar personal...")
-                        enc_str = ", ".join(enc_val) if enc_val else ""
-                    else:
-                        enc_str = st.text_input(f"Personal manual {f_id}", value=f_data.get("encargados_manual", ""), placeholder="Escribir nombres...", key=f"dyn_enc_man_{f_id}")
-
-                with s3:
-                    ft_file = st.file_uploader(f"Foto {f_id}", type=["jpg", "jpeg", "png"], key=f"dyn_ft_{f_id}")
-                    foto_b64_f = image_to_base64(ft_file) if ft_file is not None else f_data.get("foto_b64")
-
-                with s4:
-                    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
-                    if st.button("🗑️", key=f"btn_del_row_{f_id}", help="Eliminar fila"):
-                        indices_a_eliminar.append(idx_f - 1)
-
-                st.markdown('</div>', unsafe_allow_html=True)
-                supervision_payload_data.append({"N°": idx_f, "Actividad": act_val.strip(), "Encargados": enc_str, "Observaciones": obs_val_s.strip(), "Foto_B64": foto_b64_f})
-
-            if indices_a_eliminar:
-                for del_i in sorted(indices_a_eliminar, reverse=True):
-                    if len(st.session_state.filas_supervision) > 1:
-                        st.session_state.filas_supervision.pop(del_i)
-                    else:
-                        st.session_state.filas_supervision = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
-                st.rerun()
-
-            if st.button("➕ Agregar Fila de Trabajo", key="btn_add_dyn_supervision_row"):
-                st.session_state.filas_supervision.append({"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None})
-                st.rerun()
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("💾 Guardar Checklist de Obra", type="primary", use_container_width=True):
-                if edificio_val == "-- Seleccione --" or not edificio_val:
-                    st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
+            if btn_guardar_lo_oficial:
+                if lo_proyecto == "-- Seleccione --":
+                    st.error("⚠️ Seleccione un Proyecto o Edificio.")
                 else:
-                    manana_respondida = [item for item in resp_manana if item["Estado"] is not None]
-                    tarde_respondida = [item for item in resp_tarde if item["Estado"] is not None]
-                    supervisiones_validas = [item for item in supervision_payload_data if item["Actividad"]]
+                    seguridad_checks = {
+                        "Casco": seg_casco,
+                        "Chalecos": seg_chaleco,
+                        "Guantes": seg_guantes,
+                        "Gafas": seg_gafas,
+                        "Mascarilla": seg_mascarilla,
+                        "Auditivo": seg_auditivo,
+                        "Conos": sen_conos,
+                        "Cintas": sen_cintas,
+                        "Rótulos": sen_rotulos,
+                        "Vallas": sen_vallas,
+                        "Extintor": sen_extintor,
+                        "Botiquin": sen_botiquin,
+                        "Polvo": mit_polvo,
+                        "Ruido": mit_ruido,
+                        "Liquidos": mit_liquidos,
+                        "Cerramiento": mit_cerramiento,
+                        "Limpieza": mit_limpieza
+                    }
 
-                    if not manana_respondida and not tarde_respondida and not supervisiones_validas:
-                        st.error("⚠️ Ingrese información antes de guardar.")
-                    else:
-                        payload_jornada = {"Verificaciones": manana_respondida + tarde_respondida, "Supervision_Trabajos": supervisiones_validas}
-                        try:
-                            supabase.table("checklists").insert({
-                                "usuario_email": user_email,
-                                "edificio": edificio_val,
-                                "fecha": fecha_val.strftime("%Y-%m-%d"),
-                                "hora_inicio": hora_inicio_val.strftime("%H:%M"),
-                                "hora_fin": hora_fin_val.strftime("%H:%M"),
-                                "responsable": user_nombre_completo,
-                                "cargo": user_cargo,
-                                "observacion_general": "",
-                                "datos": payload_jornada
-                            }).execute()
+                    payload_libro_oficial = {
+                        "Superintendente": lo_superintendente,
+                        "Fiscalizador": lo_fiscalizador,
+                        "Ubicacion": lo_ubicacion,
+                        "Barrio": lo_barrio,
+                        "Hoja": lo_hoja,
+                        "Nomina_Conteo": nomina_input_map,
+                        "Rotativo_Conteo": rotativo_input_map,
+                        "Clima_Condicion": clima_cond_sel,
+                        "Clima_Obs": clima_obs,
+                        "Maquinaria_Conteo": maq_input_map,
+                        "Seguridad_Check": seguridad_checks,
+                        "Actividades_Ejecutadas": acts_final_payload,
+                        "Novedades": lo_novedades
+                    }
 
-                            st.session_state.db_loaded = False
-                            st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
-                            st.session_state.creando_jornada = False
-                            st.session_state.filas_supervision = [{"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
-                            st.session_state.chk_obs_counts = {}
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error al guardar checklist: {e}")
+                    try:
+                        supabase.table("inspecciones").insert({
+                            "usuario_email": user_email,
+                            "proyecto": lo_proyecto,
+                            "fecha": lo_fecha.strftime("%Y-%m-%d"),
+                            "dia": lo_dia,
+                            "residente": lo_residente,
+                            "frente": lo_ubicacion,
+                            "clima": clima_cond_sel,
+                            "hora_inicio": lo_h_ini.strftime("%H:%M"),
+                            "hora_fin": lo_h_fin.strftime("%H:%M"),
+                            "datos": payload_libro_oficial
+                        }).execute()
 
-    st.markdown("---")
-    st.markdown("### Historial General de Checklists Creados")
-    mis_jornadas = st.session_state.get("db_checklists", {}).get(user_email, [])
+                        st.session_state.db_loaded = False
+                        st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al guardar: {e}")
 
-    if len(mis_jornadas) > 0:
-        col_edif_sel, _ = st.columns([2, 2])
-        with col_edif_sel:
-            edificio_filtro = st.selectbox("🏢 Seleccionar Edificio / Proyecto:", ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA, key="filtro_edificio_historial")
+        st.markdown("---")
 
-        jornadas_filtradas = [j for j in mis_jornadas if j.get("Edificio") == edificio_filtro] if edificio_filtro != "-- Todos los Edificios --" else mis_jornadas.copy()
-        st.caption(f"Mostrando **{len(jornadas_filtradas)}** checklist(s).")
+        # HISTORIAL DE FORMATOS
+        st.markdown("### Historial de Formatos en Libro de Obra")
+        mis_inspecciones = st.session_state.get("db_inspecciones", {}).get(user_email, [])
 
-        df_jornadas = pd.DataFrame(jornadas_filtradas)
-        df_jornadas["fecha_dt"] = pd.to_datetime(df_jornadas["Fecha"])
-        df_jornadas = df_jornadas.sort_values(by="fecha_dt", ascending=False)
-        df_jornadas["año"] = df_jornadas["fecha_dt"].dt.year
-        df_jornadas["mes_num"] = df_jornadas["fecha_dt"].dt.month
+        if len(mis_inspecciones) > 0:
+            col_edif_insp, _ = st.columns([2, 2])
+            with col_edif_insp:
+                edif_insp_filtro = st.selectbox("🏢 Filtrar Proyecto:", ["-- Todos los Proyectos --"] + EDIFICIOS_ALPHA, key="filtro_edif_inspecciones")
 
-        grupos_chk = df_jornadas.groupby(["año", "mes_num"], sort=False)
+            insps_filtradas = [i for i in mis_inspecciones if i.get("Proyecto") == edif_insp_filtro] if edif_insp_filtro != "-- Todos los Proyectos --" else mis_inspecciones.copy()
+            st.caption(f"Mostrando **{len(insps_filtradas)}** registro(s) en Libro de Obra.")
 
-        for (anio, mes_num), items_mes in grupos_chk:
-            nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Checklists)"
-            with st.expander(nombre_mes_str, expanded=False):
-                for orig_idx, j in items_mes.iterrows():
-                    j_dict = j.to_dict()
-                    chk_db_id = j_dict.get("db_id")
+            df_insps = pd.DataFrame(insps_filtradas)
+            df_insps["fecha_dt"] = pd.to_datetime(df_insps["Fecha"])
+            df_insps = df_insps.sort_values(by="fecha_dt", ascending=False)
+            df_insps["año"] = df_insps["fecha_dt"].dt.year
+            df_insps["mes_num"] = df_insps["fecha_dt"].dt.month
 
-                    with st.expander(f"📌 {j_dict['Edificio']} — {j_dict['Fecha']} (Horario: {j_dict.get('Hora_Inicio', 'N/A')} - {j_dict.get('Hora_Fin', 'N/A')})", expanded=False):
-                        c_dl1, c_dl2, c_del_chk = st.columns([2, 2, 1])
-                        with c_dl1:
-                            st.download_button("📊 Descargar Excel (.xlsx)", export_checklist_to_excel_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.xlsx", key=f"dl_xlsx_{orig_idx}", use_container_width=True)
-                        with c_dl2:
-                            st.download_button("📄 Descargar PDF (.pdf)", export_checklist_to_pdf_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.pdf", key=f"dl_pdf_{orig_idx}", use_container_width=True)
-                        with c_del_chk:
-                            if st.button("🗑️ Eliminar", key=f"btn_del_chk_{orig_idx}_{chk_db_id}", type="secondary", use_container_width=True):
-                                try:
-                                    supabase.table("checklists").delete().eq("id", chk_db_id).execute()
-                                    st.session_state.db_loaded = False
-                                    st.success("Checklist eliminado correctamente.")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error al eliminar: {e}")
-    else:
-        st.info("Aún no hay checklists guardados en tu cuenta.")
+            grupos_insp = df_insps.groupby(["año", "mes_num"], sort=False)
 
-# ==============================================================================
-# 10. MÓDULO 2: LIBRO DE OBRA (CON BOTÓN DE ELIMINAR EN CADA REPORTE)
-# ==============================================================================
-with tab_libro:
-    st.markdown("### Libro de Obra – Formato Oficial")
-    st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")
+            for (anio, mes_num), items_mes in grupos_insp:
+                nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Libros de Obra)"
+                with st.expander(nombre_mes_str, expanded=False):
+                    for idx_insp, insp in items_mes.iterrows():
+                        insp_dict = insp.to_dict()
+                        insp_db_id = insp_dict.get("db_id")
 
-    dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-    local_today_insp = get_local_datetime_ecuador().date()
+                        with st.expander(f"📌 {insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
+                            d_insp = insp_dict.get("Datos", {})
+                            st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp_dict.get('Frente', ''))} | **Clima:** {insp_dict.get('Clima', '')}")
+                            st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
 
-    col_lo1, col_lo2 = st.columns([1.5, 2.5])
-    with col_lo1:
-        lo_fecha = st.date_input("Fecha de Reporte:", local_today_insp, key="lo_official_fecha")
-        lo_dia = dias_es[lo_fecha.weekday()]
-        st.caption(f"Día seleccionado: **{lo_dia}**")
-
-    fecha_lo_str = lo_fecha.strftime("%Y-%m-%d")
-    chk_asociado = next((c for c in mis_jornadas if c.get("Fecha") == fecha_lo_str), None)
-
-    proyectos_libro = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
-    idx_proy_lo = 0
-    if chk_asociado and chk_asociado.get("Edificio") in proyectos_libro:
-        idx_proy_lo = proyectos_libro.index(chk_asociado.get("Edificio")) + 1
-
-    with col_lo2:
-        if chk_asociado:
-            st.success(f"🔗 **Checklist Vinculado:** Se importarán automáticamente las actividades y los horarios del edificio **{chk_asociado.get('Edificio')}**.")
+                            c_dl_i1, c_dl_i2, c_del_lo = st.columns([2, 2, 1])
+                            with c_dl_i1:
+                                st.download_button(
+                                    "📊 Descargar Formato Excel (.xlsx)",
+                                    export_libro_obra_formato_excel(insp_dict),
+                                    file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.xlsx",
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    key=f"dl_lo_off_x_{idx_insp}",
+                                    use_container_width=True
+                                )
+                            with c_dl_i2:
+                                st.download_button(
+                                    "📄 Descargar Formato PDF (.pdf)",
+                                    export_libro_obra_formato_pdf(insp_dict),
+                                    file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.pdf",
+                                    mime="application/pdf",
+                                    key=f"dl_lo_off_p_{idx_insp}",
+                                    use_container_width=True
+                                )
+                            with c_del_lo:
+                                if st.button("🗑️ Eliminar", key=f"btn_del_lo_{idx_insp}_{insp_db_id}", type="secondary", use_container_width=True):
+                                    try:
+                                        supabase.table("inspecciones").delete().eq("id", insp_db_id).execute()
+                                        st.session_state.db_loaded = False
+                                        st.success("Libro de Obra eliminado correctamente.")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error al eliminar: {e}")
         else:
-            st.info("💡 Si llenas el Checklist del día, los trabajos y horarios se precargarán automáticamente aquí.")
-
-    with st.form("form_libro_obra_oficial_lo"):
-        st.markdown("#### 1. Datos Generales de la Obra")
-        c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
-        with c_lo_a1:
-            lo_proyecto = st.selectbox("Proyecto:*", ["-- Seleccione --"] + proyectos_libro, index=idx_proy_lo, key="lo_proy_sel_off")
-            lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")
-            lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")
-
-        with c_lo_a2:
-            lo_superintendente = st.text_input("Superintendente:*", value="ING. PABLO ESPINOSA", key="lo_super_in")
-            lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")
-            lo_fiscalizador = st.text_input("Fiscalizador:*", value="ING. DIEGO CHARVET", key="lo_fisc_in")
-
-        with c_lo_a3:
-            lo_hoja = st.text_input("Hoja N°:*", value="000053", key="lo_hoja_in")
-            lo_h_ini = st.time_input("Hora Entrada:*", datetime.time(7, 0), key="lo_hini_off")
-            lo_h_fin = st.time_input("Hora Salida:*", datetime.time(16, 0), key="lo_hfin_off")
-
-        st.markdown("---")
-
-        st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
-        st.caption("Ingrese la cantidad de obreros presentes por especialidad.")
-
-        c_nom1, c_nom2 = st.columns(2)
-        with c_nom1:
-            st.markdown("##### 👷 Personal Nómina")
-            nomina_input_map = {}
-            for ofi in OFICIOS_NOMINA_FORMATO:
-                col_n_l, col_n_v = st.columns([3, 1])
-                with col_n_l:
-                    st.write(f"• {ofi} (7:00AM - 4:00PM)")
-                with col_n_v:
-                    nomina_input_map[ofi] = st.number_input(f"N_{ofi}", min_value=0, value=0, key=f"lo_nom_{ofi}", label_visibility="collapsed")
-
-        with c_nom2:
-            st.markdown("##### 🔄 Personal Rotativo / Subcontratos")
-            rotativo_input_map = {}
-            for rubro in RUROS_ROTATIVOS_FORMATO:
-                col_r_l, col_r_v = st.columns([3, 1])
-                with col_r_l:
-                    st.write(f"• {rubro}")
-                with col_r_v:
-                    rotativo_input_map[rubro] = st.number_input(f"R_{rubro}", min_value=0, value=0, key=f"lo_rot_{rubro}", label_visibility="collapsed")
-
-        st.markdown("---")
-
-        st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")
-        c_cl1, c_cl2 = st.columns(2)
-        with c_cl1:
-            st.markdown("##### ⛅ Condiciones Climáticas")
-            clima_cond_sel = st.selectbox("Estado del Clima:*", ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"], index=0, key="lo_clima_cond")
-            clima_obs = st.text_input("Observaciones del Clima en Obra:", placeholder="Describa si el clima afectó el rendimiento...", key="lo_clima_obs")
-
-        with c_cl2:
-            st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")
-            maq_input_map = {}
-            for maq in MAQUINARIAS_FORMATO:
-                c_m_l, c_m_v = st.columns([3, 1])
-                with c_m_l:
-                    st.write(f"• {maq}")
-                with c_m_v:
-                    maq_input_map[maq] = st.number_input(f"M_{maq}", min_value=0, value=0, key=f"lo_maq_{maq}", label_visibility="collapsed")
-
-        st.markdown("---")
-
-        st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
-        c_ss1, c_ss2, c_ss3 = st.columns(3)
-        with c_ss1:
-            st.markdown("##### 🛡️ Seguridad")
-            seg_casco = st.checkbox("Casco", value=False)
-            seg_chaleco = st.checkbox("Chalecos", value=False)
-            seg_guantes = st.checkbox("Guantes", value=False)
-            seg_gafas = st.checkbox("Gafas", value=False)
-            seg_mascarilla = st.checkbox("Mascarilla", value=False)
-            seg_auditivo = st.checkbox("Auditivo", value=False)
-
-        with c_ss2:
-            st.markdown("##### 🚧 Señalización")
-            sen_conos = st.checkbox("Conos", value=False)
-            sen_cintas = st.checkbox("Cintas", value=False)
-            sen_rotulos = st.checkbox("Rótulos", value=False)
-            sen_vallas = st.checkbox("Vallas", value=False)
-            sen_extintor = st.checkbox("Extintor", value=False)
-            sen_botiquin = st.checkbox("Botiquín", value=False)
-
-        with c_ss3:
-            st.markdown("##### 🧹 Mitigación")
-            mit_polvo = st.checkbox("Control de Polvo", value=False)
-            mit_ruido = st.checkbox("Control de Ruido", value=False)
-            mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)
-            mit_cerramiento = st.checkbox("Cerramiento", value=False)
-            mit_limpieza = st.checkbox("Limpieza y Orden", value=False)
-
-        st.markdown("---")
-
-        st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
-        st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy sin texto predeterminado.")
-
-        lista_actividades_lo = []
-        if chk_asociado:
-            datos_chk = chk_asociado.get("Datos", {})
-            sup_items = datos_chk.get("Supervision_Trabajos", []) if isinstance(datos_chk, dict) else []
-            for s_it in sup_items:
-                if s_it.get("Actividad"):
-                    lista_actividades_lo.append({
-                        "Descripcion": s_it.get("Actividad"),
-                        "Area": "",
-                        "Encargados": s_it.get("Encargados", ""),
-                        "Unidad": "m2",
-                        "Cantidad": 0.0,
-                        "Observaciones": s_it.get("Observaciones", "")
-                    })
-
-        if not lista_actividades_lo:
-            lista_actividades_lo = [
-                {"Descripcion": "", "Area": "", "Encargados": "", "Unidad": "m2", "Cantidad": 0.0, "Observaciones": ""},
-                {"Descripcion": "", "Area": "", "Encargados": "", "Unidad": "m2", "Cantidad": 0.0, "Observaciones": ""}
-            ]
-
-        acts_final_payload = []
-        for idx_act_form, a_item in enumerate(lista_actividades_lo, 1):
-            st.markdown(f"**Actividad N° {idx_act_form}:**")
-            c_af1, c_af2, c_af3, c_af4 = st.columns([2.5, 1.5, 1, 1])
-            with c_af1:
-                d_in = st.text_input(f"Descripción {idx_act_form}:", value=a_item["Descripcion"], placeholder="Ej. Albañilería, Pintura, Enlucido...", key=f"lo_act_d_{idx_act_form}")
-            with c_af2:
-                ar_in = st.text_input(f"Área {idx_act_form}:", value=a_item["Area"], placeholder="Ej. Piso 3, Bloque A...", key=f"lo_act_ar_{idx_act_form}")
-            with c_af3:
-                u_in = st.selectbox(f"Unidad {idx_act_form}:", ["m2", "m", "m3", "kg", "pto", "unid"], index=0, key=f"lo_act_u_{idx_act_form}")
-            with c_af4:
-                ct_in = st.number_input(f"Cant. {idx_act_form}:", min_value=0.0, value=float(a_item["Cantidad"]), step=0.5, key=f"lo_act_ct_{idx_act_form}")
-            
-            acts_final_payload.append({
-                "Descripcion": d_in.strip(),
-                "Area": ar_in.strip(),
-                "Encargados": a_item.get("Encargados", ""),
-                "Unidad": u_in,
-                "Cantidad": ct_in,
-                "Observaciones": a_item.get("Observaciones", "")
-            })
-
-        st.markdown("---")
-
-        st.markdown("#### 6. Novedades y Recomendaciones")
-        lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="", placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")
-
-        btn_guardar_lo_oficial = st.form_submit_button("💾 Guardar Formato Oficial de Libro de Obra", type="primary", use_container_width=True)
-
-        if btn_guardar_lo_oficial:
-            if lo_proyecto == "-- Seleccione --":
-                st.error("⚠️ Seleccione un Proyecto o Edificio.")
-            else:
-                seguridad_checks = {
-                    "Casco": seg_casco,
-                    "Chalecos": seg_chaleco,
-                    "Guantes": seg_guantes,
-                    "Gafas": seg_gafas,
-                    "Mascarilla": seg_mascarilla,
-                    "Auditivo": seg_auditivo,
-                    "Conos": sen_conos,
-                    "Cintas": sen_cintas,
-                    "Rótulos": sen_rotulos,
-                    "Vallas": sen_vallas,
-                    "Extintor": sen_extintor,
-                    "Botiquin": sen_botiquin,
-                    "Polvo": mit_polvo,
-                    "Ruido": mit_ruido,
-                    "Liquidos": mit_liquidos,
-                    "Cerramiento": mit_cerramiento,
-                    "Limpieza": mit_limpieza
-                }
-
-                payload_libro_oficial = {
-                    "Superintendente": lo_superintendente,
-                    "Fiscalizador": lo_fiscalizador,
-                    "Ubicacion": lo_ubicacion,
-                    "Barrio": lo_barrio,
-                    "Hoja": lo_hoja,
-                    "Nomina_Conteo": nomina_input_map,
-                    "Rotativo_Conteo": rotativo_input_map,
-                    "Clima_Condicion": clima_cond_sel,
-                    "Clima_Obs": clima_obs,
-                    "Maquinaria_Conteo": maq_input_map,
-                    "Seguridad_Check": seguridad_checks,
-                    "Actividades_Ejecutadas": acts_final_payload,
-                    "Novedades": lo_novedades
-                }
-
-                try:
-                    supabase.table("inspecciones").insert({
-                        "usuario_email": user_email,
-                        "proyecto": lo_proyecto,
-                        "fecha": lo_fecha.strftime("%Y-%m-%d"),
-                        "dia": lo_dia,
-                        "residente": lo_residente,
-                        "frente": lo_ubicacion,
-                        "clima": clima_cond_sel,
-                        "hora_inicio": lo_h_ini.strftime("%H:%M"),
-                        "hora_fin": lo_h_fin.strftime("%H:%M"),
-                        "datos": payload_libro_oficial
-                    }).execute()
-
-                    st.session_state.db_loaded = False
-                    st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error al guardar: {e}")
-
-    st.markdown("---")
-
-    # HISTORIAL DE FORMATOS (CON BOTÓN DE ELIMINAR)
-    st.markdown("### Historial de Formatos en Libro de Obra")
-    mis_inspecciones = st.session_state.get("db_inspecciones", {}).get(user_email, [])
-
-    if len(mis_inspecciones) > 0:
-        col_edif_insp, _ = st.columns([2, 2])
-        with col_edif_insp:
-            edif_insp_filtro = st.selectbox("🏢 Filtrar Proyecto:", ["-- Todos los Proyectos --"] + EDIFICIOS_ALPHA, key="filtro_edif_inspecciones")
-
-        insps_filtradas = [i for i in mis_inspecciones if i.get("Proyecto") == edif_insp_filtro] if edif_insp_filtro != "-- Todos los Proyectos --" else mis_inspecciones.copy()
-        st.caption(f"Mostrando **{len(insps_filtradas)}** registro(s) en Libro de Obra.")
-
-        df_insps = pd.DataFrame(insps_filtradas)
-        df_insps["fecha_dt"] = pd.to_datetime(df_insps["Fecha"])
-        df_insps = df_insps.sort_values(by="fecha_dt", ascending=False)
-        df_insps["año"] = df_insps["fecha_dt"].dt.year
-        df_insps["mes_num"] = df_insps["fecha_dt"].dt.month
-
-        grupos_insp = df_insps.groupby(["año", "mes_num"], sort=False)
-
-        for (anio, mes_num), items_mes in grupos_insp:
-            nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Libros de Obra)"
-            with st.expander(nombre_mes_str, expanded=False):
-                for idx_insp, insp in items_mes.iterrows():
-                    insp_dict = insp.to_dict()
-                    insp_db_id = insp_dict.get("db_id")
-
-                    with st.expander(f"📌 {insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
-                        d_insp = insp_dict.get("Datos", {})
-                        st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp_dict.get('Frente', ''))} | **Clima:** {insp_dict.get('Clima', '')}")
-                        st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
-
-                        c_dl_i1, c_dl_i2, c_del_lo = st.columns([2, 2, 1])
-                        with c_dl_i1:
-                            st.download_button(
-                                "📊 Descargar Formato Excel (.xlsx)",
-                                export_libro_obra_formato_excel(insp_dict),
-                                file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                key=f"dl_lo_off_x_{idx_insp}",
-                                use_container_width=True
-                            )
-                        with c_dl_i2:
-                            st.download_button(
-                                "📄 Descargar Formato PDF (.pdf)",
-                                export_libro_obra_formato_pdf(insp_dict),
-                                file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.pdf",
-                                mime="application/pdf",
-                                key=f"dl_lo_off_p_{idx_insp}",
-                                use_container_width=True
-                            )
-                        with c_del_lo:
-                            if st.button("🗑️ Eliminar", key=f"btn_del_lo_{idx_insp}_{insp_db_id}", type="secondary", use_container_width=True):
-                                try:
-                                    supabase.table("inspecciones").delete().eq("id", insp_db_id).execute()
-                                    st.session_state.db_loaded = False
-                                    st.success("Libro de Obra eliminado correctamente.")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error al eliminar: {e}")
-    else:
-        st.info("Aún no tienes registros guardados en tu Libro de Obra.")
+            st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
-# PARTE 5 DE 5: PERSONAL A CARGO (DOBLE PERSISTENCIA), INCIDENCIAS,
-#               RENDIMIENTOS, ESPACIO COLABORATIVO (SINCRONIZADO) Y ADMIN
+# PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTO, ESPACIO COLABORATIVO
+#               (CON INTEGRACIÓN DE MAESTRO MAYOR) Y PANEL ADMINISTRADOR
 # ==============================================================================
 
 # ==============================================================================
@@ -3222,13 +3517,12 @@ with tab_rend:
         st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
 # ==============================================================================
-# 14. MÓDULO 6: ESPACIO COLABORATIVO (SINCRONIZACIÓN BLINDADA POR EDIFICIO)
+# 14. MÓDULO 6: ESPACIO COLABORATIVO (CON INTEGRACIÓN DE ACTIVIDADES DEL MAESTRO MAYOR)
 # ==============================================================================
 with tab_colab:
     st.markdown("### Espacio de Trabajo Colaborativo")
-    st.caption("Visualización cruzada de datos, incidencias y cuadrillas con compañeros que comparten proyectos contigo.")
+    st.caption("Visualización cruzada de datos, incidencias, personal y actividades del Maestro Mayor entre compañeros que comparten proyectos.")
 
-    # Normalización de edificios para evitar fallas por mayúsculas o espacios
     mis_edificios_raw = st.session_state.get("usuario_edificios", [])
     mis_proyectos_norm = set([str(x).strip().lower() for x in mis_edificios_raw if str(x).strip()])
 
@@ -3244,7 +3538,6 @@ with tab_colab:
                 interseccion_norm = mis_proyectos_norm.intersection(u_edifs_norm)
                 
                 if len(interseccion_norm) > 0:
-                    # Recupera los nombres legibles originales
                     nombres_comunes = [e for e in mis_edificios_raw if str(e).strip().lower() in interseccion_norm]
                     companeros_colab.append({
                         "usuario": u,
@@ -3268,6 +3561,7 @@ with tab_colab:
                 item_colega_sel = map_colegas[sel_colega_str]
                 colega_u = item_colega_sel["usuario"]
                 c_mail = str(colega_u["Correo"]).lower().strip()
+                c_cargo = colega_u.get("Cargo", "Residente")
 
             with c_sel_col2:
                 st.markdown(
@@ -3282,72 +3576,120 @@ with tab_colab:
 
             st.markdown("---")
 
-            sub_tab_chk, sub_tab_libro, sub_tab_inc, sub_tab_rend = st.tabs([
-                "📋 Checklists del Compañero",
-                "📖 Libro de Obra del Compañero",
-                "🚨 Incidencias de la Persona",
-                "⚡ Rendimientos del Compañero"
-            ])
+            # Pestañas adaptadas si el compañero seleccionado es Maestro Mayor
+            if c_cargo == "Maestro Mayor":
+                sub_tabs_colab = st.tabs([
+                    "🔨 Libro de Obra del Maestro",
+                    "🚨 Incidencias de la Persona",
+                    "⚡ Rendimientos del Compañero"
+                ])
 
-            # 1. Checklists del compañero
-            with sub_tab_chk:
-                chks_colega = st.session_state.get("db_checklists", {}).get(c_mail, [])
-                if len(chks_colega) > 0:
-                    st.caption(f"Mostrando **{len(chks_colega)}** checklist(s) registrados por **{colega_u['Nombres']}**.")
-                    for idx_c_j, j_col in enumerate(chks_colega, 1):
-                        with st.expander(f"📌 [{j_col.get('Edificio', '')}] {j_col.get('Fecha', '')} (Horario: {j_col.get('Hora_Inicio', '')} - {j_col.get('Hora_Fin', '')})", expanded=False):
-                            col_dl_c1, col_dl_c2 = st.columns(2)
-                            with col_dl_c1:
-                                xlsx_col_b = export_checklist_to_excel_file(j_col)
-                                st.download_button("📊 Descargar Excel", xlsx_col_b, file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}_p5", use_container_width=True)
-                            with col_dl_c2:
-                                pdf_col_b = export_checklist_to_pdf_file(j_col)
-                                st.download_button("📄 Descargar PDF", pdf_col_b, file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}_p5", use_container_width=True)
-                else:
-                    st.info(f"{colega_u['Nombres']} aún no ha registrado checklists.")
+                # 1. Reportes y actividades del Maestro Mayor
+                with sub_tabs_colab[0]:
+                    insps_maestro = st.session_state.get("db_inspecciones", {}).get(c_mail, [])
+                    if len(insps_maestro) > 0:
+                        st.caption(f"Mostrando **{len(insps_maestro)}** reporte(s) de Maestro Mayor registrados por **{colega_u['Nombres']}**. Utiliza estas cantidades y actividades para llenar tu Libro de Obra Oficial.")
+                        for idx_c_m, m_rep in enumerate(insps_maestro, 1):
+                            with st.expander(f"📌 [{m_rep.get('Proyecto', '')}] Fecha: {m_rep.get('Fecha', '')} ({m_rep.get('Dia', '')})", expanded=True):
+                                d_m = m_rep.get("Datos", {})
+                                acts_m = d_m.get("Actividades_Maestro", [])
+                                if acts_m:
+                                    st.markdown("**Actividades y Metrajes Reportados:**")
+                                    for a_it in acts_m:
+                                        st.write(f"• **{a_it.get('Actividad')}**: `{a_it.get('Cantidad')} unidades` — *{a_it.get('Observaciones', 'Sin observaciones')}*")
+                                
+                                col_dl_mm1, col_dl_mm2 = st.columns(2)
+                                with col_dl_mm1:
+                                    st.download_button("📊 Descargar Excel", export_libro_obra_maestro_excel(m_rep), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
+                                with col_dl_mm2:
+                                    st.download_button("📄 Descargar PDF", export_libro_obra_maestro_pdf(m_rep), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
+                    else:
+                        st.info(f"{colega_u['Nombres']} aún no ha cargado actividades en su Libro de Obra.")
 
-            # 2. Libros de obra del compañero
-            with sub_tab_libro:
-                insps_colega = st.session_state.get("db_inspecciones", {}).get(c_mail, [])
-                if len(insps_colega) > 0:
-                    st.caption(f"Mostrando **{len(insps_colega)}** registro(s) en Libro de Obra.")
-                    for idx_c_i, i_col in enumerate(insps_colega, 1):
-                        with st.expander(f"📌 [{i_col.get('Proyecto', '')}] {i_col.get('Fecha', '')} ({i_col.get('Dia', '')}) | Residente: {i_col.get('Residente', '')}", expanded=False):
-                            col_dl_i1, col_dl_i2 = st.columns(2)
-                            with col_dl_i1:
-                                xlsx_insp_b = export_libro_obra_formato_excel(i_col)
-                                st.download_button("📊 Descargar Excel", xlsx_insp_b, file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}_p5", use_container_width=True)
-                            with col_dl_i2:
-                                pdf_insp_b = export_libro_obra_formato_pdf(i_col)
-                                st.download_button("📄 Descargar PDF", pdf_insp_b, file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}_p5", use_container_width=True)
-                else:
-                    st.info(f"{colega_u['Nombres']} aún no ha registrado formatos de Libro de Obra.")
+                # 2. Incidencias
+                with sub_tabs_colab[1]:
+                    todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
+                    incs_de_la_persona = [inc for inc in todas_las_incidencias_db if str(inc.get("Usuario", "")).lower().strip() == c_mail]
+                    if len(incs_de_la_persona) > 0:
+                        st.caption(f"Mostrando **{len(incs_de_la_persona)}** incidencia(s) levantadas por **{colega_u['Nombres']}**:")
+                        df_incs_p = pd.DataFrame(incs_de_la_persona).drop(columns=["db_id"], errors="ignore")
+                        st.dataframe(df_incs_p, use_container_width=True)
+                    else:
+                        st.info(f"{colega_u['Nombres']} no tiene incidencias registradas.")
 
-            # 3. Incidencias registradas individualmente por la persona
-            with sub_tab_inc:
-                todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
-                incs_de_la_persona = [
-                    inc for inc in todas_las_incidencias_db
-                    if str(inc.get("Usuario", "")).lower().strip() == c_mail
-                ]
-                if len(incs_de_la_persona) > 0:
-                    st.caption(f"Mostrando **{len(incs_de_la_persona)}** incidencia(s) levantadas por **{colega_u['Nombres']}**:")
-                    df_incs_p = pd.DataFrame(incs_de_la_persona).drop(columns=["db_id"], errors="ignore")
-                    st.dataframe(df_incs_p, use_container_width=True)
-                else:
-                    st.info(f"{colega_u['Nombres']} no tiene incidencias registradas.")
+                # 3. Rendimientos
+                with sub_tabs_colab[2]:
+                    rnds_colega = st.session_state.get("db_rendimientos", {}).get(c_mail, [])
+                    if len(rnds_colega) > 0:
+                        st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento de **{colega_u['Nombres']}**.")
+                        df_r_col = pd.DataFrame(rnds_colega).drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador"], errors="ignore")
+                        if not df_r_col.empty:
+                            df_r_col.index = range(1, len(df_r_col) + 1)
+                        st.dataframe(df_r_col, use_container_width=True)
+                    else:
+                        st.info(f"{colega_u['Nombres']} aún no ha ingresado rendimientos.")
 
-            # 4. Rendimientos del compañero
-            with sub_tab_rend:
-                rnds_colega = st.session_state.get("db_rendimientos", {}).get(c_mail, [])
-                if len(rnds_colega) > 0:
-                    st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento ingresados por **{colega_u['Nombres']}**.")
-                    df_r_col = pd.DataFrame(rnds_colega).drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador"], errors="ignore")
-                    if not df_r_col.empty:
-                        df_r_col.index = range(1, len(df_r_col) + 1)
-                    st.dataframe(df_r_col, use_container_width=True)
-                else:
-                    st.info(f"{colega_u['Nombres']} aún no ha ingresado registros de rendimiento.")
+            else:
+                # Compañero es Residente o Asistente
+                sub_tabs_colab = st.tabs([
+                    "📋 Checklists del Compañero",
+                    "📖 Libro de Obra del Compañero",
+                    "🚨 Incidencias de la Persona",
+                    "⚡ Rendimientos del Compañero"
+                ])
+
+                with sub_tabs_colab[0]:
+                    chks_colega = st.session_state.get("db_checklists", {}).get(c_mail, [])
+                    if len(chks_colega) > 0:
+                        st.caption(f"Mostrando **{len(chks_colega)}** checklist(s) registrados por **{colega_u['Nombres']}**.")
+                        for idx_c_j, j_col in enumerate(chks_colega, 1):
+                            with st.expander(f"📌 [{j_col.get('Edificio', '')}] {j_col.get('Fecha', '')} (Horario: {j_col.get('Hora_Inicio', '')} - {j_col.get('Hora_Fin', '')})", expanded=False):
+                                col_dl_c1, col_dl_c2 = st.columns(2)
+                                with col_dl_c1:
+                                    xlsx_col_b = export_checklist_to_excel_file(j_col)
+                                    st.download_button("📊 Descargar Excel", xlsx_col_b, file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}_p5", use_container_width=True)
+                                with col_dl_c2:
+                                    pdf_col_b = export_checklist_to_pdf_file(j_col)
+                                    st.download_button("📄 Descargar PDF", pdf_col_b, file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}_p5", use_container_width=True)
+                    else:
+                        st.info(f"{colega_u['Nombres']} aún no ha registrado checklists.")
+
+                with sub_tabs_colab[1]:
+                    insps_colega = st.session_state.get("db_inspecciones", {}).get(c_mail, [])
+                    if len(insps_colega) > 0:
+                        st.caption(f"Mostrando **{len(insps_colega)}** registro(s) en Libro de Obra.")
+                        for idx_c_i, i_col in enumerate(insps_colega, 1):
+                            with st.expander(f"📌 [{i_col.get('Proyecto', '')}] {i_col.get('Fecha', '')} ({i_col.get('Dia', '')}) | Residente: {i_col.get('Residente', '')}", expanded=False):
+                                col_dl_i1, col_dl_i2 = st.columns(2)
+                                with col_dl_i1:
+                                    xlsx_insp_b = export_libro_obra_formato_excel(i_col)
+                                    st.download_button("📊 Descargar Excel", xlsx_insp_b, file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}_p5", use_container_width=True)
+                                with col_dl_i2:
+                                    pdf_insp_b = export_libro_obra_formato_pdf(i_col)
+                                    st.download_button("📄 Descargar PDF", pdf_insp_b, file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}_p5", use_container_width=True)
+                    else:
+                        st.info(f"{colega_u['Nombres']} aún no ha registrado formatos de Libro de Obra.")
+
+                with sub_tabs_colab[2]:
+                    todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
+                    incs_de_la_persona = [inc for inc in todas_las_incidencias_db if str(inc.get("Usuario", "")).lower().strip() == c_mail]
+                    if len(incs_de_la_persona) > 0:
+                        st.caption(f"Mostrando **{len(incs_de_la_persona)}** incidencia(s) levantadas por **{colega_u['Nombres']}**:")
+                        df_incs_p = pd.DataFrame(incs_de_la_persona).drop(columns=["db_id"], errors="ignore")
+                        st.dataframe(df_incs_p, use_container_width=True)
+                    else:
+                        st.info(f"{colega_u['Nombres']} no tiene incidencias registradas.")
+
+                with sub_tabs_colab[3]:
+                    rnds_colega = st.session_state.get("db_rendimientos", {}).get(c_mail, [])
+                    if len(rnds_colega) > 0:
+                        st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento de **{colega_u['Nombres']}**.")
+                        df_r_col = pd.DataFrame(rnds_colega).drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador"], errors="ignore")
+                        if not df_r_col.empty:
+                            df_r_col.index = range(1, len(df_r_col) + 1)
+                        st.dataframe(df_r_col, use_container_width=True)
+                    else:
+                        st.info(f"{colega_u['Nombres']} aún no ha ingresado rendimientos.")
         else:
             st.info("No se encontraron compañeros de trabajo que compartan tus mismos proyectos. Cuando otros usuarios seleccionen los mismos edificios, aparecerán automáticamente en tu grupo colaborativo.")
 
@@ -3355,7 +3697,7 @@ with tab_colab:
 # 15. MÓDULO 7: PANEL DE CONTROL ADMINISTRADOR
 # ==============================================================================
 if es_admin:
-    tab_admin = tabs_app[6] if len(tabs_app) > 6 else tabs_app[-1]
+    tab_admin = tabs_app[-1]
     with tab_admin:
         st.markdown("### Panel de Control Administrador")
         st.caption("Módulo exclusivo para supervisar checklists, libro de obra, incidencias, rendimientos, usuarios y configuración.")
@@ -3464,32 +3806,28 @@ if es_admin:
             insps_admin_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
 
             for idx_i_adm, i_adm in enumerate(insps_admin_filtradas, 1):
-                with st.expander(f"📌 [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} ({i_adm['Dia']}) — Usuario: {i_adm['Usuario_Correo']}", expanded=False):
-                    d_i_adm = i_adm.get("Datos", {})
-                    st.markdown(f"**Ubicación:** {d_i_adm.get('Ubicacion', i_adm.get('Frente', ''))} | **Clima:** {i_adm.get('Clima', '')}")
-                    st.markdown(f"**Superintendente:** {d_i_adm.get('Superintendente', '')} | **Fiscalizador:** {d_i_adm.get('Fiscalizador', '')}")
-                    
-                    c_ad_idl1, c_ad_idl2 = st.columns(2)
-                    with c_ad_idl1:
-                        excel_insp_bytes_adm = export_libro_obra_formato_excel(i_adm)
-                        st.download_button(
-                            label="📊 Descargar Formato Excel (.xlsx)",
-                            data=excel_insp_bytes_adm,
-                            file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key=f"dl_insp_xlsx_adm_{idx_i_adm}_p5",
-                            use_container_width=True
-                        )
-                    with c_ad_idl2:
-                        pdf_insp_bytes_adm = export_libro_obra_formato_pdf(i_adm)
-                        st.download_button(
-                            label="📄 Descargar Formato PDF (.pdf)",
-                            data=pdf_insp_bytes_adm,
-                            file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf",
-                            mime="application/pdf",
-                            key=f"dl_insp_pdf_adm_{idx_i_adm}_p5",
-                            use_container_width=True
-                        )
+                d_i_adm = i_adm.get("Datos", {})
+                es_tipo_mm = (d_i_adm.get("Tipo_Registro") == "Libro_Obra_Maestro")
+                titulo_exp = f"🔨 [MAESTRO MAYOR] [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} — Usuario: {i_adm['Usuario_Correo']}" if es_tipo_mm else f"📌 [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} ({i_adm['Dia']}) — Usuario: {i_adm['Usuario_Correo']}"
+
+                with st.expander(titulo_exp, expanded=False):
+                    if es_tipo_mm:
+                        acts_mm = d_i_adm.get("Actividades_Maestro", [])
+                        for a in acts_mm:
+                            st.write(f"• **{a.get('Actividad')}**: {a.get('Cantidad')} ({a.get('Observaciones', '')})")
+                        c_ad_idl1, c_ad_idl2 = st.columns(2)
+                        with c_ad_idl1:
+                            st.download_button("📊 Descargar Excel", export_libro_obra_maestro_excel(i_adm), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.xlsx", key=f"dl_mm_adm_x_{idx_i_adm}", use_container_width=True)
+                        with c_ad_idl2:
+                            st.download_button("📄 Descargar PDF", export_libro_obra_maestro_pdf(i_adm), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.pdf", key=f"dl_mm_adm_p_{idx_i_adm}", use_container_width=True)
+                    else:
+                        st.markdown(f"**Ubicación:** {d_i_adm.get('Ubicacion', i_adm.get('Frente', ''))} | **Clima:** {i_adm.get('Clima', '')}")
+                        st.markdown(f"**Superintendente:** {d_i_adm.get('Superintendente', '')} | **Fiscalizador:** {d_i_adm.get('Fiscalizador', '')}")
+                        c_ad_idl1, c_ad_idl2 = st.columns(2)
+                        with c_ad_idl1:
+                            st.download_button("📊 Descargar Formato Excel (.xlsx)", export_libro_obra_formato_excel(i_adm), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_insp_xlsx_adm_{idx_i_adm}_p5", use_container_width=True)
+                        with c_ad_idl2:
+                            st.download_button("📄 Descargar Formato PDF (.pdf)", export_libro_obra_formato_pdf(i_adm), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf", mime="application/pdf", key=f"dl_insp_pdf_adm_{idx_i_adm}_p5", use_container_width=True)
         else:
             st.info("Ningún participante ha registrado formatos de Libro de Obra aún.")
 
