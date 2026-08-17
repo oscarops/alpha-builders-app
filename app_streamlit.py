@@ -2218,7 +2218,7 @@ with tab_libro:
                 u_in = st.selectbox(f"Unidad {idx_act_form}:", ["m2", "m", "m3", "kg", "pto", "unid"], index=0, key=f"lo_act_u_{idx_act_form}")
             with c_af4:
                 ct_in = st.number_input(f"Cant. {idx_act_form}:", min_value=0.0, value=float(a_item["Cantidad"]), step=0.5, key=f"lo_act_ct_{idx_act_form}")
-
+            
             acts_final_payload.append({
                 "Descripcion": d_in.strip(),
                 "Area": ar_in.strip(),
@@ -3372,6 +3372,7 @@ if es_admin:
                 data=csv_rend_admin_bytes,
                 file_name=f"Rendimientos_Globales_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
+                key="dl_csv_rend_admin_p5",
                 use_container_width=True
             )
         else:
