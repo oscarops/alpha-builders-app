@@ -1,12 +1,11 @@
 # ==============================================================================
-# PARTE 1 DE 5: IMPORTACIONES, CONFIGURACIÓN DE PÁGINA, ESTILOS Y CONSTANTES
+# PARTE 1 DE 5: CONFIGURACIÓN DE PÁGINA, ESTILOS CSS Y CONSTANTES
 # ==============================================================================
 import base64
 import datetime
 import io
 import json
 import os
-import urllib.request
 import zoneinfo
 import pandas as pd
 from PIL import Image, ImageOps
@@ -15,7 +14,6 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
-from streamlit_local_storage import LocalStorage
 
 # ReportLab para exportación de reportes PDF oficiales
 from reportlab.lib.pagesizes import letter, landscape
@@ -336,7 +334,6 @@ st.markdown(
         margin-bottom: 6px;
     }
 
-    /* CARD RESPONSIVE MOBILE-FIRST PARA TRABAJADORES */
     .worker-card-row {
         background: #ffffff;
         border: 1px solid #cbd5e1;
@@ -379,13 +376,13 @@ st.markdown(
         .worker-name-title { font-size: 0.78rem; }
     }
 
-    .incidencias-table, .supervision-table, .checklist-table {
+    .incidencias-table {
         width: 100%;
         border-collapse: collapse !important;
         margin-top: 4px;
         margin-bottom: 8px;
     }
-    .incidencias-table th, .supervision-table th, .checklist-table th {
+    .incidencias-table th {
         background-color: #0f172a !important;
         color: #ffffff !important;
         padding: 6px 8px !important;
@@ -394,18 +391,17 @@ st.markdown(
         border: 1px solid #334155 !important;
         text-align: left;
     }
-    .incidencias-table th.center, .supervision-table th.center, .checklist-table th.center,
-    .incidencias-table td.center, .supervision-table td.center, .checklist-table td.center {
+    .incidencias-table th.center, .incidencias-table td.center {
         text-align: center !important;
     }
-    .incidencias-table td, .supervision-table td, .checklist-table td {
+    .incidencias-table td {
         padding: 5px 7px !important;
         font-size: 0.76rem !important;
         border: 1px solid #cbd5e1 !important;
         vertical-align: middle !important;
         background-color: #ffffff !important;
     }
-    .incidencias-table tr:nth-child(even) td, .supervision-table tr:nth-child(even) td, .checklist-table tr:nth-child(even) td {
+    .incidencias-table tr:nth-child(even) td {
         background-color: #f8fafc !important;
     }
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
@@ -468,11 +464,11 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA RESILIENTE SIN TIMEOUT, EXPORTADORES Y MANEJO DE DATOS
+# PARTE 2 DE 5: CARGA RÁPIDA NO BLOQUEANTE Y EXPORTADORES DE DOCUMENTOS
 # ==============================================================================
 
 # ==============================================================================
-# 3. SERVICIO EN TIEMPO REAL: HORA LOCAL Y CLIMA ACTUAL DE ECUADOR
+# 3. SERVICIO EN TIEMPO REAL: HORA LOCAL Y ESTADO DE CLIMA INSTANTÁNEO
 # ==============================================================================
 def get_local_datetime_ecuador():
     try:
@@ -482,53 +478,18 @@ def get_local_datetime_ecuador():
         tz_offset = datetime.timezone(datetime.timedelta(hours=-5))
         return datetime.datetime.now(tz_offset)
 
-@st.cache_data(ttl=600)
 def get_realtime_weather():
-    try:
-        url = "https://api.open-meteo.com/v1/forecast?latitude=-0.1807&longitude=-78.4678&current=temperature_2m,weather_code,is_day&timezone=America%2FGuayaquil"
-        req = urllib.request.Request(url, headers={'User-Agent': 'AlphaBuildersApp/1.0'})
-        with urllib.request.urlopen(req, timeout=4) as response:
-            res_data = json.loads(response.read().decode())
-            current = res_data.get("current", {})
-            temp = round(current.get("temperature_2m", 18.0))
-            wmo_code = current.get("weather_code", 0)
-            is_day = current.get("is_day", 1)
-
-            if wmo_code == 0:
-                cond = "Despejado"
-                ico = "☀️" if is_day else "🌙"
-            elif wmo_code in [1, 2]:
-                cond = "Parcial Nublado"
-                ico = "⛅" if is_day else "☁️"
-            elif wmo_code == 3:
-                cond = "Nublado"
-                ico = "☁️"
-            elif wmo_code in [45, 48]:
-                cond = "Neblina"
-                ico = "🌫️"
-            elif wmo_code in [51, 53, 55, 61, 63, 65, 80, 81, 82]:
-                cond = "Lluvia"
-                ico = "🌧️"
-            elif wmo_code in [95, 96, 99]:
-                cond = "Tormenta"
-                ico = "⛈️"
-            else:
-                cond = "Templado"
-                ico = "⛅"
-
-            return f"{ico} {temp}°C {cond}"
-    except Exception:
-        local_dt = get_local_datetime_ecuador()
-        h = local_dt.hour
-        if 6 <= h < 12:
-            return "☀️ 17°C Mañana Despejada"
-        elif 12 <= h < 18:
-            return "⛅ 21°C Tarde Templada"
-        else:
-            return "🌙 14°C Noche Fresca"
+    local_dt = get_local_datetime_ecuador()
+    h = local_dt.hour
+    if 6 <= h < 12:
+        return "☀️ 17°C Mañana Despejada"
+    elif 12 <= h < 18:
+        return "⛅ 21°C Tarde Templada"
+    else:
+        return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 4. BASE DE DATOS SUPABASE - CARGA LIGERA Y AISLADA
+# 4. BASE DE DATOS SUPABASE - INICIALIZACIÓN Y CARGA LIGERA
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -540,13 +501,12 @@ def init_supabase():
     return create_client(url, key)
 
 supabase = init_supabase()
-local_storage = LocalStorage()
 
 def load_db_from_supabase():
     # 1. PIN de Seguridad
     access_pin = "1254"
     try:
-        res_pin = supabase.table("app_config").select("*").eq("key", "access_pin").execute()
+        res_pin = supabase.table("app_config").select("value").eq("key", "access_pin").execute()
         if res_pin.data and len(res_pin.data) > 0:
             access_pin = res_pin.data[0]["value"]
     except Exception as e:
@@ -556,30 +516,31 @@ def load_db_from_supabase():
     fallback_edificios_map = {}
     fallback_trabajadores_map = {}
     try:
-        res_cfg = supabase.table("app_config").select("*").execute()
-        for r_cfg in res_cfg.data:
-            k = r_cfg["key"]
-            if k.startswith("user_edificios_"):
-                u_k = k.replace("user_edificios_", "").lower().strip()
-                try:
-                    fallback_edificios_map[u_k] = json.loads(r_cfg["value"])
-                except Exception:
-                    fallback_edificios_map[u_k] = [r_cfg["value"]]
-            elif k.startswith("user_trabajadores_"):
-                u_k = k.replace("user_trabajadores_", "").lower().strip()
-                try:
-                    parsed_val = json.loads(r_cfg["value"])
-                    if isinstance(parsed_val, list):
-                        fallback_trabajadores_map[u_k] = [
-                            item for item in parsed_val 
-                            if str(item.get("usuario_email", "")).lower().strip() == u_k
-                        ]
-                except Exception:
-                    pass
+        res_cfg = supabase.table("app_config").select("key, value").execute()
+        if res_cfg.data:
+            for r_cfg in res_cfg.data:
+                k = r_cfg.get("key", "")
+                if k.startswith("user_edificios_"):
+                    u_k = k.replace("user_edificios_", "").lower().strip()
+                    try:
+                        fallback_edificios_map[u_k] = json.loads(r_cfg["value"])
+                    except Exception:
+                        fallback_edificios_map[u_k] = [r_cfg["value"]]
+                elif k.startswith("user_trabajadores_"):
+                    u_k = k.replace("user_trabajadores_", "").lower().strip()
+                    try:
+                        parsed_val = json.loads(r_cfg["value"])
+                        if isinstance(parsed_val, list):
+                            fallback_trabajadores_map[u_k] = [
+                                item for item in parsed_val 
+                                if str(item.get("usuario_email", "")).lower().strip() == u_k
+                            ]
+                    except Exception:
+                        pass
     except Exception as e:
-        print(f"[Warn] No se pudo leer app_config: {e}")
+        print(f"[Warn] Error en app_config: {e}")
 
-    # 3. Usuarios (Consulta optimizada sin foto_b64)
+    # 3. Usuarios (Consulta ligera sin foto_b64)
     db_usuarios = []
     admin_emails = ["oscarsebitas2013@gmail.com"]
     try:
@@ -614,7 +575,7 @@ def load_db_from_supabase():
                 if row.get("es_admin") and c not in admin_emails:
                     admin_emails.append(c)
     except Exception as e:
-        print(f"[Warn] Error en consulta de usuarios: {e}")
+        print(f"[Warn] Error en consulta usuarios: {e}")
 
     # 4. Trabajadores por usuario
     db_trabajadores_por_usuario = {u["Correo"]: [] for u in db_usuarios}
@@ -676,7 +637,7 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en tabla checklists: {e}")
 
-    # 6. Inspecciones / Libros de Obra (Incluye Libros de Maestro Mayor)
+    # 6. Inspecciones / Libros de Obra
     db_inspecciones = {}
     try:
         res_insp = supabase.table("inspecciones").select("*").execute()
@@ -799,19 +760,6 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_apellidos = ""
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
-
-if not st.session_state.autenticado:
-    saved_token = local_storage.getItem("user_session_email")
-    if saved_token:
-        mail_clean = saved_token.strip().lower()
-        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == mail_clean), None)
-        if u_match:
-            st.session_state.autenticado = True
-            st.session_state.usuario_email = mail_clean
-            st.session_state.usuario_nombres = u_match["Nombres"]
-            st.session_state.usuario_apellidos = u_match["Apellidos"]
-            st.session_state.usuario_cargo = u_match["Cargo"]
-            st.session_state.usuario_edificios = u_match.get("Edificios", [])
 
 # ==============================================================================
 # 5. FUNCIONES DE FORMATO Y EXPORTADORES
@@ -1471,7 +1419,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 # ==============================================================================
-# PARTE 3 DE 5: AUTENTICACIÓN CON ROLES ACTUALIZADOS Y DASHBOARD ADAPTABLE
+# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA, BARRA LATERAL Y SMART DASHBOARD ADAPTABLE
 # ==============================================================================
 
 # ==============================================================================
@@ -1545,7 +1493,7 @@ if not st.session_state.autenticado:
                         if u_match["Password"] == login_pass.strip():
                             current_pin = "1254"
                             try:
-                                res_pin = supabase.table("app_config").select("*").eq("key", "access_pin").execute()
+                                res_pin = supabase.table("app_config").select("value").eq("key", "access_pin").execute()
                                 if res_pin.data and len(res_pin.data) > 0:
                                     current_pin = res_pin.data[0]["value"]
                             except Exception:
@@ -1559,6 +1507,7 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
+                                # Aislamiento estricto de trabajadores para el usuario en sesión
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
                                 
@@ -1578,7 +1527,6 @@ if not st.session_state.autenticado:
                                         st.session_state.db_trabajadores_por_usuario[mail_clean] = []
 
                                 st.session_state.db_loaded = False
-                                local_storage.setItem("user_session_email", mail_clean)
                                 st.success("Acceso concedido...")
                                 st.rerun()
                             else:
@@ -1624,7 +1572,7 @@ if not st.session_state.autenticado:
                 if reg_nombres and reg_apellidos and reg_email and reg_pass and reg_pass_repeat and reg_pin:
                     current_pin = st.session_state.get("access_pin", "1254")
                     try:
-                        res_pin_chk = supabase.table("app_config").select("*").eq("key", "access_pin").execute()
+                        res_pin_chk = supabase.table("app_config").select("value").eq("key", "access_pin").execute()
                         if res_pin_chk.data and len(res_pin_chk.data) > 0:
                             current_pin = res_pin_chk.data[0]["value"]
                     except Exception:
@@ -1667,6 +1615,7 @@ if not st.session_state.autenticado:
                                         "value": json.dumps(reg_edificios_sel)
                                     }).execute()
 
+                                # Cuentas nuevas inician estrictamente en blanco
                                 supabase.table("app_config").upsert({
                                     "key": f"user_trabajadores_{mail_clean}",
                                     "value": json.dumps([])
@@ -1684,7 +1633,6 @@ if not st.session_state.autenticado:
                                 st.session_state.db_trabajadores_por_usuario[mail_clean] = []
 
                                 st.session_state.db_loaded = False
-                                local_storage.setItem("user_session_email", mail_clean)
                                 st.success("¡Registro completado exitosamente!")
                                 st.rerun()
                             except Exception as e:
@@ -1861,7 +1809,7 @@ with st.sidebar:
     st.markdown("<hr>", unsafe_allow_html=True)
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
-        local_storage.deleteItem("user_session_email")
+        st.session_state.usuario_email = ""
         st.rerun()
 
 # ==============================================================================
@@ -1887,7 +1835,7 @@ insp_hoy_cumplida = any(i.get("Fecha") == fecha_hoy_iso for i in mis_insps_list)
 tag_chk_html = '<span class="milestone-status-done">✓ Cumplido</span>' if chk_hoy_cumplido else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 tag_insp_html = '<span class="milestone-status-done">✓ Cumplido</span>' if insp_hoy_cumplida else '<span class="milestone-status-pending">⏳ Pendiente</span>'
 
-# Estructura del Hito Diario según el Cargo
+# Estructura del Hito Diario según el Cargo (Maestro Mayor no ve Checklist)
 if es_maestro_mayor:
     hitos_body_html = f'<div class="milestone-item"><span class="milestone-name">Libro de Obra Maestro</span>{tag_insp_html}</div>'
 else:
@@ -2318,9 +2266,14 @@ else:
                                 st.rerun()
 
                     with c_col3:
-                        st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                        ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
-                        ft_b64 = image_to_base64(ft) if ft is not None else None
+                        if idx not in [1, 2]:
+                            st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
+                            ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
+                            ft_b64 = image_to_base64(ft) if ft is not None else None
+                        else:
+                            st.markdown("<small style='font-weight:700; color:#94a3b8;'>Foto Evidencia:</small>", unsafe_allow_html=True)
+                            st.caption("📷 *No requerida*")
+                            ft_b64 = None
 
                     st.markdown('</div>', unsafe_allow_html=True)
                     resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
@@ -2755,8 +2708,8 @@ else:
         else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
-# PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTO, ESPACIO COLABORATIVO
-#               (CON INTEGRACIÓN DE MAESTRO MAYOR) Y PANEL ADMINISTRADOR
+# PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTOS, ESPACIO COLABORATIVO
+#               (SINCRONIZADO CON MAESTRO MAYOR) Y PANEL ADMINISTRADOR
 # ==============================================================================
 
 # ==============================================================================
