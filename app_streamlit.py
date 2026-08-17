@@ -1,5 +1,5 @@
 # ==============================================================================
-# PARTE 1 DE 5: CONFIGURACIÓN, ESTILOS CSS GLOBALES Y CONSTANTES
+# PARTE 1 DE 5: IMPORTACIONES, CONFIGURACIÓN DE PÁGINA, ESTILOS Y CONSTANTES
 # ==============================================================================
 import base64
 import datetime
@@ -466,7 +466,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA SINCRONIZADA EN SUPABASE Y EXPORTADORES
+# PARTE 2 DE 5: CARGA RESILIENTE CON DOBLE LECTURA (TABLA + APP_CONFIG AISLADO)
 # ==============================================================================
 
 # ==============================================================================
@@ -526,7 +526,7 @@ def get_realtime_weather():
             return "🌙 14°C Noche Fresca"
 
 # ==============================================================================
-# 4. BASE DE DATOS SUPABASE - CARGA Y GESTIÓN EN TIEMPO REAL
+# 4. BASE DE DATOS SUPABASE - CARGA ROBUSTA CON DOBLE LECTURA ASEGURADA
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -550,8 +550,9 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] No se pudo leer access_pin: {e}")
 
-    # 2. Configuración de respaldo (Edificios asignados)
+    # 2. Configuración de respaldo (Edificios y Trabajadores por cuenta exacta)
     fallback_edificios_map = {}
+    fallback_trabajadores_map = {}
     try:
         res_cfg = supabase.table("app_config").select("*").execute()
         for r_cfg in res_cfg.data:
@@ -562,6 +563,17 @@ def load_db_from_supabase():
                     fallback_edificios_map[u_k] = json.loads(r_cfg["value"])
                 except Exception:
                     fallback_edificios_map[u_k] = [r_cfg["value"]]
+            elif k.startswith("user_trabajadores_"):
+                u_k = k.replace("user_trabajadores_", "").lower().strip()
+                try:
+                    parsed_val = json.loads(r_cfg["value"])
+                    if isinstance(parsed_val, list):
+                        fallback_trabajadores_map[u_k] = [
+                            item for item in parsed_val 
+                            if str(item.get("usuario_email", "")).lower().strip() == u_k
+                        ]
+                except Exception:
+                    pass
     except Exception as e:
         print(f"[Warn] No se pudo leer app_config: {e}")
 
@@ -604,16 +616,20 @@ def load_db_from_supabase():
     except Exception as e:
         st.error(f"Error consultando tabla usuarios: {e}")
 
-    # 4. Trabajadores por Usuario: CADA USUARIO COMIENZA EN 0
+    # 4. Trabajadores: Se inicializa con el respaldo de app_config y se complementa con la tabla
     db_trabajadores_por_usuario = {u["Correo"]: [] for u in db_usuarios}
+    for u_k, t_list in fallback_trabajadores_map.items():
+        if u_k not in db_trabajadores_por_usuario:
+            db_trabajadores_por_usuario[u_k] = []
+        for t_item in t_list:
+            if not any(x.get("id") == t_item.get("id") or x.get("nombre") == t_item.get("nombre") for x in db_trabajadores_por_usuario[u_k]):
+                db_trabajadores_por_usuario[u_k].append(t_item)
 
     try:
         res_trab = supabase.table("trabajadores").select("*").order("id", desc=False).execute()
         if res_trab.data:
             for r in res_trab.data:
                 u_owner = str(r.get("usuario_email", "")).lower().strip()
-                
-                # Ignora registros sin dueño válido o nulos
                 if not u_owner or u_owner in ["none", "null", "", "undefined"]:
                     continue
 
@@ -621,13 +637,14 @@ def load_db_from_supabase():
                     db_trabajadores_por_usuario[u_owner] = []
                 
                 edif_val = r.get("edificio") or "General"
-                db_trabajadores_por_usuario[u_owner].append({
-                    "id": r["id"],
-                    "nombre": r["nombre"],
-                    "cargo": r["cargo"],
-                    "edificio": edif_val,
-                    "usuario_email": u_owner
-                })
+                if not any(x.get("id") == r["id"] or x.get("nombre") == r["nombre"] for x in db_trabajadores_por_usuario[u_owner]):
+                    db_trabajadores_por_usuario[u_owner].append({
+                        "id": r["id"],
+                        "nombre": r["nombre"],
+                        "cargo": r["cargo"],
+                        "edificio": edif_val,
+                        "usuario_email": u_owner
+                    })
     except Exception as e:
         print(f"[Warn] Error en tabla trabajadores: {e}")
 
@@ -1021,8 +1038,8 @@ def export_checklist_to_pdf_file(jornada_dict):
         table_s.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e293b')),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
         ]))
         story.append(table_s)
 
@@ -1368,7 +1385,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 # ==============================================================================
-# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA EN TIEMPO REAL, BARRA LATERAL Y SMART DASHBOARD
+# PARTE 3 DE 5: AUTENTICACIÓN DIRECTA, BARRA LATERAL Y SMART DASHBOARD
 # ==============================================================================
 
 # ==============================================================================
@@ -1455,11 +1472,11 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                # Aislamiento estricto de trabajadores para el usuario logueado
+                                # Aislamiento estricto de trabajadores para el usuario en sesión
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
                                 
-                                # Consulta directa para cargar exclusivamente los suyos
+                                # Consulta directa para cargar exclusivamente sus propios trabajadores
                                 try:
                                     res_t_user = supabase.table("trabajadores").select("*").ilike("usuario_email", mail_clean).order("id", desc=False).execute()
                                     st.session_state.db_trabajadores_por_usuario[mail_clean] = [
@@ -1564,6 +1581,12 @@ if not st.session_state.autenticado:
                                         "key": f"user_edificios_{mail_clean}",
                                         "value": json.dumps(reg_edificios_sel)
                                     }).execute()
+
+                                # Cuentas nuevas inician estrictamente en blanco
+                                supabase.table("app_config").upsert({
+                                    "key": f"user_trabajadores_{mail_clean}",
+                                    "value": json.dumps([])
+                                }).execute()
 
                                 st.session_state.autenticado = True
                                 st.session_state.usuario_email = mail_clean
@@ -2461,15 +2484,13 @@ with tab_personal:
                         cargo_clean = car_pers_in.strip().upper()
                         
                         # Inserción asegurada en Supabase
-                        guardado_ok = False
                         try:
-                            res_ins = supabase.table("trabajadores").insert({
+                            supabase.table("trabajadores").insert({
                                 "usuario_email": user_email,
                                 "nombre": nombre_clean,
                                 "cargo": cargo_clean,
                                 "edificio": edif_pers_in
                             }).execute()
-                            guardado_ok = True
                         except Exception as ex_db:
                             print(f"[Warn] Inserción SQL trabajadores directa: {ex_db}")
 
