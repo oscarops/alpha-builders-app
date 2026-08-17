@@ -2019,8 +2019,8 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (LIBRO MAESTRO CON TEXTO LIBRE
-#               EN CANTIDADES, CHECKLIST DIARIO Y LIBRO DE OBRA OFICIAL)
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (LIBRO MAESTRO CON PERSONAL A CARGO
+#               DINÁMICO, CHECKLIST DIARIO Y LIBRO DE OBRA OFICIAL)
 # ==============================================================================
 
 # ==============================================================================
@@ -2046,11 +2046,11 @@ else:
 if es_maestro_mayor:
     with tab_libro_maestro:
         st.markdown("### Libro de Obra – Maestro Mayor")
-        st.caption("Registro diario de actividades y metrajes ejecutados en obra para sincronización técnica colaborativa.")
+        st.caption("Registro diario de actividades, cuadrillas a cargo y metrajes ejecutados en obra.")
 
         if "filas_maestro_act" not in st.session_state:
             st.session_state.filas_maestro_act = [
-                {"id": 1, "actividad": "", "cantidad": "", "observaciones": ""}
+                {"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}
             ]
 
         local_today_mm = get_local_datetime_ecuador().date()
@@ -2070,7 +2070,19 @@ if es_maestro_mayor:
             st.text_input("Maestro Responsable:", value=user_nombre_completo, disabled=True)
 
         st.markdown("---")
-        st.markdown(f"#### 🔨 Actividades Realizadas y Cantidades ({len(st.session_state.filas_maestro_act)} registros)")
+        st.markdown(f"#### 🔨 Actividades Realizadas, Personal y Metrajes ({len(st.session_state.filas_maestro_act)} registros)")
+
+        # Obtener nómina de personal activo cargada para el usuario
+        mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+        if edificio_maestro_val != "-- Seleccione un Proyecto --":
+            personal_filtrado_edif = [
+                f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio 
+                if (t.get("edificio") == edificio_maestro_val or t.get("edificio") == "General" or not t.get("edificio"))
+            ]
+            if not personal_filtrado_edif:
+                personal_filtrado_edif = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio]
+        else:
+            personal_filtrado_edif = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio]
 
         indices_del_m = []
         payload_actividades_m = []
@@ -2079,8 +2091,8 @@ if es_maestro_mayor:
             f_id = f_data["id"]
             st.markdown(f"""<div class="banner-item-header"><span>Actividad N° {idx_m}</span></div>""", unsafe_allow_html=True)
             st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
-            c_m1, c_m2, c_m3, c_m4 = st.columns([3, 1.5, 2, 0.5])
-
+            
+            c_m1, c_m2 = st.columns([2.5, 1.5])
             with c_m1:
                 act_m_txt = st.text_input(
                     f"Descripción de la Actividad {f_id}:",
@@ -2089,21 +2101,41 @@ if es_maestro_mayor:
                     key=f"mm_act_txt_{f_id}"
                 )
             with c_m2:
-                # Campo de texto libre para admitir números, letras, símbolos y unidades combinadas
                 cant_m_txt = st.text_input(
                     f"Cantidad / Avance {f_id}:",
                     value=str(f_data.get("cantidad", "")),
                     placeholder="Ej. 15 m2, 3 puertas, 2.5 tramos...",
                     key=f"mm_cant_txt_{f_id}"
                 )
+
+            c_m3, c_m4, c_m5 = st.columns([2.2, 2.2, 0.4])
             with c_m3:
+                if personal_filtrado_edif:
+                    pers_sel_m = st.multiselect(
+                        f"Personal a Cargo {f_id}:",
+                        options=personal_filtrado_edif,
+                        default=[p for p in f_data.get("personal_a_cargo", []) if p in personal_filtrado_edif],
+                        placeholder="Seleccionar personal asignado...",
+                        key=f"mm_pers_sel_{f_id}"
+                    )
+                else:
+                    pers_sel_txt = st.text_input(
+                        f"Personal a Cargo {f_id}:",
+                        value=", ".join(f_data.get("personal_a_cargo", [])) if isinstance(f_data.get("personal_a_cargo"), list) else str(f_data.get("personal_a_cargo", "")),
+                        placeholder="Escriba los nombres de los trabajadores...",
+                        key=f"mm_pers_manual_{f_id}"
+                    )
+                    pers_sel_m = [p.strip() for p in pers_sel_txt.split(",") if p.strip()]
+
+            with c_m4:
                 obs_m_txt = st.text_input(
                     f"Observaciones / Frente {f_id}:",
                     value=f_data.get("observaciones", ""),
                     placeholder="Ej. Piso 2 departamento 201...",
                     key=f"mm_obs_txt_{f_id}"
                 )
-            with c_m4:
+
+            with c_m5:
                 st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
                 if st.button("🗑️", key=f"btn_del_mm_row_{f_id}", help="Eliminar fila"):
                     indices_del_m.append(idx_m - 1)
@@ -2112,6 +2144,7 @@ if es_maestro_mayor:
             payload_actividades_m.append({
                 "Actividad": act_m_txt.strip(),
                 "Cantidad": cant_m_txt.strip(),
+                "Personal_A_Cargo": pers_sel_m,
                 "Observaciones": obs_m_txt.strip()
             })
 
@@ -2120,11 +2153,11 @@ if es_maestro_mayor:
                 if len(st.session_state.filas_maestro_act) > 1:
                     st.session_state.filas_maestro_act.pop(del_i)
                 else:
-                    st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "observaciones": ""}]
+                    st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
             st.rerun()
 
         if st.button("➕ Agregar Otra Actividad", key="btn_add_mm_act_row"):
-            st.session_state.filas_maestro_act.append({"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "observaciones": ""})
+            st.session_state.filas_maestro_act.append({"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""})
             st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -2163,7 +2196,7 @@ if es_maestro_mayor:
 
                         st.session_state.db_loaded = False
                         st.success(f"¡Reporte del Maestro guardado exitosamente para **{edificio_maestro_val}**!")
-                        st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "observaciones": ""}]
+                        st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al guardar: {e}")
@@ -2191,7 +2224,9 @@ if es_maestro_mayor:
                         with st.expander(f"📌 [{insp_dict_m.get('Proyecto')}] {insp_dict_m.get('Fecha')} ({insp_dict_m.get('Dia')})", expanded=False):
                             acts_guardadas = insp_dict_m.get("Datos", {}).get("Actividades_Maestro", [])
                             for a_g in acts_guardadas:
-                                st.write(f"• **{a_g.get('Actividad')}**: `{a_g.get('Cantidad')}` — *{a_g.get('Observaciones', 'Sin observaciones')}*")
+                                pers_str = ", ".join(a_g.get("Personal_A_Cargo", [])) if isinstance(a_g.get("Personal_A_Cargo"), list) else str(a_g.get("Personal_A_Cargo", ""))
+                                pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
+                                st.write(f"• **{a_g.get('Actividad')}**: `{a_g.get('Cantidad')}`{pers_tag} — *{a_g.get('Observaciones', 'Sin observaciones')}*")
 
                             c_dl_m1, c_dl_m2, c_del_m = st.columns([2, 2, 1])
                             with c_dl_m1:
