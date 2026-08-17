@@ -755,7 +755,7 @@ if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = []
 
 # ==============================================================================
-# PERSISTENCIA INQUEBRANTABLE: COOKIE + LOCALSTORAGE + QUERY_PARAMS
+# PERSISTENCIA INMEDIATA Y ROBUSTA DE SESIÓN
 # ==============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -765,7 +765,6 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-# 1. Intento inmediato vía query_params
 url_user = st.query_params.get("u")
 if url_user and not st.session_state.autenticado:
     m_clean = str(url_user).strip().lower()
@@ -778,19 +777,20 @@ if url_user and not st.session_state.autenticado:
         st.session_state.usuario_cargo = u_match["Cargo"]
         st.session_state.usuario_edificios = u_match.get("Edificios", [])
 
-# 2. Inyección de script JS invisible para restaurar la sesión desde LocalStorage si la URL se limpió
 if not st.session_state.autenticado:
     components.html(
         """
         <script>
-        const saved = localStorage.getItem('alpha_user_session');
-        if (saved) {
-            const url = new URL(window.location.href);
-            if (!url.searchParams.get('u')) {
-                url.searchParams.set('u', saved);
-                window.location.href = url.href;
+        try {
+            const saved = window.parent.localStorage.getItem('alpha_user_session') || localStorage.getItem('alpha_user_session');
+            if (saved) {
+                const currentUrl = new URL(window.parent.location.href);
+                if (!currentUrl.searchParams.get('u')) {
+                    currentUrl.searchParams.set('u', saved);
+                    window.parent.location.href = currentUrl.href;
+                }
             }
-        }
+        } catch (e) {}
         </script>
         """,
         height=0,
@@ -1455,7 +1455,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 # ==============================================================================
-# PARTE 3 DE 5: AUTENTICACIÓN PERSISTENTE NATIVA, SIDEBAR Y SMART DASHBOARD
+# PARTE 3 DE 5: AUTENTICACIÓN PERSISTENTE, BARRA LATERAL Y SMART DASHBOARD
 # ==============================================================================
 
 # ==============================================================================
@@ -1487,6 +1487,7 @@ if not st.session_state.autenticado:
                 login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
                 login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
                 login_pin = st.text_input("Código de Seguridad (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="log_pin")
+                mantener_sesion = st.checkbox("🔒 Mantener sesión iniciada en este dispositivo", value=True, key="chk_keep_session")
 
                 btn_log = st.form_submit_button("Entrar al Portal", type="primary", use_container_width=True)
 
@@ -1543,17 +1544,21 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                # Persistencia activa en URL y en LocalStorage de JS
                                 st.query_params["u"] = mail_clean
-                                components.html(
-                                    f"""
-                                    <script>
-                                    localStorage.setItem('alpha_user_session', '{mail_clean}');
-                                    </script>
-                                    """,
-                                    height=0,
-                                    width=0
-                                )
+                                
+                                if mantener_sesion:
+                                    components.html(
+                                        f"""
+                                        <script>
+                                        try {{
+                                            window.parent.localStorage.setItem('alpha_user_session', '{mail_clean}');
+                                            localStorage.setItem('alpha_user_session', '{mail_clean}');
+                                        }} catch(e) {{}}
+                                        </script>
+                                        """,
+                                        height=0,
+                                        width=0
+                                    )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -1613,6 +1618,7 @@ if not st.session_state.autenticado:
                     key="reg_edif_multisel"
                 )
                 reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):*", type="password", max_chars=4, placeholder="****", key="reg_pin")
+                reg_mantener = st.checkbox("🔒 Mantener sesión iniciada automáticamente", value=True, key="chk_reg_keep")
                 btn_reg = st.form_submit_button("Completar Registro", type="primary", use_container_width=True)
 
             if btn_reg:
@@ -1662,7 +1668,6 @@ if not st.session_state.autenticado:
                                         "value": json.dumps(reg_edificios_sel)
                                     }).execute()
 
-                                # Cuentas nuevas inician estrictamente en blanco
                                 supabase.table("app_config").upsert({
                                     "key": f"user_trabajadores_{mail_clean}",
                                     "value": json.dumps([])
@@ -1676,15 +1681,19 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_edificios = reg_edificios_sel
                                 
                                 st.query_params["u"] = mail_clean
-                                components.html(
-                                    f"""
-                                    <script>
-                                    localStorage.setItem('alpha_user_session', '{mail_clean}');
-                                    </script>
-                                    """,
-                                    height=0,
-                                    width=0
-                                )
+                                if reg_mantener:
+                                    components.html(
+                                        f"""
+                                        <script>
+                                        try {{
+                                            window.parent.localStorage.setItem('alpha_user_session', '{mail_clean}');
+                                            localStorage.setItem('alpha_user_session', '{mail_clean}');
+                                        }} catch(e) {{}}
+                                        </script>
+                                        """,
+                                        height=0,
+                                        width=0
+                                    )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -1868,16 +1877,18 @@ with st.sidebar:
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         st.session_state.usuario_email = ""
-        # Limpieza permanente de sesión
         if "u" in st.query_params:
             del st.query_params["u"]
         components.html(
             """
             <script>
-            localStorage.removeItem('alpha_user_session');
-            const url = new URL(window.location.href);
-            url.searchParams.delete('u');
-            window.location.href = url.href;
+            try {
+                window.parent.localStorage.removeItem('alpha_user_session');
+                localStorage.removeItem('alpha_user_session');
+                const url = new URL(window.parent.location.href);
+                url.searchParams.delete('u');
+                window.parent.location.href = url.href;
+            } catch(e) {}
             </script>
             """,
             height=0,
@@ -2008,8 +2019,8 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (LIBRO MAESTRO CON CANTIDAD LIBRE,
-#               CHECKLIST DIARIO Y LIBRO DE OBRA OFICIAL)
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (LIBRO MAESTRO CON TEXTO LIBRE
+#               EN CANTIDADES, CHECKLIST DIARIO Y LIBRO DE OBRA OFICIAL)
 # ==============================================================================
 
 # ==============================================================================
@@ -2078,10 +2089,11 @@ if es_maestro_mayor:
                     key=f"mm_act_txt_{f_id}"
                 )
             with c_m2:
+                # Campo de texto libre para admitir números, letras, símbolos y unidades combinadas
                 cant_m_txt = st.text_input(
                     f"Cantidad / Avance {f_id}:",
                     value=str(f_data.get("cantidad", "")),
-                    placeholder="Ej. 15 m2, 3 puertas, 2 tramos...",
+                    placeholder="Ej. 15 m2, 3 puertas, 2.5 tramos...",
                     key=f"mm_cant_txt_{f_id}"
                 )
             with c_m3:
