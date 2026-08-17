@@ -2624,7 +2624,7 @@ else:
                     total += 1
             return total
 
-        with st.form("form_libro_obra_oficial_lo"):
+with st.form("form_libro_obra_oficial_lo"):
             st.markdown("#### 1. Datos Generales de la Obra")
             c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
             with c_lo_a1:
@@ -2656,7 +2656,6 @@ else:
                     with col_n_l:
                         st.write(f"• {ofi} (7:00AM - 4:00PM)")
                     with col_n_v:
-                        # Se omite el key fijo para forzar la actualización dinámica del valor calculado al cambiar de proyecto
                         nomina_input_map[ofi] = st.number_input(
                             f"N_{ofi}",
                             min_value=0,
@@ -2723,10 +2722,10 @@ else:
                 mit_cerramiento = st.checkbox("Cerramiento", value=False)
                 mit_limpieza = st.checkbox("Limpieza y Orden", value=False)
 
-st.markdown("---")
+            st.markdown("---")
 
             st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
-            st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más filas de trabajo.")
+            st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más filas libremente.")
 
             if "filas_lo_actividades" not in st.session_state:
                 st.session_state.filas_lo_actividades = []
@@ -2767,7 +2766,7 @@ st.markdown("---")
                     d_in = st.text_input(
                         f"Descripción {f_act_id}:",
                         value=item_f.get("descripcion", ""),
-                        placeholder="Ej. Albañilería, Pintura, Enlucido...",
+                        placeholder="Ej. Albañilería, Pintura...",
                         key=f"lo_act_d_{f_act_id}"
                     )
                 with c_af2:
@@ -2794,7 +2793,7 @@ st.markdown("---")
                     )
                 with c_af5:
                     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
-                    if st.button("🗑️", key=f"btn_del_lo_row_{f_act_id}", help="Eliminar fila"):
+                    if st.form_submit_button("🗑️", key=f"btn_del_lo_row_{f_act_id}", help="Eliminar fila"):
                         indices_eliminar_lo.append(idx_act_form - 1)
 
                 acts_final_payload.append({
@@ -2804,25 +2803,6 @@ st.markdown("---")
                     "Cantidad": ct_in,
                     "Observaciones": item_f.get("observaciones", "")
                 })
-
-            if indices_eliminar_lo:
-                for del_idx in sorted(indices_eliminar_lo, reverse=True):
-                    if len(st.session_state.filas_lo_actividades) > 1:
-                        st.session_state.filas_lo_actividades.pop(del_idx)
-                    else:
-                        st.session_state.filas_lo_actividades = [{"id": int(datetime.datetime.now().timestamp() * 1000), "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
-                st.rerun()
-
-            if st.button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
-                st.session_state.filas_lo_actividades.append({
-                    "id": int(datetime.datetime.now().timestamp() * 1000),
-                    "descripcion": "",
-                    "area": "",
-                    "unidad": "",
-                    "cantidad": 0.0,
-                    "observaciones": ""
-                })
-                st.rerun()
 
             st.markdown("---")
 
@@ -2890,6 +2870,18 @@ st.markdown("---")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al guardar: {e}")
+
+        # Botón dinámico ubicado FUERA del formulario para agregar filas de actividades de manera inmediata
+        if st.button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
+            st.session_state.filas_lo_actividades.append({
+                "id": int(datetime.datetime.now().timestamp() * 1000),
+                "descripcion": "",
+                "area": "",
+                "unidad": "",
+                "cantidad": 0.0,
+                "observaciones": ""
+            })
+            st.rerun()
 
         st.markdown("---")
 
