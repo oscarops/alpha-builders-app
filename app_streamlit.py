@@ -2764,28 +2764,28 @@ else:
                 
                 with c_af1:
                     d_in = st.text_input(
-                        f"Descripción {f_act_id}:",
+                        f"Descripción {idx_act_form}:",
                         value=item_f.get("descripcion", ""),
                         placeholder="Ej. Albañilería, Pintura...",
                         key=f"lo_act_d_{f_act_id}"
                     )
                 with c_af2:
                     ar_in = st.text_input(
-                        f"Área {f_act_id}:",
+                        f"Área {idx_act_form}:",
                         value=item_f.get("area", ""),
                         placeholder="Ej. Piso 3, Bloque A...",
                         key=f"lo_act_ar_{f_act_id}"
                     )
                 with c_af3:
                     u_in = st.text_input(
-                        f"Unidad {f_act_id}:",
+                        f"Unidad {idx_act_form}:",
                         value=item_f.get("unidad", ""),
                         placeholder="Ej. m2, m, glb...",
                         key=f"lo_act_u_{f_act_id}"
                     )
                 with c_af4:
                     ct_in = st.number_input(
-                        f"Cant. {f_act_id}:",
+                        f"Cant. {idx_act_form}:",
                         min_value=0.0,
                         value=float(item_f.get("cantidad", 0.0)),
                         step=0.5,
@@ -2803,6 +2803,17 @@ else:
                     "Cantidad": ct_in,
                     "Observaciones": item_f.get("observaciones", "")
                 })
+
+            if st.form_submit_button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
+                st.session_state.filas_lo_actividades.append({
+                    "id": int(datetime.datetime.now().timestamp() * 1000),
+                    "descripcion": "",
+                    "area": "",
+                    "unidad": "",
+                    "cantidad": 0.0,
+                    "observaciones": ""
+                })
+                st.rerun()
 
             st.markdown("---")
             st.markdown("#### 6. Novedades y Recomendaciones")
@@ -2869,17 +2880,6 @@ else:
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al guardar: {e}")
-
-        if st.button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
-            st.session_state.filas_lo_actividades.append({
-                "id": int(datetime.datetime.now().timestamp() * 1000),
-                "descripcion": "",
-                "area": "",
-                "unidad": "",
-                "cantidad": 0.0,
-                "observaciones": ""
-            })
-            st.rerun()
 
         st.markdown("---")
 
