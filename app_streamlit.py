@@ -2715,7 +2715,7 @@ else:
                 sen_extintor = st.checkbox("Extintor", value=False)
                 sen_botiquin = st.checkbox("Botiquín", value=False)
 
-            with c_ss3:
+with c_ss3:
                 st.markdown("##### 🧹 Mitigación")
                 mit_polvo = st.checkbox("Control de Polvo", value=False)
                 mit_ruido = st.checkbox("Control de Ruido", value=False)
@@ -2723,7 +2723,7 @@ else:
                 mit_cerramiento = st.checkbox("Cerramiento", value=False)
                 mit_limpieza = st.checkbox("Limpieza y Orden", value=False)
 
-st.markdown("---")
+            st.markdown("---")
             st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
             st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más filas libremente.")
 
