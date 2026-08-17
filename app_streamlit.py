@@ -1,5 +1,5 @@
 # ==============================================================================
-# PARTE 1 DE 5: IMPORTACIONES, CONFIGURACIÓN DE PÁGINA, ESTILOS Y CONSTANTES
+# PARTE 1 DE 5: IMPORTACIONES, CONFIGURACIÓN DE PÁGINA, ESTILOS, CONSTANTES Y BD
 # ==============================================================================
 import base64
 import datetime
@@ -17,7 +17,7 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
 from streamlit_local_storage import LocalStorage
 
-# ReportLab para PDFs en formatos vertical y horizontal
+# ReportLab para exportaciones PDF oficiales
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -55,7 +55,7 @@ st.markdown(
     [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
     [data-testid="stHeader"] { background: transparent !important; z-index: 100 !important; }
 
-    /* SIDEBAR TOGGLE */
+    /* BOTONES DE TOGGLE SIDEBAR */
     [data-testid="stSidebarCollapseButton"] { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important; }
     [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 12px !important; left: 15px !important; z-index: 999999 !important; }
 
@@ -268,9 +268,10 @@ st.markdown(
         border-radius: 10px;
     }
 
+    /* DONA SVG CON COLOR FORZADO */
     .donut-container { display: flex; align-items: center; gap: 8px; }
-    .donut-chart-svg { width: 42px; height: 42px; transform: rotate(-90deg); flex-shrink: 0; }
-    .donut-bg { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 4.5; }
+    .donut-chart-svg { width: 44px; height: 44px; transform: rotate(-90deg); flex-shrink: 0; }
+    .donut-bg { fill: none; stroke: #334155 !important; stroke-width: 4.5; }
     .donut-progress { fill: none; stroke-width: 4.5; stroke-linecap: round; }
     .donut-info-val { font-size: 0.98rem; font-weight: 900; line-height: 1; }
     .donut-info-lbl { font-size: 0.60rem; color: #94a3b8 !important; font-weight: 600; margin-top: 1px; }
@@ -414,12 +415,18 @@ st.markdown(
 )
 
 # ==============================================================================
-# 2. CONSTANTES INSTITUCIONALES Y OFICIOS DE OBRA
+# 2. CONSTANTES INSTITUCIONALES Y NOMBRES DE MESES
 # ==============================================================================
 EDIFICIOS_ALPHA = [
     "Tesla", "Lafuente", "Imagine", "Asimov", "Rubik", "Castle Rock",
     "Musk", "Wolf", "Dablanc", "Thomas Edison", "Westinghouse", "Smart",
 ]
+
+NOMBRES_MESES = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+}
 
 UNIDADES_RUBRO = {"Enlucidos": "m2", "Fijos": "m2", "Fajas": "m", "Dinteles": "m"}
 RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinteles": 0.40}
@@ -1347,7 +1354,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 # ==============================================================================
-# PARTE 3 DE 5: AUTENTICACIÓN, BARRA LATERAL Y SMART DASHBOARD
+# PARTE 3 DE 5: AUTENTICACIÓN, BARRA LATERAL Y SMART DASHBOARD (CON DONA CORREGIDA)
 # ==============================================================================
 
 # ==============================================================================
@@ -1651,17 +1658,16 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM UI
+# 8. SMART DASHBOARD GLASSMORPHISM UI (DONA CORREGIDA)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 local_dt = get_local_datetime_ecuador()
 fecha_hoy_iso = local_dt.strftime("%Y-%m-%d")
 
+dia_semana_actual = list(NOMBRES_MESES.values())[0] # fallback u obtener día
 dias_nombre_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-meses_nombre_es = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-
 dia_semana_actual = dias_nombre_es[local_dt.weekday()]
-mes_actual = meses_nombre_es[local_dt.month - 1]
+mes_actual = NOMBRES_MESES[local_dt.month]
 fecha_widget_texto = f"{dia_semana_actual}, {local_dt.day} de {mes_actual} de {local_dt.year}"
 clima_actual_str = get_realtime_weather()
 
@@ -1683,8 +1689,6 @@ else:
     porc_rendimiento = 100
     lbl_rend_prom = "100% Óptimo"
 
-circunferencia_circulo = 100.53
-progreso_dona_stroke = round((porc_rendimiento / 100) * circunferencia_circulo, 2)
 color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
 
 # Incidencias abiertas de los proyectos asignados
@@ -1722,8 +1726,8 @@ dashboard_html = (
     '<div class="w-card-title"><span>⚡ Rendimiento</span><span>Promedio</span></div>'
     '<div class="donut-container">'
     f'<svg class="donut-chart-svg" viewBox="0 0 36 36">'
-    f'<circle class="donut-bg" cx="18" cy="18" r="16" />'
-    f'<circle class="donut-progress" cx="18" cy="18" stroke="{color_dona}" stroke-dasharray="{progreso_dona_stroke} {circunferencia_circulo}" />'
+    f'<circle class="donut-bg" cx="18" cy="18" r="15.9155" />'
+    f'<circle class="donut-progress" cx="18" cy="18" r="15.9155" stroke="{color_dona}" stroke-dasharray="{porc_rendimiento}, 100" />'
     f'</svg>'
     f'<div><div class="donut-info-val" style="color: {color_dona} !important;">{porc_rendimiento}%</div>'
     f'<div class="donut-info-lbl">{lbl_rend_prom}</div></div>'
@@ -1759,7 +1763,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: CHECKLIST DE OBRA Y LIBRO DE OBRA INTEGRADO (FORMATO OFICIAL L-O)
+# PARTE 4 DE 5: CHECKLIST Y LIBRO DE OBRA (AGRUPADOS POR MES Y CAMPOS EN 0)
 # ==============================================================================
 
 # ==============================================================================
@@ -2004,13 +2008,26 @@ with tab_chk:
         jornadas_filtradas = [j for j in mis_jornadas if j.get("Edificio") == edificio_filtro] if edificio_filtro != "-- Todos los Edificios --" else mis_jornadas.copy()
         st.caption(f"Mostrando **{len(jornadas_filtradas)}** checklist(s).")
 
-        for orig_idx, j in enumerate(jornadas_filtradas):
-            with st.expander(f"📌 {j['Edificio']} — {j['Fecha']} (Horario: {j.get('Hora_Inicio', 'N/A')} - {j.get('Hora_Fin', 'N/A')})", expanded=False):
-                c_dl1, c_dl2 = st.columns(2)
-                with c_dl1:
-                    st.download_button("📊 Descargar Excel (.xlsx)", export_checklist_to_excel_file(j), file_name=f"Checklist_{j['Edificio']}_{j['Fecha']}.xlsx", key=f"dl_xlsx_{orig_idx}")
-                with c_dl2:
-                    st.download_button("📄 Descargar PDF (.pdf)", export_checklist_to_pdf_file(j), file_name=f"Checklist_{j['Edificio']}_{j['Fecha']}.pdf", key=f"dl_pdf_{orig_idx}")
+        # Agrupación por Mes y Año
+        df_jornadas = pd.DataFrame(jornadas_filtradas)
+        df_jornadas["fecha_dt"] = pd.to_datetime(df_jornadas["Fecha"])
+        df_jornadas = df_jornadas.sort_values(by="fecha_dt", ascending=False)
+        df_jornadas["año"] = df_jornadas["fecha_dt"].dt.year
+        df_jornadas["mes_num"] = df_jornadas["fecha_dt"].dt.month
+
+        grupos_chk = df_jornadas.groupby(["año", "mes_num"], sort=False)
+
+        for (anio, mes_num), items_mes in grupos_chk:
+            nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Checklists)"
+            with st.expander(nombre_mes_str, expanded=False):
+                for orig_idx, j in items_mes.iterrows():
+                    j_dict = j.to_dict()
+                    with st.expander(f"📌 {j_dict['Edificio']} — {j_dict['Fecha']} (Horario: {j_dict.get('Hora_Inicio', 'N/A')} - {j_dict.get('Hora_Fin', 'N/A')})", expanded=False):
+                        c_dl1, c_dl2 = st.columns(2)
+                        with c_dl1:
+                            st.download_button("📊 Descargar Excel (.xlsx)", export_checklist_to_excel_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.xlsx", key=f"dl_xlsx_{orig_idx}")
+                        with c_dl2:
+                            st.download_button("📄 Descargar PDF (.pdf)", export_checklist_to_pdf_file(j_dict), file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.pdf", key=f"dl_pdf_{orig_idx}")
     else:
         st.info("Aún no hay checklists guardados en tu cuenta.")
 
@@ -2018,8 +2035,8 @@ with tab_chk:
 # 10. MÓDULO 2: LIBRO DE OBRA (FORMATO OFICIAL L-O CON VINCULACIÓN AL CHECKLIST)
 # ==============================================================================
 with tab_libro:
-    st.markdown("### Libro de Obra – Formato Oficial")
-    st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")
+    st.markdown("### Libro de Obra – Formato Oficial")[cite: 1]
+    st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")[cite: 1]
 
     dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     local_today_insp = get_local_datetime_ecuador().date()
@@ -2046,130 +2063,107 @@ with tab_libro:
             st.info("💡 Si llenas el Checklist del día, los trabajos y horarios se precargarán automáticamente aquí.")
 
     with st.form("form_libro_obra_oficial_lo"):
-        # 1. ENCABEZADO OFICIAL
-        st.markdown("#### 1. Datos Generales de la Obra")
+        # 1. ENCABEZADO OFICIAL (AUTOCOMPLETADO DE LA OBRA)
+        st.markdown("#### 1. Datos Generales de la Obra")[cite: 1]
         c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
         with c_lo_a1:
-            lo_proyecto = st.selectbox("Proyecto:*", ["-- Seleccione --"] + proyectos_libro, index=idx_proy_lo, key="lo_proy_sel_off")
-            lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")
-            lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")
+            lo_proyecto = st.selectbox("Proyecto:*", ["-- Seleccione --"] + proyectos_libro, index=idx_proy_lo, key="lo_proy_sel_off")[cite: 1]
+            lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")[cite: 1]
+            lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")[cite: 1]
 
         with c_lo_a2:
-            lo_superintendente = st.text_input("Superintendente:*", value="ING. PABLO ESPINOSA", key="lo_super_in")
-            lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")
-            lo_fiscalizador = st.text_input("Fiscalizador:*", value="ING. DIEGO CHARVET", key="lo_fisc_in")
+            lo_superintendente = st.text_input("Superintendente:*", value="ING. PABLO ESPINOSA", key="lo_super_in")[cite: 1]
+            lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")[cite: 1]
+            lo_fiscalizador = st.text_input("Fiscalizador:*", value="ING. DIEGO CHARVET", key="lo_fisc_in")[cite: 1]
 
         with c_lo_a3:
-            lo_hoja = st.text_input("Hoja N°:*", value="000053", key="lo_hoja_in")
-            lo_h_ini = st.time_input("Hora Entrada:*", datetime.time(7, 0), key="lo_hini_off")
-            lo_h_fin = st.time_input("Hora Salida:*", datetime.time(16, 0), key="lo_hfin_off")
+            lo_hoja = st.text_input("Hoja N°:*", value="000053", key="lo_hoja_in")[cite: 1]
+            lo_h_ini = st.time_input("Hora Entrada:*", datetime.time(7, 0), key="lo_hini_off")[cite: 1]
+            lo_h_fin = st.time_input("Hora Salida:*", datetime.time(16, 0), key="lo_hfin_off")[cite: 1]
 
         st.markdown("---")
 
-        # 2. NÓMINA DE PERSONAL Y PERSONAL ROTATIVO
-        st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
-        st.caption("Cálculo automático de obreros según tu cuadrilla activa en el proyecto seleccionado.")
-
-        edif_filtro_pers = lo_proyecto if lo_proyecto != "-- Seleccione --" else None
-        mi_personal_guardado = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-        if edif_filtro_pers:
-            personal_edif = [p for p in mi_personal_guardado if (p.get("edificio") or "General") in [edif_filtro_pers, "General"]]
-        else:
-            personal_edif = mi_personal_guardado
-
-        conteo_auto_nomina = {}
-        for ofi in OFICIOS_NOMINA_FORMATO:
-            conteo_auto_nomina[ofi] = 0
-
-        for p in personal_edif:
-            c_upper = p.get("cargo", "").upper()
-            asignado = False
-            for ofi in OFICIOS_NOMINA_FORMATO:
-                if ofi in c_upper or (ofi == "ALBAÑILES" and "ALBAÑIL" in c_upper) or (ofi == "ELECTRICOS" and "ELECTR" in c_upper) or (ofi == "PINTORES" and "PINTOR" in c_upper) or (ofi == "PLOMEROS" and "PLOMER" in c_upper) or (ofi == "GYPSEROS" and "GYPS" in c_upper):
-                    conteo_auto_nomina[ofi] += 1
-                    asignado = True
-                    break
-            if not asignado and "AYUDANTE" in c_upper:
-                conteo_auto_nomina["AYUDANTE"] += 1
+        # 2. NÓMINA DE PERSONAL Y PERSONAL ROTATIVO (CAMPOS EN 0 PARA LLENADO MANUAL)
+        st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")[cite: 1]
+        st.caption("Ingrese la cantidad de obreros presentes por especialidad.")
 
         c_nom1, c_nom2 = st.columns(2)
         with c_nom1:
-            st.markdown("##### 👷 Personal Nómina")
+            st.markdown("##### 👷 Personal Nómina")[cite: 1]
             nomina_input_map = {}
             for ofi in OFICIOS_NOMINA_FORMATO:
                 col_n_l, col_n_v = st.columns([3, 1])
                 with col_n_l:
-                    st.write(f"• {ofi} (7:00AM - 4:00PM)")
+                    st.write(f"• {ofi} (7:00AM - 4:00PM)")[cite: 1]
                 with col_n_v:
-                    nomina_input_map[ofi] = st.number_input(f"N_{ofi}", min_value=0, value=int(conteo_auto_nomina.get(ofi, 0)), key=f"lo_nom_{ofi}", label_visibility="collapsed")
+                    nomina_input_map[ofi] = st.number_input(f"N_{ofi}", min_value=0, value=0, key=f"lo_nom_{ofi}", label_visibility="collapsed")[cite: 1]
 
         with c_nom2:
-            st.markdown("##### 🔄 Personal Rotativo / Subcontratos")
+            st.markdown("##### 🔄 Personal Rotativo / Subcontratos")[cite: 1]
             rotativo_input_map = {}
             for rubro in RUROS_ROTATIVOS_FORMATO:
                 col_r_l, col_r_v = st.columns([3, 1])
                 with col_r_l:
-                    st.write(f"• {rubro}")
+                    st.write(f"• {rubro}")[cite: 1]
                 with col_r_v:
-                    rotativo_input_map[rubro] = st.number_input(f"R_{rubro}", min_value=0, value=0, key=f"lo_rot_{rubro}", label_visibility="collapsed")
+                    rotativo_input_map[rubro] = st.number_input(f"R_{rubro}", min_value=0, value=0, key=f"lo_rot_{rubro}", label_visibility="collapsed")[cite: 1]
 
         st.markdown("---")
 
-        # 3. CONDICIONES CLIMÁTICAS Y MAQUINARIA / HERRAMIENTAS
-        st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")
+        # 3. CONDICIONES CLIMÁTICAS Y MAQUINARIA / HERRAMIENTAS (CAMPOS EN 0)
+        st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")[cite: 1]
         c_cl1, c_cl2 = st.columns(2)
         with c_cl1:
-            st.markdown("##### ⛅ Condiciones Climáticas")
-            clima_cond_sel = st.selectbox("Estado del Clima:*", ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"], index=0, key="lo_clima_cond")
-            clima_obs = st.text_input("Observaciones del Clima en Obra:", placeholder="Ej. Lluvia de 14:00 a 15:30 interrumpió trabajos en terraza", key="lo_clima_obs")
+            st.markdown("##### ⛅ Condiciones Climáticas")[cite: 1]
+            clima_cond_sel = st.selectbox("Estado del Clima:*", ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"], index=0, key="lo_clima_cond")[cite: 1]
+            clima_obs = st.text_input("Observaciones del Clima en Obra:", placeholder="Describa si el clima afectó el rendimiento...", key="lo_clima_obs")[cite: 1]
 
         with c_cl2:
-            st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")
+            st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")[cite: 1]
             maq_input_map = {}
             for maq in MAQUINARIAS_FORMATO:
                 c_m_l, c_m_v = st.columns([3, 1])
                 with c_m_l:
-                    st.write(f"• {maq}")
+                    st.write(f"• {maq}")[cite: 1]
                 with c_m_v:
-                    def_v = 2 if "SOLDADORA" in maq else 0
-                    maq_input_map[maq] = st.number_input(f"M_{maq}", min_value=0, value=def_v, key=f"lo_maq_{maq}", label_visibility="collapsed")
+                    maq_input_map[maq] = st.number_input(f"M_{maq}", min_value=0, value=0, key=f"lo_maq_{maq}", label_visibility="collapsed")[cite: 1]
 
         st.markdown("---")
 
         # 4. SEGURIDAD, SEÑALIZACIÓN Y MITIGACIÓN
-        st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
+        st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")[cite: 1]
         c_ss1, c_ss2, c_ss3 = st.columns(3)
         with c_ss1:
-            st.markdown("##### 🛡️ Seguridad")
-            seg_casco = st.checkbox("Casco", value=True)
-            seg_chaleco = st.checkbox("Chalecos", value=True)
-            seg_guantes = st.checkbox("Guantes", value=True)
-            seg_gafas = st.checkbox("Gafas", value=True)
-            seg_mascarilla = st.checkbox("Mascarilla", value=True)
-            seg_auditivo = st.checkbox("Auditivo", value=True)
+            st.markdown("##### 🛡️ Seguridad")[cite: 1]
+            seg_casco = st.checkbox("Casco", value=False)[cite: 1]
+            seg_chaleco = st.checkbox("Chalecos", value=False)[cite: 1]
+            seg_guantes = st.checkbox("Guantes", value=False)[cite: 1]
+            seg_gafas = st.checkbox("Gafas", value=False)[cite: 1]
+            seg_mascarilla = st.checkbox("Mascarilla", value=False)[cite: 1]
+            seg_auditivo = st.checkbox("Auditivo", value=False)[cite: 1]
 
         with c_ss2:
-            st.markdown("##### 🚧 Señalización")
-            sen_conos = st.checkbox("Conos", value=True)
-            sen_cintas = st.checkbox("Cintas", value=True)
-            sen_rotulos = st.checkbox("Rótulos", value=False)
-            sen_vallas = st.checkbox("Vallas", value=False)
-            sen_extintor = st.checkbox("Extintor", value=True)
-            sen_botiquin = st.checkbox("Botiquín", value=True)
+            st.markdown("##### 🚧 Señalización")[cite: 1]
+            sen_conos = st.checkbox("Conos", value=False)[cite: 1]
+            sen_cintas = st.checkbox("Cintas", value=False)[cite: 1]
+            sen_rotulos = st.checkbox("Rótulos", value=False)[cite: 1]
+            sen_vallas = st.checkbox("Vallas", value=False)[cite: 1]
+            sen_extintor = st.checkbox("Extintor", value=False)[cite: 1]
+            sen_botiquin = st.checkbox("Botiquín", value=False)[cite: 1]
 
         with c_ss3:
-            st.markdown("##### 🧹 Mitigación")
-            mit_polvo = st.checkbox("Control de Polvo", value=False)
-            mit_ruido = st.checkbox("Control de Ruido", value=True)
-            mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)
-            mit_cerramiento = st.checkbox("Cerramiento", value=False)
-            mit_limpieza = st.checkbox("Limpieza y Orden", value=True)
+            st.markdown("##### 🧹 Mitigación")[cite: 1]
+            mit_polvo = st.checkbox("Control de Polvo", value=False)[cite: 1]
+            mit_ruido = st.checkbox("Control de Ruido", value=False)[cite: 1]
+            mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)[cite: 1]
+            mit_cerramiento = st.checkbox("Cerramiento", value=False)[cite: 1]
+            mit_limpieza = st.checkbox("Limpieza y Orden", value=False)[cite: 1]
 
         st.markdown("---")
 
-        # 5. ACTIVIDADES REALIZADAS EN LA JORNADA
-        st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
-        st.caption("Rubros ejecutados en campo. Si llenaste el Checklist de hoy, se copiarán sus actividades automáticamente.")
+        # 5. ACTIVIDADES REALIZADAS EN LA JORNADA (VINCULACIÓN EXCLUSIVA CON CHECKLIST)
+        st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")[cite: 1]
+        st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy sin texto predeterminado.")
 
         lista_actividades_lo = []
         if chk_asociado:
@@ -2179,45 +2173,46 @@ with tab_libro:
                 if s_it.get("Actividad"):
                     lista_actividades_lo.append({
                         "Descripcion": s_it.get("Actividad"),
-                        "Area": "Frente Principal",
+                        "Area": "",
                         "Encargados": s_it.get("Encargados", ""),
                         "Unidad": "m2",
-                        "Cantidad": 1.0,
+                        "Cantidad": 0.0,
                         "Observaciones": s_it.get("Observaciones", "")
                     })
 
         if not lista_actividades_lo:
+            # Lista inicial en blanco para llenado manual
             lista_actividades_lo = [
                 {
-                    "Descripcion": "Albañilería - Gypsum - Pintura y Porcelanato",
-                    "Area": "Piso 3 / Bloque A",
-                    "Encargados": "Cuadrilla Alpha",
+                    "Descripcion": "",
+                    "Area": "",
+                    "Encargados": "",
                     "Unidad": "m2",
-                    "Cantidad": 15.0,
-                    "Observaciones": "Conforme plano"
+                    "Cantidad": 0.0,
+                    "Observaciones": ""
                 },
                 {
-                    "Descripcion": "Enlucido y masillado de fajas interiores",
-                    "Area": "Torre Principal",
-                    "Encargados": "Albañiles",
+                    "Descripcion": "",
+                    "Area": "",
+                    "Encargados": "",
                     "Unidad": "m2",
-                    "Cantidad": 22.5,
-                    "Observaciones": "Sin novedades"
+                    "Cantidad": 0.0,
+                    "Observaciones": ""
                 }
             ]
 
         acts_final_payload = []
         for idx_act_form, a_item in enumerate(lista_actividades_lo, 1):
-            st.markdown(f"**Actividad N° {idx_act_form}:**")
+            st.markdown(f"**Actividad N° {idx_act_form}:**")[cite: 1]
             c_af1, c_af2, c_af3, c_af4 = st.columns([2.5, 1.5, 1, 1])
             with c_af1:
-                d_in = st.text_input(f"Descripción {idx_act_form}:", value=a_item["Descripcion"], key=f"lo_act_d_{idx_act_form}")
+                d_in = st.text_input(f"Descripción {idx_act_form}:", value=a_item["Descripcion"], placeholder="Ej. Albañilería, Pintura, Enlucido...", key=f"lo_act_d_{idx_act_form}")[cite: 1]
             with c_af2:
-                ar_in = st.text_input(f"Área {idx_act_form}:", value=a_item["Area"], key=f"lo_act_ar_{idx_act_form}")
+                ar_in = st.text_input(f"Área {idx_act_form}:", value=a_item["Area"], placeholder="Ej. Piso 3, Bloque A...", key=f"lo_act_ar_{idx_act_form}")[cite: 1]
             with c_af3:
-                u_in = st.selectbox(f"Unidad {idx_act_form}:", ["m2", "m", "m3", "kg", "pto", "unid"], index=0, key=f"lo_act_u_{idx_act_form}")
+                u_in = st.selectbox(f"Unidad {idx_act_form}:", ["m2", "m", "m3", "kg", "pto", "unid"], index=0, key=f"lo_act_u_{idx_act_form}")[cite: 1]
             with c_af4:
-                ct_in = st.number_input(f"Cant. {idx_act_form}:", min_value=0.0, value=float(a_item["Cantidad"]), step=0.5, key=f"lo_act_ct_{idx_act_form}")
+                ct_in = st.number_input(f"Cant. {idx_act_form}:", min_value=0.0, value=float(a_item["Cantidad"]), step=0.5, key=f"lo_act_ct_{idx_act_form}")[cite: 1]
             
             acts_final_payload.append({
                 "Descripcion": d_in.strip(),
@@ -2230,9 +2225,9 @@ with tab_libro:
 
         st.markdown("---")
 
-        # 6. NOVEDADES Y RECOMENDACIONES
-        st.markdown("#### 6. Novedades y Recomendaciones")
-        lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="ALBAÑILERIA - GYPSUM - PINTURA Y PORCELANATO CONFORME AVANCE PROGRAMADO.", height=90, key="lo_nov_in")
+        # 6. NOVEDADES Y RECOMENDACIONES (VACÍO PARA LLENADO MANUAL)
+        st.markdown("#### 6. Novedades y Recomendaciones")[cite: 1]
+        lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="", placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")[cite: 1]
 
         btn_guardar_lo_oficial = st.form_submit_button("💾 Guardar Formato Oficial de Libro de Obra", type="primary", use_container_width=True)
 
@@ -2241,25 +2236,25 @@ with tab_libro:
                 st.error("⚠️ Seleccione un Proyecto o Edificio.")
             else:
                 seguridad_checks = {
-                    "Casco": seg_casco, "Chalecos": seg_chaleco, "Guantes": seg_guantes, "Gafas": seg_gafas, "Mascarilla": seg_mascarilla, "Auditivo": seg_auditivo,
-                    "Conos": sen_conos, "Cintas": sen_cintas, "Rótulos": sen_rotulos, "Vallas": sen_vallas, "Extintor": sen_extintor, "Botiquin": sen_botiquin,
-                    "Polvo": mit_polvo, "Ruido": mit_ruido, "Liquidos": mit_liquidos, "Cerramiento": mit_cerramiento, "Limpieza": mit_limpieza
+                    "Casco": seg_casco, "Chalecos": seg_chaleco, "Guantes": seg_guantes, "Gafas": seg_gafas, "Mascarilla": seg_mascarilla, "Auditivo": seg_auditivo,[cite: 1]
+                    "Conos": sen_conos, "Cintas": sen_cintas, "Rótulos": sen_rotulos, "Vallas": sen_vallas, "Extintor": sen_extintor, "Botiquin": sen_botiquin,[cite: 1]
+                    "Polvo": mit_polvo, "Ruido": mit_ruido, "Liquidos": mit_liquidos, "Cerramiento": mit_cerramiento, "Limpieza": mit_limpieza[cite: 1]
                 }
 
                 payload_libro_oficial = {
-                    "Superintendente": lo_superintendente,
-                    "Fiscalizador": lo_fiscalizador,
-                    "Ubicacion": lo_ubicacion,
-                    "Barrio": lo_barrio,
-                    "Hoja": lo_hoja,
-                    "Nomina_Conteo": nomina_input_map,
-                    "Rotativo_Conteo": rotativo_input_map,
-                    "Clima_Condicion": clima_cond_sel,
-                    "Clima_Obs": clima_obs,
-                    "Maquinaria_Conteo": maq_input_map,
-                    "Seguridad_Check": seguridad_checks,
-                    "Actividades_Ejecutadas": acts_final_payload,
-                    "Novedades": lo_novedades
+                    "Superintendente": lo_superintendente,[cite: 1]
+                    "Fiscalizador": lo_fiscalizador,[cite: 1]
+                    "Ubicacion": lo_ubicacion,[cite: 1]
+                    "Barrio": lo_barrio,[cite: 1]
+                    "Hoja": lo_hoja,[cite: 1]
+                    "Nomina_Conteo": nomina_input_map,[cite: 1]
+                    "Rotativo_Conteo": rotativo_input_map,[cite: 1]
+                    "Clima_Condicion": clima_cond_sel,[cite: 1]
+                    "Clima_Obs": clima_obs,[cite: 1]
+                    "Maquinaria_Conteo": maq_input_map,[cite: 1]
+                    "Seguridad_Check": seguridad_checks,[cite: 1]
+                    "Actividades_Ejecutadas": acts_final_payload,[cite: 1]
+                    "Novedades": lo_novedades[cite: 1]
                 }
 
                 try:
@@ -2284,7 +2279,7 @@ with tab_libro:
 
     st.markdown("---")
 
-    # HISTORIAL DE FORMATOS
+    # HISTORIAL DE FORMATOS (AGRUPADO POR MESES)
     st.markdown("### Historial de Formatos en Libro de Obra")
     mis_inspecciones = st.session_state.get("db_inspecciones", {}).get(user_email, [])
 
@@ -2296,31 +2291,43 @@ with tab_libro:
         insps_filtradas = [i for i in mis_inspecciones if i.get("Proyecto") == edif_insp_filtro] if edif_insp_filtro != "-- Todos los Proyectos --" else mis_inspecciones.copy()
         st.caption(f"Mostrando **{len(insps_filtradas)}** registro(s) en Libro de Obra.")
 
-        for idx_insp, insp in enumerate(insps_filtradas, 1):
-            with st.expander(f"📌 {insp['Proyecto']} — {insp['Fecha']} ({insp['Dia']}) | Residente: {insp.get('Residente', 'N/A')}", expanded=False):
-                d_insp = insp.get("Datos", {})
-                st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp.get('Frente', ''))} | **Clima:** {insp.get('Clima', '')}")
-                st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
+        df_insps = pd.DataFrame(insps_filtradas)
+        df_insps["fecha_dt"] = pd.to_datetime(df_insps["Fecha"])
+        df_insps = df_insps.sort_values(by="fecha_dt", ascending=False)
+        df_insps["año"] = df_insps["fecha_dt"].dt.year
+        df_insps["mes_num"] = df_insps["fecha_dt"].dt.month
 
-                c_dl_i1, c_dl_i2 = st.columns(2)
-                with c_dl_i1:
-                    st.download_button(
-                        "📊 Descargar Formato Excel (.xlsx)",
-                        export_libro_obra_formato_excel(insp),
-                        file_name=f"Libro_Obra_{insp['Proyecto']}_{insp['Fecha']}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key=f"dl_lo_off_x_{idx_insp}",
-                        use_container_width=True
-                    )
-                with c_dl_i2:
-                    st.download_button(
-                        "📄 Descargar Formato PDF (.pdf)",
-                        export_libro_obra_formato_pdf(insp),
-                        file_name=f"Libro_Obra_{insp['Proyecto']}_{insp['Fecha']}.pdf",
-                        mime="application/pdf",
-                        key=f"dl_lo_off_p_{idx_insp}",
-                        use_container_width=True
-                    )
+        grupos_insp = df_insps.groupby(["año", "mes_num"], sort=False)
+
+        for (anio, mes_num), items_mes in grupos_insp:
+            nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Libros de Obra)"
+            with st.expander(nombre_mes_str, expanded=False):
+                for idx_insp, insp in items_mes.iterrows():
+                    insp_dict = insp.to_dict()
+                    with st.expander(f"📌 {insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
+                        d_insp = insp_dict.get("Datos", {})
+                        st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp_dict.get('Frente', ''))} | **Clima:** {insp_dict.get('Clima', '')}")
+                        st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
+
+                        c_dl_i1, c_dl_i2 = st.columns(2)
+                        with c_dl_i1:
+                            st.download_button(
+                                "📊 Descargar Formato Excel (.xlsx)",
+                                export_libro_obra_formato_excel(insp_dict),
+                                file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key=f"dl_lo_off_x_{idx_insp}",
+                                use_container_width=True
+                            )
+                        with c_dl_i2:
+                            st.download_button(
+                                "📄 Descargar Formato PDF (.pdf)",
+                                export_libro_obra_formato_pdf(insp_dict),
+                                file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.pdf",
+                                mime="application/pdf",
+                                key=f"dl_lo_off_p_{idx_insp}",
+                                use_container_width=True
+                            )
     else:
         st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
@@ -2352,7 +2359,7 @@ with tab_personal:
                 if btn_save_pers_pop:
                     if nom_pers_in.strip() and car_pers_in.strip():
                         try:
-                            # 1. Inserción directa en base de datos
+                            # Inserción directa en base de datos
                             try:
                                 supabase.table("trabajadores").insert({
                                     "usuario_email": user_email,
@@ -2363,7 +2370,7 @@ with tab_personal:
                             except Exception:
                                 pass
                             
-                            # 2. Respaldo garantizado en app_config
+                            # Respaldo garantizado en app_config
                             cur_p = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
                             new_entry = {
                                 "id": int(datetime.datetime.now().timestamp() * 1000),
@@ -3252,7 +3259,7 @@ if es_admin:
                     with c_ad_dl1:
                         excel_bytes_adm = export_checklist_to_excel_file(j_adm)
                         st.download_button(
-                            label=f"📊 Descargar Excel",
+                            label="📊 Descargar Excel",
                             data=excel_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3262,7 +3269,7 @@ if es_admin:
                     with c_ad_dl2:
                         pdf_bytes_adm = export_checklist_to_pdf_file(j_adm)
                         st.download_button(
-                            label=f"📄 Descargar PDF",
+                            label="📄 Descargar PDF",
                             data=pdf_bytes_adm,
                             file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                             mime="application/pdf",
