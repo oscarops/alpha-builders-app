@@ -2724,8 +2724,9 @@ else:
                 mit_limpieza = st.checkbox("Limpieza y Orden", value=False)
 
 st.markdown("---")
-            st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
-            st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más filas libremente.")
+
+st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
+st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más filas libremente.")
 
             if "filas_lo_actividades" not in st.session_state:
                 st.session_state.filas_lo_actividades = []
