@@ -494,8 +494,6 @@ ACTIVIDADES_MANANA_CLEAN = [
 
 ACTIVIDADES_TARDE_CLEAN = [
     "Verificación del avance físico de las actividades",
-    "Control del rendimiento de las cuadrillas",
-    "Verificación de los trabajos y la calidad",
     "Verificación de trabajos corregidos",
     "Confirmación de materiales para el siguiente día",
     "Revisión del cumplimiento de la meta diaria",
