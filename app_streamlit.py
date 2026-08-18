@@ -2465,7 +2465,7 @@ else:
 
         if "filas_supervision" not in st.session_state:
             st.session_state.filas_supervision = [
-                {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
+                {"id": 1, "actividad": ""}
             ]
 
         if "chk_obs_counts" not in st.session_state:
@@ -2531,7 +2531,6 @@ else:
                                 st.rerun()
 
                     with c_col3:
-                        # Se habilita foto para todos los ítems excepto el N° 1 (Asistencia)
                         if idx != 1:
                             st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
                             ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
@@ -2587,52 +2586,60 @@ else:
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # SUPERVISIÓN DE TRABAJOS
-                mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-                lista_nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
+                # SUPERVISIÓN DE TRABAJOS (TABLA ÁGIL SOLO DE ACTIVIDADES)
+                st.markdown("#### 📋 Supervisión de la Ejecución de Trabajos")
+                st.caption("Ingrese la lista de actividades supervisadas durante la jornada:")
+
                 indices_a_eliminar = []
                 supervision_payload_data = []
 
+                col_h_num, col_h_act, col_h_del = st.columns([0.6, 6.8, 0.6])
+                with col_h_num:
+                    st.markdown("<small style='font-weight:800; color:var(--subtext);'>N°</small>", unsafe_allow_html=True)
+                with col_h_act:
+                    st.markdown("<small style='font-weight:800; color:var(--subtext);'>Descripción de la Actividad</small>", unsafe_allow_html=True)
+                with col_h_del:
+                    st.markdown("<small style='font-weight:800; color:var(--subtext);'>Acción</small>", unsafe_allow_html=True)
+
                 for idx_f, f_data in enumerate(st.session_state.filas_supervision, 1):
                     f_id = f_data["id"]
-                    st.markdown(f"""<div class="banner-item-header" style="background-color:#1e293b !important;"><span>Fila de Supervisión N° {idx_f}</span></div>""", unsafe_allow_html=True)
-                    st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
-                    s1, s2, s3, s4 = st.columns([1.6, 1.4, 1.4, 0.4])
+                    c_num, c_act, c_del = st.columns([0.6, 6.8, 0.6])
 
-                    with s1:
-                        act_val = st.text_input(f"Actividad {idx_f}:", value=f_data.get("actividad", ""), placeholder="Ej. Enlucido fachada posterior...", key=f"dyn_act_{f_id}")
-                        obs_val_s = st.text_input(f"Obs {idx_f}:", value=f_data.get("observaciones", ""), placeholder="Observaciones adicionales...", key=f"dyn_obs_{f_id}")
+                    with c_num:
+                        st.markdown(f"<div style='padding-top:8px; font-weight:700; text-align:center;'>{idx_f}</div>", unsafe_allow_html=True)
 
-                    with s2:
-                        if lista_nombres_personal:
-                            enc_val = st.multiselect(f"Personal {idx_f}:", options=lista_nombres_personal, default=[p for p in f_data.get("encargados", []) if p in lista_nombres_personal], key=f"dyn_enc_{f_id}", placeholder="Seleccionar personal...")
-                            enc_str = ", ".join(enc_val) if enc_val else ""
-                        else:
-                            enc_str = st.text_input(f"Personal manual {idx_f}:", value=f_data.get("encargados_manual", ""), placeholder="Escribir nombres...", key=f"dyn_enc_man_{f_id}")
+                    with c_act:
+                        act_val = st.text_input(
+                            f"Actividad {idx_f}:",
+                            value=f_data.get("actividad", ""),
+                            placeholder=f"Ej. Enlucido paleteado en muros / Pintura en departamento {idx_f}01...",
+                            key=f"dyn_act_{f_id}",
+                            label_visibility="collapsed"
+                        )
 
-                    with s3:
-                        ft_file = st.file_uploader(f"Foto {idx_f}:", type=["jpg", "jpeg", "png"], key=f"dyn_ft_{f_id}")
-                        foto_b64_f = image_to_base64(ft_file) if ft_file is not None else f_data.get("foto_b64")
-
-                    with s4:
-                        st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
-                        if st.button("🗑️", key=f"btn_del_row_{f_id}", help="Eliminar fila"):
+                    with c_del:
+                        if st.button("🗑️", key=f"btn_del_row_{f_id}", help="Eliminar actividad", use_container_width=True):
                             indices_a_eliminar.append(idx_f - 1)
 
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    supervision_payload_data.append({"N°": idx_f, "Actividad": act_val.strip(), "Encargados": enc_str, "Observaciones": obs_val_s.strip(), "Foto_B64": foto_b64_f})
+                    supervision_payload_data.append({
+                        "N°": idx_f,
+                        "Actividad": act_val.strip(),
+                        "Encargados": "",
+                        "Observaciones": "",
+                        "Foto_B64": None
+                    })
 
                 if indices_a_eliminar:
                     for del_i in sorted(indices_a_eliminar, reverse=True):
                         if len(st.session_state.filas_supervision) > 1:
                             st.session_state.filas_supervision.pop(del_i)
                         else:
-                            st.session_state.filas_supervision = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
+                            st.session_state.filas_supervision = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": ""}]
                     st.rerun()
 
-                if st.button("➕ Agregar Fila de Trabajo", key="btn_add_dyn_supervision_row"):
+                if st.button("➕ Agregar Actividad", key="btn_add_dyn_supervision_row"):
                     next_id_sup = (max([x["id"] for x in st.session_state.filas_supervision]) + 1) if st.session_state.filas_supervision else 1
-                    st.session_state.filas_supervision.append({"id": next_id_sup, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None})
+                    st.session_state.filas_supervision.append({"id": next_id_sup, "actividad": ""})
                     st.rerun()
 
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -2665,7 +2672,7 @@ else:
                                 st.session_state.db_loaded = False
                                 st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
                                 st.session_state.creando_jornada = False
-                                st.session_state.filas_supervision = [{"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
+                                st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
                                 st.session_state.chk_obs_counts = {}
                                 st.rerun()
                             except Exception as e:
@@ -2730,7 +2737,7 @@ else:
         else:
             st.info("Aún no hay checklists guardados en tu cuenta.")
 
-    # 2. LIBRO DE OBRA OFICIAL
+    # 2. LIBRO DE OBRA OFICIAL (ESTRUCTURA ORIGINAL COMPLETA)
     with tab_libro:
         st.markdown("### Libro de Obra – Formato Oficial")
         st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")
@@ -2913,7 +2920,7 @@ else:
 
         st.markdown("---")
         st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
-        st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más filas libremente.")
+        st.caption("Estructura completa de actividades con frente, cuadrillas y cantidades:")
 
         if "filas_lo_actividades" not in st.session_state:
             st.session_state.filas_lo_actividades = []
@@ -2929,9 +2936,10 @@ else:
                         "id": len(importados_chk) + 1,
                         "descripcion": s_it.get("Actividad"),
                         "area": "",
+                        "encargados": "",
                         "unidad": "",
                         "cantidad": 0.0,
-                        "observaciones": s_it.get("Observaciones", "")
+                        "observaciones": ""
                     })
             if importados_chk:
                 st.session_state.filas_lo_actividades = importados_chk
@@ -2939,7 +2947,7 @@ else:
 
         if not st.session_state.filas_lo_actividades:
             st.session_state.filas_lo_actividades = [
-                {"id": 1, "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}
+                {"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}
             ]
 
         indices_eliminar_lo = []
@@ -2948,30 +2956,39 @@ else:
         for idx_act_form, item_f in enumerate(st.session_state.filas_lo_actividades, 1):
             f_act_id = item_f["id"]
             st.markdown(f"**Actividad N° {idx_act_form}:**")
-            c_af1, c_af2, c_af3, c_af4, c_af5 = st.columns([2.2, 1.5, 1.2, 1.0, 0.4])
             
+            c_af1, c_af2 = st.columns([2.5, 1.5])
             with c_af1:
                 d_in = st.text_input(
-                    f"Descripción {idx_act_form}:",
+                    f"Descripción de la Actividad {idx_act_form}:",
                     value=item_f.get("descripcion", ""),
-                    placeholder="Ej. Albañilería, Pintura...",
+                    placeholder="Ej. Albañilería, Enlucidos, Pintura...",
                     key=f"lo_act_d_{f_act_id}"
                 )
             with c_af2:
                 ar_in = st.text_input(
-                    f"Área {idx_act_form}:",
+                    f"Área / Ubicación {idx_act_form}:",
                     value=item_f.get("area", ""),
                     placeholder="Ej. Piso 3, Bloque A...",
                     key=f"lo_act_ar_{f_act_id}"
                 )
+
+            c_af3, c_af4, c_af5, c_af6 = st.columns([2.0, 1.0, 1.0, 0.4])
             with c_af3:
+                enc_in = st.text_input(
+                    f"Personal Encargado {idx_act_form}:",
+                    value=item_f.get("encargados", ""),
+                    placeholder="Ej. Albañiles, Gypseros...",
+                    key=f"lo_act_enc_{f_act_id}"
+                )
+            with c_af4:
                 u_in = st.text_input(
                     f"Unidad {idx_act_form}:",
                     value=item_f.get("unidad", ""),
                     placeholder="Ej. m2, m, glb...",
                     key=f"lo_act_u_{f_act_id}"
                 )
-            with c_af4:
+            with c_af5:
                 ct_in = st.number_input(
                     f"Cant. {idx_act_form}:",
                     min_value=0.0,
@@ -2979,25 +2996,34 @@ else:
                     step=0.5,
                     key=f"lo_act_ct_{f_act_id}"
                 )
-            with c_af5:
+            with c_af6:
                 st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
                 if st.button("🗑️", key=f"btn_del_lo_row_{f_act_id}", help="Eliminar fila"):
                     indices_eliminar_lo.append(idx_act_form - 1)
 
+            obs_lo_act = st.text_input(
+                f"Observaciones {idx_act_form}:",
+                value=item_f.get("observaciones", ""),
+                placeholder="Observaciones técnicas de la actividad...",
+                key=f"lo_act_obs_{f_act_id}"
+            )
+
             acts_final_payload.append({
                 "Descripcion": d_in.strip(),
                 "Area": ar_in.strip(),
+                "Encargados": enc_in.strip(),
                 "Unidad": u_in.strip(),
                 "Cantidad": ct_in,
-                "Observaciones": item_f.get("observaciones", "")
+                "Observaciones": obs_lo_act.strip()
             })
+            st.markdown("---")
 
         if indices_eliminar_lo:
             for del_i in sorted(indices_eliminar_lo, reverse=True):
                 if len(st.session_state.filas_lo_actividades) > 1:
                     st.session_state.filas_lo_actividades.pop(del_i)
                 else:
-                    st.session_state.filas_lo_actividades = [{"id": int(datetime.datetime.now().timestamp() * 1000), "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                    st.session_state.filas_lo_actividades = [{"id": int(datetime.datetime.now().timestamp() * 1000), "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
             st.rerun()
 
         if st.button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
@@ -3006,13 +3032,14 @@ else:
                 "id": next_id_lo,
                 "descripcion": "",
                 "area": "",
+                "encargados": "",
                 "unidad": "",
                 "cantidad": 0.0,
                 "observaciones": ""
             })
             st.rerun()
 
-        st.markdown("---")
+        st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("#### 6. Novedades y Recomendaciones")
         lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="", placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")
 
