@@ -5,6 +5,18 @@ import base64
 import datetime
 import io
 import json
+
+def safe_json_dumps(obj):
+    """
+    Serializador JSON seguro para datos provenientes de Pandas,
+    NumPy, fechas y otros objetos que json.dumps no serializa directamente.
+    """
+    return json.dumps(
+        obj,
+        ensure_ascii=False,
+        default=str,
+        sort_keys=True
+    )
 import os
 import zoneinfo
 import pandas as pd
@@ -2240,7 +2252,7 @@ if es_maestro_mayor:
                                 with st.popover("📊 Exportar Excel", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.xlsx)",
-                                        get_cached_libro_maestro_excel(json.dumps(insp_dict_m)),
+                                        get_cached_libro_maestro_excel(safe_json_dumps(insp_dict_m)),
                                         file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.xlsx",
                                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                         key=f"dl_mm_xlsx_{idx_insp_m}",
@@ -2250,7 +2262,7 @@ if es_maestro_mayor:
                                 with st.popover("📄 Exportar PDF", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.pdf)",
-                                        get_cached_libro_maestro_pdf(json.dumps(insp_dict_m)),
+                                        get_cached_libro_maestro_pdf(safe_json_dumps(insp_dict_m)),
                                         file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.pdf",
                                         mime="application/pdf",
                                         key=f"dl_mm_pdf_{idx_insp_m}",
@@ -2518,7 +2530,7 @@ else:
                                 with st.popover("📊 Exportar Excel", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.xlsx)", 
-                                        get_cached_checklist_excel(json.dumps(j_dict)), 
+                                        get_cached_checklist_excel(safe_json_dumps(j_dict)), 
                                         file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.xlsx", 
                                         key=f"dl_xlsx_{orig_idx}", 
                                         use_container_width=True
@@ -2527,7 +2539,7 @@ else:
                                 with st.popover("📄 Exportar PDF", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.pdf)", 
-                                        get_cached_checklist_pdf(json.dumps(j_dict)), 
+                                        get_cached_checklist_pdf(safe_json_dumps(j_dict)), 
                                         file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.pdf", 
                                         key=f"dl_pdf_{orig_idx}", 
                                         use_container_width=True
@@ -2925,7 +2937,7 @@ else:
                                 with st.popover("📊 Exportar Excel", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.xlsx)",
-                                        get_cached_libro_oficial_excel(json.dumps(insp_dict)),
+                                        get_cached_libro_oficial_excel(safe_json_dumps(insp_dict)),
                                         file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.xlsx",
                                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                         key=f"dl_lo_off_x_{idx_insp}",
@@ -2935,7 +2947,7 @@ else:
                                 with st.popover("📄 Exportar PDF", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.pdf)",
-                                        get_cached_libro_oficial_pdf(json.dumps(insp_dict)),
+                                        get_cached_libro_oficial_pdf(safe_json_dumps(insp_dict)),
                                         file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.pdf",
                                         mime="application/pdf",
                                         key=f"dl_lo_off_p_{idx_insp}",
@@ -3793,10 +3805,10 @@ with tab_colab:
                                 col_dl_mm1, col_dl_mm2 = st.columns(2)
                                 with col_dl_mm1:
                                     with st.popover("📊 Exportar Excel", use_container_width=True):
-                                        st.download_button("Confirmar (.xlsx)", get_cached_libro_maestro_excel(json.dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.xlsx)", get_cached_libro_maestro_excel(safe_json_dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
                                 with col_dl_mm2:
                                     with st.popover("📄 Exportar PDF", use_container_width=True):
-                                        st.download_button("Confirmar (.pdf)", get_cached_libro_maestro_pdf(json.dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.pdf)", get_cached_libro_maestro_pdf(safe_json_dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha cargado actividades en su Libro de Obra.")
 
@@ -3838,10 +3850,10 @@ with tab_colab:
                                 col_dl_c1, col_dl_c2 = st.columns(2)
                                 with col_dl_c1:
                                     with st.popover("📊 Exportar Excel", use_container_width=True):
-                                        st.download_button("Confirmar (.xlsx)", get_cached_checklist_excel(json.dumps(j_col)), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.xlsx)", get_cached_checklist_excel(safe_json_dumps(j_col)), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}_p5", use_container_width=True)
                                 with col_dl_c2:
                                     with st.popover("📄 Exportar PDF", use_container_width=True):
-                                        st.download_button("Confirmar (.pdf)", get_cached_checklist_pdf(json.dumps(j_col)), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.pdf)", get_cached_checklist_pdf(safe_json_dumps(j_col)), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha registrado checklists.")
 
@@ -3854,10 +3866,10 @@ with tab_colab:
                                 col_dl_i1, col_dl_i2 = st.columns(2)
                                 with col_dl_i1:
                                     with st.popover("📊 Exportar Excel", use_container_width=True):
-                                        st.download_button("Confirmar (.xlsx)", get_cached_libro_oficial_excel(json.dumps(i_col)), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.xlsx)", get_cached_libro_oficial_excel(safe_json_dumps(i_col)), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}_p5", use_container_width=True)
                                 with col_dl_i2:
                                     with st.popover("📄 Exportar PDF", use_container_width=True):
-                                        st.download_button("Confirmar (.pdf)", get_cached_libro_oficial_pdf(json.dumps(i_col)), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.pdf)", get_cached_libro_oficial_pdf(safe_json_dumps(i_col)), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha registrado formatos de Libro de Obra.")
 
@@ -3951,7 +3963,7 @@ if es_admin:
                         with st.popover("📊 Exportar Excel", use_container_width=True):
                             st.download_button(
                                 label="Confirmar (.xlsx)",
-                                data=get_cached_checklist_excel(json.dumps(j_adm)),
+                                data=get_cached_checklist_excel(safe_json_dumps(j_adm)),
                                 file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                 key=f"dl_xlsx_adm_{idx_adm}_p5",
@@ -3961,7 +3973,7 @@ if es_admin:
                         with st.popover("📄 Exportar PDF", use_container_width=True):
                             st.download_button(
                                 label="Confirmar (.pdf)",
-                                data=get_cached_checklist_pdf(json.dumps(j_adm)),
+                                data=get_cached_checklist_pdf(safe_json_dumps(j_adm)),
                                 file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                                 mime="application/pdf",
                                 key=f"dl_pdf_adm_{idx_adm}_p5",
@@ -4011,20 +4023,20 @@ if es_admin:
                         c_ad_idl1, c_ad_idl2 = st.columns(2)
                         with c_ad_idl1:
                             with st.popover("📊 Exportar Excel", use_container_width=True):
-                                st.download_button("Confirmar (.xlsx)", get_cached_libro_maestro_excel(json.dumps(i_adm)), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.xlsx", key=f"dl_mm_adm_x_{idx_i_adm}", use_container_width=True)
+                                st.download_button("Confirmar (.xlsx)", get_cached_libro_maestro_excel(safe_json_dumps(i_adm)), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.xlsx", key=f"dl_mm_adm_x_{idx_i_adm}", use_container_width=True)
                         with c_ad_idl2:
                             with st.popover("📄 Exportar PDF", use_container_width=True):
-                                st.download_button("Confirmar (.pdf)", get_cached_libro_maestro_pdf(json.dumps(i_adm)), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.pdf", key=f"dl_mm_adm_p_{idx_i_adm}", use_container_width=True)
+                                st.download_button("Confirmar (.pdf)", get_cached_libro_maestro_pdf(safe_json_dumps(i_adm)), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.pdf", key=f"dl_mm_adm_p_{idx_i_adm}", use_container_width=True)
                     else:
                         st.markdown(f"**Ubicación:** {d_i_adm.get('Ubicacion', i_adm.get('Frente', ''))} | **Clima:** {i_adm.get('Clima', '')}")
                         st.markdown(f"**Superintendente:** {d_i_adm.get('Superintendente', '')} | **Fiscalizador:** {d_i_adm.get('Fiscalizador', '')}")
                         c_ad_idl1, c_ad_idl2 = st.columns(2)
                         with c_ad_idl1:
                             with st.popover("📊 Exportar Excel", use_container_width=True):
-                                st.download_button("Confirmar (.xlsx)", get_cached_libro_oficial_excel(json.dumps(i_adm)), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_insp_xlsx_adm_{idx_i_adm}_p5", use_container_width=True)
+                                st.download_button("Confirmar (.xlsx)", get_cached_libro_oficial_excel(safe_json_dumps(i_adm)), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_insp_xlsx_adm_{idx_i_adm}_p5", use_container_width=True)
                         with c_ad_idl2:
                             with st.popover("📄 Exportar PDF", use_container_width=True):
-                                st.download_button("Confirmar (.pdf)", get_cached_libro_oficial_pdf(json.dumps(i_adm)), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf", mime="application/pdf", key=f"dl_insp_pdf_adm_{idx_i_adm}_p5", use_container_width=True)
+                                st.download_button("Confirmar (.pdf)", get_cached_libro_oficial_pdf(safe_json_dumps(i_adm)), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf", mime="application/pdf", key=f"dl_insp_pdf_adm_{idx_i_adm}_p5", use_container_width=True)
         else:
             st.info("Ningún participante ha registrado formatos de Libro de Obra aún.")
 
