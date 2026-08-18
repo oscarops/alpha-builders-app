@@ -2,8 +2,6 @@
 # PARTE 1 DE 5: CONFIGURACIÓN DE PÁGINA, ESTILOS CSS Y CONSTANTES
 # ==============================================================================
 import base64
-import hashlib
-import hmac
 import datetime
 import io
 import json
@@ -467,7 +465,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA RÁPIDA DE DATOS Y EXPORTADORES DE DOCUMENTOS
+# PARTE 2 DE 5: CARGA RÁPIDA DE DATOS Y EXPORTADORES DE DOCUMENTOS EN CACHÉ
 # ==============================================================================
 
 # ==============================================================================
@@ -749,78 +747,7 @@ if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = []
 
 # ==============================================================================
-# PERSISTENCIA INMEDIATA Y ROBUSTA DE SESIÓN + BORRADORES LOCALES
-# ==============================================================================
-def get_session_secret():
-    # Usa un secreto dedicado cuando exista; como respaldo mantiene compatibilidad
-    # con instalaciones actuales que todavía no tienen SESSION_SECRET.
-    return str(st.secrets.get("SESSION_SECRET", st.secrets.get("SUPABASE_KEY", "alpha-builders-session-secret")))
-
-def make_session_token(email):
-    payload = str(email).strip().lower()
-    signature = hmac.new(get_session_secret().encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
-    return f"{payload}|{signature}"
-
-def verify_session_token(token):
-    try:
-        raw = str(token or "")
-        if "|" not in raw:
-            return None
-        email, signature = raw.rsplit("|", 1)
-        email = email.strip().lower()
-        if not email or not signature:
-            return None
-        expected = hmac.new(get_session_secret().encode("utf-8"), email.encode("utf-8"), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(signature, expected):
-            return None
-        return email
-    except Exception:
-        return None
-
-if "autenticado" not in st.session_state:
-    st.session_state.autenticado = False
-    st.session_state.usuario_email = ""
-    st.session_state.usuario_nombres = ""
-    st.session_state.usuario_apellidos = ""
-    st.session_state.usuario_cargo = ""
-    st.session_state.usuario_edificios = []
-
-url_token = st.query_params.get("s")
-if url_token and not st.session_state.autenticado:
-    m_clean = verify_session_token(url_token)
-    if m_clean:
-        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == m_clean), None)
-        if u_match and str(u_match.get("Estado", "Activo")).lower() == "activo":
-            st.session_state.autenticado = True
-            st.session_state.usuario_email = m_clean
-            st.session_state.usuario_nombres = u_match["Nombres"]
-            st.session_state.usuario_apellidos = u_match["Apellidos"]
-            st.session_state.usuario_cargo = u_match["Cargo"]
-            st.session_state.usuario_edificios = u_match.get("Edificios", [])
-
-if not st.session_state.autenticado:
-    components.html(
-        """
-        <script>
-        try {
-            const win = window.top || window.parent || window;
-            const saved = win.localStorage.getItem('alpha_auth_token');
-            if (saved) {
-                const currentUrl = new URL(win.location.href);
-                if (!currentUrl.searchParams.get('s')) {
-                    currentUrl.searchParams.set('s', saved);
-                    win.location.replace(currentUrl.href);
-                }
-            }
-        } catch (e) {}
-        </script>
-        """,
-        height=0,
-        width=0
-    )
-
-# ==============================================================================
-# 5. FUNCIONES DE FORMATO Y EXPORTADORES
+# 5. FUNCIONES DE FORMATO Y EXPORTADORES EN CACHÉ (PREVIENE CAÍDAS MÓVILES)
 # ==============================================================================
 def render_estado_badge(estado_str):
     if not estado_str:
@@ -869,7 +796,10 @@ def export_dataframe_to_excel_csv(df):
     df_clean = df.drop(columns=["Foto_B64", "db_id", "id", "usuario_email"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
-def export_checklist_to_excel_file(jornada_dict):
+# --- FUNCIONES DE GENERACIÓN DE ARCHIVOS (USANDO CACHÉ PARA OPTIMIZAR) ---
+@st.cache_data(show_spinner=False, max_entries=50)
+def get_cached_checklist_excel(jornada_dict_str):
+    jornada_dict = json.loads(jornada_dict_str)
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Checklist"
@@ -971,7 +901,9 @@ def export_checklist_to_excel_file(jornada_dict):
     output.seek(0)
     return output.getvalue()
 
-def export_checklist_to_pdf_file(jornada_dict):
+@st.cache_data(show_spinner=False, max_entries=50)
+def get_cached_checklist_pdf(jornada_dict_str):
+    jornada_dict = json.loads(jornada_dict_str)
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     story = []
@@ -1051,7 +983,9 @@ def export_checklist_to_pdf_file(jornada_dict):
     buffer.seek(0)
     return buffer.getvalue()
 
-def export_libro_obra_maestro_excel(insp_dict):
+@st.cache_data(show_spinner=False, max_entries=50)
+def get_cached_libro_maestro_excel(insp_dict_str):
+    insp_dict = json.loads(insp_dict_str)
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Libro Maestro"
@@ -1103,7 +1037,9 @@ def export_libro_obra_maestro_excel(insp_dict):
     output.seek(0)
     return output.getvalue()
 
-def export_libro_obra_maestro_pdf(insp_dict):
+@st.cache_data(show_spinner=False, max_entries=50)
+def get_cached_libro_maestro_pdf(insp_dict_str):
+    insp_dict = json.loads(insp_dict_str)
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=25)
     story = []
@@ -1143,7 +1079,9 @@ def export_libro_obra_maestro_pdf(insp_dict):
     buffer.seek(0)
     return buffer.getvalue()
 
-def export_libro_obra_formato_excel(insp_dict):
+@st.cache_data(show_spinner=False, max_entries=50)
+def get_cached_libro_oficial_excel(insp_dict_str):
+    insp_dict = json.loads(insp_dict_str)
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Libro de Obra"
@@ -1297,7 +1235,9 @@ def export_libro_obra_formato_excel(insp_dict):
     output.seek(0)
     return output.getvalue()
 
-def export_libro_obra_formato_pdf(insp_dict):
+@st.cache_data(show_spinner=False, max_entries=50)
+def get_cached_libro_oficial_pdf(insp_dict_str):
+    insp_dict = json.loads(insp_dict_str)
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20)
     story = []
@@ -1381,108 +1321,55 @@ def export_libro_obra_formato_pdf(insp_dict):
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
-
-def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Incidencias"
-    thin_border = Border(left=Side(style='thin', color='CBD5E1'), right=Side(style='thin', color='CBD5E1'), top=Side(style='thin', color='CBD5E1'), bottom=Side(style='thin', color='CBD5E1'))
-    fill_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
-    
-    ws.merge_cells("A1:G1")
-    ws["A1"] = f"LEVANTAMIENTO DE INCIDENCIAS - {proyecto_nombre.upper()}"
-    ws["A1"].font = Font(name="Arial", bold=True, color="FFFFFF", size=11)
-    ws["A1"].fill = fill_header
-    ws["A1"].alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    ws.row_dimensions[1].height = 28
-
-    headers = ["N°", "Área", "Descripción", "Responsable", "Prioridad", "Fecha compromiso", "Estado"]
-    ws.append(headers)
-    ws.row_dimensions[2].height = 24
-
-    for col_i in range(1, 8):
-        c = ws.cell(row=2, column=col_i)
-        c.font = Font(name="Arial", bold=True, color="FFFFFF", size=9)
-        c.fill = fill_header
-        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        c.border = thin_border
-
-    for idx, inc in enumerate(incidencias_list, 1):
-        prio_str = f"Alta {'[X]' if inc.get('Prioridad')=='Alta' else '[ ]'}\nMedia {'[X]' if inc.get('Prioridad')=='Media' else '[ ]'}\nBaja {'[X]' if inc.get('Prioridad')=='Baja' else '[ ]'}"
-        est_str = f"Abierta {'[X]' if inc.get('Estado')=='Abierta' else '[ ]'}\nCerrada {'[X]' if inc.get('Estado')=='Cerrada' else '[ ]'}"
-        ws.append([idx, inc.get("Area", ""), inc.get("Descripcion", ""), inc.get("Responsable", ""), prio_str, str(inc.get("Fecha_Compromiso", "")), est_str])
-        r_i = ws.max_row
-        ws.row_dimensions[r_i].height = 55
-        for c_idx in range(1, 8):
-            cell = ws.cell(row=r_i, column=c_idx)
-            cell.font = Font(name="Arial", size=9)
-            cell.border = thin_border
-            cell.alignment = Alignment(horizontal="center" if c_idx in [1, 5, 6, 7] else "left", vertical="center", wrap_text=True)
-
-    ws.column_dimensions['A'].width = 6
-    ws.column_dimensions['B'].width = 20
-    ws.column_dimensions['C'].width = 38
-    ws.column_dimensions['D'].width = 22
-    ws.column_dimensions['E'].width = 16
-    ws.column_dimensions['F'].width = 18
-    ws.column_dimensions['G'].width = 16
-
-    output = io.BytesIO()
-    wb.save(output)
-    output.seek(0)
-    return output.getvalue()
-
-def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
-    story = []
-
-    title_style = ParagraphStyle('IncTitle', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#121318'), spaceAfter=8)
-    header_style = ParagraphStyle('IncHeader', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=1)
-    cell_style = ParagraphStyle('IncCell', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'))
-    cell_center = ParagraphStyle('IncCenter', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#121318'), alignment=1)
-
-    story.append(Paragraph(f"<b>LEVANTAMIENTO DE INCIDENCIAS — {proyecto_nombre.upper()}</b>", title_style))
-    story.append(Spacer(1, 6))
-
-    table_data = [[
-        Paragraph("<b>N°</b>", header_style), Paragraph("<b>Área</b>", header_style), Paragraph("<b>Descripción</b>", header_style),
-        Paragraph("<b>Responsable</b>", header_style), Paragraph("<b>Prioridad</b>", header_style), Paragraph("<b>Fecha compromiso</b>", header_style),
-        Paragraph("<b>Estado</b>", header_style)
-    ]]
-
-    for idx, item in enumerate(incidencias_list, 1):
-        prio_alta = "☑ Alta" if item.get("Prioridad") == "Alta" else "☐ Alta"
-        prio_media = "☑ Media" if item.get("Prioridad") == "Media" else "☐ Media"
-        prio_baja = "☑ Baja" if item.get("Prioridad") == "Baja" else "☐ Baja"
-        prio_text = f"{prio_alta}<br/>{prio_media}<br/>{prio_baja}"
-
-        est_abierta = "☑ Abierta" if item.get("Estado") == "Abierta" else "☐ Abierta"
-        est_cerrada = "☑ Cerrada" if item.get("Estado") == "Cerrada" else "☐ Cerrada"
-        est_text = f"{est_abierta}<br/>{est_cerrada}"
-
-        table_data.append([
-            Paragraph(str(idx), cell_center), Paragraph(str(item.get("Area", "")), cell_style), Paragraph(str(item.get("Descripcion", "")), cell_style),
-            Paragraph(str(item.get("Responsable", "")), cell_style), Paragraph(prio_text, cell_style), Paragraph(str(item.get("Fecha_Compromiso", "")), cell_center),
-            Paragraph(est_text, cell_style)
-        ])
-
-    table = Table(table_data, colWidths=[25, 85, 175, 95, 65, 75, 65])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
-        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-    ]))
-    story.append(table)
-    doc.build(story)
-    buffer.seek(0)
-    return buffer.getvalue()
 # ==============================================================================
 # PARTE 3 DE 5: AUTENTICACIÓN PERSISTENTE, BARRA LATERAL Y SMART DASHBOARD
 # ==============================================================================
+
+# ==============================================================================
+# PERSISTENCIA INMEDIATA Y ROBUSTA DE SESIÓN (LOCALSTORAGE SEGURO + QUERY PARAMS)
+# ==============================================================================
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+    st.session_state.usuario_email = ""
+    st.session_state.usuario_nombres = ""
+    st.session_state.usuario_apellidos = ""
+    st.session_state.usuario_cargo = ""
+    st.session_state.usuario_edificios = []
+
+# Revisar si hay un token válido en la URL (al restaurar la sesión desde JavaScript)
+url_user = st.query_params.get("u")
+if url_user and not st.session_state.autenticado:
+    m_clean = str(url_user).strip().lower()
+    u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == m_clean), None)
+    if u_match:
+        st.session_state.autenticado = True
+        st.session_state.usuario_email = m_clean
+        st.session_state.usuario_nombres = u_match["Nombres"]
+        st.session_state.usuario_apellidos = u_match["Apellidos"]
+        st.session_state.usuario_cargo = u_match["Cargo"]
+        st.session_state.usuario_edificios = u_match.get("Edificios", [])
+
+# Si no está autenticado, inyecta el script para traer la sesión de LocalStorage y recargar
+if not st.session_state.autenticado:
+    components.html(
+        """
+        <script>
+        try {
+            const win = window.top || window.parent || window;
+            const saved = win.localStorage.getItem('alpha_user_session');
+            if (saved) {
+                const currentUrl = new URL(win.location.href);
+                if (!currentUrl.searchParams.get('u')) {
+                    currentUrl.searchParams.set('u', saved);
+                    win.location.href = currentUrl.href;
+                }
+            }
+        } catch (e) {}
+        </script>
+        """,
+        height=0,
+        width=0
+    )
 
 # ==============================================================================
 # 6. MÓDULO DE AUTENTICACIÓN: LOGIN DIRECTO, REGISTRO Y RECUPERACIÓN
@@ -1570,25 +1457,21 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                session_token = make_session_token(mail_clean)
-                                st.query_params["s"] = session_token
+                                st.query_params["u"] = mail_clean
                                 
-                                components.html(
-                                    f"""
-                                    <script>
-                                    try {{
-                                        const win = window.top || window.parent || window;
-                                        if ({str(bool(mantener_sesion)).lower()}) {{
-                                            win.localStorage.setItem('alpha_auth_token', '{session_token}');
-                                        }} else {{
-                                            win.localStorage.removeItem('alpha_auth_token');
-                                        }}
-                                    }} catch(e) {{}}
-                                    </script>
-                                    """,
-                                    height=0,
-                                    width=0
-                                )
+                                if mantener_sesion:
+                                    components.html(
+                                        f"""
+                                        <script>
+                                        try {{
+                                            const win = window.top || window.parent || window;
+                                            win.localStorage.setItem('alpha_user_session', '{mail_clean}');
+                                        }} catch(e) {{}}
+                                        </script>
+                                        """,
+                                        height=0,
+                                        width=0
+                                    )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -1907,17 +1790,17 @@ with st.sidebar:
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         st.session_state.usuario_email = ""
-        if "s" in st.query_params:
-            del st.query_params["s"]
+        if "u" in st.query_params:
+            del st.query_params["u"]
         components.html(
             """
             <script>
             try {
                 const win = window.top || window.parent || window;
-                win.localStorage.removeItem('alpha_auth_token');
+                win.localStorage.removeItem('alpha_user_session');
                 const url = new URL(win.location.href);
-                url.searchParams.delete('s');
-                win.location.href = url.href;
+                url.searchParams.delete('u');
+                win.location.replace(url.href);
             } catch(e) {}
             </script>
             """,
@@ -1927,80 +1810,50 @@ with st.sidebar:
         st.rerun()
 
 # ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM (ADAPTABLE POR ROL)
+# 8. SMART DASHBOARD GLASSMORPHISM Y AUTOGUARDADO (DRAFTS)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
-# ------------------------------------------------------------------------------
-# BORRADORES AUTOMÁTICOS EN EL NAVEGADOR
-# - Guarda inputs/checks/selects mientras el usuario escribe.
-# - Sobrevive a cerrar pestaña, llamada, cambio de app o cierre inesperado.
-# - No guarda contraseñas.
-# ------------------------------------------------------------------------------
-DRAFT_STORAGE_KEY = "alpha_draft_v3_" + base64.urlsafe_b64encode(user_email.encode("utf-8")).decode("ascii").rstrip("=")
-
+# Script para guardar automáticamente en localStorage los valores del formulario sin recargar.
+DRAFT_STORAGE_KEY = "alpha_draft_v4_" + base64.urlsafe_b64encode(user_email.encode("utf-8")).decode("ascii").rstrip("=")
 components.html(
     f"""
     <script>
     (() => {{
         const win = window.top || window.parent || window;
-        const KEY = {json.dumps(DRAFT_STORAGE_KEY)};
+        const KEY = '{DRAFT_STORAGE_KEY}';
         const EXCLUDE = new Set(['log_email','log_pass','log_pin','reg_pass','reg_pass_rep','reg_pin','sb_pass','sb_pass_rep']);
-        const STORE_DELAY = 250;
         let saveTimer = null;
 
-        function labelFor(el) {{
-            const aria = el.getAttribute('aria-label');
-            if (aria) return aria.trim();
-            const labelled = el.getAttribute('id');
-            if (labelled) {{
-                const lab = win.document.querySelector(`label[for=\"${{labelled}}\"]`);
-                if (lab) return lab.innerText.trim();
-            }}
-            const parent = el.closest('[data-testid^=\"st\"]');
-            const lab = parent && parent.querySelector('label');
-            return lab ? lab.innerText.trim() : '';
-        }}
-
         function keyFor(el, idx) {{
-            const label = labelFor(el) || el.name || el.type || 'control';
-            const role = el.getAttribute('role') || '';
-            return `${{role}}|${{label}}|${{idx}}`;
+            const name = el.getAttribute('name') || '';
+            const type = (el.type || '').toLowerCase();
+            const aria = el.getAttribute('aria-label') || '';
+            return `el|${{name}}|${{type}}|${{aria}}|${{idx}}`;
         }}
 
         function snapshot() {{
-            const data = {{version: 3, saved_at: new Date().toISOString(), controls: {{}}}};
-            const els = Array.from(win.document.querySelectorAll('input, textarea, select'))
-                .filter(el => !el.disabled && !EXCLUDE.has(el.getAttribute('name')));
+            const data = {{controls: {{}}}};
+            const els = Array.from(win.document.querySelectorAll('input, textarea, select')).filter(el => !el.disabled && !EXCLUDE.has(el.getAttribute('name')));
             els.forEach((el, idx) => {{
                 const type = (el.type || '').toLowerCase();
                 if (type === 'password' || type === 'file') return;
                 const k = keyFor(el, idx);
                 data.controls[k] = {{
                     value: type === 'checkbox' || type === 'radio' ? !!el.checked : el.value,
-                    type: type,
-                    label: labelFor(el)
+                    type: type
                 }};
-            }});
-
-            // Streamlit segmented controls / radios.
-            Array.from(win.document.querySelectorAll('[role=radio][aria-checked=true], [role=option][aria-selected=true]')).forEach((el, idx) => {{
-                const txt = (el.innerText || el.textContent || '').trim();
-                if (!txt) return;
-                data.controls[`aria|${{idx}}|${{txt}}`] = {{value: true, type: 'aria-choice', text: txt}};
             }});
             return data;
         }}
 
         function saveNow() {{
-            try {{
-                win.localStorage.setItem(KEY, JSON.stringify(snapshot()));
-            }} catch (e) {{}}
+            try {{ win.localStorage.setItem(KEY, JSON.stringify(snapshot())); }} catch (e) {{}}
         }}
 
         function scheduleSave() {{
             clearTimeout(saveTimer);
-            saveTimer = setTimeout(saveNow, STORE_DELAY);
+            saveTimer = setTimeout(saveNow, 300);
         }}
 
         function restore() {{
@@ -2009,8 +1862,7 @@ components.html(
                 if (!raw) return;
                 const data = JSON.parse(raw);
                 if (!data || !data.controls) return;
-                const els = Array.from(win.document.querySelectorAll('input, textarea, select'))
-                    .filter(el => !el.disabled && !EXCLUDE.has(el.getAttribute('name')));
+                const els = Array.from(win.document.querySelectorAll('input, textarea, select')).filter(el => !el.disabled && !EXCLUDE.has(el.getAttribute('name')));
                 els.forEach((el, idx) => {{
                     const k = keyFor(el, idx);
                     const item = data.controls[k];
@@ -2018,12 +1870,18 @@ components.html(
                     const type = (el.type || '').toLowerCase();
                     if (type === 'password' || type === 'file') return;
                     if (type === 'checkbox' || type === 'radio') {{
-                        el.checked = !!item.value;
+                        if (el.checked !== !!item.value) {{
+                            el.checked = !!item.value;
+                            el.dispatchEvent(new Event('input', {{bubbles:true}}));
+                            el.dispatchEvent(new Event('change', {{bubbles:true}}));
+                        }}
                     }} else if (typeof item.value === 'string') {{
-                        if (el.value !== item.value) el.value = item.value;
+                        if (el.value !== item.value) {{
+                            el.value = item.value;
+                            el.dispatchEvent(new Event('input', {{bubbles:true}}));
+                            el.dispatchEvent(new Event('change', {{bubbles:true}}));
+                        }}
                     }}
-                    el.dispatchEvent(new Event('input', {{bubbles:true}}));
-                    el.dispatchEvent(new Event('change', {{bubbles:true}}));
                 }});
             }} catch (e) {{}}
         }}
@@ -2032,13 +1890,10 @@ components.html(
             restore();
             win.document.addEventListener('input', scheduleSave, true);
             win.document.addEventListener('change', scheduleSave, true);
-            const mo = new MutationObserver(() => restore());
-            if (win.document.body) mo.observe(win.document.body, {{subtree:true, childList:true}});
-            setInterval(saveNow, 2000);
             win.addEventListener('beforeunload', saveNow);
-            win.addEventListener('pagehide', saveNow);
         }}
-        setTimeout(boot, 600);
+        
+        setTimeout(boot, 800);
 
         win.alphaBuildersClearDraft = function() {{
             try {{ win.localStorage.removeItem(KEY); }} catch (e) {{}}
@@ -2195,7 +2050,7 @@ if es_maestro_mayor:
     with tab_libro_maestro:
         st.markdown("### Libro de Obra – Maestro Mayor")
         st.caption("Registro diario de actividades, cuadrillas a cargo y metrajes ejecutados en obra.")
-        st.info("📝 Borrador automático: los cambios quedan guardados en este dispositivo mientras completas el reporte.")
+        st.info("📝 Borrador automático: tus datos se guardan en el dispositivo aunque cierres la pestaña.")
 
         if "filas_maestro_act" not in st.session_state:
             st.session_state.filas_maestro_act = [
@@ -2243,7 +2098,7 @@ if es_maestro_mayor:
             c_m1, c_m2 = st.columns([2.5, 1.5])
             with c_m1:
                 act_m_txt = st.text_input(
-                    f"Descripción {idx_m}:",
+                    f"Descripción de la Actividad {idx_m}:",
                     value=f_data.get("actividad", ""),
                     placeholder="Ej. Enlucido paleteado en muros de fachada...",
                     key=f"mm_act_txt_{f_id}"
@@ -2268,7 +2123,7 @@ if es_maestro_mayor:
                     )
                 else:
                     pers_sel_txt = st.text_input(
-                        f"Personal a Cargo {idx_m}:",
+                        f"Personal a Cargo manual {idx_m}:",
                         value=", ".join(f_data.get("personal_a_cargo", [])) if isinstance(f_data.get("personal_a_cargo"), list) else str(f_data.get("personal_a_cargo", "")),
                         placeholder="Escriba los nombres de los trabajadores...",
                         key=f"mm_pers_manual_{f_id}"
@@ -2301,7 +2156,7 @@ if es_maestro_mayor:
                 if len(st.session_state.filas_maestro_act) > 1:
                     st.session_state.filas_maestro_act.pop(del_i)
                 else:
-                    st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                    st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
             st.rerun()
 
         if st.button("➕ Agregar Otra Actividad", key="btn_add_mm_act_row"):
@@ -2343,9 +2198,12 @@ if es_maestro_mayor:
                             "datos": payload_final_mm
                         }).execute()
 
+                        # Borrar el autoguardado (draft) tras enviar con éxito
                         components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
+                        
                         st.session_state.db_loaded = False
                         st.success(f"¡Reporte del Maestro guardado exitosamente para **{edificio_maestro_val}**!")
+                        st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al guardar: {e}")
@@ -2382,7 +2240,7 @@ if es_maestro_mayor:
                                 with st.popover("📊 Exportar Excel", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.xlsx)",
-                                        export_libro_obra_maestro_excel(insp_dict_m),
+                                        get_cached_libro_maestro_excel(json.dumps(insp_dict_m)),
                                         file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.xlsx",
                                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                         key=f"dl_mm_xlsx_{idx_insp_m}",
@@ -2392,7 +2250,7 @@ if es_maestro_mayor:
                                 with st.popover("📄 Exportar PDF", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.pdf)",
-                                        export_libro_obra_maestro_pdf(insp_dict_m),
+                                        get_cached_libro_maestro_pdf(json.dumps(insp_dict_m)),
                                         file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.pdf",
                                         mime="application/pdf",
                                         key=f"dl_mm_pdf_{idx_insp_m}",
@@ -2429,7 +2287,7 @@ else:
 
         st.markdown("### Checklist – Control de Obra")
         st.caption("Supervisión técnica y control de ejecución diaria en obra.")
-        st.info("📝 Borrador automático: los cambios quedan guardados en este dispositivo mientras completas el formulario.")
+        st.info("📝 Borrador automático activado: tus progresos se guardan en tu dispositivo.")
 
         if not st.session_state.creando_jornada:
             if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -2583,7 +2441,7 @@ else:
                         if len(st.session_state.filas_supervision) > 1:
                             st.session_state.filas_supervision.pop(del_i)
                         else:
-                            st.session_state.filas_supervision = [{"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
+                            st.session_state.filas_supervision = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
                     st.rerun()
 
                 if st.button("➕ Agregar Fila de Trabajo", key="btn_add_dyn_supervision_row"):
@@ -2620,6 +2478,9 @@ else:
                                 components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                                 st.session_state.db_loaded = False
                                 st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
+                                st.session_state.creando_jornada = False
+                                st.session_state.filas_supervision = [{"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
+                                st.session_state.chk_obs_counts = {}
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Error al guardar checklist: {e}")
@@ -2657,7 +2518,7 @@ else:
                                 with st.popover("📊 Exportar Excel", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.xlsx)", 
-                                        export_checklist_to_excel_file(j_dict), 
+                                        get_cached_checklist_excel(json.dumps(j_dict)), 
                                         file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.xlsx", 
                                         key=f"dl_xlsx_{orig_idx}", 
                                         use_container_width=True
@@ -2666,7 +2527,7 @@ else:
                                 with st.popover("📄 Exportar PDF", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.pdf)", 
-                                        export_checklist_to_pdf_file(j_dict), 
+                                        get_cached_checklist_pdf(json.dumps(j_dict)), 
                                         file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.pdf", 
                                         key=f"dl_pdf_{orig_idx}", 
                                         use_container_width=True
@@ -2687,7 +2548,6 @@ else:
     with tab_libro:
         st.markdown("### Libro de Obra – Formato Oficial")
         st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")
-        st.info("📝 Borrador automático: si cierras la pestaña o sales de la app, el formulario se conserva en este dispositivo.")
 
         dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
         local_today_insp = get_local_datetime_ecuador().date()
@@ -3065,7 +2925,7 @@ else:
                                 with st.popover("📊 Exportar Excel", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.xlsx)",
-                                        export_libro_obra_formato_excel(insp_dict),
+                                        get_cached_libro_oficial_excel(json.dumps(insp_dict)),
                                         file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.xlsx",
                                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                         key=f"dl_lo_off_x_{idx_insp}",
@@ -3075,7 +2935,7 @@ else:
                                 with st.popover("📄 Exportar PDF", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.pdf)",
-                                        export_libro_obra_formato_pdf(insp_dict),
+                                        get_cached_libro_oficial_pdf(json.dumps(insp_dict)),
                                         file_name=f"Libro_Obra_{insp_dict['Proyecto']}_{insp_dict['Fecha']}.pdf",
                                         mime="application/pdf",
                                         key=f"dl_lo_off_p_{idx_insp}",
@@ -3933,10 +3793,10 @@ with tab_colab:
                                 col_dl_mm1, col_dl_mm2 = st.columns(2)
                                 with col_dl_mm1:
                                     with st.popover("📊 Exportar Excel", use_container_width=True):
-                                        st.download_button("Confirmar (.xlsx)", export_libro_obra_maestro_excel(m_rep), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.xlsx)", get_cached_libro_maestro_excel(json.dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
                                 with col_dl_mm2:
                                     with st.popover("📄 Exportar PDF", use_container_width=True):
-                                        st.download_button("Confirmar (.pdf)", export_libro_obra_maestro_pdf(m_rep), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.pdf)", get_cached_libro_maestro_pdf(json.dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha cargado actividades en su Libro de Obra.")
 
@@ -3978,10 +3838,10 @@ with tab_colab:
                                 col_dl_c1, col_dl_c2 = st.columns(2)
                                 with col_dl_c1:
                                     with st.popover("📊 Exportar Excel", use_container_width=True):
-                                        st.download_button("Confirmar (.xlsx)", export_checklist_to_excel_file(j_col), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.xlsx)", get_cached_checklist_excel(json.dumps(j_col)), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}_p5", use_container_width=True)
                                 with col_dl_c2:
                                     with st.popover("📄 Exportar PDF", use_container_width=True):
-                                        st.download_button("Confirmar (.pdf)", export_checklist_to_pdf_file(j_col), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.pdf)", get_cached_checklist_pdf(json.dumps(j_col)), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha registrado checklists.")
 
@@ -3994,10 +3854,10 @@ with tab_colab:
                                 col_dl_i1, col_dl_i2 = st.columns(2)
                                 with col_dl_i1:
                                     with st.popover("📊 Exportar Excel", use_container_width=True):
-                                        st.download_button("Confirmar (.xlsx)", export_libro_obra_formato_excel(i_col), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.xlsx)", get_cached_libro_oficial_excel(json.dumps(i_col)), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}_p5", use_container_width=True)
                                 with col_dl_i2:
                                     with st.popover("📄 Exportar PDF", use_container_width=True):
-                                        st.download_button("Confirmar (.pdf)", export_libro_obra_formato_pdf(i_col), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}_p5", use_container_width=True)
+                                        st.download_button("Confirmar (.pdf)", get_cached_libro_oficial_pdf(json.dumps(i_col)), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha registrado formatos de Libro de Obra.")
 
@@ -4091,7 +3951,7 @@ if es_admin:
                         with st.popover("📊 Exportar Excel", use_container_width=True):
                             st.download_button(
                                 label="Confirmar (.xlsx)",
-                                data=export_checklist_to_excel_file(j_adm),
+                                data=get_cached_checklist_excel(json.dumps(j_adm)),
                                 file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.xlsx",
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                 key=f"dl_xlsx_adm_{idx_adm}_p5",
@@ -4101,7 +3961,7 @@ if es_admin:
                         with st.popover("📄 Exportar PDF", use_container_width=True):
                             st.download_button(
                                 label="Confirmar (.pdf)",
-                                data=export_checklist_to_pdf_file(j_adm),
+                                data=get_cached_checklist_pdf(json.dumps(j_adm)),
                                 file_name=f"Checklist_{j_adm['Usuario_Correo']}_{j_adm['Edificio']}_{j_adm['Fecha']}.pdf",
                                 mime="application/pdf",
                                 key=f"dl_pdf_adm_{idx_adm}_p5",
@@ -4151,20 +4011,20 @@ if es_admin:
                         c_ad_idl1, c_ad_idl2 = st.columns(2)
                         with c_ad_idl1:
                             with st.popover("📊 Exportar Excel", use_container_width=True):
-                                st.download_button("Confirmar (.xlsx)", export_libro_obra_maestro_excel(i_adm), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.xlsx", key=f"dl_mm_adm_x_{idx_i_adm}", use_container_width=True)
+                                st.download_button("Confirmar (.xlsx)", get_cached_libro_maestro_excel(json.dumps(i_adm)), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.xlsx", key=f"dl_mm_adm_x_{idx_i_adm}", use_container_width=True)
                         with c_ad_idl2:
                             with st.popover("📄 Exportar PDF", use_container_width=True):
-                                st.download_button("Confirmar (.pdf)", export_libro_obra_maestro_pdf(i_adm), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.pdf", key=f"dl_mm_adm_p_{idx_i_adm}", use_container_width=True)
+                                st.download_button("Confirmar (.pdf)", get_cached_libro_maestro_pdf(json.dumps(i_adm)), file_name=f"Libro_Maestro_{i_adm['Proyecto']}_{i_adm['Fecha']}.pdf", key=f"dl_mm_adm_p_{idx_i_adm}", use_container_width=True)
                     else:
                         st.markdown(f"**Ubicación:** {d_i_adm.get('Ubicacion', i_adm.get('Frente', ''))} | **Clima:** {i_adm.get('Clima', '')}")
                         st.markdown(f"**Superintendente:** {d_i_adm.get('Superintendente', '')} | **Fiscalizador:** {d_i_adm.get('Fiscalizador', '')}")
                         c_ad_idl1, c_ad_idl2 = st.columns(2)
                         with c_ad_idl1:
                             with st.popover("📊 Exportar Excel", use_container_width=True):
-                                st.download_button("Confirmar (.xlsx)", export_libro_obra_formato_excel(i_adm), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_insp_xlsx_adm_{idx_i_adm}_p5", use_container_width=True)
+                                st.download_button("Confirmar (.xlsx)", get_cached_libro_oficial_excel(json.dumps(i_adm)), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_insp_xlsx_adm_{idx_i_adm}_p5", use_container_width=True)
                         with c_ad_idl2:
                             with st.popover("📄 Exportar PDF", use_container_width=True):
-                                st.download_button("Confirmar (.pdf)", export_libro_obra_formato_pdf(i_adm), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf", mime="application/pdf", key=f"dl_insp_pdf_adm_{idx_i_adm}_p5", use_container_width=True)
+                                st.download_button("Confirmar (.pdf)", get_cached_libro_oficial_pdf(json.dumps(i_adm)), file_name=f"Libro_Obra_{i_adm['Proyecto'].replace(' ', '_')}_{i_adm['Fecha']}.pdf", mime="application/pdf", key=f"dl_insp_pdf_adm_{idx_i_adm}_p5", use_container_width=True)
         else:
             st.info("Ningún participante ha registrado formatos de Libro de Obra aún.")
 
