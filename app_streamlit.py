@@ -2,6 +2,8 @@
 # PARTE 1 DE 5: CONFIGURACIÓN DE PÁGINA, ESTILOS CSS Y CONSTANTES
 # ==============================================================================
 import base64
+import hashlib
+import hmac
 import datetime
 import io
 import json
@@ -747,8 +749,34 @@ if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = []
 
 # ==============================================================================
-# PERSISTENCIA INMEDIATA Y ROBUSTA DE SESIÓN (LOCALSTORAGE SEGURO + QUERY PARAMS)
+# PERSISTENCIA INMEDIATA Y ROBUSTA DE SESIÓN + BORRADORES LOCALES
 # ==============================================================================
+def get_session_secret():
+    # Usa un secreto dedicado cuando exista; como respaldo mantiene compatibilidad
+    # con instalaciones actuales que todavía no tienen SESSION_SECRET.
+    return str(st.secrets.get("SESSION_SECRET", st.secrets.get("SUPABASE_KEY", "alpha-builders-session-secret")))
+
+def make_session_token(email):
+    payload = str(email).strip().lower()
+    signature = hmac.new(get_session_secret().encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{payload}|{signature}"
+
+def verify_session_token(token):
+    try:
+        raw = str(token or "")
+        if "|" not in raw:
+            return None
+        email, signature = raw.rsplit("|", 1)
+        email = email.strip().lower()
+        if not email or not signature:
+            return None
+        expected = hmac.new(get_session_secret().encode("utf-8"), email.encode("utf-8"), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            return None
+        return email
+    except Exception:
+        return None
+
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
@@ -757,17 +785,18 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-url_user = st.query_params.get("u")
-if url_user and not st.session_state.autenticado:
-    m_clean = str(url_user).strip().lower()
-    u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == m_clean), None)
-    if u_match:
-        st.session_state.autenticado = True
-        st.session_state.usuario_email = m_clean
-        st.session_state.usuario_nombres = u_match["Nombres"]
-        st.session_state.usuario_apellidos = u_match["Apellidos"]
-        st.session_state.usuario_cargo = u_match["Cargo"]
-        st.session_state.usuario_edificios = u_match.get("Edificios", [])
+url_token = st.query_params.get("s")
+if url_token and not st.session_state.autenticado:
+    m_clean = verify_session_token(url_token)
+    if m_clean:
+        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == m_clean), None)
+        if u_match and str(u_match.get("Estado", "Activo")).lower() == "activo":
+            st.session_state.autenticado = True
+            st.session_state.usuario_email = m_clean
+            st.session_state.usuario_nombres = u_match["Nombres"]
+            st.session_state.usuario_apellidos = u_match["Apellidos"]
+            st.session_state.usuario_cargo = u_match["Cargo"]
+            st.session_state.usuario_edificios = u_match.get("Edificios", [])
 
 if not st.session_state.autenticado:
     components.html(
@@ -775,12 +804,12 @@ if not st.session_state.autenticado:
         <script>
         try {
             const win = window.top || window.parent || window;
-            const saved = win.localStorage.getItem('alpha_user_session');
+            const saved = win.localStorage.getItem('alpha_auth_token');
             if (saved) {
                 const currentUrl = new URL(win.location.href);
-                if (!currentUrl.searchParams.get('u')) {
-                    currentUrl.searchParams.set('u', saved);
-                    win.location.href = currentUrl.href;
+                if (!currentUrl.searchParams.get('s')) {
+                    currentUrl.searchParams.set('s', saved);
+                    win.location.replace(currentUrl.href);
                 }
             }
         } catch (e) {}
@@ -1541,21 +1570,25 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                st.query_params["u"] = mail_clean
+                                session_token = make_session_token(mail_clean)
+                                st.query_params["s"] = session_token
                                 
-                                if mantener_sesion:
-                                    components.html(
-                                        f"""
-                                        <script>
-                                        try {{
-                                            const win = window.top || window.parent || window;
-                                            win.localStorage.setItem('alpha_user_session', '{mail_clean}');
-                                        }} catch(e) {{}}
-                                        </script>
-                                        """,
-                                        height=0,
-                                        width=0
-                                    )
+                                components.html(
+                                    f"""
+                                    <script>
+                                    try {{
+                                        const win = window.top || window.parent || window;
+                                        if ({str(bool(mantener_sesion)).lower()}) {{
+                                            win.localStorage.setItem('alpha_auth_token', '{session_token}');
+                                        }} else {{
+                                            win.localStorage.removeItem('alpha_auth_token');
+                                        }}
+                                    }} catch(e) {{}}
+                                    </script>
+                                    """,
+                                    height=0,
+                                    width=0
+                                )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -1874,16 +1907,16 @@ with st.sidebar:
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         st.session_state.usuario_email = ""
-        if "u" in st.query_params:
-            del st.query_params["u"]
+        if "s" in st.query_params:
+            del st.query_params["s"]
         components.html(
             """
             <script>
             try {
                 const win = window.top || window.parent || window;
-                win.localStorage.removeItem('alpha_user_session');
+                win.localStorage.removeItem('alpha_auth_token');
                 const url = new URL(win.location.href);
-                url.searchParams.delete('u');
+                url.searchParams.delete('s');
                 win.location.href = url.href;
             } catch(e) {}
             </script>
@@ -1897,6 +1930,126 @@ with st.sidebar:
 # 8. SMART DASHBOARD GLASSMORPHISM (ADAPTABLE POR ROL)
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
+
+# ------------------------------------------------------------------------------
+# BORRADORES AUTOMÁTICOS EN EL NAVEGADOR
+# - Guarda inputs/checks/selects mientras el usuario escribe.
+# - Sobrevive a cerrar pestaña, llamada, cambio de app o cierre inesperado.
+# - No guarda contraseñas.
+# ------------------------------------------------------------------------------
+DRAFT_STORAGE_KEY = "alpha_draft_v3_" + base64.urlsafe_b64encode(user_email.encode("utf-8")).decode("ascii").rstrip("=")
+
+components.html(
+    f"""
+    <script>
+    (() => {{
+        const win = window.top || window.parent || window;
+        const KEY = {json.dumps(DRAFT_STORAGE_KEY)};
+        const EXCLUDE = new Set(['log_email','log_pass','log_pin','reg_pass','reg_pass_rep','reg_pin','sb_pass','sb_pass_rep']);
+        const STORE_DELAY = 250;
+        let saveTimer = null;
+
+        function labelFor(el) {{
+            const aria = el.getAttribute('aria-label');
+            if (aria) return aria.trim();
+            const labelled = el.getAttribute('id');
+            if (labelled) {{
+                const lab = win.document.querySelector(`label[for=\"${{labelled}}\"]`);
+                if (lab) return lab.innerText.trim();
+            }}
+            const parent = el.closest('[data-testid^=\"st\"]');
+            const lab = parent && parent.querySelector('label');
+            return lab ? lab.innerText.trim() : '';
+        }}
+
+        function keyFor(el, idx) {{
+            const label = labelFor(el) || el.name || el.type || 'control';
+            const role = el.getAttribute('role') || '';
+            return `${{role}}|${{label}}|${{idx}}`;
+        }}
+
+        function snapshot() {{
+            const data = {{version: 3, saved_at: new Date().toISOString(), controls: {{}}}};
+            const els = Array.from(win.document.querySelectorAll('input, textarea, select'))
+                .filter(el => !el.disabled && !EXCLUDE.has(el.getAttribute('name')));
+            els.forEach((el, idx) => {{
+                const type = (el.type || '').toLowerCase();
+                if (type === 'password' || type === 'file') return;
+                const k = keyFor(el, idx);
+                data.controls[k] = {{
+                    value: type === 'checkbox' || type === 'radio' ? !!el.checked : el.value,
+                    type: type,
+                    label: labelFor(el)
+                }};
+            }});
+
+            // Streamlit segmented controls / radios.
+            Array.from(win.document.querySelectorAll('[role=radio][aria-checked=true], [role=option][aria-selected=true]')).forEach((el, idx) => {{
+                const txt = (el.innerText || el.textContent || '').trim();
+                if (!txt) return;
+                data.controls[`aria|${{idx}}|${{txt}}`] = {{value: true, type: 'aria-choice', text: txt}};
+            }});
+            return data;
+        }}
+
+        function saveNow() {{
+            try {{
+                win.localStorage.setItem(KEY, JSON.stringify(snapshot()));
+            }} catch (e) {{}}
+        }}
+
+        function scheduleSave() {{
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(saveNow, STORE_DELAY);
+        }}
+
+        function restore() {{
+            try {{
+                const raw = win.localStorage.getItem(KEY);
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                if (!data || !data.controls) return;
+                const els = Array.from(win.document.querySelectorAll('input, textarea, select'))
+                    .filter(el => !el.disabled && !EXCLUDE.has(el.getAttribute('name')));
+                els.forEach((el, idx) => {{
+                    const k = keyFor(el, idx);
+                    const item = data.controls[k];
+                    if (!item) return;
+                    const type = (el.type || '').toLowerCase();
+                    if (type === 'password' || type === 'file') return;
+                    if (type === 'checkbox' || type === 'radio') {{
+                        el.checked = !!item.value;
+                    }} else if (typeof item.value === 'string') {{
+                        if (el.value !== item.value) el.value = item.value;
+                    }}
+                    el.dispatchEvent(new Event('input', {{bubbles:true}}));
+                    el.dispatchEvent(new Event('change', {{bubbles:true}}));
+                }});
+            }} catch (e) {{}}
+        }}
+
+        function boot() {{
+            restore();
+            win.document.addEventListener('input', scheduleSave, true);
+            win.document.addEventListener('change', scheduleSave, true);
+            const mo = new MutationObserver(() => restore());
+            if (win.document.body) mo.observe(win.document.body, {{subtree:true, childList:true}});
+            setInterval(saveNow, 2000);
+            win.addEventListener('beforeunload', saveNow);
+            win.addEventListener('pagehide', saveNow);
+        }}
+        setTimeout(boot, 600);
+
+        win.alphaBuildersClearDraft = function() {{
+            try {{ win.localStorage.removeItem(KEY); }} catch (e) {{}}
+        }};
+    }})();
+    </script>
+    """,
+    height=0,
+    width=0
+)
+
 local_dt = get_local_datetime_ecuador()
 fecha_hoy_iso = local_dt.strftime("%Y-%m-%d")
 
@@ -2042,6 +2195,7 @@ if es_maestro_mayor:
     with tab_libro_maestro:
         st.markdown("### Libro de Obra – Maestro Mayor")
         st.caption("Registro diario de actividades, cuadrillas a cargo y metrajes ejecutados en obra.")
+        st.info("📝 Borrador automático: los cambios quedan guardados en este dispositivo mientras completas el reporte.")
 
         if "filas_maestro_act" not in st.session_state:
             st.session_state.filas_maestro_act = [
@@ -2189,6 +2343,7 @@ if es_maestro_mayor:
                             "datos": payload_final_mm
                         }).execute()
 
+                        components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                         st.session_state.db_loaded = False
                         st.success(f"¡Reporte del Maestro guardado exitosamente para **{edificio_maestro_val}**!")
                         st.rerun()
@@ -2274,6 +2429,7 @@ else:
 
         st.markdown("### Checklist – Control de Obra")
         st.caption("Supervisión técnica y control de ejecución diaria en obra.")
+        st.info("📝 Borrador automático: los cambios quedan guardados en este dispositivo mientras completas el formulario.")
 
         if not st.session_state.creando_jornada:
             if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -2461,6 +2617,7 @@ else:
                                     "datos": payload_jornada
                                 }).execute()
 
+                                components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                                 st.session_state.db_loaded = False
                                 st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
                                 st.rerun()
@@ -2530,6 +2687,7 @@ else:
     with tab_libro:
         st.markdown("### Libro de Obra – Formato Oficial")
         st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")
+        st.info("📝 Borrador automático: si cierras la pestaña o sales de la app, el formulario se conserva en este dispositivo.")
 
         dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
         local_today_insp = get_local_datetime_ecuador().date()
@@ -2861,6 +3019,7 @@ else:
                             "datos": payload_libro_oficial
                         }).execute()
 
+                        components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                         st.session_state.db_loaded = False
                         st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
                         st.rerun()
