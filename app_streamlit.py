@@ -487,7 +487,6 @@ RENDIMIENTOS_TEORICOS = {"Enlucidos": 0.75, "Fijos": 0.50, "Fajas": 0.30, "Dinte
 
 ACTIVIDADES_MANANA_CLEAN = [
     "Verificación de asistencia del personal",
-    "Distribución de cuadrillas por frente de trabajo",
     "Verificación de los trabajos y la calidad",
     "Coordinación con otras especialidades",
     "Corrección de observaciones detectadas",
