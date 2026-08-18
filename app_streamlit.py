@@ -15,6 +15,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from supabase import create_client, Client
+from streamlit_cookies_controller import CookieController
 
 # ReportLab para exportación de reportes PDF oficiales
 from reportlab.lib.pagesizes import letter, landscape
@@ -504,6 +505,130 @@ def init_supabase():
 
 supabase = init_supabase()
 
+# ==============================================================================
+# 4.B SISTEMA DE BORRADORES (AUTOGUARDADO) - EVITA PÉRDIDA DE DATOS
+# ==============================================================================
+# Guarda automáticamente en Supabase lo que el usuario va llenando en formularios
+# largos (Checklist y Libro de Obra) para que, si cierra la pestaña, recibe una
+# llamada, o pierde la conexión antes de presionar "Guardar", pueda recuperar
+# exactamente donde se quedó la próxima vez que entre con su mismo usuario.
+#
+# Requiere una tabla en Supabase llamada "borradores" con esta estructura:
+#   id              bigint (identity / primary key)
+#   usuario_email   text
+#   tipo            text
+#   datos           jsonb
+#   actualizado_en  timestamptz
+#   + índice/restricción UNIQUE sobre (usuario_email, tipo)
+#
+# SQL sugerido:
+#   create table if not exists borradores (
+#       id bigint generated always as identity primary key,
+#       usuario_email text not null,
+#       tipo text not null,
+#       datos jsonb not null default '{}'::jsonb,
+#       actualizado_en timestamptz not null default now(),
+#       unique (usuario_email, tipo)
+#   );
+
+def _borrador_serializar(valor):
+    """Convierte tipos no serializables (date/time) a texto para guardarlos en jsonb."""
+    if isinstance(valor, datetime.time):
+        return {"__tipo__": "time", "v": valor.strftime("%H:%M:%S")}
+    if isinstance(valor, datetime.date):
+        return {"__tipo__": "date", "v": valor.isoformat()}
+    return valor
+
+def _borrador_deserializar(valor):
+    """Reconstruye los tipos date/time al restaurar un borrador guardado."""
+    if isinstance(valor, dict) and "__tipo__" in valor:
+        if valor["__tipo__"] == "time":
+            hh, mm, ss = [int(x) for x in valor["v"].split(":")]
+            return datetime.time(hh, mm, ss)
+        if valor["__tipo__"] == "date":
+            return datetime.date.fromisoformat(valor["v"])
+    return valor
+
+def capturar_borrador(prefijos_keys, claves_extra=None):
+    """Recopila del session_state actual todos los valores de widgets (por prefijo de key)
+    y variables extra (listas/diccionarios auxiliares) que forman un formulario en curso."""
+    snap = {}
+    for k, v in st.session_state.items():
+        if any(k.startswith(p) for p in prefijos_keys):
+            if hasattr(v, "read"):  # nunca intentar guardar un archivo subido (UploadedFile)
+                continue
+            try:
+                json.dumps(v, default=str)
+            except Exception:
+                continue
+            snap[k] = _borrador_serializar(v)
+    if claves_extra:
+        for ek in claves_extra:
+            if ek in st.session_state:
+                snap[ek] = st.session_state[ek]
+    return snap
+
+def guardar_borrador(tipo, datos):
+    """Sube (upsert) el borrador en curso del usuario a Supabase, solo si cambió algo
+    desde el último guardado, para no saturar la base de datos en cada rerun."""
+    try:
+        email = st.session_state.get("usuario_email", "")
+        if not email:
+            return
+        payload_str = json.dumps(datos, sort_keys=True, default=str)
+        hash_key = f"_borrador_hash_{tipo}"
+        if st.session_state.get(hash_key) == payload_str:
+            return  # nada cambió, no hace falta volver a guardar
+        supabase.table("borradores").upsert({
+            "usuario_email": email,
+            "tipo": tipo,
+            "datos": datos,
+            "actualizado_en": datetime.datetime.utcnow().isoformat(),
+        }, on_conflict="usuario_email,tipo").execute()
+        st.session_state[hash_key] = payload_str
+    except Exception as e:
+        print(f"[Warn] No se pudo autoguardar el borrador ({tipo}): {e}")
+
+def cargar_borrador(tipo):
+    """Trae el borrador guardado del usuario para un tipo de formulario, si existe."""
+    try:
+        email = st.session_state.get("usuario_email", "")
+        if not email:
+            return None
+        res = supabase.table("borradores").select("datos").eq("usuario_email", email).eq("tipo", tipo).execute()
+        if res.data and len(res.data) > 0:
+            crudo = res.data[0]["datos"] or {}
+            return {k: _borrador_deserializar(v) for k, v in crudo.items()}
+    except Exception as e:
+        print(f"[Warn] No se pudo cargar el borrador ({tipo}): {e}")
+    return None
+
+def eliminar_borrador(tipo):
+    """Borra el borrador guardado (se llama después de guardar el formulario definitivamente)."""
+    try:
+        email = st.session_state.get("usuario_email", "")
+        if not email:
+            return
+        supabase.table("borradores").delete().eq("usuario_email", email).eq("tipo", tipo).execute()
+        st.session_state.pop(f"_borrador_hash_{tipo}", None)
+    except Exception as e:
+        print(f"[Warn] No se pudo eliminar el borrador ({tipo}): {e}")
+
+def restaurar_borrador_si_corresponde(tipo, prefijos_keys):
+    """Al entrar a un formulario, si el usuario nunca restauró su borrador en esta sesión
+    de navegador, lo trae de Supabase y precarga los widgets ANTES de crearlos (deben
+    llamar esto antes de instanciar cualquier st.text_input/selectbox/etc. de ese formulario)."""
+    marca = f"_borrador_restaurado_{tipo}"
+    if st.session_state.get(marca):
+        return False
+    st.session_state[marca] = True
+    guardado = cargar_borrador(tipo)
+    if not guardado:
+        return False
+    for k, v in guardado.items():
+        st.session_state[k] = v
+    return True
+
 def load_db_from_supabase():
     access_pin = "1254"
     try:
@@ -748,8 +873,18 @@ if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = []
 
 # ==============================================================================
-# PERSISTENCIA INMEDIATA Y ROBUSTA DE SESIÓN
+# PERSISTENCIA INMEDIATA Y ROBUSTA DE SESIÓN (COOKIE REAL DEL NAVEGADOR)
 # ==============================================================================
+# NOTA IMPORTANTE: la versión anterior guardaba la sesión con localStorage dentro
+# de un componente st.components.v1.html. Ese componente vive en un iframe de
+# OTRO origen, así que el navegador bloquea silenciosamente el acceso a
+# localStorage del padre (el try/except lo ocultaba) y, al cerrar la pestaña,
+# la URL con "?u=correo" se perdía -> tocaba iniciar sesión de nuevo.
+# Ahora se usa una cookie real de navegador (vía streamlit-cookies-controller),
+# que sí persiste al cerrar la pestaña/navegador, en computadora y en celular.
+# Requiere agregar a requirements.txt: streamlit-cookies-controller
+cookie_controller = CookieController(key="alpha_cookie_ctrl")
+
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
@@ -758,37 +893,33 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-url_user = st.query_params.get("u")
-if url_user and not st.session_state.autenticado:
-    m_clean = str(url_user).strip().lower()
-    u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == m_clean), None)
-    if u_match:
-        st.session_state.autenticado = True
-        st.session_state.usuario_email = m_clean
-        st.session_state.usuario_nombres = u_match["Nombres"]
-        st.session_state.usuario_apellidos = u_match["Apellidos"]
-        st.session_state.usuario_cargo = u_match["Cargo"]
-        st.session_state.usuario_edificios = u_match.get("Edificios", [])
+def _iniciar_sesion_local(u_match, correo):
+    st.session_state.autenticado = True
+    st.session_state.usuario_email = correo
+    st.session_state.usuario_nombres = u_match["Nombres"]
+    st.session_state.usuario_apellidos = u_match["Apellidos"]
+    st.session_state.usuario_cargo = u_match["Cargo"]
+    st.session_state.usuario_edificios = u_match.get("Edificios", [])
 
 if not st.session_state.autenticado:
-    components.html(
-        """
-        <script>
-        try {
-            const saved = window.parent.localStorage.getItem('alpha_user_session') || localStorage.getItem('alpha_user_session');
-            if (saved) {
-                const currentUrl = new URL(window.parent.location.href);
-                if (!currentUrl.searchParams.get('u')) {
-                    currentUrl.searchParams.set('u', saved);
-                    window.parent.location.href = currentUrl.href;
-                }
-            }
-        } catch (e) {}
-        </script>
-        """,
-        height=0,
-        width=0
-    )
+    # 1) Compatibilidad: si venía un ?u=correo en la URL (links compartidos), se respeta.
+    url_user = st.query_params.get("u")
+    correo_sesion = None
+    if url_user:
+        correo_sesion = str(url_user).strip().lower()
+    else:
+        # 2) Cookie real del navegador: sobrevive a cerrar la pestaña/navegador.
+        try:
+            correo_cookie = cookie_controller.get("alpha_user_session")
+        except Exception:
+            correo_cookie = None
+        if correo_cookie:
+            correo_sesion = str(correo_cookie).strip().lower()
+
+    if correo_sesion:
+        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == correo_sesion), None)
+        if u_match:
+            _iniciar_sesion_local(u_match, correo_sesion)
 
 # ==============================================================================
 # 5. FUNCIONES DE FORMATO Y EXPORTADORES
