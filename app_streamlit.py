@@ -405,7 +405,7 @@ st.markdown(
         border: 1px solid rgba(59, 130, 246, 0.35); 
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 768px) { 
         .block-container { padding-top: 3.6rem !important; padding-left: 0.4rem !important; padding-right: 0.4rem !important; }
         .widgets-grid { grid-template-columns: 1fr 1fr; }
         .smart-title { font-size: 0.95rem !important; }
@@ -435,7 +435,7 @@ st.markdown(
         border: 1px solid var(--card-border) !important; 
         vertical-align: middle !important; 
         background-color: var(--card-bg) !important; 
-        color: var(--text-app) !important;
+        color: var(--text-app) !important; 
     }
     .incidencias-table tr:nth-child(even) td { 
         background-color: var(--table-row-even) !important; 
@@ -534,6 +534,7 @@ def get_local_datetime_ecuador():
         tz_offset = datetime.timezone(datetime.timedelta(hours=-5))
         return datetime.datetime.now(tz_offset)
 
+
 def get_realtime_weather():
     local_dt = get_local_datetime_ecuador()
     h = local_dt.hour
@@ -543,6 +544,7 @@ def get_realtime_weather():
         return "⛅ 21°C Tarde Templada"
     else:
         return "🌙 14°C Noche Fresca"
+
 
 # ==============================================================================
 # 4. BASE DE DATOS SUPABASE - INICIALIZACIÓN Y CARGA LIGERA
@@ -556,7 +558,9 @@ def init_supabase():
         st.stop()
     return create_client(url, key)
 
+
 supabase = init_supabase()
+
 
 def load_db_from_supabase():
     access_pin = "1254"
@@ -586,7 +590,7 @@ def load_db_from_supabase():
                         parsed_val = json.loads(r_cfg["value"])
                         if isinstance(parsed_val, list):
                             fallback_trabajadores_map[u_k] = [
-                                item for item in parsed_val 
+                                item for item in parsed_val
                                 if str(item.get("usuario_email", "")).lower().strip() == u_k
                             ]
                     except Exception:
@@ -648,7 +652,7 @@ def load_db_from_supabase():
 
                 if u_owner not in db_trabajadores_por_usuario:
                     db_trabajadores_por_usuario[u_owner] = []
-                
+
                 edif_val = r.get("edificio") or "General"
                 if not any(x.get("id") == r["id"] or x.get("nombre") == r["nombre"] for x in db_trabajadores_por_usuario[u_owner]):
                     db_trabajadores_por_usuario[u_owner].append({
@@ -671,7 +675,7 @@ def load_db_from_supabase():
                     continue
                 if c not in db_checklists:
                     db_checklists[c] = []
-                
+
                 raw_d = r.get("datos")
                 datos_parsed = raw_d if isinstance(raw_d, (list, dict)) else json.loads(raw_d or "{}")
                 db_checklists[c].append({
@@ -698,7 +702,7 @@ def load_db_from_supabase():
                     continue
                 if c not in db_inspecciones:
                     db_inspecciones[c] = []
-                
+
                 raw_d = r.get("datos")
                 datos_parsed = raw_d if isinstance(raw_d, dict) else json.loads(raw_d or "{}")
                 db_inspecciones[c].append({
@@ -776,6 +780,7 @@ def load_db_from_supabase():
         "db_trabajadores_por_usuario": db_trabajadores_por_usuario,
     }
 
+
 if "db_loaded" not in st.session_state or not st.session_state.db_loaded:
     p_data = load_db_from_supabase()
     st.session_state.access_pin = p_data["access_pin"]
@@ -801,6 +806,7 @@ if "db_rendimientos" not in st.session_state:
 if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = []
 
+
 # ==============================================================================
 # 5. FUNCIONES DE FORMATO Y EXPORTADORES EN CACHÉ
 # ==============================================================================
@@ -814,6 +820,7 @@ def render_estado_badge(estado_str):
     else:
         return f'<span style="background-color: #f1f5f9; color: #121318; font-weight: 800; padding: 2px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.76rem;">{estado_str}</span>'
 
+
 def image_to_base64(image_file):
     if image_file is not None:
         try:
@@ -826,6 +833,7 @@ def image_to_base64(image_file):
             return None
     return None
 
+
 def base64_to_image(b64_str):
     if b64_str:
         try:
@@ -837,6 +845,7 @@ def base64_to_image(b64_str):
             return None
     return None
 
+
 def get_repo_image_b64(filenames):
     for filename in filenames:
         if os.path.exists(filename):
@@ -847,9 +856,11 @@ def get_repo_image_b64(filenames):
                 pass
     return None
 
+
 def export_dataframe_to_excel_csv(df):
     df_clean = df.drop(columns=["Foto_B64", "db_id", "id", "usuario_email"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
+
 
 def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
     wb = openpyxl.Workbook()
@@ -887,7 +898,7 @@ def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
         estado = str(inc.get("Estado", "Abierta"))
         prio_str = f"Alta {'[X]' if prioridad == 'Alta' else '[ ]'}\nMedia {'[X]' if prioridad == 'Media' else '[ ]'}\nBaja {'[X]' if prioridad == 'Baja' else '[ ]'}"
         est_str = f"Abierta {'[X]' if estado == 'Abierta' else '[ ]'}\nCerrada {'[X]' if estado == 'Cerrada' else '[ ]'}"
-        
+
         ws.append([
             idx,
             inc.get("Area", ""),
@@ -921,6 +932,7 @@ def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
     wb.save(output)
     output.seek(0)
     return output.getvalue()
+
 
 def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer = io.BytesIO()
@@ -975,6 +987,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 
+
 @st.cache_data(show_spinner=False, max_entries=50)
 def get_cached_checklist_excel(jornada_dict_str):
     jornada_dict = json.loads(jornada_dict_str)
@@ -1010,7 +1023,7 @@ def get_cached_checklist_excel(jornada_dict_str):
 
     ws.row_dimensions[4].height = 25
     datos_raw = jornada_dict.get("Datos", [])
-    
+
     if isinstance(datos_raw, dict):
         items_verif = datos_raw.get("Verificaciones", [])
         items_sup = datos_raw.get("Supervision_Trabajos", [])
@@ -1048,7 +1061,7 @@ def get_cached_checklist_excel(jornada_dict_str):
                 cell_txt.border = thin_border
                 cell_txt.font = Font(name="Arial", size=9)
                 cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
-            
+
             foto_b64 = sup.get("Foto_B64")
             if foto_b64:
                 try:
@@ -1078,6 +1091,7 @@ def get_cached_checklist_excel(jornada_dict_str):
     wb.save(output)
     output.seek(0)
     return output.getvalue()
+
 
 @st.cache_data(show_spinner=False, max_entries=50)
 def get_cached_checklist_pdf(jornada_dict_str):
@@ -1161,6 +1175,7 @@ def get_cached_checklist_pdf(jornada_dict_str):
     buffer.seek(0)
     return buffer.getvalue()
 
+
 @st.cache_data(show_spinner=False, max_entries=50)
 def get_cached_libro_maestro_excel(insp_dict_str):
     insp_dict = json.loads(insp_dict_str)
@@ -1215,6 +1230,7 @@ def get_cached_libro_maestro_excel(insp_dict_str):
     output.seek(0)
     return output.getvalue()
 
+
 @st.cache_data(show_spinner=False, max_entries=50)
 def get_cached_libro_maestro_pdf(insp_dict_str):
     insp_dict = json.loads(insp_dict_str)
@@ -1257,6 +1273,7 @@ def get_cached_libro_maestro_pdf(insp_dict_str):
     buffer.seek(0)
     return buffer.getvalue()
 
+
 @st.cache_data(show_spinner=False, max_entries=50)
 def get_cached_libro_oficial_excel(insp_dict_str):
     insp_dict = json.loads(insp_dict_str)
@@ -1265,10 +1282,8 @@ def get_cached_libro_oficial_excel(insp_dict_str):
     ws.title = "Libro de Obra"
 
     thin_border = Border(
-        left=Side(style='thin', color='CBD5E1'),
-        right=Side(style='thin', color='CBD5E1'),
-        top=Side(style='thin', color='CBD5E1'),
-        bottom=Side(style='thin', color='CBD5E1')
+        left=Side(style='thin', color='CBD5E1'), right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'), bottom=Side(style='thin', color='CBD5E1')
     )
     fill_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
     fill_sub = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
@@ -1412,6 +1427,7 @@ def get_cached_libro_oficial_excel(insp_dict_str):
     wb.save(output)
     output.seek(0)
     return output.getvalue()
+
 
 @st.cache_data(show_spinner=False, max_entries=50)
 def get_cached_libro_oficial_pdf(insp_dict_str):
@@ -2518,7 +2534,8 @@ else:
                                 st.rerun()
 
                     with c_col3:
-                        if idx not in [1, 2]:
+                        # Se habilita foto para todos los ítems excepto el N° 1 (Asistencia)
+                        if idx != 1:
                             st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
                             ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
                             ft_b64 = image_to_base64(ft) if ft is not None else None
@@ -2799,264 +2816,271 @@ else:
                     total += 1
             return total
 
-        with st.form("form_libro_obra_oficial_lo"):
-            st.markdown("#### 1. Datos Generales de la Obra")
-            c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
-            with c_lo_a1:
-                lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")
-                lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")
+        st.markdown("#### 1. Datos Generales de la Obra")
+        c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
+        with c_lo_a1:
+            lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")
+            lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")
 
-            with c_lo_a2:
-                lo_superintendente = st.text_input("Superintendente:*", value="ING. PABLO ESPINOSA", key="lo_super_in")
-                lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")
-                lo_fiscalizador = st.text_input("Fiscalizador:*", value="ING. DIEGO CHARVET", key="lo_fisc_in")
+        with c_lo_a2:
+            lo_superintendente = st.text_input("Superintendente:*", value="ING. PABLO ESPINOSA", key="lo_super_in")
+            lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")
+            lo_fiscalizador = st.text_input("Fiscalizador:*", value="ING. DIEGO CHARVET", key="lo_fisc_in")
 
-            with c_lo_a3:
-                lo_hoja = st.text_input("Hoja N°:*", value="000053", key="lo_hoja_in")
-                lo_h_ini = st.time_input("Hora Entrada:*", datetime.time(7, 0), key="lo_hini_off")
-                lo_h_fin = st.time_input("Hora Salida:*", datetime.time(16, 0), key="lo_hfin_off")
+        with c_lo_a3:
+            lo_hoja = st.text_input("Hoja N°:*", value="000053", key="lo_hoja_in")
+            lo_h_ini = st.time_input("Hora Entrada:*", datetime.time(7, 0), key="lo_hini_off")
+            lo_h_fin = st.time_input("Hora Salida:*", datetime.time(16, 0), key="lo_hfin_off")
 
-            st.markdown("---")
+        st.markdown("---")
 
-            st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
-            st.caption(f"Cálculo automático de cuadrilla ({len(personal_edificio)} integrantes activos detectados en tu nómina para este proyecto):")
+        st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
+        st.caption(f"Cálculo automático de cuadrilla ({len(personal_edificio)} integrantes activos detectados en tu nómina para este proyecto):")
 
-            c_nom1, c_nom2 = st.columns(2)
-            with c_nom1:
-                st.markdown("##### 👷 Personal Nómina")
-                nomina_input_map = {}
-                for ofi in OFICIOS_NOMINA_FORMATO:
-                    conteo_auto = calcular_conteo_oficio(ofi, personal_edificio)
-                    col_n_l, col_n_v = st.columns([3, 1])
-                    with col_n_l:
-                        st.write(f"• {ofi} (7:00AM - 4:00PM)")
-                    with col_n_v:
-                        nomina_input_map[ofi] = st.number_input(
-                            f"N_{ofi}",
-                            min_value=0,
-                            value=int(conteo_auto),
-                            key=f"lo_nom_{ofi}_{lo_proyecto}",
-                            label_visibility="collapsed"
-                        )
-
-            with c_nom2:
-                st.markdown("##### 🔄 Personal Rotativo / Subcontratos")
-                rotativo_input_map = {}
-                for rubro in RUROS_ROTATIVOS_FORMATO:
-                    col_r_l, col_r_v = st.columns([3, 1])
-                    with col_r_l:
-                        st.write(f"• {rubro}")
-                    with col_r_v:
-                        rotativo_input_map[rubro] = st.number_input(f"R_{rubro}", min_value=0, value=0, key=f"lo_rot_{rubro}", label_visibility="collapsed")
-
-            st.markdown("---")
-
-            st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")
-            c_cl1, c_cl2 = st.columns(2)
-            with c_cl1:
-                st.markdown("##### ⛅ Condiciones Climáticas")
-                clima_cond_sel = st.selectbox("Estado del Clima:*", ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"], index=0, key="lo_clima_cond")
-                clima_obs = st.text_input("Observaciones del Clima en Obra:", placeholder="Describa si el clima afectó el rendimiento...", key="lo_clima_obs")
-
-            with c_cl2:
-                st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")
-                maq_input_map = {}
-                for maq in MAQUINARIAS_FORMATO:
-                    c_m_l, c_m_v = st.columns([3, 1])
-                    with c_m_l:
-                        st.write(f"• {maq}")
-                    with c_m_v:
-                        maq_input_map[maq] = st.number_input(f"M_{maq}", min_value=0, value=0, key=f"lo_maq_{maq}", label_visibility="collapsed")
-
-            st.markdown("---")
-
-            st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
-            c_ss1, c_ss2, c_ss3 = st.columns(3)
-            with c_ss1:
-                st.markdown("##### 🛡️ Seguridad")
-                seg_casco = st.checkbox("Casco", value=False)
-                seg_chaleco = st.checkbox("Chalecos", value=False)
-                seg_guantes = st.checkbox("Guantes", value=False)
-                seg_gafas = st.checkbox("Gafas", value=False)
-                seg_mascarilla = st.checkbox("Mascarilla", value=False)
-                seg_auditivo = st.checkbox("Auditivo", value=False)
-
-            with c_ss2:
-                st.markdown("##### 🚧 Señalización")
-                sen_conos = st.checkbox("Conos", value=False)
-                sen_cintas = st.checkbox("Cintas", value=False)
-                sen_rotulos = st.checkbox("Rótulos", value=False)
-                sen_vallas = st.checkbox("Vallas", value=False)
-                sen_extintor = st.checkbox("Extintor", value=False)
-                sen_botiquin = st.checkbox("Botiquín", value=False)
-
-            with c_ss3:
-                st.markdown("##### 🧹 Mitigación")
-                mit_polvo = st.checkbox("Control de Polvo", value=False)
-                mit_ruido = st.checkbox("Control de Ruido", value=False)
-                mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)
-                mit_cerramiento = st.checkbox("Cerramiento", value=False)
-                mit_limpieza = st.checkbox("Limpieza y Orden", value=False)
-
-            st.markdown("---")
-            st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
-            st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más filas libremente.")
-
-            if "filas_lo_actividades" not in st.session_state:
-                st.session_state.filas_lo_actividades = []
-
-            checklist_clave_sesion = f"init_chk_lo_{fecha_lo_str}_{lo_proyecto}"
-            if chk_asociado and checklist_clave_sesion not in st.session_state:
-                datos_chk = chk_asociado.get("Datos", {})
-                sup_items = datos_chk.get("Supervision_Trabajos", []) if isinstance(datos_chk, dict) else []
-                importados_chk = []
-                for s_it in sup_items:
-                    if s_it.get("Actividad"):
-                        importados_chk.append({
-                            "id": len(importados_chk) + 1,
-                            "descripcion": s_it.get("Actividad"),
-                            "area": "",
-                            "unidad": "",
-                            "cantidad": 0.0,
-                            "observaciones": s_it.get("Observaciones", "")
-                        })
-                if importados_chk:
-                    st.session_state.filas_lo_actividades = importados_chk
-                st.session_state[checklist_clave_sesion] = True
-
-            if not st.session_state.filas_lo_actividades:
-                st.session_state.filas_lo_actividades = [
-                    {"id": 1, "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}
-                ]
-
-            indices_eliminar_lo = []
-            acts_final_payload = []
-
-            for idx_act_form, item_f in enumerate(st.session_state.filas_lo_actividades, 1):
-                f_act_id = item_f["id"]
-                st.markdown(f"**Actividad N° {idx_act_form}:**")
-                c_af1, c_af2, c_af3, c_af4, c_af5 = st.columns([2.2, 1.5, 1.2, 1.0, 0.4])
-                
-                with c_af1:
-                    d_in = st.text_input(
-                        f"Descripción {idx_act_form}:",
-                        value=item_f.get("descripcion", ""),
-                        placeholder="Ej. Albañilería, Pintura...",
-                        key=f"lo_act_d_{f_act_id}"
+        c_nom1, c_nom2 = st.columns(2)
+        with c_nom1:
+            st.markdown("##### 👷 Personal Nómina")
+            nomina_input_map = {}
+            for ofi in OFICIOS_NOMINA_FORMATO:
+                conteo_auto = calcular_conteo_oficio(ofi, personal_edificio)
+                col_n_l, col_n_v = st.columns([3, 1])
+                with col_n_l:
+                    st.write(f"• {ofi} (7:00AM - 4:00PM)")
+                with col_n_v:
+                    nomina_input_map[ofi] = st.number_input(
+                        f"N_{ofi}",
+                        min_value=0,
+                        value=int(conteo_auto),
+                        key=f"lo_nom_{ofi}_{lo_proyecto}",
+                        label_visibility="collapsed"
                     )
-                with c_af2:
-                    ar_in = st.text_input(
-                        f"Área {idx_act_form}:",
-                        value=item_f.get("area", ""),
-                        placeholder="Ej. Piso 3, Bloque A...",
-                        key=f"lo_act_ar_{f_act_id}"
-                    )
-                with c_af3:
-                    u_in = st.text_input(
-                        f"Unidad {idx_act_form}:",
-                        value=item_f.get("unidad", ""),
-                        placeholder="Ej. m2, m, glb...",
-                        key=f"lo_act_u_{f_act_id}"
-                    )
-                with c_af4:
-                    ct_in = st.number_input(
-                        f"Cant. {idx_act_form}:",
-                        min_value=0.0,
-                        value=float(item_f.get("cantidad", 0.0)),
-                        step=0.5,
-                        key=f"lo_act_ct_{f_act_id}"
-                    )
-                with c_af5:
-                    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
-                    if st.form_submit_button("🗑️", key=f"btn_del_lo_row_{f_act_id}", help="Eliminar fila"):
-                        indices_eliminar_lo.append(idx_act_form - 1)
 
-                acts_final_payload.append({
-                    "Descripcion": d_in.strip(),
-                    "Area": ar_in.strip(),
-                    "Unidad": u_in.strip(),
-                    "Cantidad": ct_in,
-                    "Observaciones": item_f.get("observaciones", "")
-                })
+        with c_nom2:
+            st.markdown("##### 🔄 Personal Rotativo / Subcontratos")
+            rotativo_input_map = {}
+            for rubro in RUROS_ROTATIVOS_FORMATO:
+                col_r_l, col_r_v = st.columns([3, 1])
+                with col_r_l:
+                    st.write(f"• {rubro}")
+                with col_r_v:
+                    rotativo_input_map[rubro] = st.number_input(f"R_{rubro}", min_value=0, value=0, key=f"lo_rot_{rubro}", label_visibility="collapsed")
 
-            if st.form_submit_button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
-                next_id_lo = (max([x["id"] for x in st.session_state.filas_lo_actividades]) + 1) if st.session_state.filas_lo_actividades else 1
-                st.session_state.filas_lo_actividades.append({
-                    "id": next_id_lo,
-                    "descripcion": "",
-                    "area": "",
-                    "unidad": "",
-                    "cantidad": 0.0,
-                    "observaciones": ""
-                })
-                st.rerun()
+        st.markdown("---")
 
-            st.markdown("---")
-            st.markdown("#### 6. Novedades y Recomendaciones")
-            lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="", placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")
+        st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")
+        c_cl1, c_cl2 = st.columns(2)
+        with c_cl1:
+            st.markdown("##### ⛅ Condiciones Climáticas")
+            clima_cond_sel = st.selectbox("Estado del Clima:*", ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"], index=0, key="lo_clima_cond")
+            clima_obs = st.text_input("Observaciones del Clima en Obra:", placeholder="Describa si el clima afectó el rendimiento...", key="lo_clima_obs")
 
-            btn_guardar_lo_oficial = st.form_submit_button("💾 Guardar Formato Oficial de Libro de Obra", type="primary", use_container_width=True)
+        with c_cl2:
+            st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")
+            maq_input_map = {}
+            for maq in MAQUINARIAS_FORMATO:
+                c_m_l, c_m_v = st.columns([3, 1])
+                with c_m_l:
+                    st.write(f"• {maq}")
+                with c_m_v:
+                    maq_input_map[maq] = st.number_input(f"M_{maq}", min_value=0, value=0, key=f"lo_maq_{maq}", label_visibility="collapsed")
 
-            if btn_guardar_lo_oficial:
-                if lo_proyecto == "-- Seleccione --":
-                    st.error("⚠️ Seleccione un Proyecto o Edificio.")
+        st.markdown("---")
+
+        st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
+        c_ss1, c_ss2, c_ss3 = st.columns(3)
+        with c_ss1:
+            st.markdown("##### 🛡️ Seguridad")
+            seg_casco = st.checkbox("Casco", value=False)
+            seg_chaleco = st.checkbox("Chalecos", value=False)
+            seg_guantes = st.checkbox("Guantes", value=False)
+            seg_gafas = st.checkbox("Gafas", value=False)
+            seg_mascarilla = st.checkbox("Mascarilla", value=False)
+            seg_auditivo = st.checkbox("Auditivo", value=False)
+
+        with c_ss2:
+            st.markdown("##### 🚧 Señalización")
+            sen_conos = st.checkbox("Conos", value=False)
+            sen_cintas = st.checkbox("Cintas", value=False)
+            sen_rotulos = st.checkbox("Rótulos", value=False)
+            sen_vallas = st.checkbox("Vallas", value=False)
+            sen_extintor = st.checkbox("Extintor", value=False)
+            sen_botiquin = st.checkbox("Botiquín", value=False)
+
+        with c_ss3:
+            st.markdown("##### 🧹 Mitigación")
+            mit_polvo = st.checkbox("Control de Polvo", value=False)
+            mit_ruido = st.checkbox("Control de Ruido", value=False)
+            mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)
+            mit_cerramiento = st.checkbox("Cerramiento", value=False)
+            mit_limpieza = st.checkbox("Limpieza y Orden", value=False)
+
+        st.markdown("---")
+        st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
+        st.caption("Actividades ejecutadas en obra. Se importan automáticamente desde el Checklist de hoy y puedes agregar más filas libremente.")
+
+        if "filas_lo_actividades" not in st.session_state:
+            st.session_state.filas_lo_actividades = []
+
+        checklist_clave_sesion = f"init_chk_lo_{fecha_lo_str}_{lo_proyecto}"
+        if chk_asociado and checklist_clave_sesion not in st.session_state:
+            datos_chk = chk_asociado.get("Datos", {})
+            sup_items = datos_chk.get("Supervision_Trabajos", []) if isinstance(datos_chk, dict) else []
+            importados_chk = []
+            for s_it in sup_items:
+                if s_it.get("Actividad"):
+                    importados_chk.append({
+                        "id": len(importados_chk) + 1,
+                        "descripcion": s_it.get("Actividad"),
+                        "area": "",
+                        "unidad": "",
+                        "cantidad": 0.0,
+                        "observaciones": s_it.get("Observaciones", "")
+                    })
+            if importados_chk:
+                st.session_state.filas_lo_actividades = importados_chk
+            st.session_state[checklist_clave_sesion] = True
+
+        if not st.session_state.filas_lo_actividades:
+            st.session_state.filas_lo_actividades = [
+                {"id": 1, "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}
+            ]
+
+        indices_eliminar_lo = []
+        acts_final_payload = []
+
+        for idx_act_form, item_f in enumerate(st.session_state.filas_lo_actividades, 1):
+            f_act_id = item_f["id"]
+            st.markdown(f"**Actividad N° {idx_act_form}:**")
+            c_af1, c_af2, c_af3, c_af4, c_af5 = st.columns([2.2, 1.5, 1.2, 1.0, 0.4])
+            
+            with c_af1:
+                d_in = st.text_input(
+                    f"Descripción {idx_act_form}:",
+                    value=item_f.get("descripcion", ""),
+                    placeholder="Ej. Albañilería, Pintura...",
+                    key=f"lo_act_d_{f_act_id}"
+                )
+            with c_af2:
+                ar_in = st.text_input(
+                    f"Área {idx_act_form}:",
+                    value=item_f.get("area", ""),
+                    placeholder="Ej. Piso 3, Bloque A...",
+                    key=f"lo_act_ar_{f_act_id}"
+                )
+            with c_af3:
+                u_in = st.text_input(
+                    f"Unidad {idx_act_form}:",
+                    value=item_f.get("unidad", ""),
+                    placeholder="Ej. m2, m, glb...",
+                    key=f"lo_act_u_{f_act_id}"
+                )
+            with c_af4:
+                ct_in = st.number_input(
+                    f"Cant. {idx_act_form}:",
+                    min_value=0.0,
+                    value=float(item_f.get("cantidad", 0.0)),
+                    step=0.5,
+                    key=f"lo_act_ct_{f_act_id}"
+                )
+            with c_af5:
+                st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+                if st.button("🗑️", key=f"btn_del_lo_row_{f_act_id}", help="Eliminar fila"):
+                    indices_eliminar_lo.append(idx_act_form - 1)
+
+            acts_final_payload.append({
+                "Descripcion": d_in.strip(),
+                "Area": ar_in.strip(),
+                "Unidad": u_in.strip(),
+                "Cantidad": ct_in,
+                "Observaciones": item_f.get("observaciones", "")
+            })
+
+        if indices_eliminar_lo:
+            for del_i in sorted(indices_eliminar_lo, reverse=True):
+                if len(st.session_state.filas_lo_actividades) > 1:
+                    st.session_state.filas_lo_actividades.pop(del_i)
                 else:
-                    seguridad_checks = {
-                        "Casco": seg_casco,
-                        "Chalecos": seg_chaleco,
-                        "Guantes": seg_guantes,
-                        "Gafas": seg_gafas,
-                        "Mascarilla": seg_mascarilla,
-                        "Auditivo": seg_auditivo,
-                        "Conos": sen_conos,
-                        "Cintas": sen_cintas,
-                        "Rótulos": sen_rotulos,
-                        "Vallas": sen_vallas,
-                        "Extintor": sen_extintor,
-                        "Botiquin": sen_botiquin,
-                        "Polvo": mit_polvo,
-                        "Ruido": mit_ruido,
-                        "Liquidos": mit_liquidos,
-                        "Cerramiento": mit_cerramiento,
-                        "Limpieza": mit_limpieza
-                    }
+                    st.session_state.filas_lo_actividades = [{"id": int(datetime.datetime.now().timestamp() * 1000), "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+            st.rerun()
 
-                    payload_libro_oficial = {
-                        "Superintendente": lo_superintendente,
-                        "Fiscalizador": lo_fiscalizador,
-                        "Ubicacion": lo_ubicacion,
-                        "Barrio": lo_barrio,
-                        "Hoja": lo_hoja,
-                        "Nomina_Conteo": nomina_input_map,
-                        "Rotativo_Conteo": rotativo_input_map,
-                        "Clima_Condicion": clima_cond_sel,
-                        "Clima_Obs": clima_obs,
-                        "Maquinaria_Conteo": maq_input_map,
-                        "Seguridad_Check": seguridad_checks,
-                        "Actividades_Ejecutadas": acts_final_payload,
-                        "Novedades": lo_novedades
-                    }
+        if st.button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
+            next_id_lo = (max([x["id"] for x in st.session_state.filas_lo_actividades]) + 1) if st.session_state.filas_lo_actividades else 1
+            st.session_state.filas_lo_actividades.append({
+                "id": next_id_lo,
+                "descripcion": "",
+                "area": "",
+                "unidad": "",
+                "cantidad": 0.0,
+                "observaciones": ""
+            })
+            st.rerun()
 
-                    try:
-                        supabase.table("inspecciones").insert({
-                            "usuario_email": user_email,
-                            "proyecto": lo_proyecto,
-                            "fecha": lo_fecha.strftime("%Y-%m-%d"),
-                            "dia": lo_dia,
-                            "residente": lo_residente,
-                            "frente": lo_ubicacion,
-                            "clima": clima_cond_sel,
-                            "hora_inicio": lo_h_ini.strftime("%H:%M"),
-                            "hora_fin": lo_h_fin.strftime("%H:%M"),
-                            "datos": payload_libro_oficial
-                        }).execute()
+        st.markdown("---")
+        st.markdown("#### 6. Novedades y Recomendaciones")
+        lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="", placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")
 
-                        components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
-                        st.session_state.db_loaded = False
-                        st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al guardar: {e}")
+        btn_guardar_lo_oficial = st.button("💾 Guardar Formato Oficial de Libro de Obra", type="primary", use_container_width=True, key="btn_save_lo_official_main")
+
+        if btn_guardar_lo_oficial:
+            if lo_proyecto == "-- Seleccione --":
+                st.error("⚠️ Seleccione un Proyecto o Edificio.")
+            else:
+                seguridad_checks = {
+                    "Casco": seg_casco,
+                    "Chalecos": seg_chaleco,
+                    "Guantes": seg_guantes,
+                    "Gafas": seg_gafas,
+                    "Mascarilla": seg_mascarilla,
+                    "Auditivo": seg_auditivo,
+                    "Conos": sen_conos,
+                    "Cintas": sen_cintas,
+                    "Rótulos": sen_rotulos,
+                    "Vallas": sen_vallas,
+                    "Extintor": sen_extintor,
+                    "Botiquin": sen_botiquin,
+                    "Polvo": mit_polvo,
+                    "Ruido": mit_ruido,
+                    "Liquidos": mit_liquidos,
+                    "Cerramiento": mit_cerramiento,
+                    "Limpieza": mit_limpieza
+                }
+
+                payload_libro_oficial = {
+                    "Superintendente": lo_superintendente,
+                    "Fiscalizador": lo_fiscalizador,
+                    "Ubicacion": lo_ubicacion,
+                    "Barrio": lo_barrio,
+                    "Hoja": lo_hoja,
+                    "Nomina_Conteo": nomina_input_map,
+                    "Rotativo_Conteo": rotativo_input_map,
+                    "Clima_Condicion": clima_cond_sel,
+                    "Clima_Obs": clima_obs,
+                    "Maquinaria_Conteo": maq_input_map,
+                    "Seguridad_Check": seguridad_checks,
+                    "Actividades_Ejecutadas": acts_final_payload,
+                    "Novedades": lo_novedades
+                }
+
+                try:
+                    supabase.table("inspecciones").insert({
+                        "usuario_email": user_email,
+                        "proyecto": lo_proyecto,
+                        "fecha": lo_fecha.strftime("%Y-%m-%d"),
+                        "dia": lo_dia,
+                        "residente": lo_residente,
+                        "frente": lo_ubicacion,
+                        "clima": clima_cond_sel,
+                        "hora_inicio": lo_h_ini.strftime("%H:%M"),
+                        "hora_fin": lo_h_fin.strftime("%H:%M"),
+                        "datos": payload_libro_oficial
+                    }).execute()
+
+                    components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
+                    st.session_state.db_loaded = False
+                    st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al guardar: {e}")
 
         st.markdown("---")
 
@@ -3126,7 +3150,7 @@ else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTOS, ESPACIO COLABORATIVO
-#                Y PANEL ADMINISTRADOR (COMPLETO CON SINTAXIS CORREGIDA)
+#                Y PANEL ADMINISTRADOR (COMPLETO Y CORREGIDO)
 # ==============================================================================
 
 # ==============================================================================
@@ -3965,8 +3989,7 @@ with tab_colab:
                                 with col_dl_mm1:
                                     with st.popover("📊 Exportar Excel", use_container_width=True):
                                         st.download_button("Confirmar (.xlsx)", get_cached_libro_maestro_excel(safe_json_dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
-                                Tool_popover = col_dl_mm2
-                                with Tool_popover:
+                                with col_dl_mm2:
                                     with st.popover("📄 Exportar PDF", use_container_width=True):
                                         st.download_button("Confirmar (.pdf)", get_cached_libro_maestro_pdf(safe_json_dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
                     else:
@@ -4272,4 +4295,6 @@ if es_admin:
                         st.error(f"Error actualizando administrador: {e}")
 
         with col_adm2:
-            st.markdown("**Administración de Personal**")
+            st.markdown("**Administradores Registrados:**")
+            for admin_email_item in st.session_state.get("admin_emails", []):
+                st.write(f"• `{admin_email_item}`")
