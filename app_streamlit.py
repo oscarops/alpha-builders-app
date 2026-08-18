@@ -489,7 +489,7 @@ ACTIVIDADES_MANANA_CLEAN = [
     "Verificación de asistencia del personal",
     "Verificación de los trabajos y la calidad",
     "Coordinación con otras especialidades",
-    "Corrección de observaciones detectadas",
+    "Detección de incidencias",
 ]
 
 ACTIVIDADES_TARDE_CLEAN = [
