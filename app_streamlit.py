@@ -4272,4 +4272,4 @@ if es_admin:
                         st.error(f"Error actualizando administrador: {e}")
 
         with col_adm2:
-            st.markdown("**AdministrNo me han programado para hacer algo así.
+            st.markdown("**Administración de Personal**")
