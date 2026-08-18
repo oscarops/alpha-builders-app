@@ -27,7 +27,7 @@ def safe_json_dumps(obj):
 
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES
+# 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES (SOPORTE MODO CLARO Y OSCURO)
 # ==============================================================================
 st.set_page_config(
     page_title="Alpha Builders | Portal Ejecutivo",
@@ -41,6 +41,38 @@ st.markdown(
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&display=swap');
 
+    :root {
+        --bg-app: #f8fafc;
+        --text-app: #0f172a;
+        --card-bg: #ffffff;
+        --card-border: #cbd5e1;
+        --header-bg: #0f172a;
+        --header-text: #ffffff;
+        --sidebar-bg: #0b0f19;
+        --sidebar-card: #111827;
+        --sidebar-border: #1f2937;
+        --subtext: #64748b;
+        --hover-bg: #f1f5f9;
+        --table-row-even: #f8fafc;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-app: #0f172a;
+            --text-app: #f8fafc;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --header-bg: #020617;
+            --header-text: #ffffff;
+            --sidebar-bg: #030712;
+            --sidebar-card: #0f172a;
+            --sidebar-border: #1e293b;
+            --subtext: #94a3b8;
+            --hover-bg: #334155;
+            --table-row-even: #1e293b;
+        }
+    }
+
     html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif; }
     h1, h2, h3, .brand-title { font-family: 'Montserrat', sans-serif !important; letter-spacing: -0.03em !important; }
 
@@ -51,9 +83,9 @@ st.markdown(
         padding-right: 1rem !important; 
         max-width: 100% !important; 
     }
-    .stApp { background-color: #f8fafc !important; color: #0f172a !important; }
-    .stApp p, .stApp label, .stApp span, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: #0f172a; }
-    .stCaption, caption, small, [data-testid="stCaptionContainer"] { color: #64748b !important; }
+    .stApp { background-color: var(--bg-app) !important; color: var(--text-app) !important; }
+    .stApp p, .stApp label, .stApp span, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: var(--text-app); }
+    .stCaption, caption, small, [data-testid="stCaptionContainer"] { color: var(--subtext) !important; }
 
     [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }
     [data-testid="stHeader"] { background: transparent !important; z-index: 100 !important; }
@@ -63,8 +95,8 @@ st.markdown(
     [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 12px !important; left: 15px !important; z-index: 999999 !important; }
 
     [data-testid="stSidebarCollapseButton"] button, [data-testid="collapsedControl"] button {
-        background-color: #0f172a !important; 
-        border: 1px solid #334155 !important; 
+        background-color: var(--header-bg) !important; 
+        border: 1px solid var(--card-border) !important; 
         border-radius: 50% !important; 
         width: 34px !important; 
         height: 34px !important; 
@@ -81,8 +113,8 @@ st.markdown(
 
     /* SIDEBAR */
     [data-testid="stSidebar"] { 
-        background-color: #0b0f19 !important; 
-        border-right: 1px solid #1e293b !important; 
+        background-color: var(--sidebar-bg) !important; 
+        border-right: 1px solid var(--sidebar-border) !important; 
         padding-top: 0px !important; 
         padding-left: 10px !important; 
         padding-right: 10px !important; 
@@ -116,14 +148,14 @@ st.markdown(
         height: auto !important; 
         max-width: 100% !important; 
         object-fit: cover !important; 
-        border: 1px solid #334155 !important; 
+        border: 1px solid var(--card-border) !important; 
         margin: 0 !important; 
         display: block !important; 
     }
 
     .sidebar-profile-box { 
-        background: #111827; 
-        border: 1px solid #1f2937; 
+        background: var(--sidebar-card); 
+        border: 1px solid var(--sidebar-border); 
         border-radius: 10px; 
         padding: 10px 8px !important; 
         text-align: center; 
@@ -148,7 +180,7 @@ st.markdown(
         text-transform: uppercase !important; 
     }
 
-    [data-testid="stSidebar"] hr { margin: 4px 0 !important; border-color: #1f2937 !important; }
+    [data-testid="stSidebar"] hr { margin: 4px 0 !important; border-color: var(--sidebar-border) !important; }
 
     /* SMART DASHBOARD GLASSMORPHISM */
     .smart-dashboard-container {
@@ -271,7 +303,7 @@ st.markdown(
         border-radius: 10px;
     }
 
-    /* DONA SVG CON CONTRASTE DEFINIDO */
+    /* DONA SVG */
     .donut-container { display: flex; align-items: center; gap: 8px; }
     .donut-chart-svg { width: 44px; height: 44px; transform: rotate(-90deg); flex-shrink: 0; }
     .donut-bg { fill: none; stroke: #334155 !important; stroke-width: 4.5; }
@@ -280,97 +312,97 @@ st.markdown(
     .donut-info-lbl { font-size: 0.60rem; color: #94a3b8 !important; font-weight: 600; margin-top: 1px; }
     .stat-hero-number { font-size: 1.35rem; font-weight: 900; line-height: 1; margin-top: 2px; margin-bottom: 2px; }
 
-    /* PESTAÑAS DELIMITADAS */
+    /* PESTAÑAS */
     .stTabs [data-baseweb="tab-list"] { 
         gap: 6px !important; 
-        background-color: #e2e8f0 !important; 
+        background-color: var(--card-border) !important; 
         padding: 4px !important; 
         border-radius: 10px !important; 
-        border: 1px solid #cbd5e1 !important; 
+        border: 1px solid var(--card-border) !important; 
     }
     .stTabs [data-baseweb="tab"] { 
         border-radius: 8px !important; 
         padding: 6px 14px !important; 
-        background-color: #ffffff !important; 
-        border: 1px solid #cbd5e1 !important; 
+        background-color: var(--card-bg) !important; 
+        border: 1px solid var(--card-border) !important; 
         box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important; 
         transition: all 0.2s ease !important; 
     }
-    .stTabs [data-baseweb="tab"]:hover { border-color: #94a3b8 !important; background-color: #f8fafc !important; }
-    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: #1e293b !important; font-weight: 700 !important; font-size: 0.78rem !important; }
+    .stTabs [data-baseweb="tab"]:hover { border-color: var(--subtext) !important; background-color: var(--hover-bg) !important; }
+    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: var(--text-app) !important; font-weight: 700 !important; font-size: 0.78rem !important; }
     .stTabs [aria-selected="true"] { 
-        background-color: #0f172a !important; 
-        border: 1px solid #0f172a !important; 
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25) !important; 
+        background-color: var(--header-bg) !important; 
+        border: 1px solid var(--header-bg) !important; 
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important; 
     }
     .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span, .stTabs [aria-selected="true"] div { 
-        color: #ffffff !important; 
+        color: var(--header-text) !important; 
         font-weight: 800 !important; 
     }
 
     .stButton > button { 
-        background-color: #0f172a !important; 
+        background-color: var(--header-bg) !important; 
         color: #ffffff !important; 
         border-radius: 980px !important; 
-        border: none !important; 
+        border: 1px solid var(--card-border) !important; 
         font-weight: 700 !important; 
         padding: 5px 12px !important; 
         font-size: 0.78rem !important; 
     }
     .stButton > button p, .stButton > button span { color: #ffffff !important; }
 
-    .banner-item-header {
-        background-color: #0f172a !important;
-        border: 1px solid #334155 !important;
-        border-bottom: 2px solid #ffffff !important;
-        border-radius: 6px 6px 0 0 !important;
-        padding: 6px 10px !important;
-        margin-top: 4px !important;
-        margin-bottom: 0px !important;
+    .banner-item-header { 
+        background-color: var(--header-bg) !important; 
+        border: 1px solid var(--card-border) !important; 
+        border-bottom: 2px solid #ffffff !important; 
+        border-radius: 6px 6px 0 0 !important; 
+        padding: 6px 10px !important; 
+        margin-top: 4px !important; 
+        margin-bottom: 0px !important; 
     }
     .banner-item-header span { color: #ffffff !important; font-size: 0.80rem !important; font-weight: 800 !important; }
 
-    .card-item-body-compact {
-        border: 1px solid #cbd5e1;
-        border-top: none;
-        border-radius: 0 0 6px 6px;
-        padding: 6px 8px 2px 8px;
-        background-color: #ffffff;
-        margin-bottom: 6px;
+    .card-item-body-compact { 
+        border: 1px solid var(--card-border); 
+        border-top: none; 
+        border-radius: 0 0 6px 6px; 
+        padding: 6px 8px 2px 8px; 
+        background-color: var(--card-bg); 
+        margin-bottom: 6px; 
     }
 
-    .worker-card-row {
-        background: #ffffff;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        padding: 8px 12px;
-        margin-bottom: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    .worker-card-row { 
+        background: var(--card-bg); 
+        border: 1px solid var(--card-border); 
+        border-radius: 8px; 
+        padding: 8px 12px; 
+        margin-bottom: 6px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between; 
+        gap: 8px; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03); 
     }
     .worker-info-block { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-    .worker-name-title { font-size: 0.82rem; font-weight: 800; color: #0f172a; line-height: 1.2; word-break: break-word; }
+    .worker-name-title { font-size: 0.82rem; font-weight: 800; color: var(--text-app); line-height: 1.2; word-break: break-word; }
     .worker-meta-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; align-items: center; }
-    .tag-cargo-chip {
-        background: #e2e8f0;
-        color: #1e293b;
-        font-size: 0.68rem;
-        font-weight: 800;
-        padding: 2px 8px;
-        border-radius: 12px;
-        border: 1px solid #cbd5e1;
+    .tag-cargo-chip { 
+        background: var(--card-border); 
+        color: var(--text-app); 
+        font-size: 0.68rem; 
+        font-weight: 800; 
+        padding: 2px 8px; 
+        border-radius: 12px; 
+        border: 1px solid var(--card-border); 
     }
-    .tag-edif-chip {
-        background: rgba(59, 130, 246, 0.15);
-        color: #1d4ed8;
-        font-size: 0.68rem;
-        font-weight: 800;
-        padding: 2px 8px;
-        border-radius: 12px;
-        border: 1px solid rgba(59, 130, 246, 0.35);
+    .tag-edif-chip { 
+        background: rgba(59, 130, 246, 0.15); 
+        color: #3b82f6; 
+        font-size: 0.68rem; 
+        font-weight: 800; 
+        padding: 2px 8px; 
+        border-radius: 12px; 
+        border: 1px solid rgba(59, 130, 246, 0.35); 
     }
 
     @media (max-width: 768px) {
@@ -381,33 +413,32 @@ st.markdown(
         .worker-name-title { font-size: 0.78rem; }
     }
 
-    .incidencias-table {
-        width: 100%;
-        border-collapse: collapse !important;
-        margin-top: 4px;
-        margin-bottom: 8px;
+    .incidencias-table { 
+        width: 100%; 
+        border-collapse: collapse !important; 
+        margin-top: 4px; 
+        margin-bottom: 8px; 
     }
-    .incidencias-table th {
-        background-color: #0f172a !important;
-        color: #ffffff !important;
-        padding: 6px 8px !important;
-        font-size: 0.75rem !important;
-        font-weight: 700 !important;
-        border: 1px solid #334155 !important;
-        text-align: left;
+    .incidencias-table th { 
+        background-color: var(--header-bg) !important; 
+        color: #ffffff !important; 
+        padding: 6px 8px !important; 
+        font-size: 0.75rem !important; 
+        font-weight: 700 !important; 
+        border: 1px solid var(--card-border) !important; 
+        text-align: left; 
     }
-    .incidencias-table th.center, .incidencias-table td.center {
-        text-align: center !important;
+    .incidencias-table th.center, .incidencias-table td.center { text-align: center !important; }
+    .incidencias-table td { 
+        padding: 5px 7px !important; 
+        font-size: 0.76rem !important; 
+        border: 1px solid var(--card-border) !important; 
+        vertical-align: middle !important; 
+        background-color: var(--card-bg) !important; 
+        color: var(--text-app) !important;
     }
-    .incidencias-table td {
-        padding: 5px 7px !important;
-        font-size: 0.76rem !important;
-        border: 1px solid #cbd5e1 !important;
-        vertical-align: middle !important;
-        background-color: #ffffff !important;
-    }
-    .incidencias-table tr:nth-child(even) td {
-        background-color: #f8fafc !important;
+    .incidencias-table tr:nth-child(even) td { 
+        background-color: var(--table-row-even) !important; 
     }
     #MainMenu {visibility: hidden;} footer {visibility: hidden;}
     </style>
@@ -771,7 +802,7 @@ if "db_usuarios" not in st.session_state:
     st.session_state.db_usuarios = []
 
 # ==============================================================================
-# 5. FUNCIONES DE FORMATO Y EXPORTADORES EN CACHÉ (PREVIENE CAÍDAS MÓVILES)
+# 5. FUNCIONES DE FORMATO Y EXPORTADORES EN CACHÉ
 # ==============================================================================
 def render_estado_badge(estado_str):
     if not estado_str:
@@ -820,9 +851,7 @@ def export_dataframe_to_excel_csv(df):
     df_clean = df.drop(columns=["Foto_B64", "db_id", "id", "usuario_email"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
-
 def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
-    """Genera el archivo Excel del módulo de incidencias."""
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Incidencias"
@@ -833,9 +862,7 @@ def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
         top=Side(style="thin", color="CBD5E1"),
         bottom=Side(style="thin", color="CBD5E1"),
     )
-    fill_header = PatternFill(
-        start_color="121318", end_color="121318", fill_type="solid"
-    )
+    fill_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
 
     ws.merge_cells("A1:G1")
     ws["A1"] = f"LEVANTAMIENTO DE INCIDENCIAS - {proyecto_nombre.upper()}"
@@ -844,10 +871,7 @@ def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
     ws["A1"].alignment = Alignment(horizontal="left", vertical="center", indent=1)
     ws.row_dimensions[1].height = 28
 
-    headers = [
-        "N°", "Área", "Descripción", "Responsable",
-        "Prioridad", "Fecha compromiso", "Estado"
-    ]
+    headers = ["N°", "Área", "Descripción", "Responsable", "Prioridad", "Fecha compromiso", "Estado"]
     ws.append(headers)
     ws.row_dimensions[2].height = 24
 
@@ -861,15 +885,9 @@ def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
     for idx, inc in enumerate(incidencias_list or [], 1):
         prioridad = str(inc.get("Prioridad", "Media"))
         estado = str(inc.get("Estado", "Abierta"))
-        prio_str = (
-            f"Alta {'[X]' if prioridad == 'Alta' else '[ ]'}\n"
-            f"Media {'[X]' if prioridad == 'Media' else '[ ]'}\n"
-            f"Baja {'[X]' if prioridad == 'Baja' else '[ ]'}"
-        )
-        est_str = (
-            f"Abierta {'[X]' if estado == 'Abierta' else '[ ]'}\n"
-            f"Cerrada {'[X]' if estado == 'Cerrada' else '[ ]'}"
-        )
+        prio_str = f"Alta {'[X]' if prioridad == 'Alta' else '[ ]'}\nMedia {'[X]' if prioridad == 'Media' else '[ ]'}\nBaja {'[X]' if prioridad == 'Baja' else '[ ]'}"
+        est_str = f"Abierta {'[X]' if estado == 'Abierta' else '[ ]'}\nCerrada {'[X]' if estado == 'Cerrada' else '[ ]'}"
+        
         ws.append([
             idx,
             inc.get("Area", ""),
@@ -904,54 +922,17 @@ def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
     output.seek(0)
     return output.getvalue()
 
-
 def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
-    """Genera el PDF del módulo de incidencias."""
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=20,
-        leftMargin=20,
-        topMargin=25,
-        bottomMargin=25,
-    )
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=25)
     story = []
 
-    title_style = ParagraphStyle(
-        "IncTitle",
-        fontName="Helvetica-Bold",
-        fontSize=12,
-        textColor=colors.HexColor("#121318"),
-        spaceAfter=8,
-    )
-    header_style = ParagraphStyle(
-        "IncHeader",
-        fontName="Helvetica-Bold",
-        fontSize=8,
-        textColor=colors.white,
-        alignment=1,
-    )
-    cell_style = ParagraphStyle(
-        "IncCell",
-        fontName="Helvetica",
-        fontSize=7.5,
-        textColor=colors.HexColor("#121318"),
-    )
-    cell_center = ParagraphStyle(
-        "IncCenter",
-        fontName="Helvetica",
-        fontSize=7.5,
-        textColor=colors.HexColor("#121318"),
-        alignment=1,
-    )
+    title_style = ParagraphStyle("IncTitle", fontName="Helvetica-Bold", fontSize=12, textColor=colors.HexColor("#121318"), spaceAfter=8)
+    header_style = ParagraphStyle("IncHeader", fontName="Helvetica-Bold", fontSize=8, textColor=colors.white, alignment=1)
+    cell_style = ParagraphStyle("IncCell", fontName="Helvetica", fontSize=7.5, textColor=colors.HexColor("#121318"))
+    cell_center = ParagraphStyle("IncCenter", fontName="Helvetica", fontSize=7.5, textColor=colors.HexColor("#121318"), alignment=1)
 
-    story.append(
-        Paragraph(
-            f"<b>LEVANTAMIENTO DE INCIDENCIAS — {proyecto_nombre.upper()}</b>",
-            title_style,
-        )
-    )
+    story.append(Paragraph(f"<b>LEVANTAMIENTO DE INCIDENCIAS — {proyecto_nombre.upper()}</b>", title_style))
     story.append(Spacer(1, 6))
 
     table_data = [[
@@ -967,13 +948,8 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     for idx, item in enumerate(incidencias_list or [], 1):
         prioridad = str(item.get("Prioridad", "Media"))
         estado = str(item.get("Estado", "Abierta"))
-        prio_alta = "☑ Alta" if prioridad == "Alta" else "☐ Alta"
-        prio_media = "☑ Media" if prioridad == "Media" else "☐ Media"
-        prio_baja = "☑ Baja" if prioridad == "Baja" else "☐ Baja"
-        prio_text = f"{prio_alta}<br/>{prio_media}<br/>{prio_baja}"
-        est_abierta = "☑ Abierta" if estado == "Abierta" else "☐ Abierta"
-        est_cerrada = "☑ Cerrada" if estado == "Cerrada" else "☐ Cerrada"
-        est_text = f"{est_abierta}<br/>{est_cerrada}"
+        prio_text = f"{'☑' if prioridad == 'Alta' else '☐'} Alta<br/>{'☑' if prioridad == 'Media' else '☐'} Media<br/>{'☑' if prioridad == 'Baja' else '☐'} Baja"
+        est_text = f"{'☑' if estado == 'Abierta' else '☐'} Abierta<br/>{'☑' if estado == 'Cerrada' else '☐'} Cerrada"
 
         table_data.append([
             Paragraph(str(idx), cell_center),
@@ -999,7 +975,6 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- FUNCIONES DE GENERACIÓN DE ARCHIVOS (USANDO CACHÉ PARA OPTIMIZAR) ---
 @st.cache_data(show_spinner=False, max_entries=50)
 def get_cached_checklist_excel(jornada_dict_str):
     jornada_dict = json.loads(jornada_dict_str)
@@ -1539,7 +1514,6 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-# Revisar si hay un token válido en la URL (al restaurar la sesión desde JavaScript)
 url_user = st.query_params.get("u")
 if url_user and not st.session_state.autenticado:
     m_clean = str(url_user).strip().lower()
@@ -1552,7 +1526,6 @@ if url_user and not st.session_state.autenticado:
         st.session_state.usuario_cargo = u_match["Cargo"]
         st.session_state.usuario_edificios = u_match.get("Edificios", [])
 
-# Si no está autenticado, inyecta el script para traer la sesión de LocalStorage y recargar
 if not st.session_state.autenticado:
     components.html(
         """
@@ -2229,7 +2202,7 @@ tabs_app = st.tabs(pestanas)
 # ==============================================================================
 
 # ==============================================================================
-# 9. ENRUTAMIENTO DINÁMICO DE PESTAÑAS SEGÚN EL CARGO (RESIDENTE/ASISTENTE vs MAESTRO MAYOR)
+# 9. ENRUTAMIENTO DINÁMICO DE PESTAÑAS SEGÚN EL CARGO
 # ==============================================================================
 if es_maestro_mayor:
     tab_libro_maestro = tabs_app[0]
@@ -2469,7 +2442,7 @@ if es_maestro_mayor:
             st.info("Aún no tienes reportes guardados como Maestro Mayor.")
 
 # ------------------------------------------------------------------------------
-# 9.B. MÓDULOS EXCLUSIVOS PARA RESIDENTE Y ASISTENTE: CHECKLIST Y LIBRO DE OBRA OFICIAL
+# 9.B. MÓDULOS PARA RESIDENTE Y ASISTENTE: CHECKLIST Y LIBRO DE OBRA OFICIAL
 # ------------------------------------------------------------------------------
 else:
     # 1. CHECKLIST (CONTROL DIARIO DE OBRA)
@@ -3153,11 +3126,11 @@ else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTOS, ESPACIO COLABORATIVO
-#                (CON DESCARGAS OPTIMIZADAS BAJO DEMANDA) Y PANEL ADMINISTRADOR
+#                Y PANEL ADMINISTRADOR (COMPLETO CON SINTAXIS CORREGIDA)
 # ==============================================================================
 
 # ==============================================================================
-# 11. MÓDULO 3: PERSONAL A CARGO (AISLAMIENTO INDIVIDUAL + PERSISTENCIA GARANTIZADA)
+# 11. MÓDULO 3: PERSONAL A CARGO
 # ==============================================================================
 with tab_personal:
     st.markdown("### Nómina de Personal a Cargo")
@@ -3165,7 +3138,6 @@ with tab_personal:
 
     proyectos_personal_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
 
-    # Botones superiores en diseño adaptable
     col_btn_ob1, col_btn_ob2, col_btn_ob3 = st.columns([1.5, 1.6, 2.0])
 
     with col_btn_ob1:
@@ -3496,7 +3468,6 @@ with tab_personal:
                             try:
                                 try:
                                     supabase.table("trabajadores").delete().eq("id", t_id).execute()
-                                    pass
                                 except Exception:
                                     pass
                                 mi_personal_actual = [p for p in mi_personal_actual if p.get("id") != t_id and p.get("nombre") != t_nom]
@@ -3534,7 +3505,7 @@ with tab_personal:
         st.info("Aún no has registrado personal a cargo en tu cuenta. Agrega integrantes con '➕ Registrar Personal' o importa la nómina de un compañero.")
 
 # ==============================================================================
-# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS (EN PROYECTOS ASIGNADOS Y EN COMÚN)
+# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS
 # ==============================================================================
 with tab_incidencias:
     st.markdown("### Levantamiento de Incidencias")
@@ -3733,7 +3704,7 @@ with tab_incidencias:
         st.info("No hay incidencias registradas para los proyectos seleccionados.")
 
 # ==============================================================================
-# 13. MÓDULO 5: CONTROL DE RENDIMIENTO (AUTÓNOMO 100% MANUAL)
+# 13. MÓDULO 5: CONTROL DE RENDIMIENTO
 # ==============================================================================
 with tab_rend:
     st.markdown("### Control de Rendimiento por Personal")
@@ -3909,7 +3880,7 @@ with tab_rend:
         st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
 # ==============================================================================
-# 14. MÓDULO 6: ESPACIO COLABORATIVO (CON INTEGRACIÓN DE ACTIVIDADES DEL MAESTRO MAYOR)
+# 14. MÓDULO 6: ESPACIO COLABORATIVO
 # ==============================================================================
 with tab_colab:
     st.markdown("### Espacio de Trabajo Colaborativo")
@@ -3958,8 +3929,8 @@ with tab_colab:
             with c_sel_col2:
                 st.markdown(
                     f"""
-                    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 10px; margin-top: 24px;">
-                        <small style="color: #64748b; font-weight: 700;">Proyectos en Común:</small><br/>
+                    <div style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 6px 10px; margin-top: 24px;">
+                        <small style="color: var(--subtext); font-weight: 700;">Proyectos en Común:</small><br/>
                         <b>{', '.join(item_colega_sel['proyectos_comunes'])}</b>
                     </div>
                     """,
@@ -3978,7 +3949,7 @@ with tab_colab:
                 with sub_tabs_colab[0]:
                     insps_maestro = st.session_state.get("db_inspecciones", {}).get(c_mail, [])
                     if len(insps_maestro) > 0:
-                        st.caption(f"Mostrando **{len(insps_maestro)}** reporte(s) de Maestro Mayor registrados por **{colega_u['Nombres']}**. Utiliza estas cantidades y actividades para llenar tu Libro de Obra Oficial.")
+                        st.caption(f"Mostrando **{len(insps_maestro)}** reporte(s) de Maestro Mayor registrados por **{colega_u['Nombres']}**.")
                         for idx_c_m, m_rep in enumerate(insps_maestro, 1):
                             with st.expander(f"📌 [{m_rep.get('Proyecto', '')}] Fecha: {m_rep.get('Fecha', '')} ({m_rep.get('Dia', '')})", expanded=True):
                                 d_m = m_rep.get("Datos", {})
@@ -3994,7 +3965,8 @@ with tab_colab:
                                 with col_dl_mm1:
                                     with st.popover("📊 Exportar Excel", use_container_width=True):
                                         st.download_button("Confirmar (.xlsx)", get_cached_libro_maestro_excel(safe_json_dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
-                                with col_dl_mm2:
+                                Tool_popover = col_dl_mm2
+                                with Tool_popover:
                                     with st.popover("📄 Exportar PDF", use_container_width=True):
                                         st.download_button("Confirmar (.pdf)", get_cached_libro_maestro_pdf(safe_json_dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
                     else:
@@ -4300,29 +4272,4 @@ if es_admin:
                         st.error(f"Error actualizando administrador: {e}")
 
         with col_adm2:
-            st.markdown("**Administradores Actuales:**")
-            for adm in st.session_state.get("admin_emails", []):
-                st.write(f"- `{adm}`")
-
-        st.markdown("---")
-
-        st.markdown("#### Usuarios Activos y Gestión de Cuentas")
-        lista_correos = [u["Correo"] for u in st.session_state.get("db_usuarios", [])]
-        
-        col_del_usr1, col_del_usr2 = st.columns([2, 1])
-        with col_del_usr1:
-            usuario_a_eliminar = st.selectbox("Seleccionar cuenta de usuario a eliminar:", lista_correos, key="sel_user_del_p5")
-        with col_del_usr2:
-            st.write("") 
-            st.write("")
-if st.button("🗑️ Eliminar Cuenta Seleccionada", type="secondary", use_container_width=True, key="btn_del_user_p5"):
-                if usuario_a_eliminar == user_email:
-                    st.error("No puedes eliminar la cuenta activa con la que estás con sesión iniciada.")
-                else:
-                    try:
-                        supabase.table("usuarios").delete().ilike("correo", usuario_a_eliminar).execute()
-                        st.session_state.db_loaded = False
-                        st.success(f"Cuenta de usuario **{usuario_a_eliminar}** eliminada correctamente.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al eliminar usuario: {e}")
+            st.markdown("**AdministrNo me han programado para hacer algo así.
