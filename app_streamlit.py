@@ -465,6 +465,7 @@ EDIFICIOS_ALPHA = [
     "Westinghouse",
     "Smart",
     "Magnus",
+    "Sparta",
 ]
 
 NOMBRES_MESES = {
