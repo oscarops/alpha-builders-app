@@ -464,6 +464,7 @@ MAQUINARIAS_FORMATO = [
     "EXTENSION 110", "SIERRA CIRCULAR", "AMOLADORA", "SOLDADORA 220 + CARETA",
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
+
 # ==============================================================================
 # PARTE 2 DE 5: CARGA RÁPIDA DE DATOS Y EXPORTADORES DE DOCUMENTOS
 # ==============================================================================
@@ -504,7 +505,6 @@ def init_supabase():
 supabase = init_supabase()
 
 def load_db_from_supabase():
-    # 1. PIN de Seguridad
     access_pin = "1254"
     try:
         res_pin = supabase.table("app_config").select("value").eq("key", "access_pin").execute()
@@ -513,7 +513,6 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] No se pudo leer access_pin: {e}")
 
-    # 2. Configuración de respaldo por usuario
     fallback_edificios_map = {}
     fallback_trabajadores_map = {}
     try:
@@ -541,7 +540,6 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en app_config: {e}")
 
-    # 3. Usuarios (Consulta ligera sin foto_b64)
     db_usuarios = []
     admin_emails = ["oscarsebitas2013@gmail.com"]
     try:
@@ -578,7 +576,6 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en consulta usuarios: {e}")
 
-    # 4. Trabajadores por usuario
     db_trabajadores_por_usuario = {u["Correo"]: [] for u in db_usuarios}
     for u_k, t_list in fallback_trabajadores_map.items():
         if u_k not in db_trabajadores_por_usuario:
@@ -610,7 +607,6 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en tabla trabajadores: {e}")
 
-    # 5. Checklists
     db_checklists = {}
     try:
         res_chk = supabase.table("checklists").select("*").execute()
@@ -638,7 +634,6 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en tabla checklists: {e}")
 
-    # 6. Inspecciones / Libros de Obra (Incluye Libros de Maestro Mayor)
     db_inspecciones = {}
     try:
         res_insp = supabase.table("inspecciones").select("*").execute()
@@ -667,7 +662,6 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en tabla inspecciones: {e}")
 
-    # 7. Incidencias
     db_incidencias_all = []
     try:
         res_inc = supabase.table("incidencias").select("*").execute()
@@ -687,7 +681,6 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en tabla incidencias: {e}")
 
-    # 8. Rendimientos
     db_rendimientos = {}
     try:
         res_rnd = supabase.table("rendimientos").select("*").execute()
@@ -1458,6 +1451,7 @@ def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
+
 # ==============================================================================
 # PARTE 3 DE 5: AUTENTICACIÓN PERSISTENTE, BARRA LATERAL Y SMART DASHBOARD
 # ==============================================================================
@@ -2020,6 +2014,7 @@ if es_admin:
     pestanas.append("Panel Admin")
 
 tabs_app = st.tabs(pestanas)
+
 # ==============================================================================
 # PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (MAESTRO MAYOR INDEPENDIENTE Y
 #               AUTOCÁLCULO DE NÓMINA EXCLUSIVO PARA RESIDENTES Y ASISTENTES)
@@ -2096,14 +2091,14 @@ if es_maestro_mayor:
             c_m1, c_m2 = st.columns([2.5, 1.5])
             with c_m1:
                 act_m_txt = st.text_input(
-                    f"Descripción de la Actividad {f_id}:",
+                    f"Descripción {idx_m}:",
                     value=f_data.get("actividad", ""),
                     placeholder="Ej. Enlucido paleteado en muros de fachada...",
                     key=f"mm_act_txt_{f_id}"
                 )
             with c_m2:
                 cant_m_txt = st.text_input(
-                    f"Cantidad / Avance {f_id}:",
+                    f"Cantidad / Avance {idx_m}:",
                     value=str(f_data.get("cantidad", "")),
                     placeholder="Ej. 15 m2, 3 puertas, 2.5 tramos...",
                     key=f"mm_cant_txt_{f_id}"
@@ -2113,7 +2108,7 @@ if es_maestro_mayor:
             with c_m3:
                 if personal_filtrado_edif:
                     pers_sel_m = st.multiselect(
-                        f"Personal a Cargo {f_id}:",
+                        f"Personal a Cargo {idx_m}:",
                         options=personal_filtrado_edif,
                         default=[p for p in f_data.get("personal_a_cargo", []) if p in personal_filtrado_edif],
                         placeholder="Seleccionar personal asignado...",
@@ -2121,7 +2116,7 @@ if es_maestro_mayor:
                     )
                 else:
                     pers_sel_txt = st.text_input(
-                        f"Personal a Cargo {f_id}:",
+                        f"Personal a Cargo {idx_m}:",
                         value=", ".join(f_data.get("personal_a_cargo", [])) if isinstance(f_data.get("personal_a_cargo"), list) else str(f_data.get("personal_a_cargo", "")),
                         placeholder="Escriba los nombres de los trabajadores...",
                         key=f"mm_pers_manual_{f_id}"
@@ -2130,7 +2125,7 @@ if es_maestro_mayor:
 
             with c_m4:
                 obs_m_txt = st.text_input(
-                    f"Observaciones / Frente {f_id}:",
+                    f"Observaciones / Frente {idx_m}:",
                     value=f_data.get("observaciones", ""),
                     placeholder="Ej. Piso 2 departamento 201...",
                     key=f"mm_obs_txt_{f_id}"
@@ -2154,11 +2149,12 @@ if es_maestro_mayor:
                 if len(st.session_state.filas_maestro_act) > 1:
                     st.session_state.filas_maestro_act.pop(del_i)
                 else:
-                    st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                    st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
             st.rerun()
 
         if st.button("➕ Agregar Otra Actividad", key="btn_add_mm_act_row"):
-            st.session_state.filas_maestro_act.append({"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""})
+            next_id_mm = (max([x["id"] for x in st.session_state.filas_maestro_act]) + 1) if st.session_state.filas_maestro_act else 1
+            st.session_state.filas_maestro_act.append({"id": next_id_mm, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""})
             st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -2197,7 +2193,6 @@ if es_maestro_mayor:
 
                         st.session_state.db_loaded = False
                         st.success(f"¡Reporte del Maestro guardado exitosamente para **{edificio_maestro_val}**!")
-                        st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al guardar: {e}")
@@ -2285,10 +2280,6 @@ else:
         if not st.session_state.creando_jornada:
             if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
                 st.session_state.creando_jornada = True
-                st.session_state.filas_supervision = [
-                    {"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}
-                ]
-                st.session_state.chk_obs_counts = {}
                 st.rerun()
 
         if st.session_state.creando_jornada:
@@ -2411,18 +2402,18 @@ else:
                     s1, s2, s3, s4 = st.columns([1.6, 1.4, 1.4, 0.4])
 
                     with s1:
-                        act_val = st.text_input(f"Actividad {f_id}", value=f_data.get("actividad", ""), placeholder="Ej. Enlucido fachada posterior...", key=f"dyn_act_{f_id}")
-                        obs_val_s = st.text_input(f"Obs {f_id}", value=f_data.get("observaciones", ""), placeholder="Observaciones adicionales...", key=f"dyn_obs_{f_id}")
+                        act_val = st.text_input(f"Actividad {idx_f}:", value=f_data.get("actividad", ""), placeholder="Ej. Enlucido fachada posterior...", key=f"dyn_act_{f_id}")
+                        obs_val_s = st.text_input(f"Obs {idx_f}:", value=f_data.get("observaciones", ""), placeholder="Observaciones adicionales...", key=f"dyn_obs_{f_id}")
 
                     with s2:
                         if lista_nombres_personal:
-                            enc_val = st.multiselect(f"Personal {f_id}", options=lista_nombres_personal, default=f_data.get("encargados", []), key=f"dyn_enc_{f_id}", placeholder="Seleccionar personal...")
+                            enc_val = st.multiselect(f"Personal {idx_f}:", options=lista_nombres_personal, default=[p for p in f_data.get("encargados", []) if p in lista_nombres_personal], key=f"dyn_enc_{f_id}", placeholder="Seleccionar personal...")
                             enc_str = ", ".join(enc_val) if enc_val else ""
                         else:
-                            enc_str = st.text_input(f"Personal manual {f_id}", value=f_data.get("encargados_manual", ""), placeholder="Escribir nombres...", key=f"dyn_enc_man_{f_id}")
+                            enc_str = st.text_input(f"Personal manual {idx_f}:", value=f_data.get("encargados_manual", ""), placeholder="Escribir nombres...", key=f"dyn_enc_man_{f_id}")
 
                     with s3:
-                        ft_file = st.file_uploader(f"Foto {f_id}", type=["jpg", "jpeg", "png"], key=f"dyn_ft_{f_id}")
+                        ft_file = st.file_uploader(f"Foto {idx_f}:", type=["jpg", "jpeg", "png"], key=f"dyn_ft_{f_id}")
                         foto_b64_f = image_to_base64(ft_file) if ft_file is not None else f_data.get("foto_b64")
 
                     with s4:
@@ -2438,11 +2429,12 @@ else:
                         if len(st.session_state.filas_supervision) > 1:
                             st.session_state.filas_supervision.pop(del_i)
                         else:
-                            st.session_state.filas_supervision = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
+                            st.session_state.filas_supervision = [{"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
                     st.rerun()
 
                 if st.button("➕ Agregar Fila de Trabajo", key="btn_add_dyn_supervision_row"):
-                    st.session_state.filas_supervision.append({"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None})
+                    next_id_sup = (max([x["id"] for x in st.session_state.filas_supervision]) + 1) if st.session_state.filas_supervision else 1
+                    st.session_state.filas_supervision.append({"id": next_id_sup, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None})
                     st.rerun()
 
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -2473,9 +2465,6 @@ else:
 
                                 st.session_state.db_loaded = False
                                 st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
-                                st.session_state.creando_jornada = False
-                                st.session_state.filas_supervision = [{"id": 1, "actividad": "", "encargados": [], "observaciones": "", "foto_b64": None}]
-                                st.session_state.chk_obs_counts = {}
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Error al guardar checklist: {e}")
@@ -2567,7 +2556,6 @@ else:
             else:
                 st.info("💡 Si llenas el Checklist del día, los trabajos y horarios se precargarán automáticamente aquí.")
 
-        # Selector de proyecto fuera del form para sincronizar nómina de inmediato
         lo_proyecto = st.selectbox(
             "🏢 Proyecto Asignado:*",
             ["-- Seleccione --"] + proyectos_libro,
@@ -2575,7 +2563,6 @@ else:
             key="lo_proy_sel_off"
         )
 
-        # Mapeo y cálculo automático de cuadrilla por especialidad según nómina activa
         mi_personal_obra = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
         if lo_proyecto != "-- Seleccione --":
             personal_edificio = [
@@ -2656,11 +2643,11 @@ else:
                     with col_n_l:
                         st.write(f"• {ofi} (7:00AM - 4:00PM)")
                     with col_n_v:
-                        # Se omite el key fijo para forzar la actualización dinámica del valor calculado al cambiar de proyecto
                         nomina_input_map[ofi] = st.number_input(
                             f"N_{ofi}",
                             min_value=0,
                             value=int(conteo_auto),
+                            key=f"lo_nom_{ofi}_{lo_proyecto}",
                             label_visibility="collapsed"
                         )
 
@@ -2738,7 +2725,7 @@ else:
                 for s_it in sup_items:
                     if s_it.get("Actividad"):
                         importados_chk.append({
-                            "id": int(datetime.datetime.now().timestamp() * 1000) + len(importados_chk),
+                            "id": len(importados_chk) + 1,
                             "descripcion": s_it.get("Actividad"),
                             "area": "",
                             "unidad": "",
@@ -2805,8 +2792,9 @@ else:
                 })
 
             if st.form_submit_button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
+                next_id_lo = (max([x["id"] for x in st.session_state.filas_lo_actividades]) + 1) if st.session_state.filas_lo_actividades else 1
                 st.session_state.filas_lo_actividades.append({
-                    "id": int(datetime.datetime.now().timestamp() * 1000),
+                    "id": next_id_lo,
                     "descripcion": "",
                     "area": "",
                     "unidad": "",
@@ -2947,6 +2935,7 @@ else:
                                         st.error(f"Error al eliminar: {e}")
         else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
+
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTOS, ESPACIO COLABORATIVO
 #               (CON DESCARGAS OPTIMIZADAS BAJO DEMANDA) Y PANEL ADMINISTRADOR
@@ -2961,7 +2950,6 @@ with tab_personal:
 
     proyectos_personal_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
 
-    # Botones superiores en diseño adaptable
     col_btn_ob1, col_btn_ob2, col_btn_ob3 = st.columns([1.5, 1.6, 2.0])
 
     with col_btn_ob1:
@@ -3149,7 +3137,6 @@ with tab_personal:
 
     st.markdown("---")
 
-    # Visualización exclusiva para el usuario logueado
     mi_personal_actual = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
     st.markdown(f"#### Tu Nómina de Personal a Cargo ({len(mi_personal_actual)} integrantes)")
 
@@ -3158,7 +3145,6 @@ with tab_personal:
         pestanas_edificios = ["🏢 Todos los Edificios"] + [f"📍 {e}" for e in edificios_con_personal]
         tabs_edificios = st.tabs(pestanas_edificios)
 
-        # Tab General (Todos los Edificios)
         with tabs_edificios[0]:
             st.caption(f"Mostrando el total de **{len(mi_personal_actual)}** integrantes de tu nómina.")
             for idx_t, pers in enumerate(mi_personal_actual, 1):
@@ -3233,7 +3219,6 @@ with tab_personal:
                         except Exception as e:
                             st.error(f"Error al eliminar: {e}")
 
-        # Tabs Separados por Edificio
         for idx_tab, edif_name in enumerate(edificios_con_personal, 1):
             with tabs_edificios[idx_tab]:
                 personal_del_edificio = [p for p in mi_personal_actual if (p.get("edificio") or "General") == edif_name]
