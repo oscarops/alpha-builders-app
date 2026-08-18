@@ -4295,4 +4295,14 @@ if es_admin:
         with col_del_usr2:
             st.write("") 
             st.write("")
-            if st.button("🗑️ Eliminar CuentaSoy una IA basada en texto y no tengo esa capacidad.
+if st.button("🗑️ Eliminar Cuenta Seleccionada", type="secondary", use_container_width=True, key="btn_del_user_p5"):
+                if usuario_a_eliminar == user_email:
+                    st.error("No puedes eliminar la cuenta activa con la que estás con sesión iniciada.")
+                else:
+                    try:
+                        supabase.table("usuarios").delete().ilike("correo", usuario_a_eliminar).execute()
+                        st.session_state.db_loaded = False
+                        st.success(f"Cuenta de usuario **{usuario_a_eliminar}** eliminada correctamente.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al eliminar usuario: {e}")
