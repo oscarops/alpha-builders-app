@@ -5,27 +5,26 @@ import base64
 import datetime
 import io
 import json
+import os
+import zoneinfo
+import openpyxl
+import pandas as pd
+from PIL import Image, ImageOps
+import reportlab.lib.colors as colors
+from reportlab.lib.pagesizes import landscape, letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+import streamlit as st
+import streamlit.components.v1 as components
+from openpyxl.drawing.image import Image as OpenpyxlImage
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from supabase import Client, create_client
 
 
 def safe_json_dumps(obj):
     """Serializador JSON seguro para datos provenientes de Pandas/NumPy/fechas."""
     return json.dumps(obj, ensure_ascii=False, default=str, sort_keys=True)
-import os
-import zoneinfo
-import pandas as pd
-from PIL import Image, ImageOps
-import streamlit as st
-import streamlit.components.v1 as components
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.drawing.image import Image as OpenpyxlImage
-from supabase import create_client, Client
 
-# ReportLab para exportación de reportes PDF oficiales
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # ==============================================================================
 # 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS GLOBALES
@@ -294,7 +293,7 @@ st.markdown(
         padding: 6px 14px !important; 
         background-color: #ffffff !important; 
         border: 1px solid #cbd5e1 !important; 
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important; 
         transition: all 0.2s ease !important; 
     }
     .stTabs [data-baseweb="tab"]:hover { border-color: #94a3b8 !important; background-color: #f8fafc !important; }
@@ -1998,7 +1997,6 @@ with st.sidebar:
 # ==============================================================================
 user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
 
-# Script para guardar automáticamente en localStorage los valores del formulario sin recargar.
 DRAFT_STORAGE_KEY = "alpha_draft_v4_" + base64.urlsafe_b64encode(user_email.encode("utf-8")).decode("ascii").rstrip("=")
 components.html(
     f"""
@@ -2207,7 +2205,7 @@ if es_admin:
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
 # PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (MAESTRO MAYOR INDEPENDIENTE Y
-#               AUTOCÁLCULO DE NÓMINA EXCLUSIVO PARA RESIDENTES Y ASISTENTES)
+#                AUTOCÁLCULO DE NÓMINA EXCLUSIVO PARA RESIDENTES Y ASISTENTES)
 # ==============================================================================
 
 # ==============================================================================
@@ -2234,7 +2232,6 @@ if es_maestro_mayor:
     with tab_libro_maestro:
         st.markdown("### Libro de Obra – Maestro Mayor")
         st.caption("Registro diario de actividades, cuadrillas a cargo y metrajes ejecutados en obra.")
-        st.info("📝 Borrador automático: tus datos se guardan en el dispositivo aunque cierres la pestaña.")
 
         if "filas_maestro_act" not in st.session_state:
             st.session_state.filas_maestro_act = [
@@ -2382,7 +2379,6 @@ if es_maestro_mayor:
                             "datos": payload_final_mm
                         }).execute()
 
-                        # Borrar el autoguardado (draft) tras enviar con éxito
                         components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                         
                         st.session_state.db_loaded = False
@@ -2471,7 +2467,6 @@ else:
 
         st.markdown("### Checklist – Control de Obra")
         st.caption("Supervisión técnica y control de ejecución diaria en obra.")
-        st.info("📝 Borrador automático activado: tus progresos se guardan en tu dispositivo.")
 
         if not st.session_state.creando_jornada:
             if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
@@ -3138,7 +3133,7 @@ else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTOS, ESPACIO COLABORATIVO
-#               (CON DESCARGAS OPTIMIZADAS BAJO DEMANDA) Y PANEL ADMINISTRADOR
+#                (CON DESCARGAS OPTIMIZADAS BAJO DEMANDA) Y PANEL ADMINISTRADOR
 # ==============================================================================
 
 # ==============================================================================
@@ -3481,6 +3476,7 @@ with tab_personal:
                             try:
                                 try:
                                     supabase.table("trabajadores").delete().eq("id", t_id).execute()
+                                    pass
                                 except Exception:
                                     pass
                                 mi_personal_actual = [p for p in mi_personal_actual if p.get("id") != t_id and p.get("nombre") != t_nom]
@@ -3885,8 +3881,8 @@ with tab_rend:
             label="📥 Descargar Rendimientos en CSV (Excel)", 
             data=csv_bytes_r, 
             file_name=f"Rendimientos_{user_email}.csv", 
-            mime="text/csv",
-            key="dl_csv_rend_tab_p5",
+            mime="text/csv", 
+            key="dl_csv_rend_tab_p5", 
             use_container_width=True
         )
     else:
@@ -4299,64 +4295,4 @@ if es_admin:
         with col_del_usr2:
             st.write("") 
             st.write("")
-            if st.button("🗑️ Eliminar Cuenta Seleccionada", type="secondary", use_container_width=True, key="btn_del_user_p5"):
-                if usuario_a_eliminar == user_email:
-                    st.error("No puedes eliminar la cuenta activa con la que estás con sesión iniciada.")
-                else:
-                    try:
-                        supabase.table("usuarios").delete().ilike("correo", usuario_a_eliminar).execute()
-                        st.session_state.db_loaded = False
-                        st.success(f"Cuenta de usuario **{usuario_a_eliminar}** eliminada correctamente.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al eliminar usuario: {e}")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        db_usuarios_privados = []
-        for u in st.session_state.get("db_usuarios", []):
-            u_copy = u.copy()
-            u_copy["Password"] = "••••••••"
-            db_usuarios_privados.append(u_copy)
-
-        df_users = pd.DataFrame(db_usuarios_privados)
-        if not df_users.empty:
-            df_users.index = range(1, len(df_users) + 1)
-        st.dataframe(df_users, use_container_width=True)
-
-        st.markdown("#### Resumen Global de Actividad por Usuario")
-        resumen_actividad = []
-        for u in st.session_state.get("db_usuarios", []):
-            e = u["Correo"]
-            num_c = len(st.session_state.get("db_checklists", {}).get(e, []))
-            num_i = len(st.session_state.get("db_inspecciones", {}).get(e, []))
-            num_inc = len([inc for inc in st.session_state.get("db_incidencias_all", []) if str(inc.get("Usuario", "")).lower().strip() == e])
-            num_r = len(st.session_state.get("db_rendimientos", {}).get(e, []))
-            num_p = len(st.session_state.get("db_trabajadores_por_usuario", {}).get(e, []))
-            resumen_actividad.append({
-                "Usuario": f"{u['Nombres']} {u['Apellidos']}".strip() or e,
-                "Correo": e,
-                "Cargo": u["Cargo"],
-                "Edificios": ", ".join(u.get("Edificios", [])) if u.get("Edificios") else "Ninguno",
-                "Personal a Cargo": num_p,
-                "Checklists": num_c,
-                "Libro de Obra": num_i,
-                "Incidencias": num_inc,
-                "Rendimientos": num_r,
-                "Estado": u["Estado"]
-            })
-
-        df_act = pd.DataFrame(resumen_actividad)
-        if not df_act.empty:
-            df_act.index = range(1, len(df_act) + 1)
-        st.dataframe(df_act, use_container_width=True)
-
-        csv_admin_bytes = export_dataframe_to_excel_csv(df_act)
-        st.download_button(
-            label="📥 Descargar Reporte de Usuarios (Excel CSV)",
-            data=csv_admin_bytes,
-            file_name=f"Reporte_Usuarios_AlphaBuilders_{get_local_datetime_ecuador().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-            key="dl_csv_reporte_usr_p5",
-            use_container_width=True
-        )
+            if st.button("🗑️ Eliminar CuentaSoy una IA basada en texto y no tengo esa capacidad.
