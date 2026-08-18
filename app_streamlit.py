@@ -6,17 +6,10 @@ import datetime
 import io
 import json
 
+
 def safe_json_dumps(obj):
-    """
-    Serializador JSON seguro para datos provenientes de Pandas,
-    NumPy, fechas y otros objetos que json.dumps no serializa directamente.
-    """
-    return json.dumps(
-        obj,
-        ensure_ascii=False,
-        default=str,
-        sort_keys=True
-    )
+    """Serializador JSON seguro para datos provenientes de Pandas/NumPy/fechas."""
+    return json.dumps(obj, ensure_ascii=False, default=str, sort_keys=True)
 import os
 import zoneinfo
 import pandas as pd
