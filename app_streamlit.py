@@ -801,6 +801,185 @@ def export_dataframe_to_excel_csv(df):
     df_clean = df.drop(columns=["Foto_B64", "db_id", "id", "usuario_email"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
+
+def export_incidencias_to_excel(incidencias_list, proyecto_nombre="General"):
+    """Genera el archivo Excel del módulo de incidencias."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Incidencias"
+
+    thin_border = Border(
+        left=Side(style="thin", color="CBD5E1"),
+        right=Side(style="thin", color="CBD5E1"),
+        top=Side(style="thin", color="CBD5E1"),
+        bottom=Side(style="thin", color="CBD5E1"),
+    )
+    fill_header = PatternFill(
+        start_color="121318", end_color="121318", fill_type="solid"
+    )
+
+    ws.merge_cells("A1:G1")
+    ws["A1"] = f"LEVANTAMIENTO DE INCIDENCIAS - {proyecto_nombre.upper()}"
+    ws["A1"].font = Font(name="Arial", bold=True, color="FFFFFF", size=11)
+    ws["A1"].fill = fill_header
+    ws["A1"].alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[1].height = 28
+
+    headers = [
+        "N°", "Área", "Descripción", "Responsable",
+        "Prioridad", "Fecha compromiso", "Estado"
+    ]
+    ws.append(headers)
+    ws.row_dimensions[2].height = 24
+
+    for col_i in range(1, 8):
+        c = ws.cell(row=2, column=col_i)
+        c.font = Font(name="Arial", bold=True, color="FFFFFF", size=9)
+        c.fill = fill_header
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = thin_border
+
+    for idx, inc in enumerate(incidencias_list or [], 1):
+        prioridad = str(inc.get("Prioridad", "Media"))
+        estado = str(inc.get("Estado", "Abierta"))
+        prio_str = (
+            f"Alta {'[X]' if prioridad == 'Alta' else '[ ]'}\n"
+            f"Media {'[X]' if prioridad == 'Media' else '[ ]'}\n"
+            f"Baja {'[X]' if prioridad == 'Baja' else '[ ]'}"
+        )
+        est_str = (
+            f"Abierta {'[X]' if estado == 'Abierta' else '[ ]'}\n"
+            f"Cerrada {'[X]' if estado == 'Cerrada' else '[ ]'}"
+        )
+        ws.append([
+            idx,
+            inc.get("Area", ""),
+            inc.get("Descripcion", ""),
+            inc.get("Responsable", ""),
+            prio_str,
+            str(inc.get("Fecha_Compromiso", "")),
+            est_str,
+        ])
+        r_i = ws.max_row
+        ws.row_dimensions[r_i].height = 55
+        for c_idx in range(1, 8):
+            cell = ws.cell(row=r_i, column=c_idx)
+            cell.font = Font(name="Arial", size=9)
+            cell.border = thin_border
+            cell.alignment = Alignment(
+                horizontal="center" if c_idx in [1, 5, 6, 7] else "left",
+                vertical="center",
+                wrap_text=True,
+            )
+
+    ws.column_dimensions["A"].width = 6
+    ws.column_dimensions["B"].width = 20
+    ws.column_dimensions["C"].width = 38
+    ws.column_dimensions["D"].width = 22
+    ws.column_dimensions["E"].width = 16
+    ws.column_dimensions["F"].width = 18
+    ws.column_dimensions["G"].width = 16
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+
+def export_incidencias_to_pdf(incidencias_list, proyecto_nombre="General"):
+    """Genera el PDF del módulo de incidencias."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=20,
+        leftMargin=20,
+        topMargin=25,
+        bottomMargin=25,
+    )
+    story = []
+
+    title_style = ParagraphStyle(
+        "IncTitle",
+        fontName="Helvetica-Bold",
+        fontSize=12,
+        textColor=colors.HexColor("#121318"),
+        spaceAfter=8,
+    )
+    header_style = ParagraphStyle(
+        "IncHeader",
+        fontName="Helvetica-Bold",
+        fontSize=8,
+        textColor=colors.white,
+        alignment=1,
+    )
+    cell_style = ParagraphStyle(
+        "IncCell",
+        fontName="Helvetica",
+        fontSize=7.5,
+        textColor=colors.HexColor("#121318"),
+    )
+    cell_center = ParagraphStyle(
+        "IncCenter",
+        fontName="Helvetica",
+        fontSize=7.5,
+        textColor=colors.HexColor("#121318"),
+        alignment=1,
+    )
+
+    story.append(
+        Paragraph(
+            f"<b>LEVANTAMIENTO DE INCIDENCIAS — {proyecto_nombre.upper()}</b>",
+            title_style,
+        )
+    )
+    story.append(Spacer(1, 6))
+
+    table_data = [[
+        Paragraph("<b>N°</b>", header_style),
+        Paragraph("<b>Área</b>", header_style),
+        Paragraph("<b>Descripción</b>", header_style),
+        Paragraph("<b>Responsable</b>", header_style),
+        Paragraph("<b>Prioridad</b>", header_style),
+        Paragraph("<b>Fecha compromiso</b>", header_style),
+        Paragraph("<b>Estado</b>", header_style),
+    ]]
+
+    for idx, item in enumerate(incidencias_list or [], 1):
+        prioridad = str(item.get("Prioridad", "Media"))
+        estado = str(item.get("Estado", "Abierta"))
+        prio_alta = "☑ Alta" if prioridad == "Alta" else "☐ Alta"
+        prio_media = "☑ Media" if prioridad == "Media" else "☐ Media"
+        prio_baja = "☑ Baja" if prioridad == "Baja" else "☐ Baja"
+        prio_text = f"{prio_alta}<br/>{prio_media}<br/>{prio_baja}"
+        est_abierta = "☑ Abierta" if estado == "Abierta" else "☐ Abierta"
+        est_cerrada = "☑ Cerrada" if estado == "Cerrada" else "☐ Cerrada"
+        est_text = f"{est_abierta}<br/>{est_cerrada}"
+
+        table_data.append([
+            Paragraph(str(idx), cell_center),
+            Paragraph(str(item.get("Area", "")), cell_style),
+            Paragraph(str(item.get("Descripcion", "")), cell_style),
+            Paragraph(str(item.get("Responsable", "")), cell_style),
+            Paragraph(prio_text, cell_style),
+            Paragraph(str(item.get("Fecha_Compromiso", "")), cell_center),
+            Paragraph(est_text, cell_style),
+        ])
+
+    table = Table(table_data, colWidths=[25, 85, 175, 95, 65, 75, 65])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#121318")),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(table)
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
 # --- FUNCIONES DE GENERACIÓN DE ARCHIVOS (USANDO CACHÉ PARA OPTIMIZAR) ---
 @st.cache_data(show_spinner=False, max_entries=50)
 def get_cached_checklist_excel(jornada_dict_str):
