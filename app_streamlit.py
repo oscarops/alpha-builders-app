@@ -494,7 +494,7 @@ ACTIVIDADES_MANANA_CLEAN = [
 
 ACTIVIDADES_TARDE_CLEAN = [
     "Verificación del avance físico de las actividades",
-    "Verificación de trabajos corregidos",
+    "Corrección de incidencias",
     "Confirmación de materiales para el siguiente día",
     "Revisión del cumplimiento de la meta diaria",
 ]
