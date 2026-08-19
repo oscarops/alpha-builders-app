@@ -518,7 +518,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA RÁPIDA DE DATOS Y EXPORTADORES DE DOCUMENTOS EN CACHÉ
+# PARTE 2 DE 5: CARGA RÁPIDA DE DATOS, ORDEN ALFABÉTICO Y EXPORTADORES EN CACHÉ
 # ==============================================================================
 
 # ==============================================================================
@@ -662,6 +662,13 @@ def load_db_from_supabase():
                     })
     except Exception as e:
         print(f"[Warn] Error en tabla trabajadores: {e}")
+
+    # Ordenamiento alfabético automático obligatorio de la nómina
+    for u_k in db_trabajadores_por_usuario:
+        db_trabajadores_por_usuario[u_k] = sorted(
+            db_trabajadores_por_usuario[u_k], 
+            key=lambda item: str(item.get("nombre", "")).upper()
+        )
 
     db_checklists = {}
     try:
@@ -1683,6 +1690,12 @@ if not st.session_state.autenticado:
                                     if mail_clean not in st.session_state.db_trabajadores_por_usuario:
                                         st.session_state.db_trabajadores_por_usuario[mail_clean] = []
 
+                                # Ordenar alfabéticamente automáticamente
+                                st.session_state.db_trabajadores_por_usuario[mail_clean] = sorted(
+                                    st.session_state.db_trabajadores_por_usuario[mail_clean],
+                                    key=lambda it: str(it.get("nombre", "")).upper()
+                                )
+
                                 st.session_state.db_loaded = False
                                 st.success("Acceso concedido...")
                                 st.rerun()
@@ -2190,7 +2203,7 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# Pestañas adaptadas: para Maestro Mayor se removió Levantamiento de Incidencias
+# Pestañas adaptadas: para Maestro Mayor no se muestra Levantamiento de Incidencias
 if es_maestro_mayor:
     pestanas = [
         "Libro de Obra Maestro",
@@ -2995,7 +3008,6 @@ else:
         st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
         c_ss1, c_ss2, c_ss3 = st.columns(3)
         with c_ss1:
-            st.markdown("##### 🛡️ Seguridad")
             seg_casco = st.checkbox("Casco", value=False)
             seg_chaleco = st.checkbox("Chalecos", value=False)
             seg_guantes = st.checkbox("Guantes", value=False)
@@ -3004,7 +3016,6 @@ else:
             seg_auditivo = st.checkbox("Auditivo", value=False)
 
         with c_ss2:
-            st.markdown("##### 🚧 Señalización")
             sen_conos = st.checkbox("Conos", value=False)
             sen_cintas = st.checkbox("Cintas", value=False)
             sen_rotulos = st.checkbox("Rótulos", value=False)
@@ -3013,7 +3024,6 @@ else:
             sen_botiquin = st.checkbox("Botiquín", value=False)
 
         with c_ss3:
-            st.markdown("##### 🧹 Mitigación")
             mit_polvo = st.checkbox("Control de Polvo", value=False)
             mit_ruido = st.checkbox("Control de Ruido", value=False)
             mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)
@@ -3316,12 +3326,12 @@ else:
         else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
-# PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTOS, ESPACIO COLABORATIVO
-#                Y PANEL ADMINISTRADOR (COMPLETO CON SINTAXIS CORREGIDA)
+# PARTE 5 DE 5: PERSONAL, INCIDENCIAS, RENDIMIENTO, ESPACIO COLABORATIVO
+#                Y PANEL ADMINISTRADOR (AGRUPACIÓN MENSUAL COLABORATIVA)
 # ==============================================================================
 
 # ==============================================================================
-# 11. MÓDULO 3: PERSONAL A CARGO
+# 11. MÓDULO 3: PERSONAL A CARGO (ORDENAMIENTO ALFABÉTICO AUTOMÁTICO)
 # ==============================================================================
 with tab_personal:
     st.markdown("### Nómina de Personal a Cargo")
@@ -3369,6 +3379,10 @@ with tab_personal:
                             "usuario_email": user_email
                         }
                         cur_p.append(new_item)
+                        
+                        # Ordenamiento alfabético automático
+                        cur_p = sorted(cur_p, key=lambda it: str(it.get("nombre", "")).upper())
+                        st.session_state.db_trabajadores_por_usuario[user_email] = cur_p
 
                         try:
                             supabase.table("app_config").upsert({
@@ -3429,6 +3443,10 @@ with tab_personal:
                                         "usuario_email": user_email
                                     })
                                     registrados_cnt += 1
+
+                            # Ordenamiento alfabético automático
+                            cur_p = sorted(cur_p, key=lambda it: str(it.get("nombre", "")).upper())
+                            st.session_state.db_trabajadores_por_usuario[user_email] = cur_p
 
                             try:
                                 supabase.table("app_config").upsert({
@@ -3500,6 +3518,10 @@ with tab_personal:
                             mi_personal_nombres.append(p_item["nombre"])
                             importados_cnt += 1
 
+                    # Ordenamiento alfabético automático
+                    cur_p = sorted(cur_p, key=lambda it: str(it.get("nombre", "")).upper())
+                    st.session_state.db_trabajadores_por_usuario[user_email] = cur_p
+
                     try:
                         supabase.table("app_config").upsert({
                             "key": f"user_trabajadores_{user_email}",
@@ -3517,6 +3539,8 @@ with tab_personal:
     st.markdown("---")
 
     mi_personal_actual = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+    # Garantizar orden alfabético
+    mi_personal_actual = sorted(mi_personal_actual, key=lambda it: str(it.get("nombre", "")).upper())
     st.markdown(f"#### Tu Nómina de Personal a Cargo ({len(mi_personal_actual)} integrantes)")
 
     if len(mi_personal_actual) > 0:
@@ -3525,7 +3549,7 @@ with tab_personal:
         tabs_edificios = st.tabs(pestanas_edificios)
 
         with tabs_edificios[0]:
-            st.caption(f"Mostrando el total de **{len(mi_personal_actual)}** integrantes de tu nómina.")
+            st.caption(f"Mostrando el total de **{len(mi_personal_actual)}** integrantes de tu nómina ordenados alfabéticamente.")
             for idx_t, pers in enumerate(mi_personal_actual, 1):
                 t_id = pers.get("id", idx_t)
                 t_nom = pers["nombre"]
@@ -3903,6 +3927,8 @@ with tab_rend:
     st.caption("Asignación de rubros, ingreso manual de horario/HH, cantidades ejecutadas y diagnóstico de productividad.")
 
     mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+    # Ordenar alfabéticamente
+    mi_personal_propio = sorted(mi_personal_propio, key=lambda it: str(it.get("nombre", "")).upper())
     nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
 
     col1, col2 = st.columns(2)
@@ -4072,7 +4098,7 @@ with tab_rend:
         st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
 # ==============================================================================
-# 14. MÓDULO 6: ESPACIO COLABORATIVO
+# 14. MÓDULO 6: ESPACIO COLABORATIVO (AGRUPACIÓN MENSUAL DESPLEGABLE)
 # ==============================================================================
 with tab_colab:
     st.markdown("### Espacio de Trabajo Colaborativo")
@@ -4140,36 +4166,57 @@ with tab_colab:
                 with sub_tabs_colab[0]:
                     insps_maestro = st.session_state.get("db_inspecciones", {}).get(c_mail, [])
                     if len(insps_maestro) > 0:
-                        st.caption(f"Mostrando **{len(insps_maestro)}** reporte(s) de Maestro Mayor registrados por **{colega_u['Nombres']}**.")
-                        for idx_c_m, m_rep in enumerate(insps_maestro, 1):
-                            with st.expander(f"📌 [{m_rep.get('Proyecto', '')}] Fecha: {m_rep.get('Fecha', '')} ({m_rep.get('Dia', '')})", expanded=True):
-                                d_m = m_rep.get("Datos", {})
-                                acts_m = d_m.get("Actividades_Maestro", [])
-                                if acts_m:
-                                    st.markdown("**Actividades, Personal y Metrajes Reportados:**")
-                                    for a_it in acts_m:
-                                        pers_str = ", ".join(a_it.get("Personal_A_Cargo", [])) if isinstance(a_it.get("Personal_A_Cargo"), list) else str(a_it.get("Personal_A_Cargo", ""))
-                                        pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
-                                        st.write(f"• **{a_it.get('Actividad')}**: `{a_it.get('Cantidad')}`{pers_tag} — *{a_it.get('Observaciones', 'Sin observaciones')}*")
-                                
-                                col_dl_mm1, col_dl_mm2 = st.columns(2)
-                                with col_dl_mm1:
-                                    with st.popover("📊 Exportar Excel", use_container_width=True):
-                                        st.download_button("Confirmar (.xlsx)", get_cached_libro_maestro_excel(safe_json_dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
-                                with col_dl_mm2:
-                                    with st.popover("📄 Exportar PDF", use_container_width=True):
-                                        st.download_button("Confirmar (.pdf)", get_cached_libro_maestro_pdf(safe_json_dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
+                        df_col_mm = pd.DataFrame(insps_maestro)
+                        df_col_mm["fecha_dt"] = pd.to_datetime(df_col_mm["Fecha"])
+                        df_col_mm = df_col_mm.sort_values(by="fecha_dt", ascending=False)
+                        df_col_mm["año"] = df_col_mm["fecha_dt"].dt.year
+                        df_col_mm["mes_num"] = df_col_mm["fecha_dt"].dt.month
+                        grupos_col_mm = df_col_mm.groupby(["año", "mes_num"], sort=False)
+
+                        st.caption(f"Mostrando **{len(insps_maestro)}** reporte(s) de Maestro Mayor registrados por **{colega_u['Nombres']}** agrupados por mes:")
+                        for (anio, mes_num), items_mes in grupos_col_mm:
+                            nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Reportes)"
+                            with st.expander(nombre_mes_str, expanded=False):
+                                for idx_c_m, m_row in items_mes.iterrows():
+                                    m_rep = m_row.to_dict()
+                                    with st.expander(f"📌 [{m_rep.get('Proyecto', '')}] Fecha: {m_rep.get('Fecha', '')} ({m_rep.get('Dia', '')})", expanded=False):
+                                        d_m = m_rep.get("Datos", {})
+                                        acts_m = d_m.get("Actividades_Maestro", [])
+                                        if acts_m:
+                                            st.markdown("**Actividades, Personal y Metrajes Reportados:**")
+                                            for a_it in acts_m:
+                                                pers_str = ", ".join(a_it.get("Personal_A_Cargo", [])) if isinstance(a_it.get("Personal_A_Cargo"), list) else str(a_it.get("Personal_A_Cargo", ""))
+                                                pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
+                                                st.write(f"• **{a_it.get('Actividad')}**: `{a_it.get('Cantidad')}`{pers_tag} — *{a_it.get('Observaciones', 'Sin observaciones')}*")
+                                        
+                                        col_dl_mm1, col_dl_mm2 = st.columns(2)
+                                        with col_dl_mm1:
+                                            with st.popover("📊 Exportar Excel", use_container_width=True):
+                                                st.download_button("Confirmar (.xlsx)", get_cached_libro_maestro_excel(safe_json_dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_col_mm_x_{idx_c_m}_p5", use_container_width=True)
+                                        with col_dl_mm2:
+                                            with st.popover("📄 Exportar PDF", use_container_width=True):
+                                                st.download_button("Confirmar (.pdf)", get_cached_libro_maestro_pdf(safe_json_dumps(m_rep)), file_name=f"Libro_Maestro_{c_mail}_{m_rep['Fecha']}.pdf", mime="application/pdf", key=f"dl_col_mm_p_{idx_c_m}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha cargado actividades en su Libro de Obra.")
 
                 with sub_tabs_colab[1]:
                     rnds_colega = st.session_state.get("db_rendimientos", {}).get(c_mail, [])
                     if len(rnds_colega) > 0:
-                        st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento de **{colega_u['Nombres']}**.")
-                        df_r_col = pd.DataFrame(rnds_colega).drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador"], errors="ignore")
-                        if not df_r_col.empty:
-                            df_r_col.index = range(1, len(df_r_col) + 1)
-                        st.dataframe(df_r_col, use_container_width=True)
+                        df_r_col = pd.DataFrame(rnds_colega)
+                        df_r_col["fecha_dt"] = pd.to_datetime(df_r_col["Fecha"])
+                        df_r_col = df_r_col.sort_values(by="fecha_dt", ascending=False)
+                        df_r_col["año"] = df_r_col["fecha_dt"].dt.year
+                        df_r_col["mes_num"] = df_r_col["fecha_dt"].dt.month
+                        grupos_r_col = df_r_col.groupby(["año", "mes_num"], sort=False)
+
+                        st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento de **{colega_u['Nombres']}** organizados por mes:")
+                        for (anio, mes_num), items_mes in grupos_r_col:
+                            nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Rendimientos)"
+                            with st.expander(nombre_mes_str, expanded=False):
+                                df_disp_m = items_mes.drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador", "fecha_dt", "año", "mes_num"], errors="ignore")
+                                if not df_disp_m.empty:
+                                    df_disp_m.index = range(1, len(df_disp_m) + 1)
+                                st.dataframe(df_disp_m, use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha ingresado rendimientos.")
 
@@ -4184,32 +4231,54 @@ with tab_colab:
                 with sub_tabs_colab[0]:
                     chks_colega = st.session_state.get("db_checklists", {}).get(c_mail, [])
                     if len(chks_colega) > 0:
-                        st.caption(f"Mostrando **{len(chks_colega)}** checklist(s) registrados por **{colega_u['Nombres']}**.")
-                        for idx_c_j, j_col in enumerate(chks_colega, 1):
-                            with st.expander(f"📌 [{j_col.get('Edificio', '')}] {j_col.get('Fecha', '')} (Horario: {j_col.get('Hora_Inicio', '')} - {j_col.get('Hora_Fin', '')})", expanded=False):
-                                col_dl_c1, col_dl_c2 = st.columns(2)
-                                with col_dl_c1:
-                                    with st.popover("📊 Exportar Excel", use_container_width=True):
-                                        st.download_button("Confirmar (.xlsx)", get_cached_checklist_excel(safe_json_dumps(j_col)), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}_p5", use_container_width=True)
-                                with col_dl_c2:
-                                    with st.popover("📄 Exportar PDF", use_container_width=True):
-                                        st.download_button("Confirmar (.pdf)", get_cached_checklist_pdf(safe_json_dumps(j_col)), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}_p5", use_container_width=True)
+                        df_chks_col = pd.DataFrame(chks_colega)
+                        df_chks_col["fecha_dt"] = pd.to_datetime(df_chks_col["Fecha"])
+                        df_chks_col = df_chks_col.sort_values(by="fecha_dt", ascending=False)
+                        df_chks_col["año"] = df_chks_col["fecha_dt"].dt.year
+                        df_chks_col["mes_num"] = df_chks_col["fecha_dt"].dt.month
+                        grupos_chks_col = df_chks_col.groupby(["año", "mes_num"], sort=False)
+
+                        st.caption(f"Mostrando **{len(chks_colega)}** checklist(s) registrados por **{colega_u['Nombres']}** organizados por mes:")
+                        for (anio, mes_num), items_mes in grupos_chks_col:
+                            nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Checklists)"
+                            with st.expander(nombre_mes_str, expanded=False):
+                                for idx_c_j, j_row in items_mes.iterrows():
+                                    j_col = j_row.to_dict()
+                                    with st.expander(f"📌 [{j_col.get('Edificio', '')}] {j_col.get('Fecha', '')} (Horario: {j_col.get('Hora_Inicio', '')} - {j_col.get('Hora_Fin', '')})", expanded=False):
+                                        col_dl_c1, col_dl_c2 = st.columns(2)
+                                        with col_dl_c1:
+                                            with st.popover("📊 Exportar Excel", use_container_width=True):
+                                                st.download_button("Confirmar (.xlsx)", get_cached_checklist_excel(safe_json_dumps(j_col)), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_chk_x_{idx_c_j}_p5", use_container_width=True)
+                                        with col_dl_c2:
+                                            with st.popover("📄 Exportar PDF", use_container_width=True):
+                                                st.download_button("Confirmar (.pdf)", get_cached_checklist_pdf(safe_json_dumps(j_col)), file_name=f"Checklist_{c_mail}_{j_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_chk_p_{idx_c_j}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha registrado checklists.")
 
                 with sub_tabs_colab[1]:
                     insps_colega = st.session_state.get("db_inspecciones", {}).get(c_mail, [])
                     if len(insps_colega) > 0:
-                        st.caption(f"Mostrando **{len(insps_colega)}** registro(s) en Libro de Obra.")
-                        for idx_c_i, i_col in enumerate(insps_colega, 1):
-                            with st.expander(f"📌 [{i_col.get('Proyecto', '')}] {i_col.get('Fecha', '')} ({i_col.get('Dia', '')}) | Residente: {i_col.get('Residente', '')}", expanded=False):
-                                col_dl_i1, col_dl_i2 = st.columns(2)
-                                with col_dl_i1:
-                                    with st.popover("📊 Exportar Excel", use_container_width=True):
-                                        st.download_button("Confirmar (.xlsx)", get_cached_libro_oficial_excel(safe_json_dumps(i_col)), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}_p5", use_container_width=True)
-                                with col_dl_i2:
-                                    with st.popover("📄 Exportar PDF", use_container_width=True):
-                                        st.download_button("Confirmar (.pdf)", get_cached_libro_oficial_pdf(safe_json_dumps(i_col)), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}_p5", use_container_width=True)
+                        df_insps_col = pd.DataFrame(insps_colega)
+                        df_insps_col["fecha_dt"] = pd.to_datetime(df_insps_col["Fecha"])
+                        df_insps_col = df_insps_col.sort_values(by="fecha_dt", ascending=False)
+                        df_insps_col["año"] = df_insps_col["fecha_dt"].dt.year
+                        df_insps_col["mes_num"] = df_insps_col["fecha_dt"].dt.month
+                        grupos_insps_col = df_insps_col.groupby(["año", "mes_num"], sort=False)
+
+                        st.caption(f"Mostrando **{len(insps_colega)}** registro(s) en Libro de Obra organizados por mes:")
+                        for (anio, mes_num), items_mes in grupos_insps_col:
+                            nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Libros de Obra)"
+                            with st.expander(nombre_mes_str, expanded=False):
+                                for idx_c_i, i_row in items_mes.iterrows():
+                                    i_col = i_row.to_dict()
+                                    with st.expander(f"📌 [{i_col.get('Proyecto', '')}] {i_col.get('Fecha', '')} ({i_col.get('Dia', '')}) | Residente: {i_col.get('Residente', '')}", expanded=False):
+                                        col_dl_i1, col_dl_i2 = st.columns(2)
+                                        with col_dl_i1:
+                                            with st.popover("📊 Exportar Excel", use_container_width=True):
+                                                st.download_button("Confirmar (.xlsx)", get_cached_libro_oficial_excel(safe_json_dumps(i_col)), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_colab_insp_x_{idx_c_i}_p5", use_container_width=True)
+                                        with col_dl_i2:
+                                            with st.popover("📄 Exportar PDF", use_container_width=True):
+                                                st.download_button("Confirmar (.pdf)", get_cached_libro_oficial_pdf(safe_json_dumps(i_col)), file_name=f"Libro_Obra_{c_mail}_{i_col['Fecha']}.pdf", mime="application/pdf", key=f"dl_colab_insp_p_{idx_c_i}_p5", use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha registrado formatos de Libro de Obra.")
 
@@ -4226,11 +4295,21 @@ with tab_colab:
                 with sub_tabs_colab[3]:
                     rnds_colega = st.session_state.get("db_rendimientos", {}).get(c_mail, [])
                     if len(rnds_colega) > 0:
-                        st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento de **{colega_u['Nombres']}**.")
-                        df_r_col = pd.DataFrame(rnds_colega).drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador"], errors="ignore")
-                        if not df_r_col.empty:
-                            df_r_col.index = range(1, len(df_r_col) + 1)
-                        st.dataframe(df_r_col, use_container_width=True)
+                        df_r_col = pd.DataFrame(rnds_colega)
+                        df_r_col["fecha_dt"] = pd.to_datetime(df_r_col["Fecha"])
+                        df_r_col = df_r_col.sort_values(by="fecha_dt", ascending=False)
+                        df_r_col["año"] = df_r_col["fecha_dt"].dt.year
+                        df_r_col["mes_num"] = df_r_col["fecha_dt"].dt.month
+                        grupos_r_col = df_r_col.groupby(["año", "mes_num"], sort=False)
+
+                        st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento de **{colega_u['Nombres']}** organizados por mes:")
+                        for (anio, mes_num), items_mes in grupos_r_col:
+                            nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Rendimientos)"
+                            with st.expander(nombre_mes_str, expanded=False):
+                                df_disp_m = items_mes.drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador", "fecha_dt", "año", "mes_num"], errors="ignore")
+                                if not df_disp_m.empty:
+                                    df_disp_m.index = range(1, len(df_disp_m) + 1)
+                                st.dataframe(df_disp_m, use_container_width=True)
                     else:
                         st.info(f"{colega_u['Nombres']} aún no ha ingresado rendimientos.")
         else:
