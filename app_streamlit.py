@@ -3212,240 +3212,240 @@ else:
                             label_visibility="collapsed"
                         )
 
-        st.markdown("---")
-
-        st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
-        saved_seg_map = st.session_state.get("lo_edit_seg_map", {})
-
-        c_ss1, c_ss2, c_ss3 = st.columns(3)
-        with c_ss1:
-            st.markdown("##### 🛡️ Seguridad")
-            seg_casco = st.checkbox("Casco", value=bool(saved_seg_map.get("Casco", False)), key=f"seg_casco_{st.session_state.get('edit_lo_id', 'new')}")
-            seg_chaleco = st.checkbox("Chalecos", value=bool(saved_seg_map.get("Chalecos", False)), key=f"seg_chaleco_{st.session_state.get('edit_lo_id', 'new')}")
-            seg_guantes = st.checkbox("Guantes", value=bool(saved_seg_map.get("Guantes", False)), key=f"seg_guantes_{st.session_state.get('edit_lo_id', 'new')}")
-            seg_gafas = st.checkbox("Gafas", value=bool(saved_seg_map.get("Gafas", False)), key=f"seg_gafas_{st.session_state.get('edit_lo_id', 'new')}")
-            seg_mascarilla = st.checkbox("Mascarilla", value=bool(saved_seg_map.get("Mascarilla", False)), key=f"seg_mascarilla_{st.session_state.get('edit_lo_id', 'new')}")
-            seg_auditivo = st.checkbox("Auditivo", value=bool(saved_seg_map.get("Auditivo", False)), key=f"seg_auditivo_{st.session_state.get('edit_lo_id', 'new')}")
-
-        with c_ss2:
-            st.markdown("##### 🚧 Señalización")
-            sen_conos = st.checkbox("Conos", value=bool(saved_seg_map.get("Conos", False)), key=f"sen_conos_{st.session_state.get('edit_lo_id', 'new')}")
-            sen_cintas = st.checkbox("Cintas", value=bool(saved_seg_map.get("Cintas", False)), key=f"sen_cintas_{st.session_state.get('edit_lo_id', 'new')}")
-            sen_rotulos = st.checkbox("Rótulos", value=bool(saved_seg_map.get("Rótulos", False)), key=f"sen_rotulos_{st.session_state.get('edit_lo_id', 'new')}")
-            sen_vallas = st.checkbox("Vallas", value=bool(saved_seg_map.get("Vallas", False)), key=f"sen_vallas_{st.session_state.get('edit_lo_id', 'new')}")
-            sen_extintor = st.checkbox("Extintor", value=bool(saved_seg_map.get("Extintor", False)), key=f"sen_extintor_{st.session_state.get('edit_lo_id', 'new')}")
-            sen_botiquin = st.checkbox("Botiquín", value=bool(saved_seg_map.get("Botiquin", False)), key=f"sen_botiquin_{st.session_state.get('edit_lo_id', 'new')}")
-
-        with c_ss3:
-            mit_polvo = st.checkbox("Control de Polvo", value=bool(saved_seg_map.get("Polvo", False)), key=f"mit_polvo_{st.session_state.get('edit_lo_id', 'new')}")
-            mit_ruido = st.checkbox("Control de Ruido", value=bool(saved_seg_map.get("Ruido", False)), key=f"mit_ruido_{st.session_state.get('edit_lo_id', 'new')}")
-            mit_liquidos = st.checkbox("Líquidos Contaminantes", value=bool(saved_seg_map.get("Liquidos", False)), key=f"mit_liquidos_{st.session_state.get('edit_lo_id', 'new')}")
-            mit_cerramiento = st.checkbox("Cerramiento", value=bool(saved_seg_map.get("Cerramiento", False)), key=f"mit_cerramiento_{st.session_state.get('edit_lo_id', 'new')}")
-            mit_limpieza = st.checkbox("Limpieza y Orden", value=bool(saved_seg_map.get("Limpieza", False)), key=f"mit_limpieza_{st.session_state.get('edit_lo_id', 'new')}")
-
-        st.markdown("---")
-        st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
-        st.caption("Estructura completa de actividades con frente, cuadrillas y cantidades:")
-
-        if "filas_lo_actividades" not in st.session_state:
-            st.session_state.filas_lo_actividades = []
-
-        checklist_clave_sesion = f"init_chk_lo_{fecha_lo_str}_{lo_proyecto}"
-        if chk_asociado and checklist_clave_sesion not in st.session_state and not st.session_state.edit_lo_id:
-            raw_dchk = chk_asociado.get("Datos", {})
-            d_p_chk = raw_dchk if isinstance(raw_dchk, dict) else json.loads(raw_dchk or "{}") if isinstance(raw_dchk, str) else {}
-            sup_items = d_p_chk.get("Supervision_Trabajos", []) if isinstance(d_p_chk, dict) else []
-            importados_chk = []
-            for s_it in sup_items:
-                if s_it.get("Actividad"):
-                    importados_chk.append({
-                        "id": len(importados_chk) + 1,
-                        "descripcion": s_it.get("Actividad"),
-                        "area": "",
-                        "encargados": "",
-                        "unidad": "",
-                        "cantidad": 0.0,
-                        "observaciones": ""
-                    })
-            if importados_chk:
-                st.session_state.filas_lo_actividades = importados_chk
-            st.session_state[checklist_clave_sesion] = True
-
-        if not st.session_state.filas_lo_actividades:
-            st.session_state.filas_lo_actividades = [
-                {"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}
-            ]
-
-        indices_eliminar_lo = []
-        acts_final_payload = []
-
-        for idx_act_form, item_f in enumerate(st.session_state.filas_lo_actividades, 1):
-            f_act_id = item_f["id"]
-            st.markdown(f"**Actividad N° {idx_act_form}:**")
-            
-            c_af1, c_af2 = st.columns([2.5, 1.5])
-            with c_af1:
-                d_in = st.text_input(
-                    f"Descripción de la Actividad {idx_act_form}:",
-                    value=item_f.get("descripcion", ""),
-                    placeholder="Ej. Albañilería, Enlucidos, Pintura...",
-                    key=f"lo_act_d_{f_act_id}"
-                )
-            with c_af2:
-                ar_in = st.text_input(
-                    f"Área / Ubicación {idx_act_form}:",
-                    value=item_f.get("area", ""),
-                    placeholder="Ej. Piso 3, Bloque A...",
-                    key=f"lo_act_ar_{f_act_id}"
-                )
-
-            c_af3, c_af4, c_af5, c_af6 = st.columns([2.0, 1.0, 1.0, 0.4])
-            with c_af3:
-                enc_in = st.text_input(
-                    f"Personal Encargado {idx_act_form}:",
-                    value=item_f.get("encargados", ""),
-                    placeholder="Ej. Albañiles, Gypseros...",
-                    key=f"lo_act_enc_{f_act_id}"
-                )
-            with c_af4:
-                u_in = st.text_input(
-                    f"Unidad {idx_act_form}:",
-                    value=item_f.get("unidad", ""),
-                    placeholder="Ej. m2, m, glb...",
-                    key=f"lo_act_u_{f_act_id}"
-                )
-            with c_af5:
-                ct_in = st.number_input(
-                    f"Cant. {idx_act_form}:",
-                    min_value=0.0,
-                    value=float(item_f.get("cantidad", 0.0)),
-                    step=0.5,
-                    key=f"lo_act_ct_{f_act_id}"
-                )
-            with c_af6:
-                st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
-                if st.button("🗑️", key=f"btn_del_lo_row_{f_act_id}", help="Eliminar fila"):
-                    indices_eliminar_lo.append(idx_act_form - 1)
-
-            obs_lo_act = st.text_input(
-                f"Observaciones {idx_act_form}:",
-                value=item_f.get("observaciones", ""),
-                placeholder="Observaciones técnicas de la actividad...",
-                key=f"lo_act_obs_{f_act_id}"
-            )
-
-            acts_final_payload.append({
-                "Descripcion": d_in.strip(),
-                "Area": ar_in.strip(),
-                "Encargados": enc_in.strip(),
-                "Unidad": u_in.strip(),
-                "Cantidad": ct_in,
-                "Observaciones": obs_lo_act.strip()
-            })
             st.markdown("---")
 
-        if indices_eliminar_lo:
-            for del_i in sorted(indices_eliminar_lo, reverse=True):
-                if len(st.session_state.filas_lo_actividades) > 1:
-                    st.session_state.filas_lo_actividades.pop(del_i)
-                else:
-                    st.session_state.filas_lo_actividades = [{"id": int(datetime.datetime.now().timestamp() * 1000), "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
-            st.rerun()
+            st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
+            saved_seg_map = st.session_state.get("lo_edit_seg_map", {})
 
-        if st.button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
-            next_id_lo = (max([x["id"] for x in st.session_state.filas_lo_actividades]) + 1) if st.session_state.filas_lo_actividades else 1
-            st.session_state.filas_lo_actividades.append({
-                "id": next_id_lo,
-                "descripcion": "",
-                "area": "",
-                "encargados": "",
-                "unidad": "",
-                "cantidad": 0.0,
-                "observaciones": ""
-            })
-            st.rerun()
+            c_ss1, c_ss2, c_ss3 = st.columns(3)
+            with c_ss1:
+                st.markdown("##### 🛡️ Seguridad")
+                seg_casco = st.checkbox("Casco", value=bool(saved_seg_map.get("Casco", False)), key=f"seg_casco_{st.session_state.get('edit_lo_id', 'new')}")
+                seg_chaleco = st.checkbox("Chalecos", value=bool(saved_seg_map.get("Chalecos", False)), key=f"seg_chaleco_{st.session_state.get('edit_lo_id', 'new')}")
+                seg_guantes = st.checkbox("Guantes", value=bool(saved_seg_map.get("Guantes", False)), key=f"seg_guantes_{st.session_state.get('edit_lo_id', 'new')}")
+                seg_gafas = st.checkbox("Gafas", value=bool(saved_seg_map.get("Gafas", False)), key=f"seg_gafas_{st.session_state.get('edit_lo_id', 'new')}")
+                seg_mascarilla = st.checkbox("Mascarilla", value=bool(saved_seg_map.get("Mascarilla", False)), key=f"seg_mascarilla_{st.session_state.get('edit_lo_id', 'new')}")
+                seg_auditivo = st.checkbox("Auditivo", value=bool(saved_seg_map.get("Auditivo", False)), key=f"seg_auditivo_{st.session_state.get('edit_lo_id', 'new')}")
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("#### 6. Novedades y Recomendaciones")
-        nov_def = st.session_state.get("lo_edit_nov_val", "")
-        lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value=nov_def, placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")
+            with c_ss2:
+                st.markdown("##### 🚧 Señalización")
+                sen_conos = st.checkbox("Conos", value=bool(saved_seg_map.get("Conos", False)), key=f"sen_conos_{st.session_state.get('edit_lo_id', 'new')}")
+                sen_cintas = st.checkbox("Cintas", value=bool(saved_seg_map.get("Cintas", False)), key=f"sen_cintas_{st.session_state.get('edit_lo_id', 'new')}")
+                sen_rotulos = st.checkbox("Rótulos", value=bool(saved_seg_map.get("Rótulos", False)), key=f"sen_rotulos_{st.session_state.get('edit_lo_id', 'new')}")
+                sen_vallas = st.checkbox("Vallas", value=bool(saved_seg_map.get("Vallas", False)), key=f"sen_vallas_{st.session_state.get('edit_lo_id', 'new')}")
+                sen_extintor = st.checkbox("Extintor", value=bool(saved_seg_map.get("Extintor", False)), key=f"sen_extintor_{st.session_state.get('edit_lo_id', 'new')}")
+                sen_botiquin = st.checkbox("Botiquín", value=bool(saved_seg_map.get("Botiquin", False)), key=f"sen_botiquin_{st.session_state.get('edit_lo_id', 'new')}")
 
-        lbl_btn_lo = "🔄 Actualizar Formato Oficial de Libro de Obra" if st.session_state.edit_lo_id else "💾 Guardar Formato Oficial de Libro de Obra"
-        btn_guardar_lo_oficial = st.button(lbl_btn_lo, type="primary", use_container_width=True, key="btn_save_lo_official_main")
+            with c_ss3:
+                mit_polvo = st.checkbox("Control de Polvo", value=bool(saved_seg_map.get("Polvo", False)), key=f"mit_polvo_{st.session_state.get('edit_lo_id', 'new')}")
+                mit_ruido = st.checkbox("Control de Ruido", value=bool(saved_seg_map.get("Ruido", False)), key=f"mit_ruido_{st.session_state.get('edit_lo_id', 'new')}")
+                mit_liquidos = st.checkbox("Líquidos Contaminantes", value=bool(saved_seg_map.get("Liquidos", False)), key=f"mit_liquidos_{st.session_state.get('edit_lo_id', 'new')}")
+                mit_cerramiento = st.checkbox("Cerramiento", value=bool(saved_seg_map.get("Cerramiento", False)), key=f"mit_cerramiento_{st.session_state.get('edit_lo_id', 'new')}")
+                mit_limpieza = st.checkbox("Limpieza y Orden", value=bool(saved_seg_map.get("Limpieza", False)), key=f"mit_limpieza_{st.session_state.get('edit_lo_id', 'new')}")
 
-        if btn_guardar_lo_oficial:
-            if lo_proyecto == "-- Seleccione --":
-                st.error("⚠️ Seleccione un Proyecto o Edificio.")
-            else:
-                seguridad_checks = {
-                    "Casco": seg_casco,
-                    "Chalecos": seg_chaleco,
-                    "Guantes": seg_guantes,
-                    "Gafas": seg_gafas,
-                    "Mascarilla": seg_mascarilla,
-                    "Auditivo": seg_auditivo,
-                    "Conos": sen_conos,
-                    "Cintas": sen_cintas,
-                    "Rótulos": sen_rotulos,
-                    "Vallas": sen_vallas,
-                    "Extintor": sen_extintor,
-                    "Botiquin": sen_botiquin,
-                    "Polvo": mit_polvo,
-                    "Ruido": mit_ruido,
-                    "Liquidos": mit_liquidos,
-                    "Cerramiento": mit_cerramiento,
-                    "Limpieza": mit_limpieza
-                }
+            st.markdown("---")
+            st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
+            st.caption("Estructura completa de actividades con frente, cuadrillas y cantidades:")
 
-                payload_libro_oficial = {
-                    "Superintendente": lo_superintendente,
-                    "Fiscalizador": lo_fiscalizador,
-                    "Ubicacion": lo_ubicacion,
-                    "Barrio": lo_barrio,
-                    "Hoja": lo_hoja,
-                    "Nomina_Conteo": nomina_input_map,
-                    "Rotativo_Conteo": rotativo_input_map,
-                    "Clima_Condicion": clima_cond_sel,
-                    "Clima_Obs": clima_obs,
-                    "Maquinaria_Conteo": maq_input_map,
-                    "Seguridad_Check": seguridad_checks,
-                    "Actividades_Ejecutadas": acts_final_payload,
-                    "Novedades": lo_novedades
-                }
+            if "filas_lo_actividades" not in st.session_state:
+                st.session_state.filas_lo_actividades = []
 
-                lo_record = {
-                    "usuario_email": user_email,
-                    "proyecto": lo_proyecto,
-                    "fecha": lo_fecha.strftime("%Y-%m-%d"),
-                    "dia": lo_dia,
-                    "residente": lo_residente,
-                    "frente": lo_ubicacion,
-                    "clima": clima_cond_sel,
-                    "hora_inicio": lo_h_ini.strftime("%H:%M"),
-                    "hora_fin": lo_h_fin.strftime("%H:%M"),
-                    "datos": payload_libro_oficial
-                }
+            checklist_clave_sesion = f"init_chk_lo_{fecha_lo_str}_{lo_proyecto}"
+            if chk_asociado and checklist_clave_sesion not in st.session_state and not st.session_state.edit_lo_id:
+                raw_dchk = chk_asociado.get("Datos", {})
+                d_p_chk = raw_dchk if isinstance(raw_dchk, dict) else json.loads(raw_dchk or "{}") if isinstance(raw_dchk, str) else {}
+                sup_items = d_p_chk.get("Supervision_Trabajos", []) if isinstance(d_p_chk, dict) else []
+                importados_chk = []
+                for s_it in sup_items:
+                    if s_it.get("Actividad"):
+                        importados_chk.append({
+                            "id": len(importados_chk) + 1,
+                            "descripcion": s_it.get("Actividad"),
+                            "area": "",
+                            "encargados": "",
+                            "unidad": "",
+                            "cantidad": 0.0,
+                            "observaciones": ""
+                        })
+                if importados_chk:
+                    st.session_state.filas_lo_actividades = importados_chk
+                st.session_state[checklist_clave_sesion] = True
 
-                try:
-                    if st.session_state.edit_lo_id:
-                        supabase.table("inspecciones").update(lo_record).eq("id", st.session_state.edit_lo_id).execute()
-                        st.success(f"¡Libro de Obra actualizado exitosamente para **{lo_proyecto}**!")
+            if not st.session_state.filas_lo_actividades:
+                st.session_state.filas_lo_actividades = [
+                    {"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}
+                ]
+
+            indices_eliminar_lo = []
+            acts_final_payload = []
+
+            for idx_act_form, item_f in enumerate(st.session_state.filas_lo_actividades, 1):
+                f_act_id = item_f["id"]
+                st.markdown(f"**Actividad N° {idx_act_form}:**")
+            
+                c_af1, c_af2 = st.columns([2.5, 1.5])
+                with c_af1:
+                    d_in = st.text_input(
+                        f"Descripción de la Actividad {idx_act_form}:",
+                        value=item_f.get("descripcion", ""),
+                        placeholder="Ej. Albañilería, Enlucidos, Pintura...",
+                        key=f"lo_act_d_{f_act_id}"
+                    )
+                with c_af2:
+                    ar_in = st.text_input(
+                        f"Área / Ubicación {idx_act_form}:",
+                        value=item_f.get("area", ""),
+                        placeholder="Ej. Piso 3, Bloque A...",
+                        key=f"lo_act_ar_{f_act_id}"
+                    )
+
+                c_af3, c_af4, c_af5, c_af6 = st.columns([2.0, 1.0, 1.0, 0.4])
+                with c_af3:
+                    enc_in = st.text_input(
+                        f"Personal Encargado {idx_act_form}:",
+                        value=item_f.get("encargados", ""),
+                        placeholder="Ej. Albañiles, Gypseros...",
+                        key=f"lo_act_enc_{f_act_id}"
+                    )
+                with c_af4:
+                    u_in = st.text_input(
+                        f"Unidad {idx_act_form}:",
+                        value=item_f.get("unidad", ""),
+                        placeholder="Ej. m2, m, glb...",
+                        key=f"lo_act_u_{f_act_id}"
+                    )
+                with c_af5:
+                    ct_in = st.number_input(
+                        f"Cant. {idx_act_form}:",
+                        min_value=0.0,
+                        value=float(item_f.get("cantidad", 0.0)),
+                        step=0.5,
+                        key=f"lo_act_ct_{f_act_id}"
+                    )
+                with c_af6:
+                    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+                    if st.button("🗑️", key=f"btn_del_lo_row_{f_act_id}", help="Eliminar fila"):
+                        indices_eliminar_lo.append(idx_act_form - 1)
+
+                obs_lo_act = st.text_input(
+                    f"Observaciones {idx_act_form}:",
+                    value=item_f.get("observaciones", ""),
+                    placeholder="Observaciones técnicas de la actividad...",
+                    key=f"lo_act_obs_{f_act_id}"
+                )
+
+                acts_final_payload.append({
+                    "Descripcion": d_in.strip(),
+                    "Area": ar_in.strip(),
+                    "Encargados": enc_in.strip(),
+                    "Unidad": u_in.strip(),
+                    "Cantidad": ct_in,
+                    "Observaciones": obs_lo_act.strip()
+                })
+                st.markdown("---")
+
+            if indices_eliminar_lo:
+                for del_i in sorted(indices_eliminar_lo, reverse=True):
+                    if len(st.session_state.filas_lo_actividades) > 1:
+                        st.session_state.filas_lo_actividades.pop(del_i)
                     else:
-                        supabase.table("inspecciones").insert(lo_record).execute()
-                        st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
+                        st.session_state.filas_lo_actividades = [{"id": int(datetime.datetime.now().timestamp() * 1000), "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                st.rerun()
 
-                    components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
-                    st.session_state.db_loaded = False
-                    # Cierre completo del contenedor
-                    st.session_state.llenando_libro_oficial = False
-                    st.session_state.edit_lo_id = None
-                    st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
-                    for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
-                        if k in st.session_state:
-                            del st.session_state[k]
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error al procesar: {e}")
+            if st.button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
+                next_id_lo = (max([x["id"] for x in st.session_state.filas_lo_actividades]) + 1) if st.session_state.filas_lo_actividades else 1
+                st.session_state.filas_lo_actividades.append({
+                    "id": next_id_lo,
+                    "descripcion": "",
+                    "area": "",
+                    "encargados": "",
+                    "unidad": "",
+                    "cantidad": 0.0,
+                    "observaciones": ""
+                })
+                st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("#### 6. Novedades y Recomendaciones")
+            nov_def = st.session_state.get("lo_edit_nov_val", "")
+            lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value=nov_def, placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")
+
+            lbl_btn_lo = "🔄 Actualizar Formato Oficial de Libro de Obra" if st.session_state.edit_lo_id else "💾 Guardar Formato Oficial de Libro de Obra"
+            btn_guardar_lo_oficial = st.button(lbl_btn_lo, type="primary", use_container_width=True, key="btn_save_lo_official_main")
+
+            if btn_guardar_lo_oficial:
+                if lo_proyecto == "-- Seleccione --":
+                    st.error("⚠️ Seleccione un Proyecto o Edificio.")
+                else:
+                    seguridad_checks = {
+                        "Casco": seg_casco,
+                        "Chalecos": seg_chaleco,
+                        "Guantes": seg_guantes,
+                        "Gafas": seg_gafas,
+                        "Mascarilla": seg_mascarilla,
+                        "Auditivo": seg_auditivo,
+                        "Conos": sen_conos,
+                        "Cintas": sen_cintas,
+                        "Rótulos": sen_rotulos,
+                        "Vallas": sen_vallas,
+                        "Extintor": sen_extintor,
+                        "Botiquin": sen_botiquin,
+                        "Polvo": mit_polvo,
+                        "Ruido": mit_ruido,
+                        "Liquidos": mit_liquidos,
+                        "Cerramiento": mit_cerramiento,
+                        "Limpieza": mit_limpieza
+                    }
+
+                    payload_libro_oficial = {
+                        "Superintendente": lo_superintendente,
+                        "Fiscalizador": lo_fiscalizador,
+                        "Ubicacion": lo_ubicacion,
+                        "Barrio": lo_barrio,
+                        "Hoja": lo_hoja,
+                        "Nomina_Conteo": nomina_input_map,
+                        "Rotativo_Conteo": rotativo_input_map,
+                        "Clima_Condicion": clima_cond_sel,
+                        "Clima_Obs": clima_obs,
+                        "Maquinaria_Conteo": maq_input_map,
+                        "Seguridad_Check": seguridad_checks,
+                        "Actividades_Ejecutadas": acts_final_payload,
+                        "Novedades": lo_novedades
+                    }
+
+                    lo_record = {
+                        "usuario_email": user_email,
+                        "proyecto": lo_proyecto,
+                        "fecha": lo_fecha.strftime("%Y-%m-%d"),
+                        "dia": lo_dia,
+                        "residente": lo_residente,
+                        "frente": lo_ubicacion,
+                        "clima": clima_cond_sel,
+                        "hora_inicio": lo_h_ini.strftime("%H:%M"),
+                        "hora_fin": lo_h_fin.strftime("%H:%M"),
+                        "datos": payload_libro_oficial
+                    }
+
+                    try:
+                        if st.session_state.edit_lo_id:
+                            supabase.table("inspecciones").update(lo_record).eq("id", st.session_state.edit_lo_id).execute()
+                            st.success(f"¡Libro de Obra actualizado exitosamente para **{lo_proyecto}**!")
+                        else:
+                            supabase.table("inspecciones").insert(lo_record).execute()
+                            st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
+
+                        components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
+                        st.session_state.db_loaded = False
+                        # Cierre completo del contenedor
+                        st.session_state.llenando_libro_oficial = False
+                        st.session_state.edit_lo_id = None
+                        st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                        for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
+                            if k in st.session_state:
+                                del st.session_state[k]
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al procesar: {e}")
 
             lbl_cancel_lo = "❌ Cancelar Edición" if st.session_state.edit_lo_id else "❌ Cancelar Llenado"
             if st.button(lbl_cancel_lo, key="btn_cancel_lo_bottom", use_container_width=True):
