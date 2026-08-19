@@ -2226,7 +2226,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON EDICIÓN HABILITADA Y CORREGIDA
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON COMPATIBILIDAD TOTAL
 # ==============================================================================
 
 # ==============================================================================
@@ -2262,14 +2262,13 @@ if es_maestro_mayor:
             ]
 
         if st.session_state.edit_mm_id:
-            st.warning(f"✏️ **Modo Edición Activo:** Modificando reporte ID `{st.session_state.edit_mm_id}`")
+            st.info("✏️ **Modo Edición Activo:** Modificando reporte seleccionado.")
             if st.button("❌ Cancelar Edición", key="btn_cancel_edit_mm"):
                 st.session_state.edit_mm_id = None
                 st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
-                if "mm_edit_fecha_val" in st.session_state:
-                    del st.session_state["mm_edit_fecha_val"]
-                if "mm_edit_edif_val" in st.session_state:
-                    del st.session_state["mm_edit_edif_val"]
+                for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
                 st.rerun()
 
         local_today_mm = get_local_datetime_ecuador().date()
@@ -2430,10 +2429,9 @@ if es_maestro_mayor:
                         components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                         st.session_state.db_loaded = False
                         st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
-                        if "mm_edit_fecha_val" in st.session_state:
-                            del st.session_state["mm_edit_fecha_val"]
-                        if "mm_edit_edif_val" in st.session_state:
-                            del st.session_state["mm_edit_edif_val"]
+                        for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
+                            if k in st.session_state:
+                                del st.session_state[k]
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al procesar reporte: {e}")
@@ -2461,7 +2459,14 @@ if es_maestro_mayor:
                         with st.expander(f"📌 [{insp_dict_m.get('Proyecto')}] {insp_dict_m.get('Fecha')} ({insp_dict_m.get('Dia')})", expanded=False):
                             raw_dm = insp_dict_m.get("Datos", {})
                             d_parsed = raw_dm if isinstance(raw_dm, dict) else json.loads(raw_dm or "{}") if isinstance(raw_dm, str) else {}
-                            acts_guardadas = d_parsed.get("Actividades_Maestro", []) if isinstance(d_parsed, dict) else []
+                            
+                            # Compatibilidad con formatos anteriores
+                            if isinstance(d_parsed, dict):
+                                acts_guardadas = d_parsed.get("Actividades_Maestro", [])
+                            elif isinstance(d_parsed, list):
+                                acts_guardadas = d_parsed
+                            else:
+                                acts_guardadas = []
                             
                             for a_g in acts_guardadas:
                                 pers_str = ", ".join(a_g.get("Personal_A_Cargo", [])) if isinstance(a_g.get("Personal_A_Cargo"), list) else str(a_g.get("Personal_A_Cargo", ""))
@@ -2496,14 +2501,21 @@ if es_maestro_mayor:
                                     st.session_state.mm_edit_edif_val = insp_dict_m.get("Proyecto")
                                     raw_dm2 = insp_dict_m.get("Datos", {})
                                     d_parsed2 = raw_dm2 if isinstance(raw_dm2, dict) else json.loads(raw_dm2 or "{}") if isinstance(raw_dm2, str) else {}
-                                    acts_rec = d_parsed2.get("Actividades_Maestro", []) if isinstance(d_parsed2, dict) else []
+                                    
+                                    if isinstance(d_parsed2, dict):
+                                        acts_rec = d_parsed2.get("Actividades_Maestro", [])
+                                    elif isinstance(d_parsed2, list):
+                                        acts_rec = d_parsed2
+                                    else:
+                                        acts_rec = []
+
                                     st.session_state.filas_maestro_act = [
                                         {
                                             "id": i + 1,
-                                            "actividad": it.get("Actividad", ""),
-                                            "cantidad": it.get("Cantidad", ""),
-                                            "personal_a_cargo": it.get("Personal_A_Cargo", []),
-                                            "observaciones": it.get("Observaciones", "")
+                                            "actividad": it.get("Actividad", it.get("actividad", "")),
+                                            "cantidad": it.get("Cantidad", it.get("cantidad", "")),
+                                            "personal_a_cargo": it.get("Personal_A_Cargo", it.get("personal_a_cargo", [])),
+                                            "observaciones": it.get("Observaciones", it.get("observaciones", ""))
                                         } for i, it in enumerate(acts_rec)
                                     ] if acts_rec else [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                                     st.rerun()
@@ -2547,7 +2559,6 @@ else:
                 st.session_state.edit_chk_id = None
                 st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
                 st.session_state.chk_obs_counts = {}
-                # Limpiar precargas
                 for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
                     if k in st.session_state:
                         del st.session_state[k]
@@ -2556,7 +2567,7 @@ else:
         if st.session_state.creando_jornada or st.session_state.edit_chk_id:
             st.markdown("---")
             if st.session_state.edit_chk_id:
-                st.warning(f"✏️ **Modo Edición de Checklist Activo** (ID: `{st.session_state.edit_chk_id}`)")
+                st.info("✏️ **Modo Edición de Checklist Activo**")
                 if st.button("❌ Cancelar Edición de Checklist", key="btn_cancel_edit_chk"):
                     st.session_state.edit_chk_id = None
                     st.session_state.creando_jornada = False
@@ -2591,8 +2602,23 @@ else:
 
                 st.markdown("---")
 
-                # Mapa precargado de respuestas en modo edición
+                # Diccionario normalizado de respuestas previas para compatibilidad
                 edit_resp_map = st.session_state.get("chk_edit_resp_map", {})
+
+                def buscar_item_retrocompatible(jornada, idx, act_texto):
+                    # Búsqueda exacta
+                    k1 = f"{jornada}_{act_texto}".lower().strip()
+                    if k1 in edit_resp_map:
+                        return edit_resp_map[k1]
+                    # Búsqueda por número de ítem
+                    k2 = f"{jornada}_{idx}".lower().strip()
+                    if k2 in edit_resp_map:
+                        return edit_resp_map[k2]
+                    # Búsqueda aproximada por coincidencia parcial de texto
+                    for k_map, v_map in edit_resp_map.items():
+                        if k_map.startswith(jornada.lower()) and (act_texto.lower()[:8] in k_map or k_map.split("_")[-1][:8] in act_texto.lower()):
+                            return v_map
+                    return {}
 
                 # JORNADA DE LA MAÑANA
                 st.markdown("#### 🌅 Jornada de la Mañana")
@@ -2600,18 +2626,19 @@ else:
 
                 for idx, act in enumerate(ACTIVIDADES_MANANA_CLEAN, 1):
                     item_key = f"m_{idx}"
-                    if item_key not in st.session_state.chk_obs_counts:
-                        st.session_state.chk_obs_counts[item_key] = 1
+                    item_guardado = buscar_item_retrocompatible("Mañana", idx, act)
+                    
+                    default_estado_m = item_guardado.get("Estado")
+                    if default_estado_m not in ["✓ Cumple", "✗ No Cumple"]:
+                        default_estado_m = None
+
+                    obs_guardadas_m = item_guardado.get("Observaciones", [])
+                    if isinstance(obs_guardadas_m, str):
+                        obs_guardadas_m = [obs_guardadas_m] if obs_guardadas_m.strip() else []
 
                     st.markdown(f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""", unsafe_allow_html=True)
                     st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                     c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
-
-                    item_guardado = edit_resp_map.get(f"Mañana_{act}", {})
-                    default_estado_m = item_guardado.get("Estado", None)
-                    obs_guardadas_m = item_guardado.get("Observaciones", [])
-                    if isinstance(obs_guardadas_m, str):
-                        obs_guardadas_m = [obs_guardadas_m] if obs_guardadas_m else []
 
                     with c_col1:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
@@ -2620,7 +2647,7 @@ else:
                     with c_col2:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
                         obs_vals_item = []
-                        total_obs_count = max(st.session_state.chk_obs_counts[item_key], len(obs_guardadas_m))
+                        total_obs_count = max(st.session_state.chk_obs_counts.get(item_key, 1), len(obs_guardadas_m))
                         st.session_state.chk_obs_counts[item_key] = max(total_obs_count, 1)
 
                         for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
@@ -2656,18 +2683,19 @@ else:
 
                 for idx, act in enumerate(ACTIVIDADES_TARDE_CLEAN, 1):
                     item_key = f"t_{idx}"
-                    if item_key not in st.session_state.chk_obs_counts:
-                        st.session_state.chk_obs_counts[item_key] = 1
+                    item_guardado_t = buscar_item_retrocompatible("Tarde", idx, act)
+
+                    default_estado_t = item_guardado_t.get("Estado")
+                    if default_estado_t not in ["✓ Cumple", "✗ No Cumple"]:
+                        default_estado_t = None
+
+                    obs_guardadas_t = item_guardado_t.get("Observaciones", [])
+                    if isinstance(obs_guardadas_t, str):
+                        obs_guardadas_t = [obs_guardadas_t] if obs_guardadas_t.strip() else []
 
                     st.markdown(f"""<div class="banner-item-header"><span>N° {idx} — {act}</span></div>""", unsafe_allow_html=True)
                     st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                     c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
-
-                    item_guardado_t = edit_resp_map.get(f"Tarde_{act}", {})
-                    default_estado_t = item_guardado_t.get("Estado", None)
-                    obs_guardadas_t = item_guardado_t.get("Observaciones", [])
-                    if isinstance(obs_guardadas_t, str):
-                        obs_guardadas_t = [obs_guardadas_t] if obs_guardadas_t else []
 
                     with c_col1:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
@@ -2676,7 +2704,7 @@ else:
                     with c_col2:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
                         obs_vals_item = []
-                        total_obs_count_t = max(st.session_state.chk_obs_counts[item_key], len(obs_guardadas_t))
+                        total_obs_count_t = max(st.session_state.chk_obs_counts.get(item_key, 1), len(obs_guardadas_t))
                         st.session_state.chk_obs_counts[item_key] = max(total_obs_count_t, 1)
 
                         for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
@@ -2864,8 +2892,9 @@ else:
                                         pass
 
                                     raw_data_chk = j_dict.get("Datos", {})
-                                    parsed_chk_d = raw_data_chk if isinstance(raw_data_chk, dict) else json.loads(raw_data_chk or "{}") if isinstance(raw_data_chk, str) else {}
+                                    parsed_chk_d = raw_data_chk if isinstance(raw_data_chk, (dict, list)) else json.loads(raw_data_chk or "{}") if isinstance(raw_data_chk, str) else {}
                                     
+                                    # Normalización retrocompatible de verificaciones
                                     if isinstance(parsed_chk_d, dict):
                                         verifs = parsed_chk_d.get("Verificaciones", [])
                                         sups_rec = parsed_chk_d.get("Supervision_Trabajos", [])
@@ -2876,12 +2905,19 @@ else:
                                         verifs = []
                                         sups_rec = []
 
-                                    st.session_state.chk_edit_resp_map = {
-                                        f"{v.get('Jornada', '')}_{v.get('Actividad', '')}": v for v in verifs if isinstance(v, dict)
-                                    }
+                                    st.session_state.chk_edit_resp_map = {}
+                                    for v in verifs:
+                                        if isinstance(v, dict):
+                                            j_name = str(v.get('Jornada', '')).lower().strip()
+                                            a_name = str(v.get('Actividad', '')).lower().strip()
+                                            num_item = str(v.get('N°', '')).strip()
+                                            if j_name and a_name:
+                                                st.session_state.chk_edit_resp_map[f"{j_name}_{a_name}"] = v
+                                            if j_name and num_item:
+                                                st.session_state.chk_edit_resp_map[f"{j_name}_{num_item}"] = v
 
                                     st.session_state.filas_supervision = [
-                                        {"id": i + 1, "actividad": it.get("Actividad", "")} for i, it in enumerate(sups_rec)
+                                        {"id": i + 1, "actividad": it.get("Actividad", it.get("actividad", ""))} for i, it in enumerate(sups_rec)
                                     ] if sups_rec else [{"id": 1, "actividad": ""}]
                                     st.rerun()
 
@@ -2906,11 +2942,11 @@ else:
             st.session_state.edit_lo_id = None
 
         if st.session_state.edit_lo_id:
-            st.warning(f"✏️ **Modo Edición de Libro de Obra Activo** (ID: `{st.session_state.edit_lo_id}`)")
+            st.info("✏️ **Modo Edición de Libro de Obra Activo**")
             if st.button("❌ Cancelar Edición de Libro de Obra", key="btn_cancel_edit_lo"):
                 st.session_state.edit_lo_id = None
                 st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
-                for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val"]:
+                for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
                     if k in st.session_state:
                         del st.session_state[k]
                 st.rerun()
@@ -3024,12 +3060,20 @@ else:
         st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
         st.caption(f"Cálculo automático de cuadrilla ({len(personal_edificio)} integrantes activos detectados en tu nómina para este proyecto):")
 
+        # Mapas de edición previa para nómina y subcontratos
+        saved_nom_map = st.session_state.get("lo_edit_nom_map", {})
+        saved_rot_map = st.session_state.get("lo_edit_rot_map", {})
+
         c_nom1, c_nom2 = st.columns(2)
         with c_nom1:
             st.markdown("##### 👷 Personal Nómina")
             nomina_input_map = {}
             for ofi in OFICIOS_NOMINA_FORMATO:
-                conteo_auto = calcular_conteo_oficio(ofi, personal_edificio)
+                if st.session_state.edit_lo_id and ofi in saved_nom_map:
+                    conteo_val = int(saved_nom_map[ofi])
+                else:
+                    conteo_val = int(calcular_conteo_oficio(ofi, personal_edificio))
+
                 col_n_l, col_n_v = st.columns([3, 1])
                 with col_n_l:
                     st.write(f"• {ofi} (7:00AM - 4:00PM)")
@@ -3037,8 +3081,8 @@ else:
                     nomina_input_map[ofi] = st.number_input(
                         f"N_{ofi}",
                         min_value=0,
-                        value=int(conteo_auto),
-                        key=f"lo_nom_{ofi}_{lo_proyecto}",
+                        value=conteo_val,
+                        key=f"lo_nom_{ofi}_{lo_proyecto}_{st.session_state.get('edit_lo_id', 'new')}",
                         label_visibility="collapsed"
                     )
 
@@ -3046,57 +3090,81 @@ else:
             st.markdown("##### 🔄 Personal Rotativo / Subcontratos")
             rotativo_input_map = {}
             for rubro in RUROS_ROTATIVOS_FORMATO:
+                val_rot_prev = int(saved_rot_map.get(rubro, 0)) if st.session_state.edit_lo_id else 0
                 col_r_l, col_r_v = st.columns([3, 1])
                 with col_r_l:
                     st.write(f"• {rubro}")
                 with col_r_v:
-                    rotativo_input_map[rubro] = st.number_input(f"R_{rubro}", min_value=0, value=0, key=f"lo_rot_{rubro}", label_visibility="collapsed")
+                    rotativo_input_map[rubro] = st.number_input(
+                        f"R_{rubro}", 
+                        min_value=0, 
+                        value=val_rot_prev, 
+                        key=f"lo_rot_{rubro}_{st.session_state.get('edit_lo_id', 'new')}", 
+                        label_visibility="collapsed"
+                    )
 
         st.markdown("---")
 
         st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")
+        clima_opts = ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"]
+        saved_clima_cond = st.session_state.get("lo_edit_clima_val", "SOL")
+        idx_clima = clima_opts.index(saved_clima_cond) if saved_clima_cond in clima_opts else 0
+        saved_clima_obs = st.session_state.get("lo_edit_clima_obs_val", "")
+        saved_maq_map = st.session_state.get("lo_edit_maq_map", {})
+
         c_cl1, c_cl2 = st.columns(2)
         with c_cl1:
             st.markdown("##### ⛅ Condiciones Climáticas")
-            clima_cond_sel = st.selectbox("Estado del Clima:*", ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"], index=0, key="lo_clima_cond")
-            clima_obs = st.text_input("Observaciones del Clima en Obra:", placeholder="Describa si el clima afectó el rendimiento...", key="lo_clima_obs")
+            clima_cond_sel = st.selectbox("Estado del Clima:*", clima_opts, index=idx_clima, key="lo_clima_cond")
+            clima_obs = st.text_input("Observaciones del Clima en Obra:", value=saved_clima_obs, placeholder="Describa si el clima afectó el rendimiento...", key="lo_clima_obs")
 
         with c_cl2:
             st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")
             maq_input_map = {}
             for maq in MAQUINARIAS_FORMATO:
+                val_maq_prev = int(saved_maq_map.get(maq, 0)) if st.session_state.edit_lo_id else 0
                 c_m_l, c_m_v = st.columns([3, 1])
                 with c_m_l:
                     st.write(f"• {maq}")
                 with c_m_v:
-                    maq_input_map[maq] = st.number_input(f"M_{maq}", min_value=0, value=0, key=f"lo_maq_{maq}", label_visibility="collapsed")
+                    maq_input_map[maq] = st.number_input(
+                        f"M_{maq}", 
+                        min_value=0, 
+                        value=val_maq_prev, 
+                        key=f"lo_maq_{maq}_{st.session_state.get('edit_lo_id', 'new')}", 
+                        label_visibility="collapsed"
+                    )
 
         st.markdown("---")
 
         st.markdown("#### 4. Seguridad Industrial, Señalización y Mitigación")
+        saved_seg_map = st.session_state.get("lo_edit_seg_map", {})
+
         c_ss1, c_ss2, c_ss3 = st.columns(3)
         with c_ss1:
-            seg_casco = st.checkbox("Casco", value=False)
-            seg_chaleco = st.checkbox("Chalecos", value=False)
-            seg_guantes = st.checkbox("Guantes", value=False)
-            seg_gafas = st.checkbox("Gafas", value=False)
-            seg_mascarilla = st.checkbox("Mascarilla", value=False)
-            seg_auditivo = st.checkbox("Auditivo", value=False)
+            st.markdown("##### 🛡️ Seguridad")
+            seg_casco = st.checkbox("Casco", value=bool(saved_seg_map.get("Casco", False)), key=f"seg_casco_{st.session_state.get('edit_lo_id', 'new')}")
+            seg_chaleco = st.checkbox("Chalecos", value=bool(saved_seg_map.get("Chalecos", False)), key=f"seg_chaleco_{st.session_state.get('edit_lo_id', 'new')}")
+            seg_guantes = st.checkbox("Guantes", value=bool(saved_seg_map.get("Guantes", False)), key=f"seg_guantes_{st.session_state.get('edit_lo_id', 'new')}")
+            seg_gafas = st.checkbox("Gafas", value=bool(saved_seg_map.get("Gafas", False)), key=f"seg_gafas_{st.session_state.get('edit_lo_id', 'new')}")
+            seg_mascarilla = st.checkbox("Mascarilla", value=bool(saved_seg_map.get("Mascarilla", False)), key=f"seg_mascarilla_{st.session_state.get('edit_lo_id', 'new')}")
+            seg_auditivo = st.checkbox("Auditivo", value=bool(saved_seg_map.get("Auditivo", False)), key=f"seg_auditivo_{st.session_state.get('edit_lo_id', 'new')}")
 
         with c_ss2:
-            sen_conos = st.checkbox("Conos", value=False)
-            sen_cintas = st.checkbox("Cintas", value=False)
-            sen_rotulos = st.checkbox("Rótulos", value=False)
-            sen_vallas = st.checkbox("Vallas", value=False)
-            sen_extintor = st.checkbox("Extintor", value=False)
-            sen_botiquin = st.checkbox("Botiquín", value=False)
+            st.markdown("##### 🚧 Señalización")
+            sen_conos = st.checkbox("Conos", value=bool(saved_seg_map.get("Conos", False)), key=f"sen_conos_{st.session_state.get('edit_lo_id', 'new')}")
+            sen_cintas = st.checkbox("Cintas", value=bool(saved_seg_map.get("Cintas", False)), key=f"sen_cintas_{st.session_state.get('edit_lo_id', 'new')}")
+            sen_rotulos = st.checkbox("Rótulos", value=bool(saved_seg_map.get("Rótulos", False)), key=f"sen_rotulos_{st.session_state.get('edit_lo_id', 'new')}")
+            sen_vallas = st.checkbox("Vallas", value=bool(saved_seg_map.get("Vallas", False)), key=f"sen_vallas_{st.session_state.get('edit_lo_id', 'new')}")
+            sen_extintor = st.checkbox("Extintor", value=bool(saved_seg_map.get("Extintor", False)), key=f"sen_extintor_{st.session_state.get('edit_lo_id', 'new')}")
+            sen_botiquin = st.checkbox("Botiquín", value=bool(saved_seg_map.get("Botiquin", False)), key=f"sen_botiquin_{st.session_state.get('edit_lo_id', 'new')}")
 
         with c_ss3:
-            mit_polvo = st.checkbox("Control de Polvo", value=False)
-            mit_ruido = st.checkbox("Control de Ruido", value=False)
-            mit_liquidos = st.checkbox("Líquidos Contaminantes", value=False)
-            mit_cerramiento = st.checkbox("Cerramiento", value=False)
-            mit_limpieza = st.checkbox("Limpieza y Orden", value=False)
+            mit_polvo = st.checkbox("Control de Polvo", value=bool(saved_seg_map.get("Polvo", False)), key=f"mit_polvo_{st.session_state.get('edit_lo_id', 'new')}")
+            mit_ruido = st.checkbox("Control de Ruido", value=bool(saved_seg_map.get("Ruido", False)), key=f"mit_ruido_{st.session_state.get('edit_lo_id', 'new')}")
+            mit_liquidos = st.checkbox("Líquidos Contaminantes", value=bool(saved_seg_map.get("Liquidos", False)), key=f"mit_liquidos_{st.session_state.get('edit_lo_id', 'new')}")
+            mit_cerramiento = st.checkbox("Cerramiento", value=bool(saved_seg_map.get("Cerramiento", False)), key=f"mit_cerramiento_{st.session_state.get('edit_lo_id', 'new')}")
+            mit_limpieza = st.checkbox("Limpieza y Orden", value=bool(saved_seg_map.get("Limpieza", False)), key=f"mit_limpieza_{st.session_state.get('edit_lo_id', 'new')}")
 
         st.markdown("---")
         st.markdown("#### 5. Actividades Realizadas dentro de la Jornada Laboral")
@@ -3293,7 +3361,7 @@ else:
                     components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                     st.session_state.db_loaded = False
                     st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
-                    for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val"]:
+                    for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
                         if k in st.session_state:
                             del st.session_state[k]
                     st.rerun()
@@ -3371,20 +3439,28 @@ else:
                                     st.session_state.lo_edit_fisc_val = d_ed.get("Fiscalizador", "ING. DIEGO CHARVET")
                                     st.session_state.lo_edit_hoja_val = d_ed.get("Hoja", "000053")
                                     st.session_state.lo_edit_nov_val = d_ed.get("Novedades", "")
+                                    st.session_state.lo_edit_clima_val = d_ed.get("Clima_Condicion", insp_dict.get("Clima", "SOL"))
+                                    st.session_state.lo_edit_clima_obs_val = d_ed.get("Clima_Obs", "")
+                                    st.session_state.lo_edit_nom_map = d_ed.get("Nomina_Conteo", {})
+                                    st.session_state.lo_edit_rot_map = d_ed.get("Rotativo_Conteo", {})
+                                    st.session_state.lo_edit_maq_map = d_ed.get("Maquinaria_Conteo", {})
+                                    st.session_state.lo_edit_seg_map = d_ed.get("Seguridad_Check", {})
+                                    
                                     try:
                                         st.session_state.lo_edit_hini_val = datetime.datetime.strptime(insp_dict.get("Hora_Inicio", "07:00"), "%H:%M").time()
                                         st.session_state.lo_edit_hfin_val = datetime.datetime.strptime(insp_dict.get("Hora_Fin", "16:00"), "%H:%M").time()
                                     except Exception:
                                         pass
+                                        
                                     acts_lo_rec = d_ed.get("Actividades_Ejecutadas", [])
                                     st.session_state.filas_lo_actividades = [
                                         {
                                             "id": i + 1,
                                             "descripcion": it.get("Descripcion", it.get("actividad", "")),
-                                            "area": it.get("Area", ""),
+                                            "area": it.get("Area", it.get("area", "")),
                                             "encargados": it.get("Encargados", it.get("encargados", "")),
-                                            "unidad": it.get("Unidad", "m2"),
-                                            "cantidad": float(it.get("Cantidad", 0.0)),
+                                            "unidad": it.get("Unidad", it.get("unidad", "m2")),
+                                            "cantidad": float(it.get("Cantidad", it.get("cantidad", 0.0))),
                                             "observaciones": it.get("Observaciones", it.get("observaciones", ""))
                                         } for i, it in enumerate(acts_lo_rec)
                                     ] if acts_lo_rec else [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
