@@ -2794,7 +2794,7 @@ else:
                                 area_resp = st.text_input(
                                     f"Área {r_idx + 1}",
                                     value=resp_item.get("area", ""),
-                                    placeholder="Área de trabajo...",
+                                    placeholder="Área/Especialidad...",
                                     key=f"resp_area_{idx}_{r_idx}_{st.session_state.get('edit_chk_id', 'new')}",
                                     label_visibility="collapsed"
                                 )
