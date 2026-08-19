@@ -863,7 +863,7 @@ def get_repo_image_b64(filenames):
 
 
 def export_dataframe_to_excel_csv(df):
-    df_clean = df.drop(columns=["Foto_B64", "db_id", "id", "usuario_email"], errors="ignore")
+    df_clean = df.drop(columns=["Foto_B64", "Fotos", "db_id", "id", "usuario_email"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 
@@ -1038,9 +1038,14 @@ def get_cached_checklist_excel(jornada_dict_str):
 
     current_r = 5
     for item in items_verif:
-        obs_val = item.get("Observaciones", "")
+        obs_val = item.get("Observaciones", [])
         obs_str = " | ".join([f"• {o}" for o in obs_val if o]) if isinstance(obs_val, list) else str(obs_val or "")
-        ws.append([item.get("Jornada", ""), item.get("N°", ""), item.get("Actividad", ""), item.get("Estado", ""), obs_str])
+        estado_str = str(item.get("Estado", ""))
+        if item.get("Actividad") == "Coordinación con otras especialidades" and estado_str == "✗ No Cumple":
+            extra = f" | Resp: {item.get('Responsable', '')} - Área: {item.get('Area', '')}"
+        else:
+            extra = ""
+        ws.append([item.get("Jornada", ""), item.get("N°", ""), item.get("Actividad", ""), estado_str + extra, obs_str])
         ws.row_dimensions[current_r].height = 28
         for c_i in range(1, 6):
             cell_txt = ws.cell(row=current_r, column=c_i)
@@ -1067,10 +1072,11 @@ def get_cached_checklist_excel(jornada_dict_str):
                 cell_txt.font = Font(name="Arial", size=9)
                 cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
 
-            foto_b64 = sup.get("Foto_B64")
-            if foto_b64:
+            # Mostrar la primera foto de la lista (si existe)
+            fotos = sup.get("Fotos", [])
+            if fotos and len(fotos) > 0:
                 try:
-                    img_data = base64.b64decode(foto_b64)
+                    img_data = base64.b64decode(fotos[0])
                     img_pil = Image.open(io.BytesIO(img_data))
                     img_pil = ImageOps.exif_transpose(img_pil)
                     img_pil = img_pil.resize((500, 375), Image.Resampling.LANCZOS)
@@ -1131,13 +1137,18 @@ def get_cached_checklist_pdf(jornada_dict_str):
         Paragraph("<b>Observaciones Integradas</b>", header_style)
     ]]
     for item in items_verif:
-        obs_val = item.get("Observaciones", "")
+        obs_val = item.get("Observaciones", [])
         obs_str = "<br/>".join([f"• {o}" for o in obs_val if o]) if isinstance(obs_val, list) else str(obs_val or "")
+        estado_str = str(item.get("Estado", ""))
+        if item.get("Actividad") == "Coordinación con otras especialidades" and estado_str == "✗ No Cumple":
+            extra = f"<br/><b>Responsable:</b> {item.get('Responsable', '')} | <b>Área:</b> {item.get('Area', '')}"
+        else:
+            extra = ""
         data_v.append([
             Paragraph(str(item.get("Jornada", "")), cell_style),
             Paragraph(str(item.get("N°", "")), cell_style),
             Paragraph(str(item.get("Actividad", "")), cell_style),
-            Paragraph(str(item.get("Estado", "") or "Sin Responder"), cell_style),
+            Paragraph(estado_str + extra, cell_style),
             Paragraph(obs_str, cell_style)
         ])
 
@@ -2651,6 +2662,14 @@ else:
                 # JORNADA DE LA MAÑANA
                 st.markdown("#### 🌅 Jornada de la Mañana")
                 resp_manana = []
+                mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+                # Personal filtrado por edificio (opcional)
+                if edificio_val != "-- Seleccione --":
+                    personal_opciones = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio if (t.get("edificio") == edificio_val or t.get("edificio") == "General" or not t.get("edificio"))]
+                    if not personal_opciones:
+                        personal_opciones = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio]
+                else:
+                    personal_opciones = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio]
 
                 for idx, act in enumerate(ACTIVIDADES_MANANA_CLEAN, 1):
                     item_key = f"m_{idx}"
@@ -2703,17 +2722,71 @@ else:
                                 st.rerun()
 
                     with c_col3:
+                        # Solo permitir fotos para ítems diferentes al primero
                         if idx != 1:
-                            st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                            ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}_{st.session_state.get('edit_chk_id', 'new')}", label_visibility="collapsed")
-                            ft_b64 = image_to_base64(ft) if ft is not None else item_guardado.get("Foto_B64")
+                            st.markdown("<small style='font-weight:700; color:#334155;'>Fotos Evidencia (múltiples):</small>", unsafe_allow_html=True)
+                            uploaded_files = st.file_uploader(
+                                f"Fotos M_{idx}",
+                                type=["jpg", "jpeg", "png"],
+                                accept_multiple_files=True,
+                                key=f"m_ft_{idx}_{st.session_state.get('edit_chk_id', 'new')}",
+                                label_visibility="collapsed"
+                            )
+                            fotos_b64 = []
+                            if uploaded_files:
+                                for f in uploaded_files:
+                                    b64 = image_to_base64(f)
+                                    if b64:
+                                        fotos_b64.append(b64)
+                            else:
+                                # Si está editando y ya tiene fotos guardadas, restaurar
+                                fotos_guardadas = item_guardado.get("Fotos", [])
+                                if fotos_guardadas:
+                                    fotos_b64 = fotos_guardadas
                         else:
-                            st.markdown("<small style='font-weight:700; color:#94a3b8;'>Foto Evidencia:</small>", unsafe_allow_html=True)
+                            st.markdown("<small style='font-weight:700; color:#94a3b8;'>Fotos Evidencia:</small>", unsafe_allow_html=True)
                             st.caption("📷 *No requerida*")
-                            ft_b64 = None
+                            fotos_b64 = []
+
+                    # Nuevos campos para "Coordinación con otras especialidades" (idx == 3)
+                    responsable_sel = ""
+                    area_txt = ""
+                    if act == "Coordinación con otras especialidades" and est == "✗ No Cumple":
+                        st.markdown("---")
+                        st.markdown("##### Datos adicionales para No Cumple")
+                        c_resp, c_area = st.columns(2)
+                        with c_resp:
+                            if personal_opciones:
+                                responsable_sel = st.selectbox(
+                                    "Responsable:",
+                                    options=personal_opciones,
+                                    index=personal_opciones.index(item_guardado.get("Responsable", "")) if item_guardado.get("Responsable") in personal_opciones else 0,
+                                    key=f"m_resp_{idx}_{st.session_state.get('edit_chk_id', 'new')}"
+                                )
+                            else:
+                                responsable_sel = st.text_input(
+                                    "Responsable (manual):",
+                                    value=item_guardado.get("Responsable", ""),
+                                    key=f"m_resp_manual_{idx}_{st.session_state.get('edit_chk_id', 'new')}"
+                                )
+                        with c_area:
+                            area_txt = st.text_input(
+                                "Área / Ubicación:",
+                                value=item_guardado.get("Area", ""),
+                                key=f"m_area_{idx}_{st.session_state.get('edit_chk_id', 'new')}"
+                            )
 
                     st.markdown('</div>', unsafe_allow_html=True)
-                    resp_manana.append({"Jornada": "Mañana", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
+                    resp_manana.append({
+                        "Jornada": "Mañana",
+                        "N°": idx,
+                        "Actividad": act,
+                        "Estado": est,
+                        "Observaciones": obs_vals_item,
+                        "Fotos": fotos_b64,
+                        "Responsable": responsable_sel,
+                        "Area": area_txt
+                    })
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -2772,12 +2845,34 @@ else:
                                 st.rerun()
 
                     with c_col3:
-                        st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                        ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}_{st.session_state.get('edit_chk_id', 'new')}", label_visibility="collapsed")
-                        ft_b64 = image_to_base64(ft) if ft is not None else item_guardado_t.get("Foto_B64")
+                        st.markdown("<small style='font-weight:700; color:#334155;'>Fotos Evidencia (múltiples):</small>", unsafe_allow_html=True)
+                        uploaded_files_t = st.file_uploader(
+                            f"Fotos T_{idx}",
+                            type=["jpg", "jpeg", "png"],
+                            accept_multiple_files=True,
+                            key=f"t_ft_{idx}_{st.session_state.get('edit_chk_id', 'new')}",
+                            label_visibility="collapsed"
+                        )
+                        fotos_b64_t = []
+                        if uploaded_files_t:
+                            for f in uploaded_files_t:
+                                b64 = image_to_base64(f)
+                                if b64:
+                                    fotos_b64_t.append(b64)
+                        else:
+                            fotos_guardadas_t = item_guardado_t.get("Fotos", [])
+                            if fotos_guardadas_t:
+                                fotos_b64_t = fotos_guardadas_t
 
                     st.markdown('</div>', unsafe_allow_html=True)
-                    resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
+                    resp_tarde.append({
+                        "Jornada": "Tarde",
+                        "N°": idx,
+                        "Actividad": act,
+                        "Estado": est,
+                        "Observaciones": obs_vals_item,
+                        "Fotos": fotos_b64_t
+                    })
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -2821,7 +2916,7 @@ else:
                         "Actividad": act_val.strip(),
                         "Encargados": "",
                         "Observaciones": "",
-                        "Foto_B64": None
+                        "Fotos": []  # Sin fotos en esta sección
                     })
 
                 if indices_a_eliminar:
