@@ -2226,7 +2226,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON EDICIÓN Y CANCELAR ABAJO
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (FECHA BLOQUEADA EN EDICIÓN)
 # ==============================================================================
 
 # ==============================================================================
@@ -2266,10 +2266,18 @@ if es_maestro_mayor:
 
         local_today_mm = get_local_datetime_ecuador().date()
         fecha_default_mm = st.session_state.get("mm_edit_fecha_val", local_today_mm)
+        es_edicion_mm = bool(st.session_state.edit_mm_id)
 
         col_m_cfg1, col_m_cfg2, col_m_cfg3 = st.columns([1.5, 2, 1.5])
         with col_m_cfg1:
-            fecha_maestro_val = st.date_input("Fecha de Trabajo:*", fecha_default_mm, key="mm_fecha_input")
+            fecha_maestro_val = st.date_input(
+                "Fecha de Trabajo:*", 
+                fecha_default_mm, 
+                disabled=es_edicion_mm, 
+                key=f"mm_fecha_input_{st.session_state.get('edit_mm_id', 'new')}"
+            )
+            if es_edicion_mm:
+                st.caption("🔒 *La fecha no se puede modificar durante la edición.*")
         with col_m_cfg2:
             proyectos_maestro_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
             idx_edif_mm = 0
@@ -2429,7 +2437,6 @@ if es_maestro_mayor:
                     except Exception as e:
                         st.error(f"Error al procesar reporte: {e}")
 
-        # Botón Cancelar Edición ubicado abajo
         if st.session_state.edit_mm_id:
             if st.button("❌ Cancelar Edición", key="btn_cancel_edit_mm_bottom", use_container_width=True):
                 st.session_state.edit_mm_id = None
@@ -2571,6 +2578,8 @@ else:
             if st.session_state.edit_chk_id:
                 st.info("✏️ **Modo Edición de Checklist Activo**")
 
+            es_edicion_chk = bool(st.session_state.edit_chk_id)
+
             with st.container():
                 st.markdown("#### Configuración de la Jornada")
                 cfg_c1, cfg_c2, cfg_c3, cfg_c4, cfg_c5 = st.columns([2, 2, 2, 1.5, 1.5])
@@ -2586,7 +2595,14 @@ else:
                 with cfg_c3:
                     local_now_chk = get_local_datetime_ecuador().date()
                     fecha_def_chk = st.session_state.get("chk_edit_fecha_val", local_now_chk)
-                    fecha_val = st.date_input("Fecha:", fecha_def_chk, key="sel_fecha")
+                    fecha_val = st.date_input(
+                        "Fecha:", 
+                        fecha_def_chk, 
+                        disabled=es_edicion_chk, 
+                        key=f"sel_fecha_{st.session_state.get('edit_chk_id', 'new')}"
+                    )
+                    if es_edicion_chk:
+                        st.caption("🔒 *Fecha bloqueada en edición.*")
                 with cfg_c4:
                     h_ini_def = st.session_state.get("chk_edit_hini_val", datetime.time(7, 0))
                     hora_inicio_val = st.time_input("Hora Inicio:", h_ini_def, key="sel_hora_inicio")
@@ -2632,7 +2648,13 @@ else:
 
                     with c_col1:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
-                        est = st.segmented_control(f"M_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], default=default_estado_m, key=f"m_st_{idx}", label_visibility="collapsed")
+                        est = st.segmented_control(
+                            f"M_Est_{idx}", 
+                            ["✓ Cumple", "✗ No Cumple"], 
+                            default=default_estado_m, 
+                            key=f"m_st_{idx}_{st.session_state.get('edit_chk_id', 'new')}", 
+                            label_visibility="collapsed"
+                        )
 
                     with c_col2:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
@@ -2642,7 +2664,13 @@ else:
 
                         for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
                             val_o_prev = obs_guardadas_m[sub_o - 1] if sub_o <= len(obs_guardadas_m) else ""
-                            o_txt = st.text_input(f"Obs {idx}_{sub_o}", value=val_o_prev, key=f"m_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
+                            o_txt = st.text_input(
+                                f"Obs {idx}_{sub_o}", 
+                                value=val_o_prev, 
+                                key=f"m_ob_{idx}_{sub_o}_{st.session_state.get('edit_chk_id', 'new')}", 
+                                placeholder=f"Observación {sub_o}...", 
+                                label_visibility="collapsed"
+                            )
                             if o_txt.strip():
                                 obs_vals_item.append(o_txt.strip())
                         
@@ -2655,7 +2683,7 @@ else:
                     with c_col3:
                         if idx != 1:
                             st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                            ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
+                            ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}_{st.session_state.get('edit_chk_id', 'new')}", label_visibility="collapsed")
                             ft_b64 = image_to_base64(ft) if ft is not None else item_guardado.get("Foto_B64")
                         else:
                             st.markdown("<small style='font-weight:700; color:#94a3b8;'>Foto Evidencia:</small>", unsafe_allow_html=True)
@@ -2689,7 +2717,13 @@ else:
 
                     with c_col1:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
-                        est = st.segmented_control(f"T_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], default=default_estado_t, key=f"t_st_{idx}", label_visibility="collapsed")
+                        est = st.segmented_control(
+                            f"T_Est_{idx}", 
+                            ["✓ Cumple", "✗ No Cumple"], 
+                            default=default_estado_t, 
+                            key=f"t_st_{idx}_{st.session_state.get('edit_chk_id', 'new')}", 
+                            label_visibility="collapsed"
+                        )
 
                     with c_col2:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
@@ -2699,7 +2733,13 @@ else:
 
                         for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
                             val_o_prev_t = obs_guardadas_t[sub_o - 1] if sub_o <= len(obs_guardadas_t) else ""
-                            o_txt = st.text_input(f"Obs T_{idx}_{sub_o}", value=val_o_prev_t, key=f"t_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
+                            o_txt = st.text_input(
+                                f"Obs T_{idx}_{sub_o}", 
+                                value=val_o_prev_t, 
+                                key=f"t_ob_{idx}_{sub_o}_{st.session_state.get('edit_chk_id', 'new')}", 
+                                placeholder=f"Observación {sub_o}...", 
+                                label_visibility="collapsed"
+                            )
                             if o_txt.strip():
                                 obs_vals_item.append(o_txt.strip())
                         
@@ -2711,7 +2751,7 @@ else:
 
                     with c_col3:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
-                        ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
+                        ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}_{st.session_state.get('edit_chk_id', 'new')}", label_visibility="collapsed")
                         ft_b64 = image_to_base64(ft) if ft is not None else item_guardado_t.get("Foto_B64")
 
                     st.markdown('</div>', unsafe_allow_html=True)
@@ -2822,7 +2862,6 @@ else:
                             except Exception as e:
                                 st.error(f"Error al guardar checklist: {e}")
 
-                # Botón Cancelar Edición ubicado abajo
                 if st.session_state.edit_chk_id:
                     if st.button("❌ Cancelar Edición", key="btn_cancel_edit_chk_bottom", use_container_width=True):
                         st.session_state.edit_chk_id = None
@@ -2947,12 +2986,18 @@ else:
         dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
         local_today_insp = get_local_datetime_ecuador().date()
         lo_fecha_def = st.session_state.get("lo_edit_fecha_val", local_today_insp)
+        es_edicion_lo = bool(st.session_state.edit_lo_id)
 
         col_lo1, col_lo2 = st.columns([1.5, 2.5])
         with col_lo1:
-            lo_fecha = st.date_input("Fecha de Reporte:", lo_fecha_def, key="lo_official_fecha")
+            lo_fecha = st.date_input(
+                "Fecha de Reporte:", 
+                lo_fecha_def, 
+                disabled=es_edicion_lo, 
+                key=f"lo_official_fecha_{st.session_state.get('edit_lo_id', 'new')}"
+            )
             lo_dia = dias_es[lo_fecha.weekday()]
-            st.caption(f"Día seleccionado: **{lo_dia}**")
+            st.caption(f"Día seleccionado: **{lo_dia}**" + (" *(🔒 Fecha fija en edición)*" if es_edicion_lo else ""))
 
         fecha_lo_str = lo_fecha.strftime("%Y-%m-%d")
         chk_asociado = next((c for c in mis_jornadas if c.get("Fecha") == fecha_lo_str), None)
@@ -3360,7 +3405,6 @@ else:
                 except Exception as e:
                     st.error(f"Error al procesar: {e}")
 
-        # Botón Cancelar Edición ubicado abajo
         if st.session_state.edit_lo_id:
             if st.button("❌ Cancelar Edición", key="btn_cancel_edit_lo_bottom", use_container_width=True):
                 st.session_state.edit_lo_id = None
