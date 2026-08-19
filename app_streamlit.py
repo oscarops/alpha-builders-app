@@ -2226,7 +2226,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON EDICIÓN HABILITADA
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON EDICIÓN HABILITADA Y CORREGIDA
 # ==============================================================================
 
 # ==============================================================================
@@ -2266,6 +2266,10 @@ if es_maestro_mayor:
             if st.button("❌ Cancelar Edición", key="btn_cancel_edit_mm"):
                 st.session_state.edit_mm_id = None
                 st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                if "mm_edit_fecha_val" in st.session_state:
+                    del st.session_state["mm_edit_fecha_val"]
+                if "mm_edit_edif_val" in st.session_state:
+                    del st.session_state["mm_edit_edif_val"]
                 st.rerun()
 
         local_today_mm = get_local_datetime_ecuador().date()
@@ -2426,6 +2430,10 @@ if es_maestro_mayor:
                         components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                         st.session_state.db_loaded = False
                         st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                        if "mm_edit_fecha_val" in st.session_state:
+                            del st.session_state["mm_edit_fecha_val"]
+                        if "mm_edit_edif_val" in st.session_state:
+                            del st.session_state["mm_edit_edif_val"]
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al procesar reporte: {e}")
@@ -2451,7 +2459,10 @@ if es_maestro_mayor:
                         insp_db_id_m = insp_dict_m.get("db_id")
 
                         with st.expander(f"📌 [{insp_dict_m.get('Proyecto')}] {insp_dict_m.get('Fecha')} ({insp_dict_m.get('Dia')})", expanded=False):
-                            acts_guardadas = insp_dict_m.get("Datos", {}).get("Actividades_Maestro", [])
+                            raw_dm = insp_dict_m.get("Datos", {})
+                            d_parsed = raw_dm if isinstance(raw_dm, dict) else json.loads(raw_dm or "{}") if isinstance(raw_dm, str) else {}
+                            acts_guardadas = d_parsed.get("Actividades_Maestro", []) if isinstance(d_parsed, dict) else []
+                            
                             for a_g in acts_guardadas:
                                 pers_str = ", ".join(a_g.get("Personal_A_Cargo", [])) if isinstance(a_g.get("Personal_A_Cargo"), list) else str(a_g.get("Personal_A_Cargo", ""))
                                 pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
@@ -2483,7 +2494,9 @@ if es_maestro_mayor:
                                     st.session_state.edit_mm_id = insp_db_id_m
                                     st.session_state.mm_edit_fecha_val = pd.to_datetime(insp_dict_m.get("Fecha")).date()
                                     st.session_state.mm_edit_edif_val = insp_dict_m.get("Proyecto")
-                                    acts_rec = insp_dict_m.get("Datos", {}).get("Actividades_Maestro", [])
+                                    raw_dm2 = insp_dict_m.get("Datos", {})
+                                    d_parsed2 = raw_dm2 if isinstance(raw_dm2, dict) else json.loads(raw_dm2 or "{}") if isinstance(raw_dm2, str) else {}
+                                    acts_rec = d_parsed2.get("Actividades_Maestro", []) if isinstance(d_parsed2, dict) else []
                                     st.session_state.filas_maestro_act = [
                                         {
                                             "id": i + 1,
@@ -2532,6 +2545,12 @@ else:
             if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
                 st.session_state.creando_jornada = True
                 st.session_state.edit_chk_id = None
+                st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
+                st.session_state.chk_obs_counts = {}
+                # Limpiar precargas
+                for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
                 st.rerun()
 
         if st.session_state.creando_jornada or st.session_state.edit_chk_id:
@@ -2542,6 +2561,9 @@ else:
                     st.session_state.edit_chk_id = None
                     st.session_state.creando_jornada = False
                     st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
+                    for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
+                        if k in st.session_state:
+                            del st.session_state[k]
                     st.rerun()
 
             with st.container():
@@ -2569,6 +2591,9 @@ else:
 
                 st.markdown("---")
 
+                # Mapa precargado de respuestas en modo edición
+                edit_resp_map = st.session_state.get("chk_edit_resp_map", {})
+
                 # JORNADA DE LA MAÑANA
                 st.markdown("#### 🌅 Jornada de la Mañana")
                 resp_manana = []
@@ -2582,15 +2607,25 @@ else:
                     st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                     c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
 
+                    item_guardado = edit_resp_map.get(f"Mañana_{act}", {})
+                    default_estado_m = item_guardado.get("Estado", None)
+                    obs_guardadas_m = item_guardado.get("Observaciones", [])
+                    if isinstance(obs_guardadas_m, str):
+                        obs_guardadas_m = [obs_guardadas_m] if obs_guardadas_m else []
+
                     with c_col1:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
-                        est = st.segmented_control(f"M_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], key=f"m_st_{idx}", label_visibility="collapsed")
+                        est = st.segmented_control(f"M_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], default=default_estado_m, key=f"m_st_{idx}", label_visibility="collapsed")
 
                     with c_col2:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
                         obs_vals_item = []
+                        total_obs_count = max(st.session_state.chk_obs_counts[item_key], len(obs_guardadas_m))
+                        st.session_state.chk_obs_counts[item_key] = max(total_obs_count, 1)
+
                         for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                            o_txt = st.text_input(f"Obs {idx}_{sub_o}", key=f"m_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
+                            val_o_prev = obs_guardadas_m[sub_o - 1] if sub_o <= len(obs_guardadas_m) else ""
+                            o_txt = st.text_input(f"Obs {idx}_{sub_o}", value=val_o_prev, key=f"m_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
                             if o_txt.strip():
                                 obs_vals_item.append(o_txt.strip())
                         
@@ -2604,7 +2639,7 @@ else:
                         if idx != 1:
                             st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
                             ft = st.file_uploader(f"Foto M_{idx}", type=["jpg", "jpeg", "png"], key=f"m_ft_{idx}", label_visibility="collapsed")
-                            ft_b64 = image_to_base64(ft) if ft is not None else None
+                            ft_b64 = image_to_base64(ft) if ft is not None else item_guardado.get("Foto_B64")
                         else:
                             st.markdown("<small style='font-weight:700; color:#94a3b8;'>Foto Evidencia:</small>", unsafe_allow_html=True)
                             st.caption("📷 *No requerida*")
@@ -2628,15 +2663,25 @@ else:
                     st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
                     c_col1, c_col2, c_col3 = st.columns([1.1, 2.3, 1.6])
 
+                    item_guardado_t = edit_resp_map.get(f"Tarde_{act}", {})
+                    default_estado_t = item_guardado_t.get("Estado", None)
+                    obs_guardadas_t = item_guardado_t.get("Observaciones", [])
+                    if isinstance(obs_guardadas_t, str):
+                        obs_guardadas_t = [obs_guardadas_t] if obs_guardadas_t else []
+
                     with c_col1:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Estado General:</small>", unsafe_allow_html=True)
-                        est = st.segmented_control(f"T_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], key=f"t_st_{idx}", label_visibility="collapsed")
+                        est = st.segmented_control(f"T_Est_{idx}", ["✓ Cumple", "✗ No Cumple"], default=default_estado_t, key=f"t_st_{idx}", label_visibility="collapsed")
 
                     with c_col2:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Observaciones del Ítem:</small>", unsafe_allow_html=True)
                         obs_vals_item = []
+                        total_obs_count_t = max(st.session_state.chk_obs_counts[item_key], len(obs_guardadas_t))
+                        st.session_state.chk_obs_counts[item_key] = max(total_obs_count_t, 1)
+
                         for sub_o in range(1, st.session_state.chk_obs_counts[item_key] + 1):
-                            o_txt = st.text_input(f"Obs T_{idx}_{sub_o}", key=f"t_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
+                            val_o_prev_t = obs_guardadas_t[sub_o - 1] if sub_o <= len(obs_guardadas_t) else ""
+                            o_txt = st.text_input(f"Obs T_{idx}_{sub_o}", value=val_o_prev_t, key=f"t_ob_{idx}_{sub_o}", placeholder=f"Observación {sub_o}...", label_visibility="collapsed")
                             if o_txt.strip():
                                 obs_vals_item.append(o_txt.strip())
                         
@@ -2649,7 +2694,7 @@ else:
                     with c_col3:
                         st.markdown("<small style='font-weight:700; color:#334155;'>Foto Evidencia:</small>", unsafe_allow_html=True)
                         ft = st.file_uploader(f"Foto T_{idx}", type=["jpg", "jpeg", "png"], key=f"t_ft_{idx}", label_visibility="collapsed")
-                        ft_b64 = image_to_base64(ft) if ft is not None else None
+                        ft_b64 = image_to_base64(ft) if ft is not None else item_guardado_t.get("Foto_B64")
 
                     st.markdown('</div>', unsafe_allow_html=True)
                     resp_tarde.append({"Jornada": "Tarde", "N°": idx, "Actividad": act, "Estado": est, "Observaciones": obs_vals_item, "Foto_B64": ft_b64})
@@ -2752,6 +2797,9 @@ else:
                                 st.session_state.creando_jornada = False
                                 st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
                                 st.session_state.chk_obs_counts = {}
+                                for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
+                                    if k in st.session_state:
+                                        del st.session_state[k]
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Error al guardar checklist: {e}")
@@ -2814,7 +2862,24 @@ else:
                                         st.session_state.chk_edit_hfin_val = datetime.datetime.strptime(j_dict.get("Hora_Fin", "16:00"), "%H:%M").time()
                                     except Exception:
                                         pass
-                                    sups_rec = j_dict.get("Datos", {}).get("Supervision_Trabajos", [])
+
+                                    raw_data_chk = j_dict.get("Datos", {})
+                                    parsed_chk_d = raw_data_chk if isinstance(raw_data_chk, dict) else json.loads(raw_data_chk or "{}") if isinstance(raw_data_chk, str) else {}
+                                    
+                                    if isinstance(parsed_chk_d, dict):
+                                        verifs = parsed_chk_d.get("Verificaciones", [])
+                                        sups_rec = parsed_chk_d.get("Supervision_Trabajos", [])
+                                    elif isinstance(parsed_chk_d, list):
+                                        verifs = parsed_chk_d
+                                        sups_rec = []
+                                    else:
+                                        verifs = []
+                                        sups_rec = []
+
+                                    st.session_state.chk_edit_resp_map = {
+                                        f"{v.get('Jornada', '')}_{v.get('Actividad', '')}": v for v in verifs if isinstance(v, dict)
+                                    }
+
                                     st.session_state.filas_supervision = [
                                         {"id": i + 1, "actividad": it.get("Actividad", "")} for i, it in enumerate(sups_rec)
                                     ] if sups_rec else [{"id": 1, "actividad": ""}]
@@ -2845,6 +2910,9 @@ else:
             if st.button("❌ Cancelar Edición de Libro de Obra", key="btn_cancel_edit_lo"):
                 st.session_state.edit_lo_id = None
                 st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
                 st.rerun()
 
         dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
@@ -3039,8 +3107,9 @@ else:
 
         checklist_clave_sesion = f"init_chk_lo_{fecha_lo_str}_{lo_proyecto}"
         if chk_asociado and checklist_clave_sesion not in st.session_state and not st.session_state.edit_lo_id:
-            datos_chk = chk_asociado.get("Datos", {})
-            sup_items = datos_chk.get("Supervision_Trabajos", []) if isinstance(datos_chk, dict) else []
+            raw_dchk = chk_asociado.get("Datos", {})
+            d_p_chk = raw_dchk if isinstance(raw_dchk, dict) else json.loads(raw_dchk or "{}") if isinstance(raw_dchk, str) else {}
+            sup_items = d_p_chk.get("Supervision_Trabajos", []) if isinstance(d_p_chk, dict) else []
             importados_chk = []
             for s_it in sup_items:
                 if s_it.get("Actividad"):
@@ -3224,6 +3293,9 @@ else:
                     components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                     st.session_state.db_loaded = False
                     st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                    for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val"]:
+                        if k in st.session_state:
+                            del st.session_state[k]
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error al procesar: {e}")
@@ -3258,7 +3330,9 @@ else:
                         insp_db_id = insp_dict.get("db_id")
 
                         with st.expander(f"📌 {insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
-                            d_insp = insp_dict.get("Datos", {})
+                            raw_dinsp = insp_dict.get("Datos", {})
+                            d_insp = raw_dinsp if isinstance(raw_dinsp, dict) else json.loads(raw_dinsp or "{}") if isinstance(raw_dinsp, str) else {}
+                            
                             st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp_dict.get('Frente', ''))} | **Clima:** {insp_dict.get('Clima', '')}")
                             st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
 
@@ -3288,7 +3362,9 @@ else:
                                     st.session_state.edit_lo_id = insp_db_id
                                     st.session_state.lo_edit_proy_val = insp_dict.get("Proyecto")
                                     st.session_state.lo_edit_fecha_val = pd.to_datetime(insp_dict.get("Fecha")).date()
-                                    d_ed = insp_dict.get("Datos", {})
+                                    raw_ed = insp_dict.get("Datos", {})
+                                    d_ed = raw_ed if isinstance(raw_ed, dict) else json.loads(raw_ed or "{}") if isinstance(raw_ed, str) else {}
+                                    
                                     st.session_state.lo_edit_ubic_val = d_ed.get("Ubicacion", "CALLE LUXEMBURGO Y HOLANDA")
                                     st.session_state.lo_edit_barr_val = d_ed.get("Barrio", "BENALCAZAR")
                                     st.session_state.lo_edit_super_val = d_ed.get("Superintendente", "ING. PABLO ESPINOSA")
