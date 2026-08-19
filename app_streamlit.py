@@ -1280,8 +1280,10 @@ def get_cached_libro_oficial_excel(insp_dict_str):
     ws.title = "Libro de Obra"
 
     thin_border = Border(
-        left=Side(style='thin', color='CBD5E1'), right=Side(style='thin', color='CBD5E1'),
-        top=Side(style='thin', color='CBD5E1'), bottom=Side(style='thin', color='CBD5E1')
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
     )
     fill_header = PatternFill(start_color="121318", end_color="121318", fill_type="solid")
     fill_sub = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
@@ -2188,11 +2190,11 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
+# Pestañas adaptadas: para Maestro Mayor se removió Levantamiento de Incidencias
 if es_maestro_mayor:
     pestanas = [
         "Libro de Obra Maestro",
         "Personal a Cargo",
-        "Levantamiento de Incidencias",
         "Control de Rendimiento",
         "Colaborativo"
     ]
@@ -2211,8 +2213,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (MAESTRO MAYOR INDEPENDIENTE Y
-#                AUTOCÁLCULO DE NÓMINA EXCLUSIVO PARA RESIDENTES Y ASISTENTES)
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON EDICIÓN HABILITADA
 # ==============================================================================
 
 # ==============================================================================
@@ -2221,9 +2222,8 @@ tabs_app = st.tabs(pestanas)
 if es_maestro_mayor:
     tab_libro_maestro = tabs_app[0]
     tab_personal = tabs_app[1]
-    tab_incidencias = tabs_app[2]
-    tab_rend = tabs_app[3]
-    tab_colab = tabs_app[4]
+    tab_rend = tabs_app[2]
+    tab_colab = tabs_app[3]
 else:
     tab_chk = tabs_app[0]
     tab_libro = tabs_app[1]
@@ -2240,22 +2240,37 @@ if es_maestro_mayor:
         st.markdown("### Libro de Obra – Maestro Mayor")
         st.caption("Registro diario de actividades, cuadrillas a cargo y metrajes ejecutados en obra.")
 
+        if "edit_mm_id" not in st.session_state:
+            st.session_state.edit_mm_id = None
+
         if "filas_maestro_act" not in st.session_state:
             st.session_state.filas_maestro_act = [
                 {"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}
             ]
 
+        if st.session_state.edit_mm_id:
+            st.warning(f"✏️ **Modo Edición Activo:** Modificando reporte ID `{st.session_state.edit_mm_id}`")
+            if st.button("❌ Cancelar Edición", key="btn_cancel_edit_mm"):
+                st.session_state.edit_mm_id = None
+                st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                st.rerun()
+
         local_today_mm = get_local_datetime_ecuador().date()
+        fecha_default_mm = st.session_state.get("mm_edit_fecha_val", local_today_mm)
 
         col_m_cfg1, col_m_cfg2, col_m_cfg3 = st.columns([1.5, 2, 1.5])
         with col_m_cfg1:
-            fecha_maestro_val = st.date_input("Fecha de Trabajo:*", local_today_mm, key="mm_fecha_input")
+            fecha_maestro_val = st.date_input("Fecha de Trabajo:*", fecha_default_mm, key="mm_fecha_input")
         with col_m_cfg2:
             proyectos_maestro_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+            idx_edif_mm = 0
+            if "mm_edit_edif_val" in st.session_state and st.session_state.mm_edit_edif_val in proyectos_maestro_disp:
+                idx_edif_mm = proyectos_maestro_disp.index(st.session_state.mm_edit_edif_val) + 1
+
             edificio_maestro_val = st.selectbox(
                 "Proyecto / Edificio Asignado:*",
                 ["-- Seleccione un Proyecto --"] + proyectos_maestro_disp,
-                index=0,
+                index=idx_edif_mm,
                 key="mm_edificio_input"
             )
         with col_m_cfg3:
@@ -2353,7 +2368,8 @@ if es_maestro_mayor:
             st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("💾 Guardar Reporte de Maestro Mayor", type="primary", use_container_width=True):
+        lbl_btn_mm = "🔄 Actualizar Reporte de Maestro Mayor" if st.session_state.edit_mm_id else "💾 Guardar Reporte de Maestro Mayor"
+        if st.button(lbl_btn_mm, type="primary", use_container_width=True):
             if edificio_maestro_val == "-- Seleccione un Proyecto --":
                 st.error("⚠️ Debe seleccionar el Edificio o Proyecto donde realizó los trabajos.")
             else:
@@ -2372,28 +2388,34 @@ if es_maestro_mayor:
                         "Fecha": fecha_maestro_val.strftime("%Y-%m-%d")
                     }
 
+                    record_data_mm = {
+                        "usuario_email": user_email,
+                        "proyecto": edificio_maestro_val,
+                        "fecha": fecha_maestro_val.strftime("%Y-%m-%d"),
+                        "dia": dia_str_m,
+                        "residente": user_nombre_completo,
+                        "frente": "Reporte de Maestro Mayor",
+                        "clima": "N/A",
+                        "hora_inicio": "07:00",
+                        "hora_fin": "16:00",
+                        "datos": payload_final_mm
+                    }
+
                     try:
-                        supabase.table("inspecciones").insert({
-                            "usuario_email": user_email,
-                            "proyecto": edificio_maestro_val,
-                            "fecha": fecha_maestro_val.strftime("%Y-%m-%d"),
-                            "dia": dia_str_m,
-                            "residente": user_nombre_completo,
-                            "frente": "Reporte de Maestro Mayor",
-                            "clima": "N/A",
-                            "hora_inicio": "07:00",
-                            "hora_fin": "16:00",
-                            "datos": payload_final_mm
-                        }).execute()
+                        if st.session_state.edit_mm_id:
+                            supabase.table("inspecciones").update(record_data_mm).eq("id", st.session_state.edit_mm_id).execute()
+                            st.success(f"¡Reporte actualizado exitosamente para **{edificio_maestro_val}**!")
+                            st.session_state.edit_mm_id = None
+                        else:
+                            supabase.table("inspecciones").insert(record_data_mm).execute()
+                            st.success(f"¡Reporte del Maestro guardado exitosamente para **{edificio_maestro_val}**!")
 
                         components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
-                        
                         st.session_state.db_loaded = False
-                        st.success(f"¡Reporte del Maestro guardado exitosamente para **{edificio_maestro_val}**!")
                         st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error al guardar: {e}")
+                        st.error(f"Error al procesar reporte: {e}")
 
         st.markdown("---")
         st.markdown("### Historial de Reportes del Maestro Mayor")
@@ -2422,7 +2444,7 @@ if es_maestro_mayor:
                                 pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
                                 st.write(f"• **{a_g.get('Actividad')}**: `{a_g.get('Cantidad')}`{pers_tag} — *{a_g.get('Observaciones', 'Sin observaciones')}*")
 
-                            c_dl_m1, c_dl_m2, c_del_m = st.columns([2, 2, 1])
+                            c_dl_m1, c_dl_m2, c_ed_m, c_del_m = st.columns([2, 2, 1, 1])
                             with c_dl_m1:
                                 with st.popover("📊 Exportar Excel", use_container_width=True):
                                     st.download_button(
@@ -2443,6 +2465,23 @@ if es_maestro_mayor:
                                         key=f"dl_mm_pdf_{idx_insp_m}",
                                         use_container_width=True
                                     )
+                            with c_ed_m:
+                                if st.button("✏️", key=f"btn_edit_mm_{idx_insp_m}_{insp_db_id_m}", help="Editar reporte", use_container_width=True):
+                                    st.session_state.edit_mm_id = insp_db_id_m
+                                    st.session_state.mm_edit_fecha_val = pd.to_datetime(insp_dict_m.get("Fecha")).date()
+                                    st.session_state.mm_edit_edif_val = insp_dict_m.get("Proyecto")
+                                    acts_rec = insp_dict_m.get("Datos", {}).get("Actividades_Maestro", [])
+                                    st.session_state.filas_maestro_act = [
+                                        {
+                                            "id": i + 1,
+                                            "actividad": it.get("Actividad", ""),
+                                            "cantidad": it.get("Cantidad", ""),
+                                            "personal_a_cargo": it.get("Personal_A_Cargo", []),
+                                            "observaciones": it.get("Observaciones", "")
+                                        } for i, it in enumerate(acts_rec)
+                                    ] if acts_rec else [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                                    st.rerun()
+
                             with c_del_m:
                                 if st.button("🗑️", key=f"btn_del_mm_{idx_insp_m}_{insp_db_id_m}", help="Eliminar reporte", use_container_width=True):
                                     try:
@@ -2464,10 +2503,11 @@ else:
         if "creando_jornada" not in st.session_state:
             st.session_state.creando_jornada = False
 
+        if "edit_chk_id" not in st.session_state:
+            st.session_state.edit_chk_id = None
+
         if "filas_supervision" not in st.session_state:
-            st.session_state.filas_supervision = [
-                {"id": 1, "actividad": ""}
-            ]
+            st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
 
         if "chk_obs_counts" not in st.session_state:
             st.session_state.chk_obs_counts = {}
@@ -2475,28 +2515,44 @@ else:
         st.markdown("### Checklist – Control de Obra")
         st.caption("Supervisión técnica y control de ejecución diaria en obra.")
 
-        if not st.session_state.creando_jornada:
+        if not st.session_state.creando_jornada and not st.session_state.edit_chk_id:
             if st.button("➕ Crear Nueva Jornada de Inspección", type="primary"):
                 st.session_state.creando_jornada = True
+                st.session_state.edit_chk_id = None
                 st.rerun()
 
-        if st.session_state.creando_jornada:
+        if st.session_state.creando_jornada or st.session_state.edit_chk_id:
             st.markdown("---")
+            if st.session_state.edit_chk_id:
+                st.warning(f"✏️ **Modo Edición de Checklist Activo** (ID: `{st.session_state.edit_chk_id}`)")
+                if st.button("❌ Cancelar Edición de Checklist", key="btn_cancel_edit_chk"):
+                    st.session_state.edit_chk_id = None
+                    st.session_state.creando_jornada = False
+                    st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
+                    st.rerun()
+
             with st.container():
-                st.markdown("#### Configuración de la Nueva Jornada")
+                st.markdown("#### Configuración de la Jornada")
                 cfg_c1, cfg_c2, cfg_c3, cfg_c4, cfg_c5 = st.columns([2, 2, 2, 1.5, 1.5])
                 with cfg_c1:
                     proyectos_disponibles = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
-                    edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + proyectos_disponibles, index=0, key="sel_edificio")
+                    idx_edif_chk = 0
+                    if "chk_edit_edif_val" in st.session_state and st.session_state.chk_edit_edif_val in proyectos_disponibles:
+                        idx_edif_chk = proyectos_disponibles.index(st.session_state.chk_edit_edif_val) + 1
+
+                    edificio_val = st.selectbox("Edificio / Proyecto:", ["-- Seleccione --"] + proyectos_disponibles, index=idx_edif_chk, key="sel_edificio")
                 with cfg_c2:
                     st.text_input("Responsable:", value=user_nombre_completo, disabled=True)
                 with cfg_c3:
                     local_now_chk = get_local_datetime_ecuador().date()
-                    fecha_val = st.date_input("Fecha:", local_now_chk, key="sel_fecha")
+                    fecha_def_chk = st.session_state.get("chk_edit_fecha_val", local_now_chk)
+                    fecha_val = st.date_input("Fecha:", fecha_def_chk, key="sel_fecha")
                 with cfg_c4:
-                    hora_inicio_val = st.time_input("Hora Inicio:", datetime.time(7, 0), key="sel_hora_inicio")
+                    h_ini_def = st.session_state.get("chk_edit_hini_val", datetime.time(7, 0))
+                    hora_inicio_val = st.time_input("Hora Inicio:", h_ini_def, key="sel_hora_inicio")
                 with cfg_c5:
-                    hora_fin_val = st.time_input("Hora Fin:", datetime.time(16, 0), key="sel_hora_fin")
+                    h_fin_def = st.session_state.get("chk_edit_hfin_val", datetime.time(16, 0))
+                    hora_fin_val = st.time_input("Hora Fin:", h_fin_def, key="sel_hora_fin")
 
                 st.markdown("---")
 
@@ -2587,7 +2643,7 @@ else:
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # SUPERVISIÓN DE TRABAJOS (TABLA ÁGIL SOLO DE ACTIVIDADES)
+                # SUPERVISIÓN DE TRABAJOS (TABLA ÁGIL DE ACTIVIDADES)
                 st.markdown("#### 📋 Supervisión de la Ejecución de Trabajos")
                 st.caption("Ingrese la lista de actividades supervisadas durante la jornada:")
 
@@ -2644,7 +2700,8 @@ else:
                     st.rerun()
 
                 st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("💾 Guardar Checklist de Obra", type="primary", use_container_width=True):
+                lbl_btn_chk = "🔄 Actualizar Checklist de Obra" if st.session_state.edit_chk_id else "💾 Guardar Checklist de Obra"
+                if st.button(lbl_btn_chk, type="primary", use_container_width=True):
                     if edificio_val == "-- Seleccione --" or not edificio_val:
                         st.error("⚠️ Por favor seleccione un Edificio o Proyecto válido.")
                     else:
@@ -2656,22 +2713,29 @@ else:
                             st.error("⚠️ Ingrese información antes de guardar.")
                         else:
                             payload_jornada = {"Verificaciones": manana_respondida + tarde_respondida, "Supervision_Trabajos": supervisiones_validas}
+                            chk_record = {
+                                "usuario_email": user_email,
+                                "edificio": edificio_val,
+                                "fecha": fecha_val.strftime("%Y-%m-%d"),
+                                "hora_inicio": hora_inicio_val.strftime("%H:%M"),
+                                "hora_fin": hora_fin_val.strftime("%H:%M"),
+                                "responsable": user_nombre_completo,
+                                "cargo": user_cargo,
+                                "observacion_general": "",
+                                "datos": payload_jornada
+                            }
+
                             try:
-                                supabase.table("checklists").insert({
-                                    "usuario_email": user_email,
-                                    "edificio": edificio_val,
-                                    "fecha": fecha_val.strftime("%Y-%m-%d"),
-                                    "hora_inicio": hora_inicio_val.strftime("%H:%M"),
-                                    "hora_fin": hora_fin_val.strftime("%H:%M"),
-                                    "responsable": user_nombre_completo,
-                                    "cargo": user_cargo,
-                                    "observacion_general": "",
-                                    "datos": payload_jornada
-                                }).execute()
+                                if st.session_state.edit_chk_id:
+                                    supabase.table("checklists").update(chk_record).eq("id", st.session_state.edit_chk_id).execute()
+                                    st.success(f"¡Checklist actualizado correctamente para **{edificio_val}**!")
+                                    st.session_state.edit_chk_id = None
+                                else:
+                                    supabase.table("checklists").insert(chk_record).execute()
+                                    st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
 
                                 components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                                 st.session_state.db_loaded = False
-                                st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
                                 st.session_state.creando_jornada = False
                                 st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
                                 st.session_state.chk_obs_counts = {}
@@ -2707,7 +2771,7 @@ else:
                         chk_db_id = j_dict.get("db_id")
 
                         with st.expander(f"📌 {j_dict['Edificio']} — {j_dict['Fecha']} (Horario: {j_dict.get('Hora_Inicio', 'N/A')} - {j_dict.get('Hora_Fin', 'N/A')})", expanded=False):
-                            c_dl1, c_dl2, c_del_chk = st.columns([2, 2, 1])
+                            c_dl1, c_dl2, c_ed_chk, c_del_chk = st.columns([2, 2, 1, 1])
                             with c_dl1:
                                 with st.popover("📊 Exportar Excel", use_container_width=True):
                                     st.download_button(
@@ -2726,6 +2790,23 @@ else:
                                         key=f"dl_pdf_{orig_idx}", 
                                         use_container_width=True
                                     )
+                            with c_ed_chk:
+                                if st.button("✏️", key=f"btn_edit_chk_{orig_idx}_{chk_db_id}", help="Editar checklist", use_container_width=True):
+                                    st.session_state.edit_chk_id = chk_db_id
+                                    st.session_state.creando_jornada = True
+                                    st.session_state.chk_edit_edif_val = j_dict.get("Edificio")
+                                    st.session_state.chk_edit_fecha_val = pd.to_datetime(j_dict.get("Fecha")).date()
+                                    try:
+                                        st.session_state.chk_edit_hini_val = datetime.datetime.strptime(j_dict.get("Hora_Inicio", "07:00"), "%H:%M").time()
+                                        st.session_state.chk_edit_hfin_val = datetime.datetime.strptime(j_dict.get("Hora_Fin", "16:00"), "%H:%M").time()
+                                    except Exception:
+                                        pass
+                                    sups_rec = j_dict.get("Datos", {}).get("Supervision_Trabajos", [])
+                                    st.session_state.filas_supervision = [
+                                        {"id": i + 1, "actividad": it.get("Actividad", "")} for i, it in enumerate(sups_rec)
+                                    ] if sups_rec else [{"id": 1, "actividad": ""}]
+                                    st.rerun()
+
                             with c_del_chk:
                                 if st.button("🗑️", key=f"btn_del_chk_{orig_idx}_{chk_db_id}", help="Eliminar checklist", use_container_width=True):
                                     try:
@@ -2738,17 +2819,28 @@ else:
         else:
             st.info("Aún no hay checklists guardados en tu cuenta.")
 
-    # 2. LIBRO DE OBRA OFICIAL (ESTRUCTURA ORIGINAL COMPLETA)
+    # 2. LIBRO DE OBRA OFICIAL (ESTRUCTURA ORIGINAL CON EDICIÓN COMPLETA)
     with tab_libro:
         st.markdown("### Libro de Obra – Formato Oficial")
         st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")
 
+        if "edit_lo_id" not in st.session_state:
+            st.session_state.edit_lo_id = None
+
+        if st.session_state.edit_lo_id:
+            st.warning(f"✏️ **Modo Edición de Libro de Obra Activo** (ID: `{st.session_state.edit_lo_id}`)")
+            if st.button("❌ Cancelar Edición de Libro de Obra", key="btn_cancel_edit_lo"):
+                st.session_state.edit_lo_id = None
+                st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                st.rerun()
+
         dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
         local_today_insp = get_local_datetime_ecuador().date()
+        lo_fecha_def = st.session_state.get("lo_edit_fecha_val", local_today_insp)
 
         col_lo1, col_lo2 = st.columns([1.5, 2.5])
         with col_lo1:
-            lo_fecha = st.date_input("Fecha de Reporte:", local_today_insp, key="lo_official_fecha")
+            lo_fecha = st.date_input("Fecha de Reporte:", lo_fecha_def, key="lo_official_fecha")
             lo_dia = dias_es[lo_fecha.weekday()]
             st.caption(f"Día seleccionado: **{lo_dia}**")
 
@@ -2757,12 +2849,14 @@ else:
 
         proyectos_libro = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
         idx_proy_lo = 0
-        if chk_asociado and chk_asociado.get("Edificio") in proyectos_libro:
+        if "lo_edit_proy_val" in st.session_state and st.session_state.lo_edit_proy_val in proyectos_libro:
+            idx_proy_lo = proyectos_libro.index(st.session_state.lo_edit_proy_val) + 1
+        elif chk_asociado and chk_asociado.get("Edificio") in proyectos_libro:
             idx_proy_lo = proyectos_libro.index(chk_asociado.get("Edificio")) + 1
 
         with col_lo2:
             if chk_asociado:
-                st.success(f"🔗 **Checklist Vinculado:** Se importarán automáticamente las actividades y los horarios del edificio **{chk_asociado.get('Edificio')}**.")
+                st.success(f"🔗 **Checklist Vinculado:** Se sincronizan las actividades del edificio **{chk_asociado.get('Edificio')}**.")
             else:
                 st.info("💡 Si llenas el Checklist del día, los trabajos y horarios se precargarán automáticamente aquí.")
 
@@ -2824,18 +2918,25 @@ else:
         st.markdown("#### 1. Datos Generales de la Obra")
         c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
         with c_lo_a1:
-            lo_ubicacion = st.text_input("Ubicación:*", value="CALLE LUXEMBURGO Y HOLANDA", key="lo_ubic_in")
-            lo_barrio = st.text_input("Barrio:", value="BENALCAZAR", key="lo_barr_in")
+            ubic_def = st.session_state.get("lo_edit_ubic_val", "CALLE LUXEMBURGO Y HOLANDA")
+            barr_def = st.session_state.get("lo_edit_barr_val", "BENALCAZAR")
+            lo_ubicacion = st.text_input("Ubicación:*", value=ubic_def, key="lo_ubic_in")
+            lo_barrio = st.text_input("Barrio:", value=barr_def, key="lo_barr_in")
 
         with c_lo_a2:
-            lo_superintendente = st.text_input("Superintendente:*", value="ING. PABLO ESPINOSA", key="lo_super_in")
+            super_def = st.session_state.get("lo_edit_super_val", "ING. PABLO ESPINOSA")
+            fisc_def = st.session_state.get("lo_edit_fisc_val", "ING. DIEGO CHARVET")
+            lo_superintendente = st.text_input("Superintendente:*", value=super_def, key="lo_super_in")
             lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")
-            lo_fiscalizador = st.text_input("Fiscalizador:*", value="ING. DIEGO CHARVET", key="lo_fisc_in")
+            lo_fiscalizador = st.text_input("Fiscalizador:*", value=fisc_def, key="lo_fisc_in")
 
         with c_lo_a3:
-            lo_hoja = st.text_input("Hoja N°:*", value="000053", key="lo_hoja_in")
-            lo_h_ini = st.time_input("Hora Entrada:*", datetime.time(7, 0), key="lo_hini_off")
-            lo_h_fin = st.time_input("Hora Salida:*", datetime.time(16, 0), key="lo_hfin_off")
+            hoja_def = st.session_state.get("lo_edit_hoja_val", "000053")
+            hini_lo_def = st.session_state.get("lo_edit_hini_val", datetime.time(7, 0))
+            hfin_lo_def = st.session_state.get("lo_edit_hfin_val", datetime.time(16, 0))
+            lo_hoja = st.text_input("Hoja N°:*", value=hoja_def, key="lo_hoja_in")
+            lo_h_ini = st.time_input("Hora Entrada:*", hini_lo_def, key="lo_hini_off")
+            lo_h_fin = st.time_input("Hora Salida:*", hfin_lo_def, key="lo_hfin_off")
 
         st.markdown("---")
 
@@ -2927,7 +3028,7 @@ else:
             st.session_state.filas_lo_actividades = []
 
         checklist_clave_sesion = f"init_chk_lo_{fecha_lo_str}_{lo_proyecto}"
-        if chk_asociado and checklist_clave_sesion not in st.session_state:
+        if chk_asociado and checklist_clave_sesion not in st.session_state and not st.session_state.edit_lo_id:
             datos_chk = chk_asociado.get("Datos", {})
             sup_items = datos_chk.get("Supervision_Trabajos", []) if isinstance(datos_chk, dict) else []
             importados_chk = []
@@ -3042,9 +3143,11 @@ else:
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("#### 6. Novedades y Recomendaciones")
-        lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value="", placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")
+        nov_def = st.session_state.get("lo_edit_nov_val", "")
+        lo_novedades = st.text_area("Observaciones Generales / Recomendaciones de Supervisión:*", value=nov_def, placeholder="Escriba las novedades y recomendaciones del día...", height=90, key="lo_nov_in")
 
-        btn_guardar_lo_oficial = st.button("💾 Guardar Formato Oficial de Libro de Obra", type="primary", use_container_width=True, key="btn_save_lo_official_main")
+        lbl_btn_lo = "🔄 Actualizar Formato Oficial de Libro de Obra" if st.session_state.edit_lo_id else "💾 Guardar Formato Oficial de Libro de Obra"
+        btn_guardar_lo_oficial = st.button(lbl_btn_lo, type="primary", use_container_width=True, key="btn_save_lo_official_main")
 
         if btn_guardar_lo_oficial:
             if lo_proyecto == "-- Seleccione --":
@@ -3086,26 +3189,34 @@ else:
                     "Novedades": lo_novedades
                 }
 
+                lo_record = {
+                    "usuario_email": user_email,
+                    "proyecto": lo_proyecto,
+                    "fecha": lo_fecha.strftime("%Y-%m-%d"),
+                    "dia": lo_dia,
+                    "residente": lo_residente,
+                    "frente": lo_ubicacion,
+                    "clima": clima_cond_sel,
+                    "hora_inicio": lo_h_ini.strftime("%H:%M"),
+                    "hora_fin": lo_h_fin.strftime("%H:%M"),
+                    "datos": payload_libro_oficial
+                }
+
                 try:
-                    supabase.table("inspecciones").insert({
-                        "usuario_email": user_email,
-                        "proyecto": lo_proyecto,
-                        "fecha": lo_fecha.strftime("%Y-%m-%d"),
-                        "dia": lo_dia,
-                        "residente": lo_residente,
-                        "frente": lo_ubicacion,
-                        "clima": clima_cond_sel,
-                        "hora_inicio": lo_h_ini.strftime("%H:%M"),
-                        "hora_fin": lo_h_fin.strftime("%H:%M"),
-                        "datos": payload_libro_oficial
-                    }).execute()
+                    if st.session_state.edit_lo_id:
+                        supabase.table("inspecciones").update(lo_record).eq("id", st.session_state.edit_lo_id).execute()
+                        st.success(f"¡Libro de Obra actualizado exitosamente para **{lo_proyecto}**!")
+                        st.session_state.edit_lo_id = None
+                    else:
+                        supabase.table("inspecciones").insert(lo_record).execute()
+                        st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
 
                     components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                     st.session_state.db_loaded = False
-                    st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
+                    st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error al guardar: {e}")
+                    st.error(f"Error al procesar: {e}")
 
         st.markdown("---")
 
@@ -3141,7 +3252,7 @@ else:
                             st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp_dict.get('Frente', ''))} | **Clima:** {insp_dict.get('Clima', '')}")
                             st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
 
-                            c_dl_i1, c_dl_i2, c_del_lo = st.columns([2, 2, 1])
+                            c_dl_i1, c_dl_i2, c_ed_lo, c_del_lo = st.columns([2, 2, 1, 1])
                             with c_dl_i1:
                                 with st.popover("📊 Exportar Excel", use_container_width=True):
                                     st.download_button(
@@ -3162,6 +3273,37 @@ else:
                                         key=f"dl_lo_off_p_{idx_insp}",
                                         use_container_width=True
                                     )
+                            with c_ed_lo:
+                                if st.button("✏️", key=f"btn_edit_lo_{idx_insp}_{insp_db_id}", help="Editar Libro de Obra", use_container_width=True):
+                                    st.session_state.edit_lo_id = insp_db_id
+                                    st.session_state.lo_edit_proy_val = insp_dict.get("Proyecto")
+                                    st.session_state.lo_edit_fecha_val = pd.to_datetime(insp_dict.get("Fecha")).date()
+                                    d_ed = insp_dict.get("Datos", {})
+                                    st.session_state.lo_edit_ubic_val = d_ed.get("Ubicacion", "CALLE LUXEMBURGO Y HOLANDA")
+                                    st.session_state.lo_edit_barr_val = d_ed.get("Barrio", "BENALCAZAR")
+                                    st.session_state.lo_edit_super_val = d_ed.get("Superintendente", "ING. PABLO ESPINOSA")
+                                    st.session_state.lo_edit_fisc_val = d_ed.get("Fiscalizador", "ING. DIEGO CHARVET")
+                                    st.session_state.lo_edit_hoja_val = d_ed.get("Hoja", "000053")
+                                    st.session_state.lo_edit_nov_val = d_ed.get("Novedades", "")
+                                    try:
+                                        st.session_state.lo_edit_hini_val = datetime.datetime.strptime(insp_dict.get("Hora_Inicio", "07:00"), "%H:%M").time()
+                                        st.session_state.lo_edit_hfin_val = datetime.datetime.strptime(insp_dict.get("Hora_Fin", "16:00"), "%H:%M").time()
+                                    except Exception:
+                                        pass
+                                    acts_lo_rec = d_ed.get("Actividades_Ejecutadas", [])
+                                    st.session_state.filas_lo_actividades = [
+                                        {
+                                            "id": i + 1,
+                                            "descripcion": it.get("Descripcion", it.get("actividad", "")),
+                                            "area": it.get("Area", ""),
+                                            "encargados": it.get("Encargados", it.get("encargados", "")),
+                                            "unidad": it.get("Unidad", "m2"),
+                                            "cantidad": float(it.get("Cantidad", 0.0)),
+                                            "observaciones": it.get("Observaciones", it.get("observaciones", ""))
+                                        } for i, it in enumerate(acts_lo_rec)
+                                    ] if acts_lo_rec else [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                                    st.rerun()
+
                             with c_del_lo:
                                 if st.button("🗑️", key=f"btn_del_lo_{idx_insp}_{insp_db_id}", help="Eliminar registro", use_container_width=True):
                                     try:
@@ -3175,7 +3317,7 @@ else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL A CARGO, INCIDENCIAS, RENDIMIENTOS, ESPACIO COLABORATIVO
-#                Y PANEL ADMINISTRADOR (COMPLETO Y CORREGIDO)
+#                Y PANEL ADMINISTRADOR (COMPLETO CON SINTAXIS CORREGIDA)
 # ==============================================================================
 
 # ==============================================================================
@@ -3554,203 +3696,204 @@ with tab_personal:
         st.info("Aún no has registrado personal a cargo en tu cuenta. Agrega integrantes con '➕ Registrar Personal' o importa la nómina de un compañero.")
 
 # ==============================================================================
-# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS
+# 12. MÓDULO 4: LEVANTAMIENTO DE INCIDENCIAS (SOLO RESIDENTE Y ASISTENTE)
 # ==============================================================================
-with tab_incidencias:
-    st.markdown("### Levantamiento de Incidencias")
-    st.caption("Control de no conformidades, responsables, plazos de atención y seguimiento en tus proyectos asignados.")
+if not es_maestro_mayor:
+    with tab_incidencias:
+        st.markdown("### Levantamiento de Incidencias")
+        st.caption("Control de no conformidades, responsables, plazos de atención y seguimiento en tus proyectos asignados.")
 
-    proyectos_inc_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+        proyectos_inc_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
 
-    col_fil_inc1, col_fil_inc2 = st.columns([2, 2])
-    with col_fil_inc1:
-        proy_inc_sel = st.selectbox(
-            "🏢 Seleccionar Proyecto / Edificio:",
-            ["-- Todos Mis Proyectos --"] + proyectos_inc_disp,
-            key="sel_proy_incidencias_p5"
-        )
-    with col_fil_inc2:
-        filtro_estado_vista = st.segmented_control(
-            "Filtrar por Estado:",
-            ["Todos", "Abierta", "Cerrada"],
-            default="Todos",
-            key="filtro_estado_inc_view_p5"
-        )
-
-    st.markdown("---")
-
-    with st.expander("➕ Registrar Nueva Incidencia en Obra", expanded=False):
-        with st.form("form_nueva_incidencia_p5"):
-            c_i1, c_i2 = st.columns(2)
-            with c_i1:
-                proy_nuevo = st.selectbox(
-                    "Proyecto / Edificio:*",
-                    proyectos_inc_disp,
-                    index=0 if proy_inc_sel == "-- Todos Mis Proyectos --" else (proyectos_inc_disp.index(proy_inc_sel) if proy_inc_sel in proyectos_inc_disp else 0),
-                    key="f_inc_proy_p5"
-                )
-                area_nueva = st.text_input("Área / Ubicación:*", placeholder="Ej. Losa Piso 3 / Eje B-4", key="f_inc_area_p5")
-                resp_nuevo = st.text_input("Responsable:*", placeholder="Ej. Cuadrilla Estructura / Ing. Residente", key="f_inc_resp_p5")
-
-            with c_i2:
-                prio_nueva = st.segmented_control("Prioridad:*", ["Alta", "Media", "Baja"], default="Media", key="f_inc_prio_p5")
-                local_f_comp = get_local_datetime_ecuador().date() + datetime.timedelta(days=3)
-                f_comp_nueva = st.date_input("Fecha Compromiso:*", local_f_comp, key="f_inc_fcomp_p5")
-                est_nuevo = st.segmented_control("Estado Inicial:*", ["Abierta", "Cerrada"], default="Abierta", key="f_inc_est_p5")
-
-            desc_nueva = st.text_area("Descripción de la Incidencia / No Conformidad:*", placeholder="Describa a detalle el problema o trabajo por corregir...", key="f_inc_desc_p5")
-
-            btn_guardar_inc = st.form_submit_button("💾 Guardar Incidencia", type="primary", use_container_width=True)
-
-            if btn_guardar_inc:
-                if not area_nueva.strip() or not desc_nueva.strip() or not resp_nuevo.strip():
-                    st.error("⚠️ Por favor complete todos los campos obligatorios (*).")
-                else:
-                    try:
-                        nueva_data = {
-                            "usuario_email": user_email,
-                            "proyecto": proy_nuevo,
-                            "area": area_nueva.strip(),
-                            "descripcion": desc_nueva.strip(),
-                            "responsable": resp_nuevo.strip(),
-                            "prioridad": prio_nueva,
-                            "fecha_compromiso": f_comp_nueva.strftime("%Y-%m-%d"),
-                            "estado": est_nuevo
-                        }
-                        supabase.table("incidencias").insert(nueva_data).execute()
-                        st.session_state.db_loaded = False
-                        st.success("¡Incidencia registrada exitosamente!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al registrar la incidencia: {e}")
-
-    todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
-    if len(user_edificios) > 0:
-        lista_incs_vista = [inc for inc in todas_las_incidencias_db if inc.get("Proyecto") in user_edificios]
-    else:
-        lista_incs_vista = [inc for inc in todas_las_incidencias_db if inc.get("Usuario") == user_email]
-
-    if proy_inc_sel != "-- Todos Mis Proyectos --":
-        lista_incs_vista = [i for i in lista_incs_vista if i.get("Proyecto") == proy_inc_sel]
-
-    if filtro_estado_vista != "Todos":
-        lista_incs_vista = [i for i in lista_incs_vista if i.get("Estado") == filtro_estado_vista]
-
-    st.markdown(f"#### Matriz de Incidencias en tus Proyectos ({len(lista_incs_vista)} registros)")
-
-    if len(lista_incs_vista) > 0:
-        table_rows_html = ""
-        for idx, inc in enumerate(lista_incs_vista, 1):
-            prio_val = inc.get('Prioridad', 'Media')
-            est_val = inc.get('Estado', 'Abierta')
-            
-            p_alta_st = "font-weight:800; color:#dc2626;" if prio_val == 'Alta' else "font-weight:400; color:#64748b;"
-            p_alta_ck = "☒ Alta" if prio_val == 'Alta' else "☐ Alta"
-            p_med_st = "font-weight:800; color:#d97706;" if prio_val == 'Media' else "font-weight:400; color:#64748b;"
-            p_med_ck = "☒ Media" if prio_val == 'Media' else "☐ Media"
-            p_baj_st = "font-weight:800; color:#16a34a;" if prio_val == 'Baja' else "font-weight:400; color:#64748b;"
-            p_baj_ck = "☒ Baja" if prio_val == 'Baja' else "☐ Baja"
-            
-            prio_cell = f'<div style="font-size:0.75rem; line-height:1.3;"><span style="{p_alta_st}">{p_alta_ck}</span><br/><span style="{p_med_st}">{p_med_ck}</span><br/><span style="{p_baj_st}">{p_baj_ck}</span></div>'
-            
-            e_ab_st = "font-weight:800; color:#dc2626;" if est_val == 'Abierta' else "font-weight:400; color:#64748b;"
-            e_ab_ck = "☒ Abierta" if est_val == 'Abierta' else "☐ Abierta"
-            e_ce_st = "font-weight:800; color:#16a34a;" if est_val == 'Cerrada' else "font-weight:400; color:#64748b;"
-            e_ce_ck = "☒ Cerrada" if est_val == 'Cerrada' else "☐ Cerrada"
-            
-            est_cell = f'<div style="font-size:0.75rem; line-height:1.3;"><span style="{e_ab_st}">{e_ab_ck}</span><br/><span style="{e_ce_st}">{e_ce_ck}</span></div>'
-            
-            creador_tag = f"<br/><small style='color: #2563eb;'>👤 {inc.get('Usuario', '')}</small>" if inc.get('Usuario') != user_email else ""
-
-            row_html = (
-                f'<tr>'
-                f'<td class="center" style="font-weight:700; width:45px;">{idx}</td>'
-                f'<td style="width:140px;"><b>{inc.get("Area", "")}</b><br/><small style="color:#64748b;">{inc.get("Proyecto", "")}</small>{creador_tag}</td>'
-                f'<td>{inc.get("Descripcion", "")}</td>'
-                f'<td style="width:130px;">{inc.get("Responsable", "")}</td>'
-                f'<td style="width:90px;">{prio_cell}</td>'
-                f'<td class="center" style="font-weight:700; width:100px;">{inc.get("Fecha_Compromiso", "")}</td>'
-                f'<td style="width:95px;">{est_cell}</td>'
-                f'</tr>'
+        col_fil_inc1, col_fil_inc2 = st.columns([2, 2])
+        with col_fil_inc1:
+            proy_inc_sel = st.selectbox(
+                "🏢 Seleccionar Proyecto / Edificio:",
+                ["-- Todos Mis Proyectos --"] + proyectos_inc_disp,
+                key="sel_proy_incidencias_p5"
             )
-            table_rows_html += row_html
+        with col_fil_inc2:
+            filtro_estado_vista = st.segmented_control(
+                "Filtrar por Estado:",
+                ["Todos", "Abierta", "Cerrada"],
+                default="Todos",
+                key="filtro_estado_inc_view_p5"
+            )
 
-        full_table_html = (
-            '<div style="overflow-x:auto;">'
-            '<table class="incidencias-table">'
-            '<thead>'
-            '<tr>'
-            '<th class="center" style="width:45px;">N°</th>'
-            '<th style="width:140px;">Área</th>'
-            '<th>Descripción</th>'
-            '<th style="width:130px;">Responsable</th>'
-            '<th style="width:90px;">Prioridad</th>'
-            '<th class="center" style="width:100px;">Fecha Comp.</th>'
-            '<th style="width:95px;">Estado</th>'
-            '</tr>'
-            '</thead>'
-            f'<tbody>{table_rows_html}</tbody>'
-            '</table>'
-            '</div>'
-        )
-        st.markdown(full_table_html, unsafe_allow_html=True)
+        st.markdown("---")
 
-        with st.expander("⚙️ Administrar Estado o Eliminar Incidencias"):
-            col_g1, col_g2, col_g3 = st.columns([2, 1.5, 1])
-            inc_map = {f"N° {i} - {inc.get('Area')} ({inc.get('Proyecto')})": inc for i, inc in enumerate(lista_incs_vista, 1)}
-            
-            with col_g1:
-                sel_inc_label = st.selectbox("Seleccione el registro:", list(inc_map.keys()), key="sel_inc_gest_p5")
-                inc_target = inc_map[sel_inc_label]
-            
-            with col_g2:
-                toggle_st = "Cerrada" if inc_target.get("Estado") == "Abierta" else "Abierta"
-                if st.button(f"Cambiar estado a: {toggle_st}", type="primary", use_container_width=True):
-                    try:
-                        supabase.table("incidencias").update({"estado": toggle_st}).eq("id", inc_target["db_id"]).execute()
-                        st.session_state.db_loaded = False
-                        st.success(f"Estado actualizado a {toggle_st}")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-            
-            with col_g3:
-                if st.button("🗑️ Eliminar", type="secondary", use_container_width=True):
-                    try:
-                        supabase.table("incidencias").delete().eq("id", inc_target["db_id"]).execute()
-                        st.session_state.db_loaded = False
-                        st.success("Incidencia eliminada correctamente")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al eliminar: {e}")
+        with st.expander("➕ Registrar Nueva Incidencia en Obra", expanded=False):
+            with st.form("form_nueva_incidencia_p5"):
+                c_i1, c_i2 = st.columns(2)
+                with c_i1:
+                    proy_nuevo = st.selectbox(
+                        "Proyecto / Edificio:*",
+                        proyectos_inc_disp,
+                        index=0 if proy_inc_sel == "-- Todos Mis Proyectos --" else (proyectos_inc_disp.index(proy_inc_sel) if proy_inc_sel in proyectos_inc_disp else 0),
+                        key="f_inc_proy_p5"
+                    )
+                    area_nueva = st.text_input("Área / Ubicación:*", placeholder="Ej. Losa Piso 3 / Eje B-4", key="f_inc_area_p5")
+                    resp_nuevo = st.text_input("Responsable:*", placeholder="Ej. Cuadrilla Estructura / Ing. Residente", key="f_inc_resp_p5")
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        c_exp1, c_exp2 = st.columns(2)
-        nombre_proy_rep = proy_inc_sel if proy_inc_sel != "-- Todos Mis Proyectos --" else "Alpha_Builders_Incidencias"
-        local_today_str = get_local_datetime_ecuador().strftime('%Y%m%d')
-        
-        with c_exp1:
-            with st.popover("📊 Exportar Incidencias en Excel", use_container_width=True):
-                st.download_button(
-                    label="Confirmar Descarga (.xlsx)",
-                    data=export_incidencias_to_excel(lista_incs_vista, nombre_proy_rep),
-                    file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="dl_excel_incidencias_tab_p5",
-                    use_container_width=True
+                with c_i2:
+                    prio_nueva = st.segmented_control("Prioridad:*", ["Alta", "Media", "Baja"], default="Media", key="f_inc_prio_p5")
+                    local_f_comp = get_local_datetime_ecuador().date() + datetime.timedelta(days=3)
+                    f_comp_nueva = st.date_input("Fecha Compromiso:*", local_f_comp, key="f_inc_fcomp_p5")
+                    est_nuevo = st.segmented_control("Estado Inicial:*", ["Abierta", "Cerrada"], default="Abierta", key="f_inc_est_p5")
+
+                desc_nueva = st.text_area("Descripción de la Incidencia / No Conformidad:*", placeholder="Describa a detalle el problema o trabajo por corregir...", key="f_inc_desc_p5")
+
+                btn_guardar_inc = st.form_submit_button("💾 Guardar Incidencia", type="primary", use_container_width=True)
+
+                if btn_guardar_inc:
+                    if not area_nueva.strip() or not desc_nueva.strip() or not resp_nuevo.strip():
+                        st.error("⚠️ Por favor complete todos los campos obligatorios (*).")
+                    else:
+                        try:
+                            nueva_data = {
+                                "usuario_email": user_email,
+                                "proyecto": proy_nuevo,
+                                "area": area_nueva.strip(),
+                                "descripcion": desc_nueva.strip(),
+                                "responsable": resp_nuevo.strip(),
+                                "prioridad": prio_nueva,
+                                "fecha_compromiso": f_comp_nueva.strftime("%Y-%m-%d"),
+                                "estado": est_nuevo
+                            }
+                            supabase.table("incidencias").insert(nueva_data).execute()
+                            st.session_state.db_loaded = False
+                            st.success("¡Incidencia registrada exitosamente!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al registrar la incidencia: {e}")
+
+        todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
+        if len(user_edificios) > 0:
+            lista_incs_vista = [inc for inc in todas_las_incidencias_db if inc.get("Proyecto") in user_edificios]
+        else:
+            lista_incs_vista = [inc for inc in todas_las_incidencias_db if inc.get("Usuario") == user_email]
+
+        if proy_inc_sel != "-- Todos Mis Proyectos --":
+            lista_incs_vista = [i for i in lista_incs_vista if i.get("Proyecto") == proy_inc_sel]
+
+        if filtro_estado_vista != "Todos":
+            lista_incs_vista = [i for i in lista_incs_vista if i.get("Estado") == filtro_estado_vista]
+
+        st.markdown(f"#### Matriz de Incidencias en tus Proyectos ({len(lista_incs_vista)} registros)")
+
+        if len(lista_incs_vista) > 0:
+            table_rows_html = ""
+            for idx, inc in enumerate(lista_incs_vista, 1):
+                prio_val = inc.get('Prioridad', 'Media')
+                est_val = inc.get('Estado', 'Abierta')
+                
+                p_alta_st = "font-weight:800; color:#dc2626;" if prio_val == 'Alta' else "font-weight:400; color:#64748b;"
+                p_alta_ck = "☒ Alta" if prio_val == 'Alta' else "☐ Alta"
+                p_med_st = "font-weight:800; color:#d97706;" if prio_val == 'Media' else "font-weight:400; color:#64748b;"
+                p_med_ck = "☒ Media" if prio_val == 'Media' else "☐ Media"
+                p_baj_st = "font-weight:800; color:#16a34a;" if prio_val == 'Baja' else "font-weight:400; color:#64748b;"
+                p_baj_ck = "☒ Baja" if prio_val == 'Baja' else "☐ Baja"
+                
+                prio_cell = f'<div style="font-size:0.75rem; line-height:1.3;"><span style="{p_alta_st}">{p_alta_ck}</span><br/><span style="{p_med_st}">{p_med_ck}</span><br/><span style="{p_baj_st}">{p_baj_ck}</span></div>'
+                
+                e_ab_st = "font-weight:800; color:#dc2626;" if est_val == 'Abierta' else "font-weight:400; color:#64748b;"
+                e_ab_ck = "☒ Abierta" if est_val == 'Abierta' else "☐ Abierta"
+                e_ce_st = "font-weight:800; color:#16a34a;" if est_val == 'Cerrada' else "font-weight:400; color:#64748b;"
+                e_ce_ck = "☒ Cerrada" if est_val == 'Cerrada' else "☐ Cerrada"
+                
+                est_cell = f'<div style="font-size:0.75rem; line-height:1.3;"><span style="{e_ab_st}">{e_ab_ck}</span><br/><span style="{e_ce_st}">{e_ce_ck}</span></div>'
+                
+                creador_tag = f"<br/><small style='color: #2563eb;'>👤 {inc.get('Usuario', '')}</small>" if inc.get('Usuario') != user_email else ""
+
+                row_html = (
+                    f'<tr>'
+                    f'<td class="center" style="font-weight:700; width:45px;">{idx}</td>'
+                    f'<td style="width:140px;"><b>{inc.get("Area", "")}</b><br/><small style="color:#64748b;">{inc.get("Proyecto", "")}</small>{creador_tag}</td>'
+                    f'<td>{inc.get("Descripcion", "")}</td>'
+                    f'<td style="width:130px;">{inc.get("Responsable", "")}</td>'
+                    f'<td style="width:90px;">{prio_cell}</td>'
+                    f'<td class="center" style="font-weight:700; width:100px;">{inc.get("Fecha_Compromiso", "")}</td>'
+                    f'<td style="width:95px;">{est_cell}</td>'
+                    f'</tr>'
                 )
-        with c_exp2:
-            with st.popover("📄 Exportar Incidencias en PDF", use_container_width=True):
-                st.download_button(
-                    label="Confirmar Descarga (.pdf)",
-                    data=export_incidencias_to_pdf(lista_incs_vista, nombre_proy_rep),
-                    file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.pdf",
-                    mime="application/pdf",
-                    key="dl_pdf_incidencias_tab_p5",
-                    use_container_width=True
-                )
-    else:
-        st.info("No hay incidencias registradas para los proyectos seleccionados.")
+                table_rows_html += row_html
+
+            full_table_html = (
+                '<div style="overflow-x:auto;">'
+                '<table class="incidencias-table">'
+                '<thead>'
+                '<tr>'
+                '<th class="center" style="width:45px;">N°</th>'
+                '<th style="width:140px;">Área</th>'
+                '<th>Descripción</th>'
+                '<th style="width:130px;">Responsable</th>'
+                '<th style="width:90px;">Prioridad</th>'
+                '<th class="center" style="width:100px;">Fecha Comp.</th>'
+                '<th style="width:95px;">Estado</th>'
+                '</tr>'
+                '</thead>'
+                f'<tbody>{table_rows_html}</tbody>'
+                '</table>'
+                '</div>'
+            )
+            st.markdown(full_table_html, unsafe_allow_html=True)
+
+            with st.expander("⚙️ Administrar Estado o Eliminar Incidencias"):
+                col_g1, col_g2, col_g3 = st.columns([2, 1.5, 1])
+                inc_map = {f"N° {i} - {inc.get('Area')} ({inc.get('Proyecto')})": inc for i, inc in enumerate(lista_incs_vista, 1)}
+                
+                with col_g1:
+                    sel_inc_label = st.selectbox("Seleccione el registro:", list(inc_map.keys()), key="sel_inc_gest_p5")
+                    inc_target = inc_map[sel_inc_label]
+                
+                with col_g2:
+                    toggle_st = "Cerrada" if inc_target.get("Estado") == "Abierta" else "Abierta"
+                    if st.button(f"Cambiar estado a: {toggle_st}", type="primary", use_container_width=True):
+                        try:
+                            supabase.table("incidencias").update({"estado": toggle_st}).eq("id", inc_target["db_id"]).execute()
+                            st.session_state.db_loaded = False
+                            st.success(f"Estado actualizado a {toggle_st}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+                
+                with col_g3:
+                    if st.button("🗑️ Eliminar", type="secondary", use_container_width=True):
+                        try:
+                            supabase.table("incidencias").delete().eq("id", inc_target["db_id"]).execute()
+                            st.session_state.db_loaded = False
+                            st.success("Incidencia eliminada correctamente")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al eliminar: {e}")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            c_exp1, c_exp2 = st.columns(2)
+            nombre_proy_rep = proy_inc_sel if proy_inc_sel != "-- Todos Mis Proyectos --" else "Alpha_Builders_Incidencias"
+            local_today_str = get_local_datetime_ecuador().strftime('%Y%m%d')
+            
+            with c_exp1:
+                with st.popover("📊 Exportar Incidencias en Excel", use_container_width=True):
+                    st.download_button(
+                        label="Confirmar Descarga (.xlsx)",
+                        data=export_incidencias_to_excel(lista_incs_vista, nombre_proy_rep),
+                        file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_excel_incidencias_tab_p5",
+                        use_container_width=True
+                    )
+            with c_exp2:
+                with st.popover("📄 Exportar Incidencias en PDF", use_container_width=True):
+                    st.download_button(
+                        label="Confirmar Descarga (.pdf)",
+                        data=export_incidencias_to_pdf(lista_incs_vista, nombre_proy_rep),
+                        file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.pdf",
+                        mime="application/pdf",
+                        key="dl_pdf_incidencias_tab_p5",
+                        use_container_width=True
+                    )
+        else:
+            st.info("No hay incidencias registradas para los proyectos seleccionados.")
 
 # ==============================================================================
 # 13. MÓDULO 5: CONTROL DE RENDIMIENTO
@@ -3991,7 +4134,6 @@ with tab_colab:
             if c_cargo == "Maestro Mayor":
                 sub_tabs_colab = st.tabs([
                     "🔨 Libro de Obra del Maestro",
-                    "🚨 Incidencias de la Persona",
                     "⚡ Rendimientos del Compañero"
                 ])
 
@@ -4021,16 +4163,6 @@ with tab_colab:
                         st.info(f"{colega_u['Nombres']} aún no ha cargado actividades en su Libro de Obra.")
 
                 with sub_tabs_colab[1]:
-                    todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
-                    incs_de_la_persona = [inc for inc in todas_las_incidencias_db if str(inc.get("Usuario", "")).lower().strip() == c_mail]
-                    if len(incs_de_la_persona) > 0:
-                        st.caption(f"Mostrando **{len(incs_de_la_persona)}** incidencia(s) levantadas por **{colega_u['Nombres']}**:")
-                        df_incs_p = pd.DataFrame(incs_de_la_persona).drop(columns=["db_id"], errors="ignore")
-                        st.dataframe(df_incs_p, use_container_width=True)
-                    else:
-                        st.info(f"{colega_u['Nombres']} no tiene incidencias registradas.")
-
-                with sub_tabs_colab[2]:
                     rnds_colega = st.session_state.get("db_rendimientos", {}).get(c_mail, [])
                     if len(rnds_colega) > 0:
                         st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento de **{colega_u['Nombres']}**.")
