@@ -2226,7 +2226,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL (FECHA BLOQUEADA EN EDICIÓN)
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON BOTÓN DE LLENADO Y CIERRE
 # ==============================================================================
 
 # ==============================================================================
@@ -2253,6 +2253,9 @@ if es_maestro_mayor:
         st.markdown("### Libro de Obra – Maestro Mayor")
         st.caption("Registro diario de actividades, cuadrillas a cargo y metrajes ejecutados en obra.")
 
+        if "llenando_libro_mm" not in st.session_state:
+            st.session_state.llenando_libro_mm = False
+
         if "edit_mm_id" not in st.session_state:
             st.session_state.edit_mm_id = None
 
@@ -2261,184 +2264,202 @@ if es_maestro_mayor:
                 {"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}
             ]
 
-        if st.session_state.edit_mm_id:
-            st.info("✏️ **Modo Edición Activo:** Modificando reporte seleccionado.")
+        # Botón inicial para abrir el formulario
+        if not st.session_state.llenando_libro_mm and not st.session_state.edit_mm_id:
+            if st.button("➕ Llenar Libro de Obra", type="primary", key="btn_open_llenar_mm"):
+                st.session_state.llenando_libro_mm = True
+                st.session_state.edit_mm_id = None
+                st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
+                st.rerun()
 
-        local_today_mm = get_local_datetime_ecuador().date()
-        fecha_default_mm = st.session_state.get("mm_edit_fecha_val", local_today_mm)
-        es_edicion_mm = bool(st.session_state.edit_mm_id)
+        # Despliegue del formulario únicamente si está activo
+        if st.session_state.llenando_libro_mm or st.session_state.edit_mm_id:
+            st.markdown("---")
+            if st.session_state.edit_mm_id:
+                st.info("✏️ **Modo Edición Activo:** Modificando reporte seleccionado.")
 
-        col_m_cfg1, col_m_cfg2, col_m_cfg3 = st.columns([1.5, 2, 1.5])
-        with col_m_cfg1:
-            fecha_maestro_val = st.date_input(
-                "Fecha de Trabajo:*", 
-                fecha_default_mm, 
-                disabled=es_edicion_mm, 
-                key=f"mm_fecha_input_{st.session_state.get('edit_mm_id', 'new')}"
-            )
-            if es_edicion_mm:
-                st.caption("🔒 *La fecha no se puede modificar durante la edición.*")
-        with col_m_cfg2:
-            proyectos_maestro_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
-            idx_edif_mm = 0
-            if "mm_edit_edif_val" in st.session_state and st.session_state.mm_edit_edif_val in proyectos_maestro_disp:
-                idx_edif_mm = proyectos_maestro_disp.index(st.session_state.mm_edit_edif_val) + 1
+            local_today_mm = get_local_datetime_ecuador().date()
+            fecha_default_mm = st.session_state.get("mm_edit_fecha_val", local_today_mm)
+            es_edicion_mm = bool(st.session_state.edit_mm_id)
 
-            edificio_maestro_val = st.selectbox(
-                "Proyecto / Edificio Asignado:*",
-                ["-- Seleccione un Proyecto --"] + proyectos_maestro_disp,
-                index=idx_edif_mm,
-                key="mm_edificio_input"
-            )
-        with col_m_cfg3:
-            st.text_input("Maestro Responsable:", value=user_nombre_completo, disabled=True)
-
-        st.markdown("---")
-        st.markdown(f"#### 🔨 Actividades Realizadas, Personal y Metrajes ({len(st.session_state.filas_maestro_act)} registros)")
-
-        mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-        if edificio_maestro_val != "-- Seleccione un Proyecto --":
-            personal_filtrado_edif = [
-                f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio 
-                if (t.get("edificio") == edificio_maestro_val or t.get("edificio") == "General" or not t.get("edificio"))
-            ]
-            if not personal_filtrado_edif:
-                personal_filtrado_edif = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio]
-        else:
-            personal_filtrado_edif = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio]
-
-        indices_del_m = []
-        payload_actividades_m = []
-
-        for idx_m, f_data in enumerate(st.session_state.filas_maestro_act, 1):
-            f_id = f_data["id"]
-            st.markdown(f"""<div class="banner-item-header"><span>Actividad N° {idx_m}</span></div>""", unsafe_allow_html=True)
-            st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
-            
-            c_m1, c_m2 = st.columns([2.5, 1.5])
-            with c_m1:
-                act_m_txt = st.text_input(
-                    f"Descripción de la Actividad {idx_m}:",
-                    value=f_data.get("actividad", ""),
-                    placeholder="Ej. Enlucido paleteado en muros de fachada...",
-                    key=f"mm_act_txt_{f_id}"
+            col_m_cfg1, col_m_cfg2, col_m_cfg3 = st.columns([1.5, 2, 1.5])
+            with col_m_cfg1:
+                fecha_maestro_val = st.date_input(
+                    "Fecha de Trabajo:*", 
+                    fecha_default_mm, 
+                    disabled=es_edicion_mm, 
+                    key=f"mm_fecha_input_{st.session_state.get('edit_mm_id', 'new')}"
                 )
-            with c_m2:
-                cant_m_txt = st.text_input(
-                    f"Cantidad / Avance {idx_m}:",
-                    value=str(f_data.get("cantidad", "")),
-                    placeholder="Ej. 15 m2, 3 puertas, 2.5 tramos...",
-                    key=f"mm_cant_txt_{f_id}"
+                if es_edicion_mm:
+                    st.caption("🔒 *La fecha no se puede modificar durante la edición.*")
+            with col_m_cfg2:
+                proyectos_maestro_disp = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+                idx_edif_mm = 0
+                if "mm_edit_edif_val" in st.session_state and st.session_state.mm_edit_edif_val in proyectos_maestro_disp:
+                    idx_edif_mm = proyectos_maestro_disp.index(st.session_state.mm_edit_edif_val) + 1
+
+                edificio_maestro_val = st.selectbox(
+                    "Proyecto / Edificio Asignado:*",
+                    ["-- Seleccione un Proyecto --"] + proyectos_maestro_disp,
+                    index=idx_edif_mm,
+                    key="mm_edificio_input"
                 )
+            with col_m_cfg3:
+                st.text_input("Maestro Responsable:", value=user_nombre_completo, disabled=True)
 
-            c_m3, c_m4, c_m5 = st.columns([2.2, 2.2, 0.4])
-            with c_m3:
-                if personal_filtrado_edif:
-                    pers_sel_m = st.multiselect(
-                        f"Personal a Cargo {idx_m}:",
-                        options=personal_filtrado_edif,
-                        default=[p for p in f_data.get("personal_a_cargo", []) if p in personal_filtrado_edif],
-                        placeholder="Seleccionar personal asignado...",
-                        key=f"mm_pers_sel_{f_id}"
-                    )
-                else:
-                    pers_sel_txt = st.text_input(
-                        f"Personal a Cargo manual {idx_m}:",
-                        value=", ".join(f_data.get("personal_a_cargo", [])) if isinstance(f_data.get("personal_a_cargo"), list) else str(f_data.get("personal_a_cargo", "")),
-                        placeholder="Escriba los nombres de los trabajadores...",
-                        key=f"mm_pers_manual_{f_id}"
-                    )
-                    pers_sel_m = [p.strip() for p in pers_sel_txt.split(",") if p.strip()]
+            st.markdown("---")
+            st.markdown(f"#### 🔨 Actividades Realizadas, Personal y Metrajes ({len(st.session_state.filas_maestro_act)} registros)")
 
-            with c_m4:
-                obs_m_txt = st.text_input(
-                    f"Observaciones / Frente {idx_m}:",
-                    value=f_data.get("observaciones", ""),
-                    placeholder="Ej. Piso 2 departamento 201...",
-                    key=f"mm_obs_txt_{f_id}"
-                )
-
-            with c_m5:
-                st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
-                if st.button("🗑️", key=f"btn_del_mm_row_{f_id}", help="Eliminar fila"):
-                    indices_del_m.append(idx_m - 1)
-
-            st.markdown('</div>', unsafe_allow_html=True)
-            payload_actividades_m.append({
-                "Actividad": act_m_txt.strip(),
-                "Cantidad": cant_m_txt.strip(),
-                "Personal_A_Cargo": pers_sel_m,
-                "Observaciones": obs_m_txt.strip()
-            })
-
-        if indices_del_m:
-            for del_i in sorted(indices_del_m, reverse=True):
-                if len(st.session_state.filas_maestro_act) > 1:
-                    st.session_state.filas_maestro_act.pop(del_i)
-                else:
-                    st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
-            st.rerun()
-
-        if st.button("➕ Agregar Otra Actividad", key="btn_add_mm_act_row"):
-            next_id_mm = (max([x["id"] for x in st.session_state.filas_maestro_act]) + 1) if st.session_state.filas_maestro_act else 1
-            st.session_state.filas_maestro_act.append({"id": next_id_mm, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""})
-            st.rerun()
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        lbl_btn_mm = "🔄 Actualizar Reporte de Maestro Mayor" if st.session_state.edit_mm_id else "💾 Guardar Reporte de Maestro Mayor"
-        if st.button(lbl_btn_mm, type="primary", use_container_width=True):
-            if edificio_maestro_val == "-- Seleccione un Proyecto --":
-                st.error("⚠️ Debe seleccionar el Edificio o Proyecto donde realizó los trabajos.")
+            mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+            if edificio_maestro_val != "-- Seleccione un Proyecto --":
+                personal_filtrado_edif = [
+                    f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio 
+                    if (t.get("edificio") == edificio_maestro_val or t.get("edificio") == "General" or not t.get("edificio"))
+                ]
+                if not personal_filtrado_edif:
+                    personal_filtrado_edif = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio]
             else:
-                actividades_validas = [a for a in payload_actividades_m if a["Actividad"]]
-                if not actividades_validas:
-                    st.error("⚠️ Ingrese al menos una actividad antes de guardar.")
+                personal_filtrado_edif = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio]
+
+            indices_del_m = []
+            payload_actividades_m = []
+
+            for idx_m, f_data in enumerate(st.session_state.filas_maestro_act, 1):
+                f_id = f_data["id"]
+                st.markdown(f"""<div class="banner-item-header"><span>Actividad N° {idx_m}</span></div>""", unsafe_allow_html=True)
+                st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
+                
+                c_m1, c_m2 = st.columns([2.5, 1.5])
+                with c_m1:
+                    act_m_txt = st.text_input(
+                        f"Descripción de la Actividad {idx_m}:",
+                        value=f_data.get("actividad", ""),
+                        placeholder="Ej. Enlucido paleteado en muros de fachada...",
+                        key=f"mm_act_txt_{f_id}"
+                    )
+                with c_m2:
+                    cant_m_txt = st.text_input(
+                        f"Cantidad / Avance {idx_m}:",
+                        value=str(f_data.get("cantidad", "")),
+                        placeholder="Ej. 15 m2, 3 puertas, 2.5 tramos...",
+                        key=f"mm_cant_txt_{f_id}"
+                    )
+
+                c_m3, c_m4, c_m5 = st.columns([2.2, 2.2, 0.4])
+                with c_m3:
+                    if personal_filtrado_edif:
+                        pers_sel_m = st.multiselect(
+                            f"Personal a Cargo {idx_m}:",
+                            options=personal_filtrado_edif,
+                            default=[p for p in f_data.get("personal_a_cargo", []) if p in personal_filtrado_edif],
+                            placeholder="Seleccionar personal asignado...",
+                            key=f"mm_pers_sel_{f_id}"
+                        )
+                    else:
+                        pers_sel_txt = st.text_input(
+                            f"Personal a Cargo manual {idx_m}:",
+                            value=", ".join(f_data.get("personal_a_cargo", [])) if isinstance(f_data.get("personal_a_cargo"), list) else str(f_data.get("personal_a_cargo", "")),
+                            placeholder="Escriba los nombres de los trabajadores...",
+                            key=f"mm_pers_manual_{f_id}"
+                        )
+                        pers_sel_m = [p.strip() for p in pers_sel_txt.split(",") if p.strip()]
+
+                with c_m4:
+                    obs_m_txt = st.text_input(
+                        f"Observaciones / Frente {idx_m}:",
+                        value=f_data.get("observaciones", ""),
+                        placeholder="Ej. Piso 2 departamento 201...",
+                        key=f"mm_obs_txt_{f_id}"
+                    )
+
+                with c_m5:
+                    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+                    if st.button("🗑️", key=f"btn_del_mm_row_{f_id}", help="Eliminar fila"):
+                        indices_del_m.append(idx_m - 1)
+
+                st.markdown('</div>', unsafe_allow_html=True)
+                payload_actividades_m.append({
+                    "Actividad": act_m_txt.strip(),
+                    "Cantidad": cant_m_txt.strip(),
+                    "Personal_A_Cargo": pers_sel_m,
+                    "Observaciones": obs_m_txt.strip()
+                })
+
+            if indices_del_m:
+                for del_i in sorted(indices_del_m, reverse=True):
+                    if len(st.session_state.filas_maestro_act) > 1:
+                        st.session_state.filas_maestro_act.pop(del_i)
+                    else:
+                        st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                st.rerun()
+
+            if st.button("➕ Agregar Otra Actividad", key="btn_add_mm_act_row"):
+                next_id_mm = (max([x["id"] for x in st.session_state.filas_maestro_act]) + 1) if st.session_state.filas_maestro_act else 1
+                st.session_state.filas_maestro_act.append({"id": next_id_mm, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""})
+                st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            lbl_btn_mm = "🔄 Actualizar Reporte de Maestro Mayor" if st.session_state.edit_mm_id else "💾 Guardar Reporte de Maestro Mayor"
+            if st.button(lbl_btn_mm, type="primary", use_container_width=True):
+                if edificio_maestro_val == "-- Seleccione un Proyecto --":
+                    st.error("⚠️ Debe seleccionar el Edificio o Proyecto donde realizó los trabajos.")
                 else:
-                    dias_es_m = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-                    dia_str_m = dias_es_m[fecha_maestro_val.weekday()]
+                    actividades_validas = [a for a in payload_actividades_m if a["Actividad"]]
+                    if not actividades_validas:
+                        st.error("⚠️ Ingrese al menos una actividad antes de guardar.")
+                    else:
+                        dias_es_m = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+                        dia_str_m = dias_es_m[fecha_maestro_val.weekday()]
 
-                    payload_final_mm = {
-                        "Tipo_Registro": "Libro_Obra_Maestro",
-                        "Actividades_Maestro": actividades_validas,
-                        "Edificio": edificio_maestro_val,
-                        "Maestro": user_nombre_completo,
-                        "Fecha": fecha_maestro_val.strftime("%Y-%m-%d")
-                    }
+                        payload_final_mm = {
+                            "Tipo_Registro": "Libro_Obra_Maestro",
+                            "Actividades_Maestro": actividades_validas,
+                            "Edificio": edificio_maestro_val,
+                            "Maestro": user_nombre_completo,
+                            "Fecha": fecha_maestro_val.strftime("%Y-%m-%d")
+                        }
 
-                    record_data_mm = {
-                        "usuario_email": user_email,
-                        "proyecto": edificio_maestro_val,
-                        "fecha": fecha_maestro_val.strftime("%Y-%m-%d"),
-                        "dia": dia_str_m,
-                        "residente": user_nombre_completo,
-                        "frente": "Reporte de Maestro Mayor",
-                        "clima": "N/A",
-                        "hora_inicio": "07:00",
-                        "hora_fin": "16:00",
-                        "datos": payload_final_mm
-                    }
+                        record_data_mm = {
+                            "usuario_email": user_email,
+                            "proyecto": edificio_maestro_val,
+                            "fecha": fecha_maestro_val.strftime("%Y-%m-%d"),
+                            "dia": dia_str_m,
+                            "residente": user_nombre_completo,
+                            "frente": "Reporte de Maestro Mayor",
+                            "clima": "N/A",
+                            "hora_inicio": "07:00",
+                            "hora_fin": "16:00",
+                            "datos": payload_final_mm
+                        }
 
-                    try:
-                        if st.session_state.edit_mm_id:
-                            supabase.table("inspecciones").update(record_data_mm).eq("id", st.session_state.edit_mm_id).execute()
-                            st.success(f"¡Reporte actualizado exitosamente para **{edificio_maestro_val}**!")
+                        try:
+                            if st.session_state.edit_mm_id:
+                                supabase.table("inspecciones").update(record_data_mm).eq("id", st.session_state.edit_mm_id).execute()
+                                st.success(f"¡Reporte actualizado exitosamente para **{edificio_maestro_val}**!")
+                            else:
+                                supabase.table("inspecciones").insert(record_data_mm).execute()
+                                st.success(f"¡Reporte del Maestro guardado exitosamente para **{edificio_maestro_val}**!")
+
+                            components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
+                            st.session_state.db_loaded = False
+                            # Cierre completo del formulario para evitar bucles
+                            st.session_state.llenando_libro_mm = False
                             st.session_state.edit_mm_id = None
-                        else:
-                            supabase.table("inspecciones").insert(record_data_mm).execute()
-                            st.success(f"¡Reporte del Maestro guardado exitosamente para **{edificio_maestro_val}**!")
+                            st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                            for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
+                                if k in st.session_state:
+                                    del st.session_state[k]
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al procesar reporte: {e}")
 
-                        components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
-                        st.session_state.db_loaded = False
-                        st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
-                        for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
-                            if k in st.session_state:
-                                del st.session_state[k]
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al procesar reporte: {e}")
-
-        if st.session_state.edit_mm_id:
-            if st.button("❌ Cancelar Edición", key="btn_cancel_edit_mm_bottom", use_container_width=True):
+            # Botón Cancelar que cierra el formulario
+            lbl_cancel_mm = "❌ Cancelar Edición" if st.session_state.edit_mm_id else "❌ Cancelar Llenado"
+            if st.button(lbl_cancel_mm, key="btn_cancel_mm_bottom", use_container_width=True):
+                st.session_state.llenando_libro_mm = False
                 st.session_state.edit_mm_id = None
                 st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                 for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
@@ -2506,6 +2527,7 @@ if es_maestro_mayor:
                             with c_ed_m:
                                 if st.button("✏️", key=f"btn_edit_mm_{idx_insp_m}_{insp_db_id_m}", help="Editar reporte", use_container_width=True):
                                     st.session_state.edit_mm_id = insp_db_id_m
+                                    st.session_state.llenando_libro_mm = True
                                     st.session_state.mm_edit_fecha_val = pd.to_datetime(insp_dict_m.get("Fecha")).date()
                                     st.session_state.mm_edit_edif_val = insp_dict_m.get("Proyecto")
                                     raw_dm2 = insp_dict_m.get("Datos", {})
@@ -2845,14 +2867,15 @@ else:
                                 if st.session_state.edit_chk_id:
                                     supabase.table("checklists").update(chk_record).eq("id", st.session_state.edit_chk_id).execute()
                                     st.success(f"¡Checklist actualizado correctamente para **{edificio_val}**!")
-                                    st.session_state.edit_chk_id = None
                                 else:
                                     supabase.table("checklists").insert(chk_record).execute()
                                     st.success(f"¡Checklist guardado permanentemente para **{edificio_val}**!")
 
                                 components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                                 st.session_state.db_loaded = False
+                                # Cierre completo del contenedor
                                 st.session_state.creando_jornada = False
+                                st.session_state.edit_chk_id = None
                                 st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
                                 st.session_state.chk_obs_counts = {}
                                 for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
@@ -2862,15 +2885,15 @@ else:
                             except Exception as e:
                                 st.error(f"Error al guardar checklist: {e}")
 
-                if st.session_state.edit_chk_id:
-                    if st.button("❌ Cancelar Edición", key="btn_cancel_edit_chk_bottom", use_container_width=True):
-                        st.session_state.edit_chk_id = None
-                        st.session_state.creando_jornada = False
-                        st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
-                        for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
-                            if k in st.session_state:
-                                del st.session_state[k]
-                        st.rerun()
+                lbl_cancel_chk = "❌ Cancelar Edición" if st.session_state.edit_chk_id else "❌ Cancelar Llenado"
+                if st.button(lbl_cancel_chk, key="btn_cancel_chk_bottom", use_container_width=True):
+                    st.session_state.edit_chk_id = None
+                    st.session_state.creando_jornada = False
+                    st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
+                    for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
+                        if k in st.session_state:
+                            del st.session_state[k]
+                    st.rerun()
 
         st.markdown("---")
         st.markdown("### Historial General de Checklists Creados")
@@ -2972,205 +2995,222 @@ else:
         else:
             st.info("Aún no hay checklists guardados en tu cuenta.")
 
-    # 2. LIBRO DE OBRA OFICIAL (ESTRUCTURA ORIGINAL CON EDICIÓN COMPLETA)
+    # 2. LIBRO DE OBRA OFICIAL (ESTRUCTURA ORIGINAL CON BOTÓN LLENAR Y CIERRE)
     with tab_libro:
         st.markdown("### Libro de Obra – Formato Oficial")
         st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")
 
+        if "llenando_libro_oficial" not in st.session_state:
+            st.session_state.llenando_libro_oficial = False
+
         if "edit_lo_id" not in st.session_state:
             st.session_state.edit_lo_id = None
 
-        if st.session_state.edit_lo_id:
-            st.info("✏️ **Modo Edición de Libro de Obra Activo**")
+        # Botón inicial para abrir el formulario del libro oficial
+        if not st.session_state.llenando_libro_oficial and not st.session_state.edit_lo_id:
+            if st.button("➕ Llenar Libro de Obra", type="primary", key="btn_open_llenar_lo_oficial"):
+                st.session_state.llenando_libro_oficial = True
+                st.session_state.edit_lo_id = None
+                st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
+                st.rerun()
 
-        dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-        local_today_insp = get_local_datetime_ecuador().date()
-        lo_fecha_def = st.session_state.get("lo_edit_fecha_val", local_today_insp)
-        es_edicion_lo = bool(st.session_state.edit_lo_id)
+        # Despliegue del formulario únicamente si está activo
+        if st.session_state.llenando_libro_oficial or st.session_state.edit_lo_id:
+            st.markdown("---")
+            if st.session_state.edit_lo_id:
+                st.info("✏️ **Modo Edición de Libro de Obra Activo**")
 
-        col_lo1, col_lo2 = st.columns([1.5, 2.5])
-        with col_lo1:
-            lo_fecha = st.date_input(
-                "Fecha de Reporte:", 
-                lo_fecha_def, 
-                disabled=es_edicion_lo, 
-                key=f"lo_official_fecha_{st.session_state.get('edit_lo_id', 'new')}"
-            )
-            lo_dia = dias_es[lo_fecha.weekday()]
-            st.caption(f"Día seleccionado: **{lo_dia}**" + (" *(🔒 Fecha fija en edición)*" if es_edicion_lo else ""))
+            dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+            local_today_insp = get_local_datetime_ecuador().date()
+            lo_fecha_def = st.session_state.get("lo_edit_fecha_val", local_today_insp)
+            es_edicion_lo = bool(st.session_state.edit_lo_id)
 
-        fecha_lo_str = lo_fecha.strftime("%Y-%m-%d")
-        chk_asociado = next((c for c in mis_jornadas if c.get("Fecha") == fecha_lo_str), None)
+            col_lo1, col_lo2 = st.columns([1.5, 2.5])
+            with col_lo1:
+                lo_fecha = st.date_input(
+                    "Fecha de Reporte:", 
+                    lo_fecha_def, 
+                    disabled=es_edicion_lo, 
+                    key=f"lo_official_fecha_{st.session_state.get('edit_lo_id', 'new')}"
+                )
+                lo_dia = dias_es[lo_fecha.weekday()]
+                st.caption(f"Día seleccionado: **{lo_dia}**" + (" *(🔒 Fecha fija en edición)*" if es_edicion_lo else ""))
 
-        proyectos_libro = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
-        idx_proy_lo = 0
-        if "lo_edit_proy_val" in st.session_state and st.session_state.lo_edit_proy_val in proyectos_libro:
-            idx_proy_lo = proyectos_libro.index(st.session_state.lo_edit_proy_val) + 1
-        elif chk_asociado and chk_asociado.get("Edificio") in proyectos_libro:
-            idx_proy_lo = proyectos_libro.index(chk_asociado.get("Edificio")) + 1
+            fecha_lo_str = lo_fecha.strftime("%Y-%m-%d")
+            chk_asociado = next((c for c in mis_jornadas if c.get("Fecha") == fecha_lo_str), None)
 
-        with col_lo2:
-            if chk_asociado:
-                st.success(f"🔗 **Checklist Vinculado:** Se sincronizan las actividades del edificio **{chk_asociado.get('Edificio')}**.")
-            else:
-                st.info("💡 Si llenas el Checklist del día, los trabajos y horarios se precargarán automáticamente aquí.")
+            proyectos_libro = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+            idx_proy_lo = 0
+            if "lo_edit_proy_val" in st.session_state and st.session_state.lo_edit_proy_val in proyectos_libro:
+                idx_proy_lo = proyectos_libro.index(st.session_state.lo_edit_proy_val) + 1
+            elif chk_asociado and chk_asociado.get("Edificio") in proyectos_libro:
+                idx_proy_lo = proyectos_libro.index(chk_asociado.get("Edificio")) + 1
 
-        lo_proyecto = st.selectbox(
-            "🏢 Proyecto Asignado:*",
-            ["-- Seleccione --"] + proyectos_libro,
-            index=idx_proy_lo,
-            key="lo_proy_sel_off"
-        )
-
-        mi_personal_obra = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-        if lo_proyecto != "-- Seleccione --":
-            personal_edificio = [
-                p for p in mi_personal_obra 
-                if (p.get("edificio") == lo_proyecto or p.get("edificio") == "General" or not p.get("edificio"))
-            ]
-            if not personal_edificio:
-                personal_edificio = mi_personal_obra
-        else:
-            personal_edificio = mi_personal_obra
-
-        def calcular_conteo_oficio(nombre_oficio, lista_personal):
-            ofi_clean = nombre_oficio.upper().strip()
-            total = 0
-            for persona in lista_personal:
-                cargo = persona.get("cargo", "").upper().strip()
-                if not cargo:
-                    continue
-                if ofi_clean == "ALBAÑILES" and ("ALBAÑIL" in cargo or "ALBANIL" in cargo):
-                    total += 1
-                elif ofi_clean == "AYUDANTE" and ("AYUDANTE" in cargo or "PEON" in cargo):
-                    total += 1
-                elif ofi_clean == "SOLDADOR" and ("SOLDADOR" in cargo or "SOLDA" in cargo):
-                    total += 1
-                elif ofi_clean == "OPERADOR" and ("OPERADOR" in cargo or "MAQUINISTA" in cargo):
-                    total += 1
-                elif ofi_clean == "FIERRERO" and ("FIERRERO" in cargo or "HIERRERO" in cargo or "ESTRUCTURA" in cargo):
-                    total += 1
-                elif ofi_clean == "PINTORES" and ("PINTOR" in cargo or "PINTORES" in cargo):
-                    total += 1
-                elif ofi_clean == "MAESTRO SUPERVISOR" and ("MAESTRO" in cargo or "SUPERVISOR" in cargo or "CAPATAZ" in cargo):
-                    total += 1
-                elif ofi_clean == "CARPINTERO" and ("CARPINTERO" in cargo or "MADERA" in cargo):
-                    total += 1
-                elif ofi_clean == "GUACHIMAN" and ("GUACHIMAN" in cargo or "GUARDIA" in cargo or "SEGURIDAD" in cargo):
-                    total += 1
-                elif ofi_clean == "GYPSEROS" and ("GYPS" in cargo or "TABLAYESO" in cargo):
-                    total += 1
-                elif ofi_clean == "ELECTRICOS" and ("ELECTRIC" in cargo):
-                    total += 1
-                elif ofi_clean == "PLOMEROS" and ("PLOMER" in cargo or "HIDROSANITARI" in cargo or "FONTANER" in cargo):
-                    total += 1
-                elif ofi_clean == "ALUMINIO Y VIDRIO" and ("ALUMIN" in cargo or "VIDRI" in cargo):
-                    total += 1
-                elif ofi_clean in cargo or cargo in ofi_clean:
-                    total += 1
-            return total
-
-        st.markdown("#### 1. Datos Generales de la Obra")
-        c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
-        with c_lo_a1:
-            ubic_def = st.session_state.get("lo_edit_ubic_val", "CALLE LUXEMBURGO Y HOLANDA")
-            barr_def = st.session_state.get("lo_edit_barr_val", "BENALCAZAR")
-            lo_ubicacion = st.text_input("Ubicación:*", value=ubic_def, key="lo_ubic_in")
-            lo_barrio = st.text_input("Barrio:", value=barr_def, key="lo_barr_in")
-
-        with c_lo_a2:
-            super_def = st.session_state.get("lo_edit_super_val", "ING. PABLO ESPINOSA")
-            fisc_def = st.session_state.get("lo_edit_fisc_val", "ING. DIEGO CHARVET")
-            lo_superintendente = st.text_input("Superintendente:*", value=super_def, key="lo_super_in")
-            lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")
-            lo_fiscalizador = st.text_input("Fiscalizador:*", value=fisc_def, key="lo_fisc_in")
-
-        with c_lo_a3:
-            hoja_def = st.session_state.get("lo_edit_hoja_val", "000053")
-            hini_lo_def = st.session_state.get("lo_edit_hini_val", datetime.time(7, 0))
-            hfin_lo_def = st.session_state.get("lo_edit_hfin_val", datetime.time(16, 0))
-            lo_hoja = st.text_input("Hoja N°:*", value=hoja_def, key="lo_hoja_in")
-            lo_h_ini = st.time_input("Hora Entrada:*", hini_lo_def, key="lo_hini_off")
-            lo_h_fin = st.time_input("Hora Salida:*", hfin_lo_def, key="lo_hfin_off")
-
-        st.markdown("---")
-
-        st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
-        st.caption(f"Cálculo automático de cuadrilla ({len(personal_edificio)} integrantes activos detectados en tu nómina para este proyecto):")
-
-        saved_nom_map = st.session_state.get("lo_edit_nom_map", {})
-        saved_rot_map = st.session_state.get("lo_edit_rot_map", {})
-
-        c_nom1, c_nom2 = st.columns(2)
-        with c_nom1:
-            st.markdown("##### 👷 Personal Nómina")
-            nomina_input_map = {}
-            for ofi in OFICIOS_NOMINA_FORMATO:
-                if st.session_state.edit_lo_id and ofi in saved_nom_map:
-                    conteo_val = int(saved_nom_map[ofi])
+            with col_lo2:
+                if chk_asociado:
+                    st.success(f"🔗 **Checklist Vinculado:** Se sincronizan las actividades del edificio **{chk_asociado.get('Edificio')}**.")
                 else:
-                    conteo_val = int(calcular_conteo_oficio(ofi, personal_edificio))
+                    st.info("💡 Si llenas el Checklist del día, los trabajos y horarios se precargarán automáticamente aquí.")
 
-                col_n_l, col_n_v = st.columns([3, 1])
-                with col_n_l:
-                    st.write(f"• {ofi} (7:00AM - 4:00PM)")
-                with col_n_v:
-                    nomina_input_map[ofi] = st.number_input(
-                        f"N_{ofi}",
-                        min_value=0,
-                        value=conteo_val,
-                        key=f"lo_nom_{ofi}_{lo_proyecto}_{st.session_state.get('edit_lo_id', 'new')}",
-                        label_visibility="collapsed"
-                    )
+            lo_proyecto = st.selectbox(
+                "🏢 Proyecto Asignado:*",
+                ["-- Seleccione --"] + proyectos_libro,
+                index=idx_proy_lo,
+                key="lo_proy_sel_off"
+            )
 
-        with c_nom2:
-            st.markdown("##### 🔄 Personal Rotativo / Subcontratos")
-            rotativo_input_map = {}
-            for rubro in RUROS_ROTATIVOS_FORMATO:
-                val_rot_prev = int(saved_rot_map.get(rubro, 0)) if st.session_state.edit_lo_id else 0
-                col_r_l, col_r_v = st.columns([3, 1])
-                with col_r_l:
-                    st.write(f"• {rubro}")
-                with col_r_v:
-                    rotativo_input_map[rubro] = st.number_input(
-                        f"R_{rubro}", 
-                        min_value=0, 
-                        value=val_rot_prev, 
-                        key=f"lo_rot_{rubro}_{st.session_state.get('edit_lo_id', 'new')}", 
-                        label_visibility="collapsed"
-                    )
+            mi_personal_obra = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+            if lo_proyecto != "-- Seleccione --":
+                personal_edificio = [
+                    p for p in mi_personal_obra 
+                    if (p.get("edificio") == lo_proyecto or p.get("edificio") == "General" or not p.get("edificio"))
+                ]
+                if not personal_edificio:
+                    personal_edificio = mi_personal_obra
+            else:
+                personal_edificio = mi_personal_obra
 
-        st.markdown("---")
+            def calcular_conteo_oficio(nombre_oficio, lista_personal):
+                ofi_clean = nombre_oficio.upper().strip()
+                total = 0
+                for persona in lista_personal:
+                    cargo = persona.get("cargo", "").upper().strip()
+                    if not cargo:
+                        continue
+                    if ofi_clean == "ALBAÑILES" and ("ALBAÑIL" in cargo or "ALBANIL" in cargo):
+                        total += 1
+                    elif ofi_clean == "AYUDANTE" and ("AYUDANTE" in cargo or "PEON" in cargo):
+                        total += 1
+                    elif ofi_clean == "SOLDADOR" and ("SOLDADOR" in cargo or "SOLDA" in cargo):
+                        total += 1
+                    elif ofi_clean == "OPERADOR" and ("OPERADOR" in cargo or "MAQUINISTA" in cargo):
+                        total += 1
+                    elif ofi_clean == "FIERRERO" and ("FIERRERO" in cargo or "HIERRERO" in cargo or "ESTRUCTURA" in cargo):
+                        total += 1
+                    elif ofi_clean == "PINTORES" and ("PINTOR" in cargo or "PINTORES" in cargo):
+                        total += 1
+                    elif ofi_clean == "MAESTRO SUPERVISOR" and ("MAESTRO" in cargo or "SUPERVISOR" in cargo or "CAPATAZ" in cargo):
+                        total += 1
+                    elif ofi_clean == "CARPINTERO" and ("CARPINTERO" in cargo or "MADERA" in cargo):
+                        total += 1
+                    elif ofi_clean == "GUACHIMAN" and ("GUACHIMAN" in cargo or "GUARDIA" in cargo or "SEGURIDAD" in cargo):
+                        total += 1
+                    elif ofi_clean == "GYPSEROS" and ("GYPS" in cargo or "TABLAYESO" in cargo):
+                        total += 1
+                    elif ofi_clean == "ELECTRICOS" and ("ELECTRIC" in cargo):
+                        total += 1
+                    elif ofi_clean == "PLOMEROS" and ("PLOMER" in cargo or "HIDROSANITARI" in cargo or "FONTANER" in cargo):
+                        total += 1
+                    elif ofi_clean == "ALUMINIO Y VIDRIO" and ("ALUMIN" in cargo or "VIDRI" in cargo):
+                        total += 1
+                    elif ofi_clean in cargo or cargo in ofi_clean:
+                        total += 1
+                return total
 
-        st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")
-        clima_opts = ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"]
-        saved_clima_cond = st.session_state.get("lo_edit_clima_val", "SOL")
-        idx_clima = clima_opts.index(saved_clima_cond) if saved_clima_cond in clima_opts else 0
-        saved_clima_obs = st.session_state.get("lo_edit_clima_obs_val", "")
-        saved_maq_map = st.session_state.get("lo_edit_maq_map", {})
+            st.markdown("#### 1. Datos Generales de la Obra")
+            c_lo_a1, c_lo_a2, c_lo_a3 = st.columns([1.5, 1.5, 1])
+            with c_lo_a1:
+                ubic_def = st.session_state.get("lo_edit_ubic_val", "CALLE LUXEMBURGO Y HOLANDA")
+                barr_def = st.session_state.get("lo_edit_barr_val", "BENALCAZAR")
+                lo_ubicacion = st.text_input("Ubicación:*", value=ubic_def, key="lo_ubic_in")
+                lo_barrio = st.text_input("Barrio:", value=barr_def, key="lo_barr_in")
 
-        c_cl1, c_cl2 = st.columns(2)
-        with c_cl1:
-            st.markdown("##### ⛅ Condiciones Climáticas")
-            clima_cond_sel = st.selectbox("Estado del Clima:*", clima_opts, index=idx_clima, key="lo_clima_cond")
-            clima_obs = st.text_input("Observaciones del Clima en Obra:", value=saved_clima_obs, placeholder="Describa si el clima afectó el rendimiento...", key="lo_clima_obs")
+            with c_lo_a2:
+                super_def = st.session_state.get("lo_edit_super_val", "ING. PABLO ESPINOSA")
+                fisc_def = st.session_state.get("lo_edit_fisc_val", "ING. DIEGO CHARVET")
+                lo_superintendente = st.text_input("Superintendente:*", value=super_def, key="lo_super_in")
+                lo_residente = st.text_input("Residente de Obra:*", value=user_nombre_completo, key="lo_res_in")
+                lo_fiscalizador = st.text_input("Fiscalizador:*", value=fisc_def, key="lo_fisc_in")
 
-        with c_cl2:
-            st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")
-            maq_input_map = {}
-            for maq in MAQUINARIAS_FORMATO:
-                val_maq_prev = int(saved_maq_map.get(maq, 0)) if st.session_state.edit_lo_id else 0
-                c_m_l, c_m_v = st.columns([3, 1])
-                with c_m_l:
-                    st.write(f"• {maq}")
-                with c_m_v:
-                    maq_input_map[maq] = st.number_input(
-                        f"M_{maq}", 
-                        min_value=0, 
-                        value=val_maq_prev, 
-                        key=f"lo_maq_{maq}_{st.session_state.get('edit_lo_id', 'new')}", 
-                        label_visibility="collapsed"
-                    )
+            with c_lo_a3:
+                hoja_def = st.session_state.get("lo_edit_hoja_val", "000053")
+                hini_lo_def = st.session_state.get("lo_edit_hini_val", datetime.time(7, 0))
+                hfin_lo_def = st.session_state.get("lo_edit_hfin_val", datetime.time(16, 0))
+                lo_hoja = st.text_input("Hoja N°:*", value=hoja_def, key="lo_hoja_in")
+                lo_h_ini = st.time_input("Hora Entrada:*", hini_lo_def, key="lo_hini_off")
+                lo_h_fin = st.time_input("Hora Salida:*", hfin_lo_def, key="lo_hfin_off")
+
+            st.markdown("---")
+
+            st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
+            st.caption(f"Cálculo automático de cuadrilla ({len(personal_edificio)} integrantes activos detectados en tu nómina para este proyecto):")
+
+            saved_nom_map = st.session_state.get("lo_edit_nom_map", {})
+            saved_rot_map = st.session_state.get("lo_edit_rot_map", {})
+
+            c_nom1, c_nom2 = st.columns(2)
+            with c_nom1:
+                st.markdown("##### 👷 Personal Nómina")
+                nomina_input_map = {}
+                for ofi in OFICIOS_NOMINA_FORMATO:
+                    if st.session_state.edit_lo_id and ofi in saved_nom_map:
+                        conteo_val = int(saved_nom_map[ofi])
+                    else:
+                        conteo_val = int(calcular_conteo_oficio(ofi, personal_edificio))
+
+                    col_n_l, col_n_v = st.columns([3, 1])
+                    with col_n_l:
+                        st.write(f"• {ofi} (7:00AM - 4:00PM)")
+                    with col_n_v:
+                        nomina_input_map[ofi] = st.number_input(
+                            f"N_{ofi}",
+                            min_value=0,
+                            value=conteo_val,
+                            key=f"lo_nom_{ofi}_{lo_proyecto}_{st.session_state.get('edit_lo_id', 'new')}",
+                            label_visibility="collapsed"
+                        )
+
+            with c_nom2:
+                st.markdown("##### 🔄 Personal Rotativo / Subcontratos")
+                rotativo_input_map = {}
+                for rubro in RUROS_ROTATIVOS_FORMATO:
+                    val_rot_prev = int(saved_rot_map.get(rubro, 0)) if st.session_state.edit_lo_id else 0
+                    col_r_l, col_r_v = st.columns([3, 1])
+                    with col_r_l:
+                        st.write(f"• {rubro}")
+                    with col_r_v:
+                        rotativo_input_map[rubro] = st.number_input(
+                            f"R_{rubro}", 
+                            min_value=0, 
+                            value=val_rot_prev, 
+                            key=f"lo_rot_{rubro}_{st.session_state.get('edit_lo_id', 'new')}", 
+                            label_visibility="collapsed"
+                        )
+
+            st.markdown("---")
+
+            st.markdown("#### 3. Condiciones Climáticas y Maquinaria / Herramientas")
+            clima_opts = ["SOL", "NUBLADO", "LLUVIA TENUE", "LLUVIA INTENSA", "GRANIZO"]
+            saved_clima_cond = st.session_state.get("lo_edit_clima_val", "SOL")
+            idx_clima = clima_opts.index(saved_clima_cond) if saved_clima_cond in clima_opts else 0
+            saved_clima_obs = st.session_state.get("lo_edit_clima_obs_val", "")
+            saved_maq_map = st.session_state.get("lo_edit_maq_map", {})
+
+            c_cl1, c_cl2 = st.columns(2)
+            with c_cl1:
+                st.markdown("##### ⛅ Condiciones Climáticas")
+                clima_cond_sel = st.selectbox("Estado del Clima:*", clima_opts, index=idx_clima, key="lo_clima_cond")
+                clima_obs = st.text_input("Observaciones del Clima en Obra:", value=saved_clima_obs, placeholder="Describa si el clima afectó el rendimiento...", key="lo_clima_obs")
+
+            with c_cl2:
+                st.markdown("##### ⚙️ Maquinaria / Herramientas en Operación")
+                maq_input_map = {}
+                for maq in MAQUINARIAS_FORMATO:
+                    val_maq_prev = int(saved_maq_map.get(maq, 0)) if st.session_state.edit_lo_id else 0
+                    c_m_l, c_m_v = st.columns([3, 1])
+                    with c_m_l:
+                        st.write(f"• {maq}")
+                    with c_m_v:
+                        maq_input_map[maq] = st.number_input(
+                            f"M_{maq}", 
+                            min_value=0, 
+                            value=val_maq_prev, 
+                            key=f"lo_maq_{maq}_{st.session_state.get('edit_lo_id', 'new')}", 
+                            label_visibility="collapsed"
+                        )
 
         st.markdown("---")
 
@@ -3390,13 +3430,15 @@ else:
                     if st.session_state.edit_lo_id:
                         supabase.table("inspecciones").update(lo_record).eq("id", st.session_state.edit_lo_id).execute()
                         st.success(f"¡Libro de Obra actualizado exitosamente para **{lo_proyecto}**!")
-                        st.session_state.edit_lo_id = None
                     else:
                         supabase.table("inspecciones").insert(lo_record).execute()
                         st.success(f"¡Libro de Obra guardado exitosamente para **{lo_proyecto}**!")
 
                     components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                     st.session_state.db_loaded = False
+                    # Cierre completo del contenedor
+                    st.session_state.llenando_libro_oficial = False
+                    st.session_state.edit_lo_id = None
                     st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
                     for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
                         if k in st.session_state:
@@ -3405,8 +3447,9 @@ else:
                 except Exception as e:
                     st.error(f"Error al procesar: {e}")
 
-        if st.session_state.edit_lo_id:
-            if st.button("❌ Cancelar Edición", key="btn_cancel_edit_lo_bottom", use_container_width=True):
+            lbl_cancel_lo = "❌ Cancelar Edición" if st.session_state.edit_lo_id else "❌ Cancelar Llenado"
+            if st.button(lbl_cancel_lo, key="btn_cancel_lo_bottom", use_container_width=True):
+                st.session_state.llenando_libro_oficial = False
                 st.session_state.edit_lo_id = None
                 st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
                 for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
@@ -3443,7 +3486,7 @@ else:
                         insp_dict = insp.to_dict()
                         insp_db_id = insp_dict.get("db_id")
 
-                        with st.expander(f"📌 {insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
+                        with st.expander(f"📌 [{insp_dict['Proyecto']}] {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
                             raw_dinsp = insp_dict.get("Datos", {})
                             d_insp = raw_dinsp if isinstance(raw_dinsp, dict) else json.loads(raw_dinsp or "{}") if isinstance(raw_dinsp, str) else {}
                             
@@ -3474,6 +3517,7 @@ else:
                             with c_ed_lo:
                                 if st.button("✏️", key=f"btn_edit_lo_{idx_insp}_{insp_db_id}", help="Editar Libro de Obra", use_container_width=True):
                                     st.session_state.edit_lo_id = insp_db_id
+                                    st.session_state.llenando_libro_oficial = True
                                     st.session_state.lo_edit_proy_val = insp_dict.get("Proyecto")
                                     st.session_state.lo_edit_fecha_val = pd.to_datetime(insp_dict.get("Fecha")).date()
                                     raw_ed = insp_dict.get("Datos", {})
