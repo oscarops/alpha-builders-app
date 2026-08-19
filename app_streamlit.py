@@ -863,7 +863,7 @@ def get_repo_image_b64(filenames):
 
 
 def export_dataframe_to_excel_csv(df):
-    df_clean = df.drop(columns=["Foto_B64", "Fotos", "db_id", "id", "usuario_email", "Responsables"], errors="ignore")
+    df_clean = df.drop(columns=["Foto_B64", "Fotos", "db_id", "id", "usuario_email", "Responsables", "Encargados", "Observaciones"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 
@@ -1387,9 +1387,9 @@ def get_cached_libro_oficial_excel(insp_dict_str):
     ws[f"A{r_act}"].fill = fill_sub
     ws.row_dimensions[r_act].height = 20
 
-    ws.append(["N°", "DESCRIPCIÓN DE LA ACTIVIDAD", "ÁREA DE TRABAJO", "PERSONAL ENCARGADO", "UNIDAD", "CANT. REALIZADA", "OBSERVACIONES"])
+    ws.append(["N°", "DESCRIPCIÓN DE LA ACTIVIDAD", "ÁREA DE TRABAJO", "UNIDAD", "CANT. REALIZADA"])
     r_hdr_a = ws.max_row
-    for col_i in range(1, 8):
+    for col_i in range(1, 6):
         c = ws.cell(row=r_hdr_a, column=col_i)
         c.font = Font(name="Arial", bold=True, color="FFFFFF", size=8.5)
         c.fill = fill_header
@@ -1402,18 +1402,18 @@ def get_cached_libro_oficial_excel(insp_dict_str):
             idx_a,
             a.get("Descripcion", a.get("actividad", "")),
             a.get("Area", ""),
-            a.get("Encargados", a.get("encargados", "")),
             a.get("Unidad", "m2"),
-            a.get("Cantidad", 0.0),
-            a.get("Observaciones", a.get("observaciones", ""))
+            a.get("Cantidad", 0.0)
         ])
         r_row_a = ws.max_row
-        for col_i in range(1, 8):
+        for col_i in range(1, 6):
             c = ws.cell(row=r_row_a, column=col_i)
             c.font = font_regular
             c.border = thin_border
-            if col_i in [1, 5, 6]:
+            if col_i in [1, 4, 5]:
                 c.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                c.alignment = Alignment(horizontal="left", vertical="center")
 
     ws.append([])
     r_eq = ws.max_row + 1
@@ -1521,17 +1521,22 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 
     acts = datos.get("Actividades_Ejecutadas", [])
     if acts:
-        a_data = [[Paragraph("<b>N°</b>", hdr_tbl), Paragraph("<b>DESCRIPCIÓN DE LA ACTIVIDAD</b>", hdr_tbl), Paragraph("<b>ÁREA DE TRABAJO</b>", hdr_tbl), Paragraph("<b>PERSONAL ENCARGADO</b>", hdr_tbl), Paragraph("<b>UNID</b>", hdr_tbl), Paragraph("<b>CANT.</b>", hdr_tbl)]]
+        a_data = [[
+            Paragraph("<b>N°</b>", hdr_tbl),
+            Paragraph("<b>DESCRIPCIÓN DE LA ACTIVIDAD</b>", hdr_tbl),
+            Paragraph("<b>ÁREA DE TRABAJO</b>", hdr_tbl),
+            Paragraph("<b>UNIDAD</b>", hdr_tbl),
+            Paragraph("<b>CANTIDAD</b>", hdr_tbl)
+        ]]
         for idx_a, a in enumerate(acts, 1):
             a_data.append([
                 Paragraph(str(idx_a), cell_center),
                 Paragraph(a.get("Descripcion", a.get("actividad", "")), cell_style),
                 Paragraph(a.get("Area", "Frente Principal"), cell_style),
-                Paragraph(a.get("Encargados", a.get("encargados", "")), cell_style),
                 Paragraph(a.get("Unidad", "m2"), cell_center),
                 Paragraph(str(a.get("Cantidad", 0.0)), cell_center)
             ])
-        t_acts = Table(a_data, colWidths=[25, 295, 150, 180, 40, 60])
+        t_acts = Table(a_data, colWidths=[25, 295, 150, 70, 70])
         t_acts.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e293b')),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
@@ -2794,7 +2799,7 @@ else:
                                 area_resp = st.text_input(
                                     f"Área {r_idx + 1}",
                                     value=resp_item.get("area", ""),
-                                    placeholder="Área/Especialidad...",
+                                    placeholder="Área de trabajo...",
                                     key=f"resp_area_{idx}_{r_idx}_{st.session_state.get('edit_chk_id', 'new')}",
                                     label_visibility="collapsed"
                                 )
@@ -3152,7 +3157,7 @@ else:
             if st.button("➕ Llenar Libro de Obra", type="primary", key="btn_open_llenar_lo_oficial"):
                 st.session_state.llenando_libro_oficial = True
                 st.session_state.edit_lo_id = None
-                st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0}]
                 for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
                     if k in st.session_state:
                         del st.session_state[k]
@@ -3403,10 +3408,8 @@ else:
                             "id": len(importados_chk) + 1,
                             "descripcion": s_it.get("Actividad"),
                             "area": "",
-                            "encargados": "",
                             "unidad": "",
-                            "cantidad": 0.0,
-                            "observaciones": ""
+                            "cantidad": 0.0
                         })
                 if importados_chk:
                     st.session_state.filas_lo_actividades = importados_chk
@@ -3414,7 +3417,7 @@ else:
 
             if not st.session_state.filas_lo_actividades:
                 st.session_state.filas_lo_actividades = [
-                    {"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}
+                    {"id": 1, "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0}
                 ]
 
             indices_eliminar_lo = []
@@ -3434,54 +3437,38 @@ else:
                     )
                 with c_af2:
                     ar_in = st.text_input(
-                        f"Área / Ubicación {idx_act_form}:",
+                        f"Área de Trabajo {idx_act_form}:",
                         value=item_f.get("area", ""),
                         placeholder="Ej. Piso 3, Bloque A...",
                         key=f"lo_act_ar_{f_act_id}"
                     )
 
-                c_af3, c_af4, c_af5, c_af6 = st.columns([2.0, 1.0, 1.0, 0.4])
+                c_af3, c_af4, c_af5 = st.columns([2.0, 1.0, 1.0])
                 with c_af3:
-                    enc_in = st.text_input(
-                        f"Personal Encargado {idx_act_form}:",
-                        value=item_f.get("encargados", ""),
-                        placeholder="Ej. Albañiles, Gypseros...",
-                        key=f"lo_act_enc_{f_act_id}"
-                    )
-                with c_af4:
                     u_in = st.text_input(
                         f"Unidad {idx_act_form}:",
                         value=item_f.get("unidad", ""),
                         placeholder="Ej. m2, m, glb...",
                         key=f"lo_act_u_{f_act_id}"
                     )
-                with c_af5:
+                with c_af4:
                     ct_in = st.number_input(
-                        f"Cant. {idx_act_form}:",
+                        f"Cantidad {idx_act_form}:",
                         min_value=0.0,
                         value=float(item_f.get("cantidad", 0.0)),
                         step=0.5,
                         key=f"lo_act_ct_{f_act_id}"
                     )
-                with c_af6:
+                with c_af5:
                     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
                     if st.button("🗑️", key=f"btn_del_lo_row_{f_act_id}", help="Eliminar fila"):
                         indices_eliminar_lo.append(idx_act_form - 1)
 
-                obs_lo_act = st.text_input(
-                    f"Observaciones {idx_act_form}:",
-                    value=item_f.get("observaciones", ""),
-                    placeholder="Observaciones técnicas de la actividad...",
-                    key=f"lo_act_obs_{f_act_id}"
-                )
-
                 acts_final_payload.append({
                     "Descripcion": d_in.strip(),
                     "Area": ar_in.strip(),
-                    "Encargados": enc_in.strip(),
                     "Unidad": u_in.strip(),
-                    "Cantidad": ct_in,
-                    "Observaciones": obs_lo_act.strip()
+                    "Cantidad": ct_in
                 })
                 st.markdown("---")
 
@@ -3490,7 +3477,7 @@ else:
                     if len(st.session_state.filas_lo_actividades) > 1:
                         st.session_state.filas_lo_actividades.pop(del_i)
                     else:
-                        st.session_state.filas_lo_actividades = [{"id": int(datetime.datetime.now().timestamp() * 1000), "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                        st.session_state.filas_lo_actividades = [{"id": int(datetime.datetime.now().timestamp() * 1000), "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0}]
                 st.rerun()
 
             if st.button("➕ Agregar Fila de Trabajo", key="btn_add_lo_actividad_extra"):
@@ -3499,10 +3486,8 @@ else:
                     "id": next_id_lo,
                     "descripcion": "",
                     "area": "",
-                    "encargados": "",
                     "unidad": "",
-                    "cantidad": 0.0,
-                    "observaciones": ""
+                    "cantidad": 0.0
                 })
                 st.rerun()
 
@@ -3580,7 +3565,7 @@ else:
                         # Cierre completo del contenedor
                         st.session_state.llenando_libro_oficial = False
                         st.session_state.edit_lo_id = None
-                        st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                        st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0}]
                         for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
                             if k in st.session_state:
                                 del st.session_state[k]
@@ -3592,7 +3577,7 @@ else:
             if st.button(lbl_cancel_lo, key="btn_cancel_lo_bottom", use_container_width=True):
                 st.session_state.llenando_libro_oficial = False
                 st.session_state.edit_lo_id = None
-                st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0}]
                 for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
                     if k in st.session_state:
                         del st.session_state[k]
@@ -3633,6 +3618,13 @@ else:
                             
                             st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp_dict.get('Frente', ''))} | **Clima:** {insp_dict.get('Clima', '')}")
                             st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
+
+                            # Mostrar actividades simplificadas
+                            acts_mostrar = d_insp.get("Actividades_Ejecutadas", [])
+                            if acts_mostrar:
+                                st.markdown("**Actividades realizadas:**")
+                                for a in acts_mostrar:
+                                    st.write(f"• **{a.get('Descripcion', '')}** | Área: {a.get('Area', '')} | {a.get('Cantidad', 0)} {a.get('Unidad', 'm2')}")
 
                             c_dl_i1, c_dl_i2, c_ed_lo, c_del_lo = st.columns([2, 2, 1, 1])
                             with c_dl_i1:
@@ -3689,12 +3681,10 @@ else:
                                             "id": i + 1,
                                             "descripcion": it.get("Descripcion", it.get("actividad", "")),
                                             "area": it.get("Area", it.get("area", "")),
-                                            "encargados": it.get("Encargados", it.get("encargados", "")),
                                             "unidad": it.get("Unidad", it.get("unidad", "m2")),
-                                            "cantidad": float(it.get("Cantidad", it.get("cantidad", 0.0))),
-                                            "observaciones": it.get("Observaciones", it.get("observaciones", ""))
+                                            "cantidad": float(it.get("Cantidad", it.get("cantidad", 0.0)))
                                         } for i, it in enumerate(acts_lo_rec)
-                                    ] if acts_lo_rec else [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                                    ] if acts_lo_rec else [{"id": 1, "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0}]
                                     st.rerun()
 
                             with c_del_lo:
