@@ -863,7 +863,7 @@ def get_repo_image_b64(filenames):
 
 
 def export_dataframe_to_excel_csv(df):
-    df_clean = df.drop(columns=["Foto_B64", "Fotos", "db_id", "id", "usuario_email"], errors="ignore")
+    df_clean = df.drop(columns=["Foto_B64", "Fotos", "db_id", "id", "usuario_email", "Responsables"], errors="ignore")
     return df_clean.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 
 
@@ -1042,7 +1042,12 @@ def get_cached_checklist_excel(jornada_dict_str):
         obs_str = " | ".join([f"• {o}" for o in obs_val if o]) if isinstance(obs_val, list) else str(obs_val or "")
         estado_str = str(item.get("Estado", ""))
         if item.get("Actividad") == "Coordinación con otras especialidades" and estado_str == "✗ No Cumple":
-            extra = f" | Resp: {item.get('Responsable', '')} - Área: {item.get('Area', '')}"
+            responsables = item.get("Responsables", [])
+            if responsables:
+                resp_str = " | ".join([f"{r.get('nombre', '')} ({r.get('area', '')})" for r in responsables if r.get('nombre')])
+                extra = f" | {resp_str}"
+            else:
+                extra = ""
         else:
             extra = ""
         ws.append([item.get("Jornada", ""), item.get("N°", ""), item.get("Actividad", ""), estado_str + extra, obs_str])
@@ -1141,7 +1146,12 @@ def get_cached_checklist_pdf(jornada_dict_str):
         obs_str = "<br/>".join([f"• {o}" for o in obs_val if o]) if isinstance(obs_val, list) else str(obs_val or "")
         estado_str = str(item.get("Estado", ""))
         if item.get("Actividad") == "Coordinación con otras especialidades" and estado_str == "✗ No Cumple":
-            extra = f"<br/><b>Responsable:</b> {item.get('Responsable', '')} | <b>Área:</b> {item.get('Area', '')}"
+            responsables = item.get("Responsables", [])
+            if responsables:
+                resp_str = "<br/>".join([f"<b>Responsable:</b> {r.get('nombre', '')} | <b>Área:</b> {r.get('area', '')}" for r in responsables if r.get('nombre')])
+                extra = f"<br/>{resp_str}"
+            else:
+                extra = ""
         else:
             extra = ""
         data_v.append([
@@ -2592,6 +2602,10 @@ else:
         if "chk_obs_counts" not in st.session_state:
             st.session_state.chk_obs_counts = {}
 
+        # Inicializar estado para responsables adicionales en "Coordinación con otras especialidades"
+        if "chk_responsables_extra" not in st.session_state:
+            st.session_state.chk_responsables_extra = {}
+
         st.markdown("### Checklist – Control de Obra")
         st.caption("Supervisión técnica y control de ejecución diaria en obra.")
 
@@ -2601,6 +2615,7 @@ else:
                 st.session_state.edit_chk_id = None
                 st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
                 st.session_state.chk_obs_counts = {}
+                st.session_state.chk_responsables_extra = {}
                 for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
                     if k in st.session_state:
                         del st.session_state[k]
@@ -2662,14 +2677,6 @@ else:
                 # JORNADA DE LA MAÑANA
                 st.markdown("#### 🌅 Jornada de la Mañana")
                 resp_manana = []
-                mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-                # Personal filtrado por edificio (opcional)
-                if edificio_val != "-- Seleccione --":
-                    personal_opciones = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio if (t.get("edificio") == edificio_val or t.get("edificio") == "General" or not t.get("edificio"))]
-                    if not personal_opciones:
-                        personal_opciones = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio]
-                else:
-                    personal_opciones = [f"{t['nombre']} ({t['cargo']})" for t in mi_personal_propio]
 
                 for idx, act in enumerate(ACTIVIDADES_MANANA_CLEAN, 1):
                     item_key = f"m_{idx}"
@@ -2749,32 +2756,71 @@ else:
                             fotos_b64 = []
 
                     # Nuevos campos para "Coordinación con otras especialidades" (idx == 3)
-                    responsable_sel = ""
-                    area_txt = ""
+                    responsables_list = []
                     if act == "Coordinación con otras especialidades" and est == "✗ No Cumple":
                         st.markdown("---")
                         st.markdown("##### Datos adicionales para No Cumple")
-                        c_resp, c_area = st.columns(2)
-                        with c_resp:
-                            if personal_opciones:
-                                responsable_sel = st.selectbox(
-                                    "Responsable:",
-                                    options=personal_opciones,
-                                    index=personal_opciones.index(item_guardado.get("Responsable", "")) if item_guardado.get("Responsable") in personal_opciones else 0,
-                                    key=f"m_resp_{idx}_{st.session_state.get('edit_chk_id', 'new')}"
-                                )
+                        
+                        # Obtener lista de responsables guardados
+                        resp_guardados = item_guardado.get("Responsables", [])
+                        if not resp_guardados:
+                            resp_guardados = []
+                        
+                        # Generar clave única para este ítem
+                        extra_key = f"extra_{idx}_{st.session_state.get('edit_chk_id', 'new')}"
+                        if extra_key not in st.session_state.chk_responsables_extra:
+                            # Inicializar con los responsables guardados o al menos uno vacío
+                            if resp_guardados:
+                                st.session_state.chk_responsables_extra[extra_key] = resp_guardados.copy()
                             else:
-                                responsable_sel = st.text_input(
-                                    "Responsable (manual):",
-                                    value=item_guardado.get("Responsable", ""),
-                                    key=f"m_resp_manual_{idx}_{st.session_state.get('edit_chk_id', 'new')}"
+                                st.session_state.chk_responsables_extra[extra_key] = [{"nombre": "", "area": ""}]
+                        
+                        # Mostrar los campos para cada responsable
+                        resp_list = st.session_state.chk_responsables_extra[extra_key]
+                        indices_a_eliminar_resp = []
+                        
+                        for r_idx, resp_item in enumerate(resp_list):
+                            st.markdown(f"**Responsable #{r_idx + 1}**")
+                            col_r1, col_r2, col_r3 = st.columns([2.5, 2.5, 0.6])
+                            with col_r1:
+                                nombre_resp = st.text_input(
+                                    f"Nombre {r_idx + 1}",
+                                    value=resp_item.get("nombre", ""),
+                                    placeholder="Nombre del responsable...",
+                                    key=f"resp_nom_{idx}_{r_idx}_{st.session_state.get('edit_chk_id', 'new')}",
+                                    label_visibility="collapsed"
                                 )
-                        with c_area:
-                            area_txt = st.text_input(
-                                "Área / Ubicación:",
-                                value=item_guardado.get("Area", ""),
-                                key=f"m_area_{idx}_{st.session_state.get('edit_chk_id', 'new')}"
-                            )
+                            with col_r2:
+                                area_resp = st.text_input(
+                                    f"Área {r_idx + 1}",
+                                    value=resp_item.get("area", ""),
+                                    placeholder="Área de trabajo...",
+                                    key=f"resp_area_{idx}_{r_idx}_{st.session_state.get('edit_chk_id', 'new')}",
+                                    label_visibility="collapsed"
+                                )
+                            with col_r3:
+                                if len(resp_list) > 1:
+                                    if st.button("🗑️", key=f"del_resp_{idx}_{r_idx}_{st.session_state.get('edit_chk_id', 'new')}", help="Eliminar responsable"):
+                                        indices_a_eliminar_resp.append(r_idx)
+                            
+                            # Actualizar el item en la lista
+                            resp_list[r_idx] = {"nombre": nombre_resp, "area": area_resp}
+                        
+                        # Eliminar responsables marcados
+                        if indices_a_eliminar_resp:
+                            for r_idx in sorted(indices_a_eliminar_resp, reverse=True):
+                                if len(resp_list) > 1:
+                                    resp_list.pop(r_idx)
+                            st.rerun()
+                        
+                        # Botón para agregar más responsables
+                        if st.button("➕ Agregar Responsable", key=f"add_resp_{idx}_{st.session_state.get('edit_chk_id', 'new')}", use_container_width=True):
+                            resp_list.append({"nombre": "", "area": ""})
+                            st.rerun()
+                        
+                        # Guardar la lista actualizada
+                        responsables_list = resp_list
+                        st.session_state.chk_responsables_extra[extra_key] = resp_list
 
                     st.markdown('</div>', unsafe_allow_html=True)
                     resp_manana.append({
@@ -2784,8 +2830,7 @@ else:
                         "Estado": est,
                         "Observaciones": obs_vals_item,
                         "Fotos": fotos_b64,
-                        "Responsable": responsable_sel,
-                        "Area": area_txt
+                        "Responsables": responsables_list if responsables_list else []
                     })
 
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -2973,6 +3018,7 @@ else:
                                 st.session_state.edit_chk_id = None
                                 st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
                                 st.session_state.chk_obs_counts = {}
+                                st.session_state.chk_responsables_extra = {}
                                 for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
                                     if k in st.session_state:
                                         del st.session_state[k]
@@ -3662,6 +3708,7 @@ else:
                                         st.error(f"Error al eliminar: {e}")
         else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
+
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL, INCIDENCIAS, RENDIMIENTO, ESPACIO COLABORATIVO
 #                Y PANEL ADMINISTRADOR (AGRUPACIÓN MENSUAL COLABORATIVA)
