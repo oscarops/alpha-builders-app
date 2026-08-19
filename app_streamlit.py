@@ -2226,7 +2226,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON COMPATIBILIDAD TOTAL
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON EDICIÓN Y CANCELAR ABAJO
 # ==============================================================================
 
 # ==============================================================================
@@ -2263,13 +2263,6 @@ if es_maestro_mayor:
 
         if st.session_state.edit_mm_id:
             st.info("✏️ **Modo Edición Activo:** Modificando reporte seleccionado.")
-            if st.button("❌ Cancelar Edición", key="btn_cancel_edit_mm"):
-                st.session_state.edit_mm_id = None
-                st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
-                for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
-                    if k in st.session_state:
-                        del st.session_state[k]
-                st.rerun()
 
         local_today_mm = get_local_datetime_ecuador().date()
         fecha_default_mm = st.session_state.get("mm_edit_fecha_val", local_today_mm)
@@ -2436,6 +2429,16 @@ if es_maestro_mayor:
                     except Exception as e:
                         st.error(f"Error al procesar reporte: {e}")
 
+        # Botón Cancelar Edición ubicado abajo
+        if st.session_state.edit_mm_id:
+            if st.button("❌ Cancelar Edición", key="btn_cancel_edit_mm_bottom", use_container_width=True):
+                st.session_state.edit_mm_id = None
+                st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
+                st.rerun()
+
         st.markdown("---")
         st.markdown("### Historial de Reportes del Maestro Mayor")
         mis_libros_m = st.session_state.get("db_inspecciones", {}).get(user_email, [])
@@ -2460,7 +2463,6 @@ if es_maestro_mayor:
                             raw_dm = insp_dict_m.get("Datos", {})
                             d_parsed = raw_dm if isinstance(raw_dm, dict) else json.loads(raw_dm or "{}") if isinstance(raw_dm, str) else {}
                             
-                            # Compatibilidad con formatos anteriores
                             if isinstance(d_parsed, dict):
                                 acts_guardadas = d_parsed.get("Actividades_Maestro", [])
                             elif isinstance(d_parsed, list):
@@ -2568,14 +2570,6 @@ else:
             st.markdown("---")
             if st.session_state.edit_chk_id:
                 st.info("✏️ **Modo Edición de Checklist Activo**")
-                if st.button("❌ Cancelar Edición de Checklist", key="btn_cancel_edit_chk"):
-                    st.session_state.edit_chk_id = None
-                    st.session_state.creando_jornada = False
-                    st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
-                    for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
-                        if k in st.session_state:
-                            del st.session_state[k]
-                    st.rerun()
 
             with st.container():
                 st.markdown("#### Configuración de la Jornada")
@@ -2602,19 +2596,15 @@ else:
 
                 st.markdown("---")
 
-                # Diccionario normalizado de respuestas previas para compatibilidad
                 edit_resp_map = st.session_state.get("chk_edit_resp_map", {})
 
                 def buscar_item_retrocompatible(jornada, idx, act_texto):
-                    # Búsqueda exacta
                     k1 = f"{jornada}_{act_texto}".lower().strip()
                     if k1 in edit_resp_map:
                         return edit_resp_map[k1]
-                    # Búsqueda por número de ítem
                     k2 = f"{jornada}_{idx}".lower().strip()
                     if k2 in edit_resp_map:
                         return edit_resp_map[k2]
-                    # Búsqueda aproximada por coincidencia parcial de texto
                     for k_map, v_map in edit_resp_map.items():
                         if k_map.startswith(jornada.lower()) and (act_texto.lower()[:8] in k_map or k_map.split("_")[-1][:8] in act_texto.lower()):
                             return v_map
@@ -2832,6 +2822,17 @@ else:
                             except Exception as e:
                                 st.error(f"Error al guardar checklist: {e}")
 
+                # Botón Cancelar Edición ubicado abajo
+                if st.session_state.edit_chk_id:
+                    if st.button("❌ Cancelar Edición", key="btn_cancel_edit_chk_bottom", use_container_width=True):
+                        st.session_state.edit_chk_id = None
+                        st.session_state.creando_jornada = False
+                        st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
+                        for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
+                            if k in st.session_state:
+                                del st.session_state[k]
+                        st.rerun()
+
         st.markdown("---")
         st.markdown("### Historial General de Checklists Creados")
         mis_jornadas = st.session_state.get("db_checklists", {}).get(user_email, [])
@@ -2894,7 +2895,6 @@ else:
                                     raw_data_chk = j_dict.get("Datos", {})
                                     parsed_chk_d = raw_data_chk if isinstance(raw_data_chk, (dict, list)) else json.loads(raw_data_chk or "{}") if isinstance(raw_data_chk, str) else {}
                                     
-                                    # Normalización retrocompatible de verificaciones
                                     if isinstance(parsed_chk_d, dict):
                                         verifs = parsed_chk_d.get("Verificaciones", [])
                                         sups_rec = parsed_chk_d.get("Supervision_Trabajos", [])
@@ -2943,13 +2943,6 @@ else:
 
         if st.session_state.edit_lo_id:
             st.info("✏️ **Modo Edición de Libro de Obra Activo**")
-            if st.button("❌ Cancelar Edición de Libro de Obra", key="btn_cancel_edit_lo"):
-                st.session_state.edit_lo_id = None
-                st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
-                for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
-                    if k in st.session_state:
-                        del st.session_state[k]
-                st.rerun()
 
         dias_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
         local_today_insp = get_local_datetime_ecuador().date()
@@ -3060,7 +3053,6 @@ else:
         st.markdown("#### 2. Jornada de Trabajo y Nómina de Personal")
         st.caption(f"Cálculo automático de cuadrilla ({len(personal_edificio)} integrantes activos detectados en tu nómina para este proyecto):")
 
-        # Mapas de edición previa para nómina y subcontratos
         saved_nom_map = st.session_state.get("lo_edit_nom_map", {})
         saved_rot_map = st.session_state.get("lo_edit_rot_map", {})
 
@@ -3367,6 +3359,16 @@ else:
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error al procesar: {e}")
+
+        # Botón Cancelar Edición ubicado abajo
+        if st.session_state.edit_lo_id:
+            if st.button("❌ Cancelar Edición", key="btn_cancel_edit_lo_bottom", use_container_width=True):
+                st.session_state.edit_lo_id = None
+                st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "encargados": "", "unidad": "", "cantidad": 0.0, "observaciones": ""}]
+                for k in ["lo_edit_proy_val", "lo_edit_fecha_val", "lo_edit_ubic_val", "lo_edit_barr_val", "lo_edit_super_val", "lo_edit_fisc_val", "lo_edit_hoja_val", "lo_edit_nov_val", "lo_edit_hini_val", "lo_edit_hfin_val", "lo_edit_clima_val", "lo_edit_clima_obs_val", "lo_edit_nom_map", "lo_edit_rot_map", "lo_edit_maq_map", "lo_edit_seg_map"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
+                st.rerun()
 
         st.markdown("---")
 
