@@ -3756,7 +3756,7 @@ else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL, INCIDENCIAS, RENDIMIENTO, ESPACIO COLABORATIVO
-#                Y PANEL ADMINISTRADOR (AGRUPACIÓN MENSUAL COLABORATIVA)
+#                Y PANEL ADMINISTRADOR (COMPLETO Y CORREGIDO)
 # ==============================================================================
 
 # ==============================================================================
@@ -3810,7 +3810,7 @@ with tab_personal:
                         cur_p.append(new_item)
                         
                         # Ordenamiento alfabético automático
-                        cur_p = sorted(cur_p, key=lambda it: str(it.get("nombre", "")).upper())
+                        cur_p = sorted(cur_p, key=lambda it_w: str(it_w.get("nombre", "")).upper())
                         st.session_state.db_trabajadores_por_usuario[user_email] = cur_p
 
                         try:
@@ -3874,7 +3874,7 @@ with tab_personal:
                                     registrados_cnt += 1
 
                             # Ordenamiento alfabético automático
-                            cur_p = sorted(cur_p, key=lambda it: str(it.get("nombre", "")).upper())
+                            cur_p = sorted(cur_p, key=lambda it_w: str(it_w.get("nombre", "")).upper())
                             st.session_state.db_trabajadores_por_usuario[user_email] = cur_p
 
                             try:
@@ -3948,7 +3948,7 @@ with tab_personal:
                             importados_cnt += 1
 
                     # Ordenamiento alfabético automático
-                    cur_p = sorted(cur_p, key=lambda it: str(it.get("nombre", "")).upper())
+                    cur_p = sorted(cur_p, key=lambda it_w: str(it_w.get("nombre", "")).upper())
                     st.session_state.db_trabajadores_por_usuario[user_email] = cur_p
 
                     try:
@@ -3969,7 +3969,7 @@ with tab_personal:
 
     mi_personal_actual = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
     # Garantizar orden alfabético
-    mi_personal_actual = sorted(mi_personal_actual, key=lambda it: str(it.get("nombre", "")).upper())
+    mi_personal_actual = sorted(mi_personal_actual, key=lambda it_w: str(it_w.get("nombre", "")).upper())
     st.markdown(f"#### Tu Nómina de Personal a Cargo ({len(mi_personal_actual)} integrantes)")
 
     if len(mi_personal_actual) > 0:
@@ -4342,7 +4342,7 @@ if not es_maestro_mayor:
                         data=export_incidencias_to_pdf(lista_incs_vista, nombre_proy_rep),
                         file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.pdf",
                         mime="application/pdf",
-                        key=f"dl_pdf_incidencias_tab_p5",
+                        key="dl_pdf_incidencias_tab_p5",
                         use_container_width=True
                     )
         else:
@@ -4357,7 +4357,7 @@ with tab_rend:
 
     mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
     # Ordenar alfabéticamente
-    mi_personal_propio = sorted(mi_personal_propio, key=lambda it: str(it.get("nombre", "")).upper())
+    mi_personal_propio = sorted(mi_personal_propio, key=lambda it_w: str(it_w.get("nombre", "")).upper())
     nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
 
     col1, col2 = st.columns(2)
@@ -4616,9 +4616,14 @@ with tab_colab:
                                         if acts_m:
                                             st.markdown("**Actividades, Personal y Metrajes Reportados:**")
                                             for a_it in acts_m:
-                                                pers_str = ", ".join(a_it.get("Personal_A_Cargo", [])) if isinstance(a_it.get("Personal_A_Cargo"), list) else str(a_it.get("Personal_A_Cargo", ""))
-                                                pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
-                                                st.write(f"• **{a_it.get('Actividad', it.get('actividad', ''))}**: `{a_it.get('Cantidad', it.get('cantidad', ''))}`{pers_tag} — *{a_it.get('Observaciones', it.get('observaciones', 'Sin observaciones'))}*")
+                                                if isinstance(a_it, dict):
+                                                    act_nombre = a_it.get('Actividad', a_it.get('actividad', ''))
+                                                    act_cant = a_it.get('Cantidad', a_it.get('cantidad', ''))
+                                                    act_obs = a_it.get('Observaciones', a_it.get('observaciones', 'Sin observaciones'))
+                                                    pers_raw = a_it.get('Personal_A_Cargo', a_it.get('personal_a_cargo', []))
+                                                    pers_str = ", ".join(pers_raw) if isinstance(pers_raw, list) else str(pers_raw or "")
+                                                    pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
+                                                    st.write(f"• **{act_nombre}**: `{act_cant}`{pers_tag} — *{act_obs}*")
                                         
                                         col_dl_mm1, col_dl_mm2 = st.columns(2)
                                         with col_dl_mm1:
