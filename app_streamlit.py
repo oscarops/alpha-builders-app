@@ -682,10 +682,8 @@ def load_db_from_supabase():
         if res_chk.data:
             for r in res_chk.data:
                 try:
-                    # Identificar correo de forma tolerante
                     c = str(r.get("usuario_email") or r.get("correo") or r.get("user_email") or r.get("usuario") or "").lower().strip()
                     if not c:
-                        # Si no tiene correo explícito, buscar si coincide con algún usuario por nombre o dejar genérico
                         resp_nom = str(r.get("responsable", "")).lower().strip()
                         matched_u = next((u["Correo"] for u in db_usuarios if f"{u['Nombres']} {u['Apellidos']}".lower().strip() == resp_nom), None)
                         c = matched_u if matched_u else "general"
@@ -867,7 +865,7 @@ if "db_usuarios" not in st.session_state:
 
 
 # ==============================================================================
-# 5. FUNCIONES DE FORMATO Y EXPORTADORES EN CACHÉ
+# 5. FUNCIONES DE FORMATO Y EXPORTADORES EN CACHÉ (RETROCOMPATIBLES)
 # ==============================================================================
 def render_estado_badge(estado_str):
     if not estado_str:
@@ -2320,7 +2318,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON BOTÓN DE LLENADO Y CIERRE
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON SOPORTE COMPLETO A VERSIONES ANTIGUAS
 # ==============================================================================
 
 # ==============================================================================
@@ -2539,7 +2537,6 @@ if es_maestro_mayor:
 
                             components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                             st.session_state.db_loaded = False
-                            # Cierre completo del formulario para evitar bucles
                             st.session_state.llenando_libro_mm = False
                             st.session_state.edit_mm_id = None
                             st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
@@ -2550,7 +2547,6 @@ if es_maestro_mayor:
                         except Exception as e:
                             st.error(f"Error al procesar reporte: {e}")
 
-            # Botón Cancelar que cierra el formulario
             lbl_cancel_mm = "❌ Cancelar Edición" if st.session_state.edit_mm_id else "❌ Cancelar Llenado"
             if st.button(lbl_cancel_mm, key="btn_cancel_mm_bottom", use_container_width=True):
                 st.session_state.llenando_libro_mm = False
@@ -2585,6 +2581,7 @@ if es_maestro_mayor:
                             raw_dm = insp_dict_m.get("Datos", {})
                             d_parsed = raw_dm if isinstance(raw_dm, dict) else json.loads(raw_dm or "{}") if isinstance(raw_dm, str) else {}
                             
+                            # Compatible con versiones antiguas y nuevas
                             if isinstance(d_parsed, dict):
                                 acts_guardadas = d_parsed.get("Actividades_Maestro", [])
                             elif isinstance(d_parsed, list):
@@ -2593,9 +2590,14 @@ if es_maestro_mayor:
                                 acts_guardadas = []
                             
                             for a_g in acts_guardadas:
-                                pers_str = ", ".join(a_g.get("Personal_A_Cargo", [])) if isinstance(a_g.get("Personal_A_Cargo"), list) else str(a_g.get("Personal_A_Cargo", ""))
-                                pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
-                                st.write(f"• **{a_g.get('Actividad')}**: `{a_g.get('Cantidad')}`{pers_tag} — *{a_g.get('Observaciones', 'Sin observaciones')}*")
+                                if isinstance(a_g, dict):
+                                    pers_raw = a_g.get("Personal_A_Cargo", a_g.get("personal_a_cargo", []))
+                                    pers_str = ", ".join(pers_raw) if isinstance(pers_raw, list) else str(pers_raw or "")
+                                    pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
+                                    act_n = a_g.get('Actividad', a_g.get('actividad', ''))
+                                    act_c = a_g.get('Cantidad', a_g.get('cantidad', ''))
+                                    act_o = a_g.get('Observaciones', a_g.get('observaciones', 'Sin observaciones'))
+                                    st.write(f"• **{act_n}**: `{act_c}`{pers_tag} — *{act_o}*")
 
                             c_dl_m1, c_dl_m2, c_ed_m, c_del_m = st.columns([2, 2, 1, 1])
                             with c_dl_m1:
@@ -2818,8 +2820,10 @@ else:
                                         fotos_b64.append(b64)
                             else:
                                 fotos_guardadas = item_guardado.get("Fotos", [])
-                                if fotos_guardadas:
+                                if isinstance(fotos_guardadas, list):
                                     fotos_b64 = fotos_guardadas
+                                elif item_guardado.get("Foto_B64"):
+                                    fotos_b64 = [item_guardado.get("Foto_B64")]
                         else:
                             st.markdown("<small style='font-weight:700; color:#94a3b8;'>Fotos Evidencia:</small>", unsafe_allow_html=True)
                             st.caption("📷 *No requerida*")
@@ -2967,8 +2971,10 @@ else:
                                     fotos_b64_t.append(b64)
                         else:
                             fotos_guardadas_t = item_guardado_t.get("Fotos", [])
-                            if fotos_guardadas_t:
+                            if isinstance(fotos_guardadas_t, list):
                                 fotos_b64_t = fotos_guardadas_t
+                            elif item_guardado_t.get("Foto_B64"):
+                                fotos_b64_t = [item_guardado_t.get("Foto_B64")]
 
                     st.markdown('</div>', unsafe_allow_html=True)
                     resp_tarde.append({
@@ -3074,7 +3080,6 @@ else:
 
                                 components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                                 st.session_state.db_loaded = False
-                                # Cierre completo del contenedor
                                 st.session_state.creando_jornada = False
                                 st.session_state.edit_chk_id = None
                                 st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
@@ -3619,7 +3624,6 @@ else:
 
                         components.html("""<script>try { if (window.top.alphaBuildersClearDraft) window.top.alphaBuildersClearDraft(); } catch(e) {}</script>""", height=0, width=0)
                         st.session_state.db_loaded = False
-                        # Cierre completo del contenedor
                         st.session_state.llenando_libro_oficial = False
                         st.session_state.edit_lo_id = None
                         st.session_state.filas_lo_actividades = [{"id": 1, "descripcion": "", "area": "", "unidad": "", "cantidad": 0.0}]
@@ -3669,7 +3673,7 @@ else:
                         insp_dict = insp.to_dict()
                         insp_db_id = insp_dict.get("db_id")
 
-                        with st.expander(f"📌 [{insp_dict['Proyecto']}] {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
+                        with st.expander(f"📌 {insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
                             raw_dinsp = insp_dict.get("Datos", {})
                             d_insp = raw_dinsp if isinstance(raw_dinsp, dict) else json.loads(raw_dinsp or "{}") if isinstance(raw_dinsp, str) else {}
                             
@@ -3756,7 +3760,7 @@ else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL, INCIDENCIAS, RENDIMIENTO, ESPACIO COLABORATIVO
-#                Y PANEL ADMINISTRADOR (COMPLETO Y CORREGIDO)
+#                Y PANEL ADMINISTRADOR (COMPATIBILIDAD TOTAL CON HISTÓRICOS)
 # ==============================================================================
 
 # ==============================================================================
@@ -4342,7 +4346,7 @@ if not es_maestro_mayor:
                         data=export_incidencias_to_pdf(lista_incs_vista, nombre_proy_rep),
                         file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.pdf",
                         mime="application/pdf",
-                        key="dl_pdf_incidencias_tab_p5",
+                        key=f"dl_pdf_incidencias_tab_p5",
                         use_container_width=True
                     )
         else:
