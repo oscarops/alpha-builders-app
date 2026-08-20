@@ -518,7 +518,7 @@ MAQUINARIAS_FORMATO = [
     "ARNES", "VIBRADOR", "TALADRO", "TIJERA"
 ]
 # ==============================================================================
-# PARTE 2 DE 5: CARGA RÁPIDA DE DATOS, ORDEN ALFABÉTICO Y EXPORTADORES EN CACHÉ
+# PARTE 2 DE 5: CARGA RÁPIDA DE DATOS BLINDADA Y EXPORTADORES EN CACHÉ
 # ==============================================================================
 
 # ==============================================================================
@@ -545,7 +545,7 @@ def get_realtime_weather():
 
 
 # ==============================================================================
-# 4. BASE DE DATOS SUPABASE - INICIALIZACIÓN Y CARGA LIGERA
+# 4. BASE DE DATOS SUPABASE - INICIALIZACIÓN Y CARGA LIGERA BLINDADA
 # ==============================================================================
 @st.cache_resource
 def init_supabase():
@@ -644,22 +644,25 @@ def load_db_from_supabase():
         res_trab = supabase.table("trabajadores").select("*").order("id", desc=False).execute()
         if res_trab.data:
             for r in res_trab.data:
-                u_owner = str(r.get("usuario_email", "")).lower().strip()
-                if not u_owner or u_owner in ["none", "null", "", "undefined"]:
-                    continue
+                try:
+                    u_owner = str(r.get("usuario_email") or r.get("correo") or r.get("user_email") or "").lower().strip()
+                    if not u_owner or u_owner in ["none", "null", "", "undefined"]:
+                        continue
 
-                if u_owner not in db_trabajadores_por_usuario:
-                    db_trabajadores_por_usuario[u_owner] = []
+                    if u_owner not in db_trabajadores_por_usuario:
+                        db_trabajadores_por_usuario[u_owner] = []
 
-                edif_val = r.get("edificio") or "General"
-                if not any(x.get("id") == r["id"] or x.get("nombre") == r["nombre"] for x in db_trabajadores_por_usuario[u_owner]):
-                    db_trabajadores_por_usuario[u_owner].append({
-                        "id": r["id"],
-                        "nombre": r["nombre"],
-                        "cargo": r["cargo"],
-                        "edificio": edif_val,
-                        "usuario_email": u_owner
-                    })
+                    edif_val = r.get("edificio") or "General"
+                    if not any(x.get("id") == r.get("id") or x.get("nombre") == r.get("nombre") for x in db_trabajadores_por_usuario[u_owner]):
+                        db_trabajadores_por_usuario[u_owner].append({
+                            "id": r.get("id"),
+                            "nombre": r.get("nombre", ""),
+                            "cargo": r.get("cargo", ""),
+                            "edificio": edif_val,
+                            "usuario_email": u_owner
+                        })
+                except Exception as ex_item:
+                    print(f"[Warn] Error en fila trabajador: {ex_item}")
     except Exception as e:
         print(f"[Warn] Error en tabla trabajadores: {e}")
 
@@ -670,107 +673,158 @@ def load_db_from_supabase():
             key=lambda item: str(item.get("nombre", "")).upper()
         )
 
+    # -------------------------------------------------------------------------
+    # CARGA BLINDADA DE CHECKLISTS (FILA POR FILA Y RESILIENTE A FORMATOS ANTIGUOS)
+    # -------------------------------------------------------------------------
     db_checklists = {}
     try:
         res_chk = supabase.table("checklists").select("*").execute()
         if res_chk.data:
             for r in res_chk.data:
-                c = str(r.get("usuario_email", "")).lower().strip()
-                if not c:
-                    continue
-                if c not in db_checklists:
-                    db_checklists[c] = []
+                try:
+                    # Identificar correo de forma tolerante
+                    c = str(r.get("usuario_email") or r.get("correo") or r.get("user_email") or r.get("usuario") or "").lower().strip()
+                    if not c:
+                        # Si no tiene correo explícito, buscar si coincide con algún usuario por nombre o dejar genérico
+                        resp_nom = str(r.get("responsable", "")).lower().strip()
+                        matched_u = next((u["Correo"] for u in db_usuarios if f"{u['Nombres']} {u['Apellidos']}".lower().strip() == resp_nom), None)
+                        c = matched_u if matched_u else "general"
 
-                raw_d = r.get("datos")
-                datos_parsed = raw_d if isinstance(raw_d, (list, dict)) else json.loads(raw_d or "{}")
-                db_checklists[c].append({
-                    "db_id": r["id"],
-                    "Fecha": str(r.get("fecha", "")),
-                    "Hora_Inicio": r.get("hora_inicio", "07:00"),
-                    "Hora_Fin": r.get("hora_fin", "17:00"),
-                    "Edificio": r.get("edificio", ""),
-                    "Responsable": r.get("responsable", ""),
-                    "Cargo": r.get("cargo", ""),
-                    "Observacion_General": r.get("observacion_general", ""),
-                    "Datos": datos_parsed
-                })
+                    if c not in db_checklists:
+                        db_checklists[c] = []
+
+                    raw_d = r.get("datos")
+                    if isinstance(raw_d, (list, dict)):
+                        datos_parsed = raw_d
+                    elif isinstance(raw_d, str):
+                        try:
+                            datos_parsed = json.loads(raw_d)
+                        except Exception:
+                            datos_parsed = {}
+                    else:
+                        datos_parsed = {}
+
+                    db_checklists[c].append({
+                        "db_id": r.get("id"),
+                        "Fecha": str(r.get("fecha", "")),
+                        "Hora_Inicio": r.get("hora_inicio", "07:00"),
+                        "Hora_Fin": r.get("hora_fin", "17:00"),
+                        "Edificio": r.get("edificio", ""),
+                        "Responsable": r.get("responsable", ""),
+                        "Cargo": r.get("cargo", ""),
+                        "Observacion_General": r.get("observacion_general", ""),
+                        "Datos": datos_parsed
+                    })
+                except Exception as ex_chk_row:
+                    print(f"[Warn] Error parseando fila checklist {r.get('id')}: {ex_chk_row}")
     except Exception as e:
-        print(f"[Warn] Error en tabla checklists: {e}")
+        print(f"[Warn] Error en consulta tabla checklists: {e}")
 
+    # -------------------------------------------------------------------------
+    # CARGA BLINDADA DE INSPECCIONES / LIBRO DE OBRA
+    # -------------------------------------------------------------------------
     db_inspecciones = {}
     try:
         res_insp = supabase.table("inspecciones").select("*").execute()
         if res_insp.data:
             for r in res_insp.data:
-                c = str(r.get("usuario_email", "")).lower().strip()
-                if not c:
-                    continue
-                if c not in db_inspecciones:
-                    db_inspecciones[c] = []
+                try:
+                    c = str(r.get("usuario_email") or r.get("correo") or r.get("user_email") or r.get("usuario") or "").lower().strip()
+                    if not c:
+                        res_nom = str(r.get("residente", "")).lower().strip()
+                        matched_u = next((u["Correo"] for u in db_usuarios if f"{u['Nombres']} {u['Apellidos']}".lower().strip() == res_nom), None)
+                        c = matched_u if matched_u else "general"
 
-                raw_d = r.get("datos")
-                datos_parsed = raw_d if isinstance(raw_d, dict) else json.loads(raw_d or "{}")
-                db_inspecciones[c].append({
-                    "db_id": r["id"],
-                    "Fecha": str(r.get("fecha", "")),
-                    "Dia": r.get("dia", ""),
-                    "Proyecto": r.get("proyecto", ""),
-                    "Residente": r.get("residente", ""),
-                    "Frente": r.get("frente", ""),
-                    "Clima": r.get("clima", ""),
-                    "Hora_Inicio": r.get("hora_inicio", "07:00"),
-                    "Hora_Fin": r.get("hora_fin", "17:00"),
-                    "Datos": datos_parsed
-                })
+                    if c not in db_inspecciones:
+                        db_inspecciones[c] = []
+
+                    raw_d = r.get("datos")
+                    if isinstance(raw_d, (list, dict)):
+                        datos_parsed = raw_d
+                    elif isinstance(raw_d, str):
+                        try:
+                            datos_parsed = json.loads(raw_d)
+                        except Exception:
+                            datos_parsed = {}
+                    else:
+                        datos_parsed = {}
+
+                    db_inspecciones[c].append({
+                        "db_id": r.get("id"),
+                        "Fecha": str(r.get("fecha", "")),
+                        "Dia": r.get("dia", ""),
+                        "Proyecto": r.get("proyecto", ""),
+                        "Residente": r.get("residente", ""),
+                        "Frente": r.get("frente", ""),
+                        "Clima": r.get("clima", ""),
+                        "Hora_Inicio": r.get("hora_inicio", "07:00"),
+                        "Hora_Fin": r.get("hora_fin", "17:00"),
+                        "Datos": datos_parsed
+                    })
+                except Exception as ex_insp_row:
+                    print(f"[Warn] Error parseando fila inspeccion {r.get('id')}: {ex_insp_row}")
     except Exception as e:
-        print(f"[Warn] Error en tabla inspecciones: {e}")
+        print(f"[Warn] Error en consulta tabla inspecciones: {e}")
 
+    # -------------------------------------------------------------------------
+    # CARGA BLINDADA DE INCIDENCIAS
+    # -------------------------------------------------------------------------
     db_incidencias_all = []
     try:
         res_inc = supabase.table("incidencias").select("*").execute()
         if res_inc.data:
             for r in res_inc.data:
-                db_incidencias_all.append({
-                    "db_id": r["id"],
-                    "Area": r.get("area", ""),
-                    "Descripcion": r.get("descripcion", ""),
-                    "Responsable": r.get("responsable", ""),
-                    "Prioridad": r.get("prioridad", "Media"),
-                    "Fecha_Compromiso": str(r.get("fecha_compromiso", "")),
-                    "Estado": r.get("estado", "Abierta"),
-                    "Proyecto": r.get("proyecto", ""),
-                    "Usuario": str(r.get("usuario_email", "")).lower().strip()
-                })
+                try:
+                    c_inc = str(r.get("usuario_email") or r.get("correo") or r.get("user_email") or r.get("usuario") or "").lower().strip()
+                    db_incidencias_all.append({
+                        "db_id": r.get("id"),
+                        "Area": r.get("area", ""),
+                        "Descripcion": r.get("descripcion", ""),
+                        "Responsable": r.get("responsable", ""),
+                        "Prioridad": r.get("prioridad", "Media"),
+                        "Fecha_Compromiso": str(r.get("fecha_compromiso", "")),
+                        "Estado": r.get("estado", "Abierta"),
+                        "Proyecto": r.get("proyecto", ""),
+                        "Usuario": c_inc
+                    })
+                except Exception as ex_inc:
+                    print(f"[Warn] Error parseando incidencia {r.get('id')}: {ex_inc}")
     except Exception as e:
         print(f"[Warn] Error en tabla incidencias: {e}")
 
+    # -------------------------------------------------------------------------
+    # CARGA BLINDADA DE RENDIMIENTOS
+    # -------------------------------------------------------------------------
     db_rendimientos = {}
     try:
         res_rnd = supabase.table("rendimientos").select("*").execute()
         if res_rnd.data:
             for r in res_rnd.data:
-                c = str(r.get("usuario_email", "")).lower().strip()
-                if not c:
-                    continue
-                if c not in db_rendimientos:
-                    db_rendimientos[c] = []
-                db_rendimientos[c].append({
-                    "db_id": r["id"],
-                    "Usuario_Registro": c,
-                    "Cargo_Registrador": r.get("cargo_obrero", ""),
-                    "Fecha": str(r.get("fecha", "")),
-                    "Trabajador": r.get("trabajador", ""),
-                    "Cargo_Obrero": r.get("cargo_obrero", ""),
-                    "Rubro": r.get("rubro", ""),
-                    "Intervalo": r.get("intervalo", "Jornada"),
-                    "Horas Trabajadas (HH)": float(r.get("horas_hh", 0.0)),
-                    "Avance": float(r.get("avance", 0.0)),
-                    "Esperado": float(r.get("esperado", 0.0)),
-                    "Unidad": r.get("unidad", "m2"),
-                    "Rend. Real (HH/Unid)": float(r.get("rend_real", 0.0)),
-                    "Rend. Teórico": float(r.get("rend_teorico", 1.0)),
-                    "Estado": r.get("estado", "EFICIENTE")
-                })
+                try:
+                    c = str(r.get("usuario_email") or r.get("correo") or r.get("user_email") or "").lower().strip()
+                    if not c:
+                        continue
+                    if c not in db_rendimientos:
+                        db_rendimientos[c] = []
+                    db_rendimientos[c].append({
+                        "db_id": r.get("id"),
+                        "Usuario_Registro": c,
+                        "Cargo_Registrador": r.get("cargo_obrero", ""),
+                        "Fecha": str(r.get("fecha", "")),
+                        "Trabajador": r.get("trabajador", ""),
+                        "Cargo_Obrero": r.get("cargo_obrero", ""),
+                        "Rubro": r.get("rubro", ""),
+                        "Intervalo": r.get("intervalo", "Jornada"),
+                        "Horas Trabajadas (HH)": float(r.get("horas_hh") or 0.0),
+                        "Avance": float(r.get("avance") or 0.0),
+                        "Esperado": float(r.get("esperado") or 0.0),
+                        "Unidad": r.get("unidad", "m2"),
+                        "Rend. Real (HH/Unid)": float(r.get("rend_real") or 0.0),
+                        "Rend. Teórico": float(r.get("rend_teorico") or 1.0),
+                        "Estado": r.get("estado", "EFICIENTE")
+                    })
+                except Exception as ex_rnd:
+                    print(f"[Warn] Error parseando rendimiento {r.get('id')}: {ex_rnd}")
     except Exception as e:
         print(f"[Warn] Error en tabla rendimientos: {e}")
 
@@ -1032,8 +1086,11 @@ def get_cached_checklist_excel(jornada_dict_str):
     if isinstance(datos_raw, dict):
         items_verif = datos_raw.get("Verificaciones", [])
         items_sup = datos_raw.get("Supervision_Trabajos", [])
-    else:
+    elif isinstance(datos_raw, list):
         items_verif = datos_raw
+        items_sup = []
+    else:
+        items_verif = []
         items_sup = []
 
     current_r = 5
@@ -1077,7 +1134,6 @@ def get_cached_checklist_excel(jornada_dict_str):
                 cell_txt.font = Font(name="Arial", size=9)
                 cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
 
-            # Mostrar la primera foto de la lista (si existe)
             fotos = sup.get("Fotos", [])
             if fotos and len(fotos) > 0:
                 try:
@@ -1129,8 +1185,11 @@ def get_cached_checklist_pdf(jornada_dict_str):
     if isinstance(datos_raw, dict):
         items_verif = datos_raw.get("Verificaciones", [])
         items_sup = datos_raw.get("Supervision_Trabajos", [])
-    else:
+    elif isinstance(datos_raw, list):
         items_verif = datos_raw
+        items_sup = []
+    else:
+        items_verif = []
         items_sup = []
 
     story.append(Paragraph("1. VERIFICACIONES DE JORNADA", sec_style))
@@ -1233,7 +1292,10 @@ def get_cached_libro_maestro_excel(insp_dict_str):
         c.alignment = Alignment(horizontal="center", vertical="center")
         c.border = thin_border
 
-    acts = insp_dict.get("Datos", {}).get("Actividades_Maestro", [])
+    raw_dm = insp_dict.get("Datos", {})
+    d_parsed = raw_dm if isinstance(raw_dm, dict) else json.loads(raw_dm or "{}") if isinstance(raw_dm, str) else {}
+    acts = d_parsed.get("Actividades_Maestro", []) if isinstance(d_parsed, dict) else d_parsed if isinstance(d_parsed, list) else []
+
     for idx_m, a_m in enumerate(acts, 1):
         pers_str = ", ".join(a_m.get("Personal_A_Cargo", [])) if isinstance(a_m.get("Personal_A_Cargo"), list) else str(a_m.get("Personal_A_Cargo", ""))
         ws.append([idx_m, a_m.get("Actividad", ""), pers_str, str(a_m.get("Cantidad", "")), a_m.get("Observaciones", "")])
@@ -1274,7 +1336,10 @@ def get_cached_libro_maestro_pdf(insp_dict_str):
     story.append(Paragraph(f"<b>Fecha:</b> {insp_dict.get('Fecha', '')} | <b>Maestro Mayor:</b> {insp_dict.get('Residente', '')}", sub_style))
 
     data_m = [[Paragraph("<b>N°</b>", hdr_tbl), Paragraph("<b>Actividad</b>", hdr_tbl), Paragraph("<b>Personal a Cargo</b>", hdr_tbl), Paragraph("<b>Cantidad</b>", hdr_tbl), Paragraph("<b>Observaciones</b>", hdr_tbl)]]
-    acts = insp_dict.get("Datos", {}).get("Actividades_Maestro", [])
+    
+    raw_dm = insp_dict.get("Datos", {})
+    d_parsed = raw_dm if isinstance(raw_dm, dict) else json.loads(raw_dm or "{}") if isinstance(raw_dm, str) else {}
+    acts = d_parsed.get("Actividades_Maestro", []) if isinstance(d_parsed, dict) else d_parsed if isinstance(d_parsed, list) else []
 
     for idx_m, a_m in enumerate(acts, 1):
         pers_str = ", ".join(a_m.get("Personal_A_Cargo", [])) if isinstance(a_m.get("Personal_A_Cargo"), list) else str(a_m.get("Personal_A_Cargo", ""))
@@ -1355,19 +1420,20 @@ def get_cached_libro_oficial_excel(insp_dict_str):
         c.border = thin_border
         c.alignment = Alignment(horizontal="center", vertical="center")
 
-    datos = insp_dict.get("Datos", {})
-    nomina_map = datos.get("Nomina_Conteo", {})
-    rotativo_map = datos.get("Rotativo_Conteo", {})
+    raw_dinsp = insp_dict.get("Datos", {})
+    datos = raw_dinsp if isinstance(raw_dinsp, dict) else json.loads(raw_dinsp or "{}") if isinstance(raw_dinsp, str) else {}
+    nomina_map = datos.get("Nomina_Conteo", {}) if isinstance(datos, dict) else {}
+    rotativo_map = datos.get("Rotativo_Conteo", {}) if isinstance(datos, dict) else {}
 
     max_len = max(len(OFICIOS_NOMINA_FORMATO), len(RUROS_ROTATIVOS_FORMATO))
     for i in range(max_len):
         oficio_nom = OFICIOS_NOMINA_FORMATO[i] if i < len(OFICIOS_NOMINA_FORMATO) else ""
-        cant_nom = nomina_map.get(oficio_nom, 0) if oficio_nom else ""
+        cant_nom = nomina_map.get(oficio_nom, 0) if (oficio_nom and isinstance(nomina_map, dict)) else ""
         ent_nom = "7:00AM" if (oficio_nom and cant_nom and int(cant_nom) > 0) else ""
         sal_nom = "4:00PM" if (oficio_nom and cant_nom and int(cant_nom) > 0) else ""
 
         rubro_rot = RUROS_ROTATIVOS_FORMATO[i] if i < len(RUROS_ROTATIVOS_FORMATO) else ""
-        cant_rot = rotativo_map.get(rubro_rot, 0) if rubro_rot else ""
+        cant_rot = rotativo_map.get(rubro_rot, 0) if (rubro_rot and isinstance(rotativo_map, dict)) else ""
         hor_rot = "7:00AM - 4:00PM" if (rubro_rot and cant_rot and int(cant_rot) > 0) else ""
 
         ws.append([oficio_nom, cant_nom if cant_nom else "", ent_nom, sal_nom, rubro_rot, cant_rot if cant_rot else "", hor_rot])
@@ -1396,7 +1462,7 @@ def get_cached_libro_oficial_excel(insp_dict_str):
         c.border = thin_border
         c.alignment = Alignment(horizontal="center", vertical="center")
 
-    acts = datos.get("Actividades_Ejecutadas", [])
+    acts = datos.get("Actividades_Ejecutadas", []) if isinstance(datos, dict) else []
     for idx_a, a in enumerate(acts, 1):
         ws.append([
             idx_a,
@@ -1423,9 +1489,9 @@ def get_cached_libro_oficial_excel(insp_dict_str):
     ws[f"A{r_eq}"].fill = fill_sub
 
     clima_val = insp_dict.get("Clima", "Soleado")
-    maq_map = datos.get("Maquinaria_Conteo", {})
+    maq_map = datos.get("Maquinaria_Conteo", {}) if isinstance(datos, dict) else {}
 
-    ws.append(["Clima Registrado:", clima_val, "Obs. Clima:", datos.get("Clima_Obs", ""), "Equipos Operativos:", ", ".join([f"{k}: {v}" for k, v in maq_map.items() if v > 0]), ""])
+    ws.append(["Clima Registrado:", clima_val, "Obs. Clima:", datos.get("Clima_Obs", "") if isinstance(datos, dict) else "", "Equipos Operativos:", ", ".join([f"{k}: {v}" for k, v in maq_map.items() if v > 0]), ""])
     r_row_e = ws.max_row
     for col_i in range(1, 8):
         ws.cell(row=r_row_e, column=col_i).font = font_regular
@@ -1439,7 +1505,7 @@ def get_cached_libro_oficial_excel(insp_dict_str):
     ws[f"A{r_nov}"].fill = fill_sub
 
     ws.merge_cells(f"A{r_nov+1}:G{r_nov+2}")
-    ws[f"A{r_nov+1}"] = datos.get("Novedades", "Sin novedades técnicas en la jornada laboral.")
+    ws[f"A{r_nov+1}"] = datos.get("Novedades", "Sin novedades técnicas en la jornada laboral.") if isinstance(datos, dict) else "Sin novedades técnicas."
     ws[f"A{r_nov+1}"].font = font_regular
     ws[f"A{r_nov+1}"].alignment = Alignment(vertical="top", wrap_text=True)
 
@@ -1471,7 +1537,9 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 
     story.append(Paragraph(f"<b>LIBRO DE OBRA — {insp_dict.get('Proyecto', '').upper()}</b> (HOJA N° {insp_dict.get('Hoja', '001')})", title_style))
 
-    datos = insp_dict.get("Datos", {})
+    raw_dinsp = insp_dict.get("Datos", {})
+    datos = raw_dinsp if isinstance(raw_dinsp, dict) else json.loads(raw_dinsp or "{}") if isinstance(raw_dinsp, str) else {}
+    
     meta_data = [
         [Paragraph("<b>CIUDAD:</b> QUITO", cell_style), Paragraph(f"<b>SUPERINTENDENTE:</b> {insp_dict.get('Superintendente', 'ING. PABLO ESPINOSA')}", cell_style), Paragraph(f"<b>FECHA:</b> {insp_dict.get('Fecha', '')} ({insp_dict.get('Dia', '')})", cell_style)],
         [Paragraph(f"<b>UBICACIÓN:</b> {insp_dict.get('Ubicacion', 'CALLE LUXEMBURGO Y HOLANDA')}", cell_style), Paragraph(f"<b>RESIDENTE:</b> {insp_dict.get('Residente', '')}", cell_style), Paragraph(f"<b>HORARIO:</b> {insp_dict.get('Hora_Inicio', '07:00')} - {insp_dict.get('Hora_Fin', '16:00')}", cell_style)],
@@ -1486,18 +1554,18 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
     story.append(t_meta)
     story.append(Spacer(1, 4))
 
-    nomina_map = datos.get("Nomina_Conteo", {})
-    rotativo_map = datos.get("Rotativo_Conteo", {})
+    nomina_map = datos.get("Nomina_Conteo", {}) if isinstance(datos, dict) else {}
+    rotativo_map = datos.get("Rotativo_Conteo", {}) if isinstance(datos, dict) else {}
     p_data = [[Paragraph("<b>PERSONAL NÓMINA</b>", hdr_tbl), Paragraph("<b>No.</b>", hdr_tbl), Paragraph("<b>HORARIO</b>", hdr_tbl), Paragraph("<b>PERSONAL ROTATIVO / SUBCONTRATO</b>", hdr_tbl), Paragraph("<b>No.</b>", hdr_tbl), Paragraph("<b>HORARIO</b>", hdr_tbl)]]
 
     max_len = max(len(OFICIOS_NOMINA_FORMATO), len(RUROS_ROTATIVOS_FORMATO))
     for i in range(max_len):
         oficio_nom = OFICIOS_NOMINA_FORMATO[i] if i < len(OFICIOS_NOMINA_FORMATO) else ""
-        cant_nom = str(nomina_map.get(oficio_nom, 0)) if (oficio_nom and int(nomina_map.get(oficio_nom, 0)) > 0) else ""
+        cant_nom = str(nomina_map.get(oficio_nom, 0)) if (oficio_nom and isinstance(nomina_map, dict) and int(nomina_map.get(oficio_nom, 0)) > 0) else ""
         hor_nom = "7:00AM - 4:00PM" if cant_nom else ""
 
         rubro_rot = RUROS_ROTATIVOS_FORMATO[i] if i < len(RUROS_ROTATIVOS_FORMATO) else ""
-        cant_rot = str(rotativo_map.get(rubro_rot, 0)) if (rubro_rot and int(rotativo_map.get(rubro_rot, 0)) > 0) else ""
+        cant_rot = str(rotativo_map.get(rubro_rot, 0)) if (rubro_rot and isinstance(rotativo_map, dict) and int(rotativo_map.get(rubro_rot, 0)) > 0) else ""
         hor_rot = "7:00AM - 4:00PM" if cant_rot else ""
 
         p_data.append([
@@ -1519,7 +1587,7 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
     story.append(t_pers)
     story.append(Spacer(1, 4))
 
-    acts = datos.get("Actividades_Ejecutadas", [])
+    acts = datos.get("Actividades_Ejecutadas", []) if isinstance(datos, dict) else []
     if acts:
         a_data = [[
             Paragraph("<b>N°</b>", hdr_tbl),
@@ -1705,9 +1773,9 @@ if not st.session_state.autenticado:
                                     res_t_user = supabase.table("trabajadores").select("*").ilike("usuario_email", mail_clean).order("id", desc=False).execute()
                                     st.session_state.db_trabajadores_por_usuario[mail_clean] = [
                                         {
-                                            "id": r["id"],
-                                            "nombre": r["nombre"],
-                                            "cargo": r["cargo"],
+                                            "id": r.get("id"),
+                                            "nombre": r.get("nombre", ""),
+                                            "cargo": r.get("cargo", ""),
                                             "edificio": r.get("edificio") or "General",
                                             "usuario_email": mail_clean
                                         } for r in res_t_user.data
@@ -1716,7 +1784,7 @@ if not st.session_state.autenticado:
                                     if mail_clean not in st.session_state.db_trabajadores_por_usuario:
                                         st.session_state.db_trabajadores_por_usuario[mail_clean] = []
 
-                                # Ordenar alfabéticamente automáticamente
+                                # Ordenamiento alfabético automático
                                 st.session_state.db_trabajadores_por_usuario[mail_clean] = sorted(
                                     st.session_state.db_trabajadores_por_usuario[mail_clean],
                                     key=lambda it: str(it.get("nombre", "")).upper()
@@ -2607,7 +2675,6 @@ else:
         if "chk_obs_counts" not in st.session_state:
             st.session_state.chk_obs_counts = {}
 
-        # Inicializar estado para responsables adicionales en "Coordinación con otras especialidades"
         if "chk_responsables_extra" not in st.session_state:
             st.session_state.chk_responsables_extra = {}
 
@@ -2734,7 +2801,6 @@ else:
                                 st.rerun()
 
                     with c_col3:
-                        # Solo permitir fotos para ítems diferentes al primero
                         if idx != 1:
                             st.markdown("<small style='font-weight:700; color:#334155;'>Fotos Evidencia (múltiples):</small>", unsafe_allow_html=True)
                             uploaded_files = st.file_uploader(
@@ -2751,7 +2817,6 @@ else:
                                     if b64:
                                         fotos_b64.append(b64)
                             else:
-                                # Si está editando y ya tiene fotos guardadas, restaurar
                                 fotos_guardadas = item_guardado.get("Fotos", [])
                                 if fotos_guardadas:
                                     fotos_b64 = fotos_guardadas
@@ -2760,27 +2825,22 @@ else:
                             st.caption("📷 *No requerida*")
                             fotos_b64 = []
 
-                    # Nuevos campos para "Coordinación con otras especialidades" (idx == 3)
                     responsables_list = []
                     if act == "Coordinación con otras especialidades" and est == "✗ No Cumple":
                         st.markdown("---")
                         st.markdown("##### Datos adicionales para No Cumple")
                         
-                        # Obtener lista de responsables guardados
                         resp_guardados = item_guardado.get("Responsables", [])
                         if not resp_guardados:
                             resp_guardados = []
                         
-                        # Generar clave única para este ítem
                         extra_key = f"extra_{idx}_{st.session_state.get('edit_chk_id', 'new')}"
                         if extra_key not in st.session_state.chk_responsables_extra:
-                            # Inicializar con los responsables guardados o al menos uno vacío
                             if resp_guardados:
                                 st.session_state.chk_responsables_extra[extra_key] = resp_guardados.copy()
                             else:
                                 st.session_state.chk_responsables_extra[extra_key] = [{"nombre": "", "area": ""}]
                         
-                        # Mostrar los campos para cada responsable
                         resp_list = st.session_state.chk_responsables_extra[extra_key]
                         indices_a_eliminar_resp = []
                         
@@ -2808,22 +2868,18 @@ else:
                                     if st.button("🗑️", key=f"del_resp_{idx}_{r_idx}_{st.session_state.get('edit_chk_id', 'new')}", help="Eliminar responsable"):
                                         indices_a_eliminar_resp.append(r_idx)
                             
-                            # Actualizar el item en la lista
                             resp_list[r_idx] = {"nombre": nombre_resp, "area": area_resp}
                         
-                        # Eliminar responsables marcados
                         if indices_a_eliminar_resp:
                             for r_idx in sorted(indices_a_eliminar_resp, reverse=True):
                                 if len(resp_list) > 1:
                                     resp_list.pop(r_idx)
                             st.rerun()
                         
-                        # Botón para agregar más responsables
                         if st.button("➕ Agregar Responsable", key=f"add_resp_{idx}_{st.session_state.get('edit_chk_id', 'new')}", use_container_width=True):
                             resp_list.append({"nombre": "", "area": ""})
                             st.rerun()
                         
-                        # Guardar la lista actualizada
                         responsables_list = resp_list
                         st.session_state.chk_responsables_extra[extra_key] = resp_list
 
@@ -2966,7 +3022,7 @@ else:
                         "Actividad": act_val.strip(),
                         "Encargados": "",
                         "Observaciones": "",
-                        "Fotos": []  # Sin fotos en esta sección
+                        "Fotos": []
                     })
 
                 if indices_a_eliminar:
@@ -3036,6 +3092,7 @@ else:
                     st.session_state.edit_chk_id = None
                     st.session_state.creando_jornada = False
                     st.session_state.filas_supervision = [{"id": 1, "actividad": ""}]
+                    st.session_state.chk_responsables_extra = {}
                     for k in ["chk_edit_edif_val", "chk_edit_fecha_val", "chk_edit_hini_val", "chk_edit_hfin_val", "chk_edit_resp_map"]:
                         if k in st.session_state:
                             del st.session_state[k]
@@ -3426,7 +3483,7 @@ else:
             for idx_act_form, item_f in enumerate(st.session_state.filas_lo_actividades, 1):
                 f_act_id = item_f["id"]
                 st.markdown(f"**Actividad N° {idx_act_form}:**")
-            
+                
                 c_af1, c_af2 = st.columns([2.5, 1.5])
                 with c_af1:
                     d_in = st.text_input(
@@ -3619,7 +3676,6 @@ else:
                             st.markdown(f"**Ubicación:** {d_insp.get('Ubicacion', insp_dict.get('Frente', ''))} | **Clima:** {insp_dict.get('Clima', '')}")
                             st.markdown(f"**Superintendente:** {d_insp.get('Superintendente', '')} | **Fiscalizador:** {d_insp.get('Fiscalizador', '')}")
 
-                            # Mostrar actividades simplificadas
                             acts_mostrar = d_insp.get("Actividades_Ejecutadas", [])
                             if acts_mostrar:
                                 st.markdown("**Actividades realizadas:**")
@@ -3698,7 +3754,6 @@ else:
                                         st.error(f"Error al eliminar: {e}")
         else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
-
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL, INCIDENCIAS, RENDIMIENTO, ESPACIO COLABORATIVO
 #                Y PANEL ADMINISTRADOR (AGRUPACIÓN MENSUAL COLABORATIVA)
@@ -4287,7 +4342,7 @@ if not es_maestro_mayor:
                         data=export_incidencias_to_pdf(lista_incs_vista, nombre_proy_rep),
                         file_name=f"Levantamiento_Incidencias_{nombre_proy_rep}_{local_today_str}.pdf",
                         mime="application/pdf",
-                        key="dl_pdf_incidencias_tab_p5",
+                        key=f"dl_pdf_incidencias_tab_p5",
                         use_container_width=True
                     )
         else:
@@ -4554,14 +4609,16 @@ with tab_colab:
                                 for idx_c_m, m_row in items_mes.iterrows():
                                     m_rep = m_row.to_dict()
                                     with st.expander(f"📌 [{m_rep.get('Proyecto', '')}] Fecha: {m_rep.get('Fecha', '')} ({m_rep.get('Dia', '')})", expanded=False):
-                                        d_m = m_rep.get("Datos", {})
-                                        acts_m = d_m.get("Actividades_Maestro", [])
+                                        raw_dm = m_rep.get("Datos", {})
+                                        d_m = raw_dm if isinstance(raw_dm, dict) else json.loads(raw_dm or "{}") if isinstance(raw_dm, str) else {}
+                                        acts_m = d_m.get("Actividades_Maestro", []) if isinstance(d_m, dict) else d_m if isinstance(d_m, list) else []
+                                        
                                         if acts_m:
                                             st.markdown("**Actividades, Personal y Metrajes Reportados:**")
                                             for a_it in acts_m:
                                                 pers_str = ", ".join(a_it.get("Personal_A_Cargo", [])) if isinstance(a_it.get("Personal_A_Cargo"), list) else str(a_it.get("Personal_A_Cargo", ""))
                                                 pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
-                                                st.write(f"• **{a_it.get('Actividad')}**: `{a_it.get('Cantidad')}`{pers_tag} — *{a_it.get('Observaciones', 'Sin observaciones')}*")
+                                                st.write(f"• **{a_it.get('Actividad', it.get('actividad', ''))}**: `{a_it.get('Cantidad', it.get('cantidad', ''))}`{pers_tag} — *{a_it.get('Observaciones', it.get('observaciones', 'Sin observaciones'))}*")
                                         
                                         col_dl_mm1, col_dl_mm2 = st.columns(2)
                                         with col_dl_mm1:
@@ -4802,17 +4859,18 @@ if es_admin:
             insps_admin_filtradas.sort(key=lambda x: x['Fecha'], reverse=True)
 
             for idx_i_adm, i_adm in enumerate(insps_admin_filtradas, 1):
-                d_i_adm = i_adm.get("Datos", {})
+                raw_adm_d = i_adm.get("Datos", {})
+                d_i_adm = raw_adm_d if isinstance(raw_adm_d, dict) else json.loads(raw_adm_d or "{}") if isinstance(raw_adm_d, str) else {}
                 es_tipo_mm = (d_i_adm.get("Tipo_Registro") == "Libro_Obra_Maestro")
                 titulo_exp = f"🔨 [MAESTRO MAYOR] [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} — Usuario: {i_adm['Usuario_Correo']}" if es_tipo_mm else f"📌 [{i_adm.get('Proyecto', 'N/A')}] {i_adm['Fecha']} ({i_adm['Dia']}) — Usuario: {i_adm['Usuario_Correo']}"
 
                 with st.expander(titulo_exp, expanded=False):
                     if es_tipo_mm:
-                        acts_mm = d_i_adm.get("Actividades_Maestro", [])
+                        acts_mm = d_i_adm.get("Actividades_Maestro", []) if isinstance(d_i_adm, dict) else d_i_adm if isinstance(d_i_adm, list) else []
                         for a in acts_mm:
                             pers_str = ", ".join(a.get("Personal_A_Cargo", [])) if isinstance(a.get("Personal_A_Cargo"), list) else str(a.get("Personal_A_Cargo", ""))
                             pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
-                            st.write(f"• **{a.get('Actividad')}**: `{a.get('Cantidad')}`{pers_tag} — *{a.get('Observaciones', '')}*")
+                            st.write(f"• **{a.get('Actividad', a.get('actividad', ''))}**: `{a.get('Cantidad', a.get('cantidad', ''))}`{pers_tag} — *{a.get('Observaciones', a.get('observaciones', ''))}*")
                         c_ad_idl1, c_ad_idl2 = st.columns(2)
                         with c_ad_idl1:
                             with st.popover("📊 Exportar Excel", use_container_width=True):
@@ -4823,6 +4881,13 @@ if es_admin:
                     else:
                         st.markdown(f"**Ubicación:** {d_i_adm.get('Ubicacion', i_adm.get('Frente', ''))} | **Clima:** {i_adm.get('Clima', '')}")
                         st.markdown(f"**Superintendente:** {d_i_adm.get('Superintendente', '')} | **Fiscalizador:** {d_i_adm.get('Fiscalizador', '')}")
+                        
+                        acts_adm_lo = d_i_adm.get("Actividades_Ejecutadas", [])
+                        if acts_adm_lo:
+                            st.markdown("**Actividades:**")
+                            for a in acts_adm_lo:
+                                st.write(f"• **{a.get('Descripcion', '')}** | {a.get('Area', '')} | {a.get('Cantidad', 0)} {a.get('Unidad', 'm2')}")
+
                         c_ad_idl1, c_ad_idl2 = st.columns(2)
                         with c_ad_idl1:
                             with st.popover("📊 Exportar Excel", use_container_width=True):
