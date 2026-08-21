@@ -666,7 +666,7 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en tabla trabajadores: {e}")
 
-    # Ordenamiento alfabético automático obligatorio de la nómina
+    # Ordenamiento alfabético automático de la nómina
     for u_k in db_trabajadores_por_usuario:
         db_trabajadores_por_usuario[u_k] = sorted(
             db_trabajadores_por_usuario[u_k], 
@@ -865,7 +865,7 @@ if "db_usuarios" not in st.session_state:
 
 
 # ==============================================================================
-# 5. FUNCIONES DE FORMATO Y EXPORTADORES EN CACHÉ (RETROCOMPATIBLES)
+# 5. OPTIMIZADOR / COMPRESOR DE IMÁGENES Y EXPORTADORES EN CACHÉ
 # ==============================================================================
 def render_estado_badge(estado_str):
     if not estado_str:
@@ -878,15 +878,31 @@ def render_estado_badge(estado_str):
         return f'<span style="background-color: #f1f5f9; color: #121318; font-weight: 800; padding: 2px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.76rem;">{estado_str}</span>'
 
 
-def image_to_base64(image_file):
+def image_to_base64(image_file, max_width=800, quality=65):
+    """
+    Comprime y redimensiona imágenes automáticamente para evitar 'statement timeout'
+    y saturación de red en bases de datos PostgreSQL / Supabase.
+    """
     if image_file is not None:
         try:
             img = Image.open(image_file)
             img = ImageOps.exif_transpose(img)
+            
+            # Convertir a RGB si viene en RGBA/P
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            
+            # Redimensionamiento proporcional
+            w, h = img.size
+            if w > max_width:
+                new_h = int(h * (max_width / w))
+                img = img.resize((max_width, new_h), Image.Resampling.LANCZOS)
+
             buffered = io.BytesIO()
-            img.save(buffered, format="PNG")
+            img.save(buffered, format="JPEG", quality=quality, optimize=True)
             return base64.b64encode(buffered.getvalue()).decode("utf-8")
-        except Exception:
+        except Exception as e:
+            print(f"[Warn] Error optimizando imagen: {e}")
             return None
     return None
 
@@ -1133,19 +1149,22 @@ def get_cached_checklist_excel(jornada_dict_str):
                 cell_txt.alignment = Alignment(vertical="center", wrap_text=True)
 
             fotos = sup.get("Fotos", [])
+            if not fotos and sup.get("Foto_B64"):
+                fotos = [sup.get("Foto_B64")]
+
             if fotos and len(fotos) > 0:
                 try:
                     img_data = base64.b64decode(fotos[0])
                     img_pil = Image.open(io.BytesIO(img_data))
                     img_pil = ImageOps.exif_transpose(img_pil)
-                    img_pil = img_pil.resize((500, 375), Image.Resampling.LANCZOS)
+                    img_pil = img_pil.resize((400, 300), Image.Resampling.LANCZOS)
                     img_stream = io.BytesIO()
-                    img_pil.save(img_stream, format="PNG", quality=100)
+                    img_pil.save(img_stream, format="JPEG", quality=75)
                     img_stream.seek(0)
 
                     img_xlsx = OpenpyxlImage(img_stream)
-                    img_xlsx.width = 220
-                    img_xlsx.height = 110
+                    img_xlsx.width = 180
+                    img_xlsx.height = 95
                     ws.add_image(img_xlsx, f"E{current_r}")
                 except Exception:
                     pass
@@ -2295,7 +2314,6 @@ dashboard_html = (
 st.markdown(dashboard_html, unsafe_allow_html=True)
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# Pestañas adaptadas: para Maestro Mayor no se muestra Levantamiento de Incidencias
 if es_maestro_mayor:
     pestanas = [
         "Libro de Obra Maestro",
@@ -2318,7 +2336,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON SOPORTE COMPLETO A VERSIONES ANTIGUAS
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON COMPRESIÓN Y RETROCOMPATIBILIDAD
 # ==============================================================================
 
 # ==============================================================================
@@ -3673,7 +3691,7 @@ else:
                         insp_dict = insp.to_dict()
                         insp_db_id = insp_dict.get("db_id")
 
-                        with st.expander(f"📌 {insp_dict['Proyecto']} — {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
+                        with st.expander(f"📌 [{insp_dict['Proyecto']}] {insp_dict['Fecha']} ({insp_dict['Dia']}) | Residente: {insp_dict.get('Residente', 'N/A')}", expanded=False):
                             raw_dinsp = insp_dict.get("Datos", {})
                             d_insp = raw_dinsp if isinstance(raw_dinsp, dict) else json.loads(raw_dinsp or "{}") if isinstance(raw_dinsp, str) else {}
                             
