@@ -1638,7 +1638,7 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 # ==============================================================================
 
 # ==============================================================================
-# PERSISTENCIA SEGURA Y PRIVADA DE SESIÓN (SIN EXPOSICIÓN EN URL)
+# PERSISTENCIA SEGURA DE SESIÓN (LOCALSTORAGE PRIVADO + URL LIMPIA)
 # ==============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -1648,30 +1648,67 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-# Limpiar cualquier parámetro 'u' de la URL para evitar filtración o accesos no autorizados al compartir el enlace
-if "u" in st.query_params:
+# Validar sesión privada guardada en el navegador local
+auth_token_param = st.query_params.get("auth_t")
+if auth_token_param and not st.session_state.autenticado:
     try:
-        del st.query_params["u"]
+        # Decodificación segura del token local
+        decoded_mail = base64.urlsafe_b64decode(auth_token_param.encode("utf-8")).decode("utf-8").lower().strip()
+        u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == decoded_mail), None)
+        if u_match:
+            st.session_state.autenticado = True
+            st.session_state.usuario_email = decoded_mail
+            st.session_state.usuario_nombres = u_match["Nombres"]
+            st.session_state.usuario_apellidos = u_match["Apellidos"]
+            st.session_state.usuario_cargo = u_match["Cargo"]
+            st.session_state.usuario_edificios = u_match.get("Edificios", [])
+            
+            # Limpiar de inmediato la URL para que quede limpia y no se pueda compartir
+            st.query_params.clear()
     except Exception:
         st.query_params.clear()
 
-# Script de seguridad: limpia la URL en el navegador del cliente para que no aparezca el correo al copiar el link
-components.html(
-    """
-    <script>
-    try {
-        const win = window.top || window.parent || window;
-        const currentUrl = new URL(win.location.href);
-        if (currentUrl.searchParams.has('u')) {
-            currentUrl.searchParams.delete('u');
-            win.history.replaceState({}, document.title, currentUrl.pathname);
-        }
-    } catch (e) {}
-    </script>
-    """,
-    height=0,
-    width=0
-)
+# Script de auto-reconexión local: Lee el token privado solo si la sesión en memoria se reinició
+if not st.session_state.autenticado:
+    components.html(
+        """
+        <script>
+        try {
+            const win = window.top || window.parent || window;
+            const token = win.localStorage.getItem('alpha_secure_token');
+            if (token) {
+                const currentUrl = new URL(win.location.href);
+                if (!currentUrl.searchParams.get('auth_t')) {
+                    currentUrl.searchParams.set('auth_t', token);
+                    win.location.replace(currentUrl.href);
+                }
+            }
+        } catch (e) {}
+        </script>
+        """,
+        height=0,
+        width=0
+    )
+
+# Script de seguridad: borra la URL en el historial del navegador para que no se copie el token
+if st.session_state.autenticado:
+    components.html(
+        """
+        <script>
+        try {
+            const win = window.top || window.parent || window;
+            const currentUrl = new URL(win.location.href);
+            if (currentUrl.searchParams.has('auth_t') || currentUrl.searchParams.has('u')) {
+                currentUrl.searchParams.delete('auth_t');
+                currentUrl.searchParams.delete('u');
+                win.history.replaceState({}, document.title, currentUrl.pathname);
+            }
+        } catch (e) {}
+        </script>
+        """,
+        height=0,
+        width=0
+    )
 
 # ==============================================================================
 # 6. MÓDULO DE AUTENTICACIÓN: LOGIN DIRECTO, REGISTRO Y RECUPERACIÓN
@@ -1702,6 +1739,7 @@ if not st.session_state.autenticado:
                 login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
                 login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
                 login_pin = st.text_input("Código de Seguridad (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="log_pin")
+                mantener_sesion = st.checkbox("🔒 Mantener sesión en este dispositivo", value=True, key="chk_keep_session")
 
                 btn_log = st.form_submit_button("Entrar al Portal", type="primary", use_container_width=True)
 
@@ -1758,8 +1796,21 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                # Asegurar que la URL quede 100% limpia sin el correo visible
-                                st.query_params.clear()
+                                # Guardar token privado localmente sin dejarlo en la URL
+                                token_b64 = base64.urlsafe_b64encode(mail_clean.encode("utf-8")).decode("utf-8")
+                                if mantener_sesion:
+                                    components.html(
+                                        f"""
+                                        <script>
+                                        try {{
+                                            const win = window.top || window.parent || window;
+                                            win.localStorage.setItem('alpha_secure_token', '{token_b64}');
+                                        }} catch(e) {{}}
+                                        </script>
+                                        """,
+                                        height=0,
+                                        width=0
+                                    )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -1825,6 +1876,7 @@ if not st.session_state.autenticado:
                     key="reg_edif_multisel"
                 )
                 reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):*", type="password", max_chars=4, placeholder="****", key="reg_pin")
+                reg_mantener = st.checkbox("🔒 Mantener sesión en este dispositivo", value=True, key="chk_reg_keep")
                 btn_reg = st.form_submit_button("Completar Registro", type="primary", use_container_width=True)
 
             if btn_reg:
@@ -1886,7 +1938,20 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = reg_cargo
                                 st.session_state.usuario_edificios = reg_edificios_sel
                                 
-                                st.query_params.clear()
+                                token_b64 = base64.urlsafe_b64encode(mail_clean.encode("utf-8")).decode("utf-8")
+                                if reg_mantener:
+                                    components.html(
+                                        f"""
+                                        <script>
+                                        try {{
+                                            const win = window.top || window.parent || window;
+                                            win.localStorage.setItem('alpha_secure_token', '{token_b64}');
+                                        }} catch(e) {{}}
+                                        </script>
+                                        """,
+                                        height=0,
+                                        width=0
+                                    )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -2070,7 +2135,22 @@ with st.sidebar:
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         st.session_state.usuario_email = ""
-        st.query_params.clear()
+        components.html(
+            """
+            <script>
+            try {
+                const win = window.top || window.parent || window;
+                win.localStorage.removeItem('alpha_secure_token');
+                const url = new URL(win.location.href);
+                url.searchParams.delete('auth_t');
+                url.searchParams.delete('u');
+                win.location.replace(url.pathname);
+            } catch(e) {}
+            </script>
+            """,
+            height=0,
+            width=0
+        )
         st.rerun()
 
 # ==============================================================================
