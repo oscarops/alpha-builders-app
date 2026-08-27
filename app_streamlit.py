@@ -1642,138 +1642,8 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 # ==============================================================================
 
 # ==============================================================================
-# PERSISTENCIA SEGURA Y PRIVADA DE SESIÓN (COOKIE PERSISTENTE + RECUPERACIÓN)
-# VERSIÓN: autenticación persistente con opción "Mantener la sesión iniciada"
+# PERSISTENCIA SEGURA DE SESIÓN (TOKEN FIRMADO + ALMACENAMIENTO LOCAL PRIVADO)
 # ==============================================================================
-# La sesión persistente se guarda en una cookie real del navegador mediante
-# Extra-Streamlit-Components. NO usamos parámetros de URL, por lo que copiar
-# el enlace NO copia la sesión del usuario.
-
-SESSION_COOKIE_NAME = "alpha_session_v3"
-SESSION_COOKIE_DAYS = 30
-
-# IMPORTANTE: CookieManager es un widget de Streamlit y NO debe crearse
-# dentro de una función decorada con @st.cache_data o @st.cache_resource.
-# Se instancia directamente para evitar CachedWidgetWarning.
-cookie_manager = stx.CookieManager(key="alpha_cookie_manager")
-
-def _get_session_secret():
-    """Obtiene una clave estable para firmar las sesiones persistentes."""
-    secret = str(st.secrets.get("SESSION_SECRET", "")).strip()
-    if not secret:
-        secret = str(st.secrets.get("SUPABASE_KEY", "")).strip()
-    if not secret:
-        secret = "alpha-builders-session-fallback"
-    return secret.encode("utf-8")
-
-def _make_session_token(user_row):
-    """Crea un token firmado sin colocar el correo en la URL."""
-    password = str(user_row.get("Password", ""))
-    payload = {
-        "email": str(user_row.get("Correo", "")).lower().strip(),
-        # No guardamos la contraseña en texto dentro de la cookie.
-        "password_hash": hashlib.sha256(password.encode("utf-8")).hexdigest(),
-        "iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
-    }
-    raw_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    payload_b64 = base64.urlsafe_b64encode(raw_payload).decode("ascii").rstrip("=")
-    signature = hmac.new(
-        _get_session_secret(),
-        payload_b64.encode("utf-8"),
-        hashlib.sha256,
-    ).digest()
-    signature_b64 = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
-    return f"{payload_b64}.{signature_b64}"
-
-def _validate_session_token(token):
-    """Valida firma, expiración, usuario y contraseña actual."""
-    if not token or "." not in str(token):
-        return None
-
-    try:
-        payload_b64, signature_b64 = str(token).split(".", 1)
-        expected_signature = hmac.new(
-            _get_session_secret(),
-            payload_b64.encode("utf-8"),
-            hashlib.sha256,
-        ).digest()
-        provided_signature = base64.urlsafe_b64decode(
-            signature_b64 + "=" * (-len(signature_b64) % 4)
-        )
-
-        if not hmac.compare_digest(expected_signature, provided_signature):
-            return None
-
-        payload_raw = base64.urlsafe_b64decode(
-            payload_b64 + "=" * (-len(payload_b64) % 4)
-        )
-        payload = json.loads(payload_raw.decode("utf-8"))
-
-        email = str(payload.get("email", "")).lower().strip()
-        password_hash = str(payload.get("password_hash", ""))
-        issued_at = int(payload.get("iat", 0))
-
-        now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-        max_age = SESSION_COOKIE_DAYS * 24 * 60 * 60
-
-        if not email or not issued_at or not password_hash:
-            return None
-        if issued_at > now_ts + 60 or now_ts - issued_at > max_age:
-            return None
-
-        user_match = next(
-            (u for u in st.session_state.db_usuarios
-             if str(u.get("Correo", "")).lower().strip() == email),
-            None,
-        )
-        if not user_match:
-            return None
-
-        current_password_hash = hashlib.sha256(
-            str(user_match.get("Password", "")).encode("utf-8")
-        ).hexdigest()
-        if not hmac.compare_digest(current_password_hash, password_hash):
-            return None
-
-        if str(user_match.get("Estado", "Activo")).strip().lower() not in (
-            "", "activo", "active"
-        ):
-            return None
-
-        return user_match
-    except Exception:
-        return None
-
-def _restore_authenticated_user(user_match):
-    if not user_match:
-        return False
-    st.session_state.autenticado = True
-    st.session_state.usuario_email = str(user_match.get("Correo", "")).lower().strip()
-    st.session_state.usuario_nombres = user_match.get("Nombres", "")
-    st.session_state.usuario_apellidos = user_match.get("Apellidos", "")
-    st.session_state.usuario_cargo = user_match.get("Cargo", "Residente")
-    st.session_state.usuario_edificios = user_match.get("Edificios", [])
-    return True
-
-def _browser_set_session_cookie(token):
-    """Guarda la cookie persistente en el navegador."""
-    cookie_manager.set(
-        SESSION_COOKIE_NAME,
-        str(token),
-        key="alpha_session_cookie",
-        path="/",
-        max_age=SESSION_COOKIE_DAYS * 24 * 60 * 60,
-        secure=True,
-        same_site="lax",
-    )
-
-def _browser_clear_session_cookie():
-    """Elimina la cookie persistente."""
-    try:
-        cookie_manager.delete(SESSION_COOKIE_NAME, key="alpha_session_cookie")
-    except Exception:
-        pass
-
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
@@ -1782,29 +1652,106 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-# -------------------------------------------------------------------------
-# RECUPERACIÓN AUTOMÁTICA DESDE COOKIE
-# -------------------------------------------------------------------------
-if not st.session_state.autenticado:
+def _get_session_secret():
+    secret = str(st.secrets.get("SESSION_SECRET", "")).strip()
+    if not secret:
+        secret = str(st.secrets.get("SUPABASE_KEY", "")).strip()
+    if not secret:
+        secret = "alpha-builders-session-fallback-secret-2026"
+    return secret.encode("utf-8")
+
+def _make_session_token(user_email_str):
+    """Crea un token firmado y seguro que se guarda únicamente en el navegador local."""
+    payload = {
+        "email": str(user_email_str).lower().strip(),
+        "iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    }
+    raw_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    payload_b64 = base64.urlsafe_b64encode(raw_payload).decode("ascii").rstrip("=")
+    signature = hmac.new(_get_session_secret(), payload_b64.encode("utf-8"), hashlib.sha256).digest()
+    signature_b64 = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
+    return f"{payload_b64}.{signature_b64}"
+
+def _validate_session_token(token_str):
+    """Valida la integridad del token local sin exponer credenciales."""
+    if not token_str or "." not in str(token_str):
+        return None
     try:
-        saved_session_cookie = cookie_manager.get(SESSION_COOKIE_NAME)
+        payload_b64, signature_b64 = str(token_str).split(".", 1)
+        expected_sig = hmac.new(_get_session_secret(), payload_b64.encode("utf-8"), hashlib.sha256).digest()
+        provided_sig = base64.urlsafe_b64decode(signature_b64 + "=" * (-len(signature_b64) % 4))
+        if not hmac.compare_digest(expected_sig, provided_sig):
+            return None
+        
+        payload_raw = base64.urlsafe_b64decode(payload_b64 + "=" * (-len(payload_b64) % 4))
+        payload = json.loads(payload_raw.decode("utf-8"))
+        email = str(payload.get("email", "")).lower().strip()
+        
+        user_match = next((u for u in st.session_state.db_usuarios if str(u.get("Correo", "")).lower().strip() == email), None)
+        return user_match
     except Exception:
-        saved_session_cookie = None
+        return None
 
-    if saved_session_cookie:
-        recovered_user = _validate_session_token(str(saved_session_cookie))
-        if recovered_user:
-            _restore_authenticated_user(recovered_user)
-        else:
-            _browser_clear_session_cookie()
-
-# Nunca usamos auth_t ni u para autenticar. Si existe algún enlace antiguo,
-# simplemente lo limpiamos para evitar que vuelva a compartirse.
-try:
-    if st.query_params.get("auth_t") or st.query_params.get("u"):
+# Proceso de autenticación por Token seguro transmitido internamente
+auth_token_param = st.query_params.get("session_auth")
+if auth_token_param and not st.session_state.autenticado:
+    matched_user = _validate_session_token(auth_token_param)
+    if matched_user:
+        st.session_state.autenticado = True
+        st.session_state.usuario_email = matched_user["Correo"]
+        st.session_state.usuario_nombres = matched_user["Nombres"]
+        st.session_state.usuario_apellidos = matched_user["Apellidos"]
+        st.session_state.usuario_cargo = matched_user["Cargo"]
+        st.session_state.usuario_edificios = matched_user.get("Edificios", [])
+    # Limpiar inmediatamente el parámetro de la URL
+    try:
+        del st.query_params["session_auth"]
+    except Exception:
         st.query_params.clear()
-except Exception:
-    pass
+
+# Si no está autenticado, el navegador intenta auto-conectarse con su token privado
+if not st.session_state.autenticado:
+    components.html(
+        """
+        <script>
+        (function() {
+            try {
+                const win = window.top || window.parent || window;
+                const token = win.localStorage.getItem('alpha_persistent_token');
+                if (token && !window.location.search.includes('session_auth=')) {
+                    const currentUrl = new URL(win.location.href);
+                    currentUrl.searchParams.set('session_auth', token);
+                    win.location.replace(currentUrl.href);
+                }
+            } catch(e) {}
+        })();
+        </script>
+        """,
+        height=0,
+        width=0
+    )
+else:
+    # URL 100% limpia para que al copiar el enlace nunca viaje la sesión
+    components.html(
+        """
+        <script>
+        (function() {
+            try {
+                const win = window.top || window.parent || window;
+                const currentUrl = new URL(win.location.href);
+                if (currentUrl.searchParams.has('session_auth') || currentUrl.searchParams.has('auth_t') || currentUrl.searchParams.has('u')) {
+                    currentUrl.searchParams.delete('session_auth');
+                    currentUrl.searchParams.delete('auth_t');
+                    currentUrl.searchParams.delete('u');
+                    win.history.replaceState({}, document.title, currentUrl.pathname);
+                }
+            } catch(e) {}
+        })();
+        </script>
+        """,
+        height=0,
+        width=0
+    )
 
 # ==============================================================================
 # 6. MÓDULO DE AUTENTICACIÓN: LOGIN DIRECTO, REGISTRO Y RECUPERACIÓN
@@ -1835,12 +1782,7 @@ if not st.session_state.autenticado:
                 login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
                 login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
                 login_pin = st.text_input("Código de Seguridad (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="log_pin")
-                mantener_sesion = st.checkbox(
-                    "Mantener la sesión iniciada",
-                    value=False,
-                    key="mantener_sesion_login",
-                    help="Si está activado, permanecerás conectado en este navegador durante 30 días o hasta cerrar sesión."
-                )
+                mantener_sesion = st.checkbox("🔒 Mantener sesión en este dispositivo", value=True, key="chk_keep_session")
 
                 btn_log = st.form_submit_button("Entrar al Portal", type="primary", use_container_width=True)
 
@@ -1897,14 +1839,21 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                # Solo crear cookie persistente si el usuario lo solicita.
                                 if mantener_sesion:
-                                    persistent_token = _make_session_token(u_match)
-                                    _browser_set_session_cookie(persistent_token)
-                                else:
-                                    # Si existía una sesión recordada anteriormente, la quitamos.
-                                    _browser_clear_session_cookie()
-
+                                    secure_token = _make_session_token(mail_clean)
+                                    components.html(
+                                        f"""
+                                        <script>
+                                        try {{
+                                            const win = window.top || window.parent || window;
+                                            win.localStorage.setItem('alpha_persistent_token', '{secure_token}');
+                                        }} catch(e) {{}}
+                                        </script>
+                                        """,
+                                        height=0,
+                                        width=0
+                                    )
+                                
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
                                 
@@ -1930,6 +1879,7 @@ if not st.session_state.autenticado:
 
                                 st.session_state.db_loaded = False
                                 st.success("Acceso concedido...")
+                                st.rerun()
                             else:
                                 st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
                         else:
@@ -1967,6 +1917,7 @@ if not st.session_state.autenticado:
                     key="reg_edif_multisel"
                 )
                 reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):*", type="password", max_chars=4, placeholder="****", key="reg_pin")
+                reg_mantener = st.checkbox("🔒 Mantener sesión en este dispositivo", value=True, key="chk_reg_keep")
                 btn_reg = st.form_submit_button("Completar Registro", type="primary", use_container_width=True)
 
             if btn_reg:
@@ -2028,17 +1979,20 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = reg_cargo
                                 st.session_state.usuario_edificios = reg_edificios_sel
                                 
-                                # Crear una sesión persistente firmada para el nuevo usuario.
-                                registered_user = {
-                                    "Correo": mail_clean,
-                                    "Nombres": reg_nombres.strip(),
-                                    "Apellidos": reg_apellidos.strip(),
-                                    "Password": reg_pass.strip(),
-                                    "Cargo": reg_cargo,
-                                    "Edificios": reg_edificios_sel,
-                                }
-                                persistent_token = _make_session_token(registered_user)
-                                _browser_set_session_cookie(persistent_token)
+                                if reg_mantener:
+                                    secure_token = _make_session_token(mail_clean)
+                                    components.html(
+                                        f"""
+                                        <script>
+                                        try {{
+                                            const win = window.top || window.parent || window;
+                                            win.localStorage.setItem('alpha_persistent_token', '{secure_token}');
+                                        }} catch(e) {{}}
+                                        </script>
+                                        """,
+                                        height=0,
+                                        width=0
+                                    )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -2219,10 +2173,37 @@ with st.sidebar:
                 st.error(f"Error actualizando perfil: {e}")
 
     st.markdown("<hr>", unsafe_allow_html=True)
-    if st.button("Cerrar Sesión", use_container_width=True):
+    
+    # BOTÓN DE CIERRE DE SESIÓN LIMPIO Y SÍNCRONO
+    if st.button("Cerrar Sesión", use_container_width=True, type="secondary"):
         st.session_state.autenticado = False
         st.session_state.usuario_email = ""
-        _browser_clear_session_cookie()
+        st.session_state.usuario_nombres = ""
+        st.session_state.usuario_apellidos = ""
+        st.session_state.usuario_cargo = ""
+        st.session_state.usuario_edificios = []
+        
+        # Eliminar el token del almacenamiento local mediante HTML/JS garantizado
+        components.html(
+            """
+            <script>
+            (function() {
+                try {
+                    const win = window.top || window.parent || window;
+                    win.localStorage.removeItem('alpha_persistent_token');
+                    win.localStorage.removeItem('alpha_secure_token');
+                    const currentUrl = new URL(win.location.href);
+                    currentUrl.searchParams.delete('session_auth');
+                    currentUrl.searchParams.delete('auth_t');
+                    currentUrl.searchParams.delete('u');
+                    win.location.replace(currentUrl.pathname);
+                } catch(e) {}
+            })();
+            </script>
+            """,
+            height=0,
+            width=0
+        )
         st.rerun()
 
 # ==============================================================================
