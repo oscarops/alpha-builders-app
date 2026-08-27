@@ -1638,7 +1638,7 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 # ==============================================================================
 
 # ==============================================================================
-# PERSISTENCIA SEGURA DE SESIÓN (LOCALSTORAGE PRIVADO + URL LIMPIA)
+# PERSISTENCIA SEGURA Y PRIVADA DE SESIÓN (LOCALSTORAGE + AUTO-RECUPERACIÓN)
 # ==============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -1648,12 +1648,11 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-# Validar sesión privada guardada en el navegador local
-auth_token_param = st.query_params.get("auth_t")
-if auth_token_param and not st.session_state.autenticado:
+# Puente de reconexión por token temporal seguro
+raw_auth_token = st.query_params.get("auth_t")
+if raw_auth_token and not st.session_state.autenticado:
     try:
-        # Decodificación segura del token local
-        decoded_mail = base64.urlsafe_b64decode(auth_token_param.encode("utf-8")).decode("utf-8").lower().strip()
+        decoded_mail = base64.urlsafe_b64decode(raw_auth_token.encode("utf-8")).decode("utf-8").lower().strip()
         u_match = next((u for u in st.session_state.db_usuarios if u["Correo"] == decoded_mail), None)
         if u_match:
             st.session_state.autenticado = True
@@ -1662,48 +1661,49 @@ if auth_token_param and not st.session_state.autenticado:
             st.session_state.usuario_apellidos = u_match["Apellidos"]
             st.session_state.usuario_cargo = u_match["Cargo"]
             st.session_state.usuario_edificios = u_match.get("Edificios", [])
-            
-            # Limpiar de inmediato la URL para que quede limpia y no se pueda compartir
-            st.query_params.clear()
     except Exception:
-        st.query_params.clear()
+        pass
 
-# Script de auto-reconexión local: Lee el token privado solo si la sesión en memoria se reinició
+# Script cliente: si el usuario no está autenticado, recupera su token privado de este dispositivo.
+# Si ya está autenticado, limpia inmediatamente la barra de direcciones con history.replaceState
+# para que al compartir o copiar el enlace NUNCA viaje ningún parámetro ni token.
 if not st.session_state.autenticado:
     components.html(
         """
         <script>
-        try {
-            const win = window.top || window.parent || window;
-            const token = win.localStorage.getItem('alpha_secure_token');
-            if (token) {
-                const currentUrl = new URL(win.location.href);
-                if (!currentUrl.searchParams.get('auth_t')) {
-                    currentUrl.searchParams.set('auth_t', token);
-                    win.location.replace(currentUrl.href);
+        (function() {
+            try {
+                const win = window.top || window.parent || window;
+                const savedToken = win.localStorage.getItem('alpha_secure_token');
+                if (savedToken) {
+                    const currentUrl = new URL(win.location.href);
+                    if (!currentUrl.searchParams.get('auth_t')) {
+                        currentUrl.searchParams.set('auth_t', savedToken);
+                        win.location.replace(currentUrl.href);
+                    }
                 }
-            }
-        } catch (e) {}
+            } catch(e) {}
+        })();
         </script>
         """,
         height=0,
         width=0
     )
-
-# Script de seguridad: borra la URL en el historial del navegador para que no se copie el token
-if st.session_state.autenticado:
+else:
     components.html(
         """
         <script>
-        try {
-            const win = window.top || window.parent || window;
-            const currentUrl = new URL(win.location.href);
-            if (currentUrl.searchParams.has('auth_t') || currentUrl.searchParams.has('u')) {
-                currentUrl.searchParams.delete('auth_t');
-                currentUrl.searchParams.delete('u');
-                win.history.replaceState({}, document.title, currentUrl.pathname);
-            }
-        } catch (e) {}
+        (function() {
+            try {
+                const win = window.top || window.parent || window;
+                const currentUrl = new URL(win.location.href);
+                if (currentUrl.searchParams.has('auth_t') || currentUrl.searchParams.has('u')) {
+                    currentUrl.searchParams.delete('auth_t');
+                    currentUrl.searchParams.delete('u');
+                    win.history.replaceState({}, document.title, currentUrl.pathname);
+                }
+            } catch(e) {}
+        })();
         </script>
         """,
         height=0,
@@ -1739,7 +1739,6 @@ if not st.session_state.autenticado:
                 login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
                 login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
                 login_pin = st.text_input("Código de Seguridad (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="log_pin")
-                mantener_sesion = st.checkbox("🔒 Mantener sesión en este dispositivo", value=True, key="chk_keep_session")
 
                 btn_log = st.form_submit_button("Entrar al Portal", type="primary", use_container_width=True)
 
@@ -1796,21 +1795,20 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                # Guardar token privado localmente sin dejarlo en la URL
                                 token_b64 = base64.urlsafe_b64encode(mail_clean.encode("utf-8")).decode("utf-8")
-                                if mantener_sesion:
-                                    components.html(
-                                        f"""
-                                        <script>
-                                        try {{
-                                            const win = window.top || window.parent || window;
-                                            win.localStorage.setItem('alpha_secure_token', '{token_b64}');
-                                        }} catch(e) {{}}
-                                        </script>
-                                        """,
-                                        height=0,
-                                        width=0
-                                    )
+                                
+                                components.html(
+                                    f"""
+                                    <script>
+                                    try {{
+                                        const win = window.top || window.parent || window;
+                                        win.localStorage.setItem('alpha_secure_token', '{token_b64}');
+                                    }} catch(e) {{}}
+                                    </script>
+                                    """,
+                                    height=0,
+                                    width=0
+                                )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -1830,7 +1828,6 @@ if not st.session_state.autenticado:
                                     if mail_clean not in st.session_state.db_trabajadores_por_usuario:
                                         st.session_state.db_trabajadores_por_usuario[mail_clean] = []
 
-                                # Ordenamiento alfabético automático
                                 st.session_state.db_trabajadores_por_usuario[mail_clean] = sorted(
                                     st.session_state.db_trabajadores_por_usuario[mail_clean],
                                     key=lambda it: str(it.get("nombre", "")).upper()
@@ -1876,7 +1873,6 @@ if not st.session_state.autenticado:
                     key="reg_edif_multisel"
                 )
                 reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):*", type="password", max_chars=4, placeholder="****", key="reg_pin")
-                reg_mantener = st.checkbox("🔒 Mantener sesión en este dispositivo", value=True, key="chk_reg_keep")
                 btn_reg = st.form_submit_button("Completar Registro", type="primary", use_container_width=True)
 
             if btn_reg:
@@ -1939,19 +1935,18 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_edificios = reg_edificios_sel
                                 
                                 token_b64 = base64.urlsafe_b64encode(mail_clean.encode("utf-8")).decode("utf-8")
-                                if reg_mantener:
-                                    components.html(
-                                        f"""
-                                        <script>
-                                        try {{
-                                            const win = window.top || window.parent || window;
-                                            win.localStorage.setItem('alpha_secure_token', '{token_b64}');
-                                        }} catch(e) {{}}
-                                        </script>
-                                        """,
-                                        height=0,
-                                        width=0
-                                    )
+                                components.html(
+                                    f"""
+                                    <script>
+                                    try {{
+                                        const win = window.top || window.parent || window;
+                                        win.localStorage.setItem('alpha_secure_token', '{token_b64}');
+                                    }} catch(e) {{}}
+                                    </script>
+                                    """,
+                                    height=0,
+                                    width=0
+                                )
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -2141,10 +2136,7 @@ with st.sidebar:
             try {
                 const win = window.top || window.parent || window;
                 win.localStorage.removeItem('alpha_secure_token');
-                const url = new URL(win.location.href);
-                url.searchParams.delete('auth_t');
-                url.searchParams.delete('u');
-                win.location.replace(url.pathname);
+                win.location.replace(win.location.pathname);
             } catch(e) {}
             </script>
             """,
