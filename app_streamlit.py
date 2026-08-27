@@ -1652,12 +1652,10 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 SESSION_COOKIE_NAME = "alpha_session_v3"
 SESSION_COOKIE_DAYS = 30
 
-# CookieManager necesita una sola instancia por ejecución de la app.
-@st.cache_resource
-def _get_cookie_manager():
-    return stx.CookieManager(key="alpha_cookie_manager")
-
-cookie_manager = _get_cookie_manager()
+# IMPORTANTE: CookieManager es un widget de Streamlit y NO debe crearse
+# dentro de una función decorada con @st.cache_data o @st.cache_resource.
+# Se instancia directamente para evitar CachedWidgetWarning.
+cookie_manager = stx.CookieManager(key="alpha_cookie_manager")
 
 def _get_session_secret():
     """Obtiene una clave estable para firmar las sesiones persistentes."""
