@@ -2,6 +2,8 @@
 # PARTE 1 DE 5: CONFIGURACIÓN DE PÁGINA, ESTILOS CSS Y CONSTANTES
 # ==============================================================================
 import base64
+import hashlib
+import hmac
 import datetime
 import io
 import json
@@ -17,6 +19,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 import streamlit as st
 import streamlit.components.v1 as components
+import extra_streamlit_components as stx
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from supabase import Client, create_client
@@ -1640,40 +1643,38 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 
 # ==============================================================================
 # PERSISTENCIA SEGURA Y PRIVADA DE SESIÓN (COOKIE PERSISTENTE + RECUPERACIÓN)
+# VERSIÓN: autenticación persistente con opción "Mantener la sesión iniciada"
 # ==============================================================================
-# IMPORTANTE:
-# - La sesión persistente ya NO usa parámetros de URL.
-# - La cookie se guarda en el navegador y NO se comparte al copiar el enlace.
-# - El contenido de la cookie está firmado con HMAC para que no se pueda
-#   modificar simplemente cambiando el correo.
-# - La cookie caduca automáticamente y también queda invalidada si cambia
-#   la contraseña del usuario.
-#
-# Streamlit expone las cookies recibidas en la solicitud mediante st.context.cookies.
-# Esto permite recuperar la sesión después de refrescar o cerrar/reabrir la pestaña.
+# La sesión persistente se guarda en una cookie real del navegador mediante
+# Extra-Streamlit-Components. NO usamos parámetros de URL, por lo que copiar
+# el enlace NO copia la sesión del usuario.
 
-SESSION_COOKIE_NAME = "alpha_session_v2"
+SESSION_COOKIE_NAME = "alpha_session_v3"
 SESSION_COOKIE_DAYS = 30
+
+# CookieManager necesita una sola instancia por ejecución de la app.
+@st.cache_resource
+def _get_cookie_manager():
+    return stx.CookieManager(key="alpha_cookie_manager")
+
+cookie_manager = _get_cookie_manager()
 
 def _get_session_secret():
     """Obtiene una clave estable para firmar las sesiones persistentes."""
     secret = str(st.secrets.get("SESSION_SECRET", "")).strip()
     if not secret:
-        # No requiere añadir otra variable si ya existe SUPABASE_KEY.
-        # La clave resultante nunca se muestra al usuario.
         secret = str(st.secrets.get("SUPABASE_KEY", "")).strip()
     if not secret:
-        # Último respaldo para evitar que la app falle en instalaciones
-        # antiguas sin SESSION_SECRET. En producción se recomienda definir
-        # SESSION_SECRET en st.secrets.
         secret = "alpha-builders-session-fallback"
     return secret.encode("utf-8")
 
 def _make_session_token(user_row):
-    """Crea un token firmado que no se coloca nunca en la URL."""
+    """Crea un token firmado sin colocar el correo en la URL."""
+    password = str(user_row.get("Password", ""))
     payload = {
         "email": str(user_row.get("Correo", "")).lower().strip(),
-        "password": str(user_row.get("Password", "")),
+        # No guardamos la contraseña en texto dentro de la cookie.
+        "password_hash": hashlib.sha256(password.encode("utf-8")).hexdigest(),
         "iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     }
     raw_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -1693,13 +1694,11 @@ def _validate_session_token(token):
 
     try:
         payload_b64, signature_b64 = str(token).split(".", 1)
-
         expected_signature = hmac.new(
             _get_session_secret(),
             payload_b64.encode("utf-8"),
             hashlib.sha256,
         ).digest()
-
         provided_signature = base64.urlsafe_b64decode(
             signature_b64 + "=" * (-len(signature_b64) % 4)
         )
@@ -1713,34 +1712,29 @@ def _validate_session_token(token):
         payload = json.loads(payload_raw.decode("utf-8"))
 
         email = str(payload.get("email", "")).lower().strip()
-        password_snapshot = str(payload.get("password", ""))
+        password_hash = str(payload.get("password_hash", ""))
         issued_at = int(payload.get("iat", 0))
 
         now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
         max_age = SESSION_COOKIE_DAYS * 24 * 60 * 60
 
-        if not email or not issued_at:
+        if not email or not issued_at or not password_hash:
             return None
-
-        if issued_at > now_ts + 60:
-            return None
-
-        if now_ts - issued_at > max_age:
+        if issued_at > now_ts + 60 or now_ts - issued_at > max_age:
             return None
 
         user_match = next(
-            (
-                u for u in st.session_state.db_usuarios
-                if str(u.get("Correo", "")).lower().strip() == email
-            ),
+            (u for u in st.session_state.db_usuarios
+             if str(u.get("Correo", "")).lower().strip() == email),
             None,
         )
-
         if not user_match:
             return None
 
-        # Si la contraseña cambió, la sesión persistente anterior deja de ser válida.
-        if str(user_match.get("Password", "")) != password_snapshot:
+        current_password_hash = hashlib.sha256(
+            str(user_match.get("Password", "")).encode("utf-8")
+        ).hexdigest()
+        if not hmac.compare_digest(current_password_hash, password_hash):
             return None
 
         if str(user_match.get("Estado", "Activo")).strip().lower() not in (
@@ -1749,15 +1743,12 @@ def _validate_session_token(token):
             return None
 
         return user_match
-
     except Exception:
         return None
 
 def _restore_authenticated_user(user_match):
-    """Carga el usuario recuperado en session_state."""
     if not user_match:
         return False
-
     st.session_state.autenticado = True
     st.session_state.usuario_email = str(user_match.get("Correo", "")).lower().strip()
     st.session_state.usuario_nombres = user_match.get("Nombres", "")
@@ -1767,72 +1758,23 @@ def _restore_authenticated_user(user_match):
     return True
 
 def _browser_set_session_cookie(token):
-    """Guarda la sesión en una cookie persistente del navegador."""
-    token_js = json.dumps(str(token))
-    max_age = SESSION_COOKIE_DAYS * 24 * 60 * 60
-
-    components.html(
-        f"""
-        <script>
-        (function() {{
-            try {{
-                const token = {token_js};
-                const maxAge = {max_age};
-
-                // Intentar en el documento del componente.
-                document.cookie =
-                    "{SESSION_COOKIE_NAME}=" + encodeURIComponent(token) +
-                    "; Max-Age=" + maxAge +
-                    "; Path=/" +
-                    "; SameSite=Lax" +
-                    (location.protocol === "https:" ? "; Secure" : "");
-
-                // Si el componente y la aplicación comparten origen,
-                // también intentamos explícitamente en la ventana superior.
-                try {{
-                    const topDoc = window.top.document;
-                    topDoc.cookie =
-                        "{SESSION_COOKIE_NAME}=" + encodeURIComponent(token) +
-                        "; Max-Age=" + maxAge +
-                        "; Path=/" +
-                        "; SameSite=Lax" +
-                        (window.location.protocol === "https:" ? "; Secure" : "");
-                }} catch(e) {{}}
-            }} catch(e) {{}}
-        }})();
-        </script>
-        """,
-        height=0,
-        width=0,
+    """Guarda la cookie persistente en el navegador."""
+    cookie_manager.set(
+        SESSION_COOKIE_NAME,
+        str(token),
+        key="alpha_session_cookie",
+        path="/",
+        max_age=SESSION_COOKIE_DAYS * 24 * 60 * 60,
+        secure=True,
+        same_site="lax",
     )
 
 def _browser_clear_session_cookie():
-    """Elimina la cookie persistente de sesión."""
-    components.html(
-        f"""
-        <script>
-        (function() {{
-            try {{
-                const expired =
-                    "{SESSION_COOKIE_NAME}=; Max-Age=0; Path=/; SameSite=Lax" +
-                    (location.protocol === "https:" ? "; Secure" : "");
-
-                document.cookie = expired;
-
-                try {{
-                    window.top.document.cookie = expired;
-                }} catch(e) {{}}
-
-                try {{
-                    localStorage.removeItem("alpha_secure_token");
-                }} catch(e) {{}}
-            }} catch(e) {{}}
-        }})();
-        </script>
-        """,
-        height=0,
-        width=0,
-    )
+    """Elimina la cookie persistente."""
+    try:
+        cookie_manager.delete(SESSION_COOKIE_NAME, key="alpha_session_cookie")
+    except Exception:
+        pass
 
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -1843,47 +1785,25 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_edificios = []
 
 # -------------------------------------------------------------------------
-# RECUPERACIÓN AUTOMÁTICA
+# RECUPERACIÓN AUTOMÁTICA DESDE COOKIE
 # -------------------------------------------------------------------------
-# Primero usamos la cookie persistente. No usamos auth_t, u ni ningún
-# parámetro de URL, por lo que compartir el enlace no comparte la sesión.
 if not st.session_state.autenticado:
-    saved_session_cookie = ""
     try:
-        saved_session_cookie = st.context.cookies.get(SESSION_COOKIE_NAME, "")
+        saved_session_cookie = cookie_manager.get(SESSION_COOKIE_NAME)
     except Exception:
-        saved_session_cookie = ""
+        saved_session_cookie = None
 
     if saved_session_cookie:
-        saved_session_cookie = str(saved_session_cookie)
-
-        # Algunos navegadores/servidores pueden entregar el valor URL-encoded.
-        try:
-            saved_session_cookie = __import__("urllib.parse").parse.unquote(
-                saved_session_cookie
-            )
-        except Exception:
-            pass
-
-        recovered_user = _validate_session_token(saved_session_cookie)
-
+        recovered_user = _validate_session_token(str(saved_session_cookie))
         if recovered_user:
             _restore_authenticated_user(recovered_user)
         else:
-            # Cookie inválida o vencida: la eliminamos del navegador.
             _browser_clear_session_cookie()
 
-# -------------------------------------------------------------------------
-# LIMPIEZA DE VERSIONES ANTIGUAS
-# -------------------------------------------------------------------------
-# Si quedó algún auth_t antiguo en un enlace, NO lo usamos para autenticar.
-# Solo lo retiramos de la barra de direcciones para que no vuelva a viajar
-# al compartir el enlace.
+# Nunca usamos auth_t ni u para autenticar. Si existe algún enlace antiguo,
+# simplemente lo limpiamos para evitar que vuelva a compartirse.
 try:
-    has_old_auth_param = bool(st.query_params.get("auth_t"))
-    has_old_user_param = bool(st.query_params.get("u"))
-
-    if has_old_auth_param or has_old_user_param:
+    if st.query_params.get("auth_t") or st.query_params.get("u"):
         st.query_params.clear()
 except Exception:
     pass
@@ -1917,6 +1837,12 @@ if not st.session_state.autenticado:
                 login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
                 login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
                 login_pin = st.text_input("Código de Seguridad (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="log_pin")
+                mantener_sesion = st.checkbox(
+                    "Mantener la sesión iniciada",
+                    value=False,
+                    key="mantener_sesion_login",
+                    help="Si está activado, permanecerás conectado en este navegador durante 30 días o hasta cerrar sesión."
+                )
 
                 btn_log = st.form_submit_button("Entrar al Portal", type="primary", use_container_width=True)
 
@@ -1973,10 +1899,13 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
-                                # Crear una sesión persistente firmada.
-                                # El token se guarda SOLO en cookie; nunca en la URL.
-                                persistent_token = _make_session_token(u_match)
-                                _browser_set_session_cookie(persistent_token)
+                                # Solo crear cookie persistente si el usuario lo solicita.
+                                if mantener_sesion:
+                                    persistent_token = _make_session_token(u_match)
+                                    _browser_set_session_cookie(persistent_token)
+                                else:
+                                    # Si existía una sesión recordada anteriormente, la quitamos.
+                                    _browser_clear_session_cookie()
 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -2003,7 +1932,6 @@ if not st.session_state.autenticado:
 
                                 st.session_state.db_loaded = False
                                 st.success("Acceso concedido...")
-                                st.rerun()
                             else:
                                 st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
                         else:
