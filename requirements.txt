@@ -5,3 +5,4 @@ pillow
 supabase
 streamlit-local-storage
 reportlab
+extra-streamlit-components==0.1.81
