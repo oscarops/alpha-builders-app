@@ -1652,12 +1652,11 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 SESSION_COOKIE_NAME = "alpha_session_v3"
 SESSION_COOKIE_DAYS = 30
 
-# CookieManager necesita una sola instancia por ejecución de la app.
-@st.cache_resource
-def _get_cookie_manager():
-    return stx.CookieManager(key="alpha_cookie_manager")
-
-cookie_manager = _get_cookie_manager()
+# ===== CORRECCIÓN: No cachear el CookieManager =====
+# Inicializar CookieManager directamente, sin cache
+if "cookie_manager" not in st.session_state:
+    st.session_state.cookie_manager = stx.CookieManager(key="alpha_cookie_manager")
+cookie_manager = st.session_state.cookie_manager
 
 def _get_session_secret():
     """Obtiene una clave estable para firmar las sesiones persistentes."""
@@ -3878,6 +3877,7 @@ else:
                                         st.error(f"Error al eliminar: {e}")
         else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
+
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL, INCIDENCIAS, RENDIMIENTO, ESPACIO COLABORATIVO
 #                Y PANEL ADMINISTRADOR (COMPATIBILIDAD TOTAL CON HISTÓRICOS)
