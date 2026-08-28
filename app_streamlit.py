@@ -1782,21 +1782,33 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
+# Esta bandera evita que una cookie antigua vuelva a iniciar sesión
+# inmediatamente después de pulsar "Cerrar Sesión". Se mantiene activa
+# hasta que el usuario vuelva a iniciar sesión correctamente.
+if "logout_pending" not in st.session_state:
+    st.session_state.logout_pending = False
+
 # -------------------------------------------------------------------------
 # RECUPERACIÓN AUTOMÁTICA DESDE COOKIE
 # -------------------------------------------------------------------------
 if not st.session_state.autenticado:
-    try:
-        saved_session_cookie = cookie_manager.get(SESSION_COOKIE_NAME)
-    except Exception:
-        saved_session_cookie = None
+    if st.session_state.logout_pending:
+        # Seguir enviando la orden de borrado mientras la pantalla de login
+        # se vuelve a mostrar. Así una cookie antigua no puede reautenticar
+        # al usuario durante la transición de logout.
+        _browser_clear_session_cookie()
+    else:
+        try:
+            saved_session_cookie = cookie_manager.get(SESSION_COOKIE_NAME)
+        except Exception:
+            saved_session_cookie = None
 
-    if saved_session_cookie:
-        recovered_user = _validate_session_token(str(saved_session_cookie))
-        if recovered_user:
-            _restore_authenticated_user(recovered_user)
-        else:
-            _browser_clear_session_cookie()
+        if saved_session_cookie:
+            recovered_user = _validate_session_token(str(saved_session_cookie))
+            if recovered_user:
+                _restore_authenticated_user(recovered_user)
+            else:
+                _browser_clear_session_cookie()
 
 # Nunca usamos auth_t ni u para autenticar. Si existe algún enlace antiguo,
 # simplemente lo limpiamos para evitar que vuelva a compartirse.
@@ -1890,6 +1902,8 @@ if not st.session_state.autenticado:
                                 current_pin = st.session_state.get("access_pin", "1254")
 
                             if login_pin.strip() == current_pin.strip():
+                                st.session_state.logout_pending = False
+                                st.session_state.logout_pending = False
                                 st.session_state.autenticado = True
                                 st.session_state.usuario_email = mail_clean
                                 st.session_state.usuario_nombres = u_match["Nombres"]
@@ -2219,10 +2233,21 @@ with st.sidebar:
                 st.error(f"Error actualizando perfil: {e}")
 
     st.markdown("<hr>", unsafe_allow_html=True)
-    if st.button("Cerrar Sesión", use_container_width=True):
+    if st.button("Cerrar Sesión", use_container_width=True, key="btn_cerrar_sesion"):
+        # 1) Marcar el cierre para impedir la recuperación automática
+        #    de la cookie antigua en el siguiente rerun.
+        st.session_state.logout_pending = True
         st.session_state.autenticado = False
         st.session_state.usuario_email = ""
+        st.session_state.usuario_nombres = ""
+        st.session_state.usuario_apellidos = ""
+        st.session_state.usuario_cargo = ""
+        st.session_state.usuario_edificios = []
+
+        # 2) Borrar la cookie persistente del navegador.
         _browser_clear_session_cookie()
+
+        # 3) Volver inmediatamente al formulario de login.
         st.rerun()
 
 # ==============================================================================
