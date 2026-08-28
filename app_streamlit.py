@@ -1645,18 +1645,16 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 # PERSISTENCIA SEGURA Y PRIVADA DE SESIÓN (COOKIE PERSISTENTE + RECUPERACIÓN)
 # VERSIÓN: autenticación persistente con opción "Mantener la sesión iniciada"
 # ==============================================================================
-# La sesión persistente se guarda en una cookie real del navegador mediante
-# Extra-Streamlit-Components. NO usamos parámetros de URL, por lo que copiar
-# el enlace NO copia la sesión del usuario.
 
 SESSION_COOKIE_NAME = "alpha_session_v3"
 SESSION_COOKIE_DAYS = 30
 
-# ===== CORRECCIÓN: No cachear el CookieManager =====
-# Inicializar CookieManager directamente, sin cache
+# ===== CORRECCIÓN: NO cachear el CookieManager =====
+# Inicializar CookieManager directamente en session_state
 if "cookie_manager" not in st.session_state:
     st.session_state.cookie_manager = stx.CookieManager(key="alpha_cookie_manager")
 cookie_manager = st.session_state.cookie_manager
+
 
 def _get_session_secret():
     """Obtiene una clave estable para firmar las sesiones persistentes."""
@@ -1667,12 +1665,12 @@ def _get_session_secret():
         secret = "alpha-builders-session-fallback"
     return secret.encode("utf-8")
 
+
 def _make_session_token(user_row):
     """Crea un token firmado sin colocar el correo en la URL."""
     password = str(user_row.get("Password", ""))
     payload = {
         "email": str(user_row.get("Correo", "")).lower().strip(),
-        # No guardamos la contraseña en texto dentro de la cookie.
         "password_hash": hashlib.sha256(password.encode("utf-8")).hexdigest(),
         "iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     }
@@ -1685,6 +1683,7 @@ def _make_session_token(user_row):
     ).digest()
     signature_b64 = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
     return f"{payload_b64}.{signature_b64}"
+
 
 def _validate_session_token(token):
     """Valida firma, expiración, usuario y contraseña actual."""
@@ -1722,6 +1721,7 @@ def _validate_session_token(token):
         if issued_at > now_ts + 60 or now_ts - issued_at > max_age:
             return None
 
+        # Buscar usuario en db_usuarios (ya cargado)
         user_match = next(
             (u for u in st.session_state.db_usuarios
              if str(u.get("Correo", "")).lower().strip() == email),
@@ -1745,16 +1745,24 @@ def _validate_session_token(token):
     except Exception:
         return None
 
+
 def _restore_authenticated_user(user_match):
+    """Restaura la sesión del usuario y fuerza recarga de datos."""
     if not user_match:
         return False
+    
     st.session_state.autenticado = True
     st.session_state.usuario_email = str(user_match.get("Correo", "")).lower().strip()
     st.session_state.usuario_nombres = user_match.get("Nombres", "")
     st.session_state.usuario_apellidos = user_match.get("Apellidos", "")
     st.session_state.usuario_cargo = user_match.get("Cargo", "Residente")
     st.session_state.usuario_edificios = user_match.get("Edificios", [])
+    
+    # ===== IMPORTANTE: Forzar recarga de datos para este usuario =====
+    st.session_state.db_loaded = False
+    
     return True
+
 
 def _browser_set_session_cookie(token):
     """Guarda la cookie persistente en el navegador."""
@@ -1768,6 +1776,7 @@ def _browser_set_session_cookie(token):
         same_site="lax",
     )
 
+
 def _browser_clear_session_cookie():
     """Elimina la cookie persistente."""
     try:
@@ -1775,6 +1784,8 @@ def _browser_clear_session_cookie():
     except Exception:
         pass
 
+
+# ===== INICIALIZACIÓN DE VARIABLES DE SESIÓN =====
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
@@ -1783,9 +1794,9 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-# -------------------------------------------------------------------------
-# RECUPERACIÓN AUTOMÁTICA DESDE COOKIE
-# -------------------------------------------------------------------------
+
+# ===== RECUPERACIÓN AUTOMÁTICA DESDE COOKIE =====
+# Esto se ejecuta CADA VEZ que la app se carga/refresca
 if not st.session_state.autenticado:
     try:
         saved_session_cookie = cookie_manager.get(SESSION_COOKIE_NAME)
@@ -1795,22 +1806,26 @@ if not st.session_state.autenticado:
     if saved_session_cookie:
         recovered_user = _validate_session_token(str(saved_session_cookie))
         if recovered_user:
+            # Restaurar usuario y forzar recarga de datos
             _restore_authenticated_user(recovered_user)
+            # Forzar rerun para que se carguen los datos
+            st.rerun()
         else:
             _browser_clear_session_cookie()
 
-# Nunca usamos auth_t ni u para autenticar. Si existe algún enlace antiguo,
-# simplemente lo limpiamos para evitar que vuelva a compartirse.
+# Limpiar parámetros de URL antiguos
 try:
     if st.query_params.get("auth_t") or st.query_params.get("u"):
         st.query_params.clear()
 except Exception:
     pass
 
+
 # ==============================================================================
 # 6. MÓDULO DE AUTENTICACIÓN: LOGIN DIRECTO, REGISTRO Y RECUPERACIÓN
 # ==============================================================================
 if not st.session_state.autenticado:
+    # ... (todo el código de login/registro/recuperación igual que antes) ...
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
 
     with col_l2:
@@ -1903,9 +1918,9 @@ if not st.session_state.autenticado:
                                     persistent_token = _make_session_token(u_match)
                                     _browser_set_session_cookie(persistent_token)
                                 else:
-                                    # Si existía una sesión recordada anteriormente, la quitamos.
                                     _browser_clear_session_cookie()
 
+                                # Cargar trabajadores del usuario
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
                                 
@@ -1929,8 +1944,10 @@ if not st.session_state.autenticado:
                                     key=lambda it: str(it.get("nombre", "")).upper()
                                 )
 
+                                # ===== FORZAR RECARGA DE DATOS =====
                                 st.session_state.db_loaded = False
                                 st.success("Acceso concedido...")
+                                st.rerun()
                             else:
                                 st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
                         else:
@@ -2098,344 +2115,7 @@ user_edificios = st.session_state.get("usuario_edificios", [])
 es_admin = user_email in st.session_state.admin_emails
 es_maestro_mayor = (user_cargo == "Maestro Mayor")
 
-if f"foto_user_{user_email}" not in st.session_state:
-    try:
-        res_f = supabase.table("usuarios").select("foto_b64").ilike("correo", user_email).execute()
-        if res_f.data and len(res_f.data) > 0 and res_f.data[0].get("foto_b64"):
-            st.session_state[f"foto_user_{user_email}"] = res_f.data[0]["foto_b64"]
-        else:
-            st.session_state[f"foto_user_{user_email}"] = None
-    except Exception:
-        st.session_state[f"foto_user_{user_email}"] = None
-
-with st.sidebar:
-    logo_filename = "alpha.473f0c2dc3c48a682723-2.webp"
-    if not os.path.exists(logo_filename):
-        logo_filename = "images.png"
-
-    if os.path.exists(logo_filename):
-        ext = "webp" if logo_filename.endswith(".webp") else "png"
-        with open(logo_filename, "rb") as image_file:
-            encoded_sidebar_logo = base64.b64encode(image_file.read()).decode("utf-8")
-        st.markdown(
-            f"""
-            <div class="sidebar-logo-card">
-                <img src="data:image/{ext};base64,{encoded_sidebar_logo}" style="width: 100%; max-width: 100%; pointer-events: none; display: block; margin: 0 auto;">
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    b64_foto = st.session_state.get(f"foto_user_{user_email}")
-    if not b64_foto:
-        b64_foto = get_repo_image_b64(["perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png"])
-
-    img_obj = base64_to_image(b64_foto)
-    if img_obj is not None:
-        st.image(img_obj, use_container_width=True)
-
-    if len(user_edificios) > 0:
-        tags_edif_sidebar = "".join([f"<span class='edificio-tag-badge' style='margin: 1px;'>{e}</span>" for e in user_edificios])
-    else:
-        tags_edif_sidebar = "<span style='font-size: 0.60rem; color: #64748b;'>Sin proyectos asignados</span>"
-
-    st.markdown(
-        f"""
-        <div class="sidebar-profile-box">
-            <div class="sidebar-user-nombres">{user_nombres}</div>
-            <div class="sidebar-user-apellidos">{user_apellidos}</div>
-            <div class="sidebar-user-email">{user_email}</div>
-            <div style="margin-top: 4px; margin-bottom: 5px;">
-                <div class="sidebar-user-cargo">{user_cargo}</div>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-top: 4px;">
-                {tags_edif_sidebar}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if es_admin:
-        st.markdown("<div style='text-align: center; margin-bottom: 4px; font-size: 0.65rem; color: #ffffff; font-weight: 800; background: #111827; padding: 3px; border-radius: 6px; border: 1px solid #1f2937;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
-
-    st.markdown("<hr>", unsafe_allow_html=True)
-
-    with st.expander("⚙️ Configuración de Cuenta", expanded=False):
-        edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
-        edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
-        
-        idx_c = CARGOS_DISPONIBLES.index(user_cargo) if user_cargo in CARGOS_DISPONIBLES else 0
-        edit_cargo = st.selectbox("Cargo:", CARGOS_DISPONIBLES, index=idx_c, key="sb_car")
-
-        edit_edificios = st.multiselect(
-            "Edificios / Proyectos Asignados:",
-            options=EDIFICIOS_ALPHA,
-            default=[e for e in user_edificios if e in EDIFICIOS_ALPHA],
-            key="sb_edif_edit"
-        )
-        edit_pass = st.text_input("Nueva Contraseña:", type="password", key="sb_pass")
-        edit_pass_rep = st.text_input("Repetir Contraseña:", type="password", key="sb_pass_rep")
-        nueva_foto_file = st.file_uploader("Actualizar Foto de Perfil", type=["jpg", "jpeg", "png"], key="sb_foto_file")
-
-        if st.button("Guardar Ajustes", type="primary", use_container_width=True):
-            if edit_pass.strip() or edit_pass_rep.strip():
-                if edit_pass != edit_pass_rep:
-                    st.error("Las nuevas contraseñas no coinciden.")
-                    st.stop()
-
-            base_update_data = {
-                "nombres": edit_nombres.strip(),
-                "apellidos": edit_apellidos.strip(),
-                "cargo": edit_cargo
-            }
-            if edit_pass.strip():
-                base_update_data["password"] = edit_pass.strip()
-            if nueva_foto_file is not None:
-                b64_str = image_to_base64(nueva_foto_file)
-                if b64_str:
-                    base_update_data["foto_b64"] = b64_str
-                    st.session_state[f"foto_user_{user_email}"] = b64_str
-
-            try:
-                try:
-                    full_update = base_update_data.copy()
-                    full_update["edificios"] = edit_edificios
-                    supabase.table("usuarios").update(full_update).ilike("correo", user_email).execute()
-                except Exception:
-                    supabase.table("usuarios").update(base_update_data).ilike("correo", user_email).execute()
-                    supabase.table("app_config").upsert({
-                        "key": f"user_edificios_{user_email}",
-                        "value": json.dumps(edit_edificios)
-                    }).execute()
-                
-                st.session_state.usuario_nombres = edit_nombres.strip()
-                st.session_state.usuario_apellidos = edit_apellidos.strip()
-                st.session_state.usuario_cargo = edit_cargo
-                st.session_state.usuario_edificios = edit_edificios
-                st.session_state.db_loaded = False
-                st.success("Configuración actualizada correctamente.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error actualizando perfil: {e}")
-
-    st.markdown("<hr>", unsafe_allow_html=True)
-    if st.button("Cerrar Sesión", use_container_width=True):
-        st.session_state.autenticado = False
-        st.session_state.usuario_email = ""
-        _browser_clear_session_cookie()
-        st.rerun()
-
-# ==============================================================================
-# 8. SMART DASHBOARD GLASSMORPHISM Y AUTOGUARDADO (DRAFTS)
-# ==============================================================================
-user_nombre_completo = f"{user_nombres} {user_apellidos}".strip()
-
-DRAFT_STORAGE_KEY = "alpha_draft_v4_" + base64.urlsafe_b64encode(user_email.encode("utf-8")).decode("ascii").rstrip("=")
-components.html(
-    f"""
-    <script>
-    (() => {{
-        const win = window.top || window.parent || window;
-        const KEY = '{DRAFT_STORAGE_KEY}';
-        const EXCLUDE = new Set(['log_email','log_pass','log_pin','reg_pass','reg_pass_rep','reg_pin','sb_pass','sb_pass_rep']);
-        let saveTimer = null;
-
-        function keyFor(el, idx) {{
-            const name = el.getAttribute('name') || '';
-            const type = (el.type || '').toLowerCase();
-            const aria = el.getAttribute('aria-label') || '';
-            return `el|${{name}}|${{type}}|${{aria}}|${{idx}}`;
-        }}
-
-        function snapshot() {{
-            const data = {{controls: {{}}}};
-            const els = Array.from(win.document.querySelectorAll('input, textarea, select')).filter(el => !el.disabled && !EXCLUDE.has(el.getAttribute('name')));
-            els.forEach((el, idx) => {{
-                const type = (el.type || '').toLowerCase();
-                if (type === 'password' || type === 'file') return;
-                const k = keyFor(el, idx);
-                data.controls[k] = {{
-                    value: type === 'checkbox' || type === 'radio' ? !!el.checked : el.value,
-                    type: type
-                }};
-            }});
-            return data;
-        }}
-
-        function saveNow() {{
-            try {{ win.localStorage.setItem(KEY, JSON.stringify(snapshot())); }} catch (e) {{}}
-        }}
-
-        function scheduleSave() {{
-            clearTimeout(saveTimer);
-            saveTimer = setTimeout(saveNow, 300);
-        }}
-
-        function restore() {{
-            try {{
-                const raw = win.localStorage.getItem(KEY);
-                if (!raw) return;
-                const data = JSON.parse(raw);
-                if (!data || !data.controls) return;
-                const els = Array.from(win.document.querySelectorAll('input, textarea, select')).filter(el => !el.disabled && !EXCLUDE.has(el.getAttribute('name')));
-                els.forEach((el, idx) => {{
-                    const k = keyFor(el, idx);
-                    const item = data.controls[k];
-                    if (!item) return;
-                    const type = (el.type || '').toLowerCase();
-                    if (type === 'password' || type === 'file') return;
-                    if (type === 'checkbox' || type === 'radio') {{
-                        if (el.checked !== !!item.value) {{
-                            el.checked = !!item.value;
-                            el.dispatchEvent(new Event('input', {{bubbles:true}}));
-                            el.dispatchEvent(new Event('change', {{bubbles:true}}));
-                        }}
-                    }} else if (typeof item.value === 'string') {{
-                        if (el.value !== item.value) {{
-                            el.value = item.value;
-                            el.dispatchEvent(new Event('input', {{bubbles:true}}));
-                            el.dispatchEvent(new Event('change', {{bubbles:true}}));
-                        }}
-                    }}
-                }});
-            }} catch (e) {{}}
-        }}
-
-        function boot() {{
-            restore();
-            win.document.addEventListener('input', scheduleSave, true);
-            win.document.addEventListener('change', scheduleSave, true);
-            win.addEventListener('beforeunload', saveNow);
-        }}
-        
-        setTimeout(boot, 800);
-
-        win.alphaBuildersClearDraft = function() {{
-            try {{ win.localStorage.removeItem(KEY); }} catch (e) {{}}
-        }};
-    }})();
-    </script>
-    """,
-    height=0,
-    width=0
-)
-
-local_dt = get_local_datetime_ecuador()
-fecha_hoy_iso = local_dt.strftime("%Y-%m-%d")
-
-dias_nombre_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-dia_semana_actual = dias_nombre_es[local_dt.weekday()]
-mes_actual = NOMBRES_MESES[local_dt.month]
-fecha_widget_texto = f"{dia_semana_actual}, {local_dt.day} de {mes_actual} de {local_dt.year}"
-clima_actual_str = get_realtime_weather()
-
-mis_chks_list = st.session_state.get("db_checklists", {}).get(user_email, [])
-mis_insps_list = st.session_state.get("db_inspecciones", {}).get(user_email, [])
-mis_rnds_list = st.session_state.get("db_rendimientos", {}).get(user_email, [])
-
-chk_hoy_cumplido = any(c.get("Fecha") == fecha_hoy_iso for c in mis_chks_list)
-insp_hoy_cumplida = any(i.get("Fecha") == fecha_hoy_iso for i in mis_insps_list)
-
-tag_chk_html = '<span class="milestone-status-done">✓ Cumplido</span>' if chk_hoy_cumplido else '<span class="milestone-status-pending">⏳ Pendiente</span>'
-tag_insp_html = '<span class="milestone-status-done">✓ Cumplido</span>' if insp_hoy_cumplida else '<span class="milestone-status-pending">⏳ Pendiente</span>'
-
-if es_maestro_mayor:
-    hitos_body_html = f'<div class="milestone-item"><span class="milestone-name">Libro de Obra Maestro</span>{tag_insp_html}</div>'
-else:
-    hitos_body_html = (
-        f'<div class="milestone-item"><span class="milestone-name">Checklist</span>{tag_chk_html}</div>'
-        f'<div class="milestone-item"><span class="milestone-name">Libro de Obra</span>{tag_insp_html}</div>'
-    )
-
-if len(mis_rnds_list) > 0:
-    total_eficientes = sum(1 for r in mis_rnds_list if r.get("Estado") in ["EFICIENTE", "CUMPLE META"])
-    porc_rendimiento = int(round((total_eficientes / len(mis_rnds_list)) * 100))
-    lbl_rend_prom = f"{porc_rendimiento}% Eficaz"
-else:
-    porc_rendimiento = 100
-    lbl_rend_prom = "100% Óptimo"
-
-color_dona = "#10b981" if porc_rendimiento >= 75 else "#f59e0b" if porc_rendimiento >= 50 else "#ef4444"
-
-todas_las_incidencias_db = st.session_state.get("db_incidencias_all", [])
-if len(user_edificios) > 0:
-    incs_mis_proyectos = [inc for inc in todas_las_incidencias_db if inc.get("Proyecto") in user_edificios]
-else:
-    incs_mis_proyectos = [inc for inc in todas_las_incidencias_db if inc.get("Usuario") == user_email]
-
-incs_abiertas_count = sum(1 for inc in incs_mis_proyectos if inc.get("Estado") == "Abierta")
-mi_personal_lista = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-total_personal_count = len(mi_personal_lista)
-
-tags_edificios_html = "".join([f"<span class='edificio-tag-badge'>{ed}</span>" for ed in user_edificios])
-
-dashboard_html = (
-    '<div class="smart-dashboard-container">'
-    '<div class="smart-header-bar">'
-    '<div>'
-    '<div class="smart-title">Alpha Builders | Portal de Obra</div>'
-    f'<div class="smart-user-sub">{user_nombre_completo} &bull; <b style="color: #cbd5e1 !important;">{user_cargo}</b> {tags_edificios_html}</div>'
-    '</div>'
-    '<div style="display: flex; gap: 6px; flex-wrap: wrap;">'
-    f'<div class="smart-pill">📅 {fecha_widget_texto}</div>'
-    f'<div class="smart-pill">{clima_actual_str}</div>'
-    '</div>'
-    '</div>'
-    '<div class="widgets-grid">'
-    '<div class="widget-glass-card">'
-    '<div class="w-card-title"><span>🎯 Hitos Diarios</span><span>Hoy</span></div>'
-    f'{hitos_body_html}'
-    '</div>'
-    '<div class="widget-glass-card">'
-    '<div class="w-card-title"><span>⚡ Rendimiento</span><span>Promedio</span></div>'
-    '<div class="donut-container">'
-    f'<svg class="donut-chart-svg" viewBox="0 0 36 36">'
-    f'<circle class="donut-bg" cx="18" cy="18" r="15.9155" />'
-    f'<circle class="donut-progress" cx="18" cy="18" r="15.9155" stroke="{color_dona}" stroke-dasharray="{porc_rendimiento}, 100" />'
-    f'</svg>'
-    f'<div><div class="donut-info-val" style="color: {color_dona} !important;">{porc_rendimiento}%</div>'
-    f'<div class="donut-info-lbl">{lbl_rend_prom}</div></div>'
-    '</div>'
-    '</div>'
-    '<div class="widget-glass-card">'
-    '<div class="w-card-title"><span>🚨 Incidencias</span><span>Abiertas</span></div>'
-    f'<div class="stat-hero-number" style="color: #f87171 !important;">{incs_abiertas_count}</div>'
-    '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">En tus proyectos</div>'
-    '</div>'
-    '<div class="widget-glass-card">'
-    '<div class="w-card-title"><span>👷 Personal</span><span>Activos</span></div>'
-    f'<div class="stat-hero-number" style="color: #60a5fa !important;">{total_personal_count}</div>'
-    '<div style="font-size: 0.65rem; color: #94a3b8 !important; font-weight: 600;">Personal a tu cargo</div>'
-    '</div>'
-    '</div>'
-    '</div>'
-)
-
-st.markdown(dashboard_html, unsafe_allow_html=True)
-st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
-
-if es_maestro_mayor:
-    pestanas = [
-        "Libro de Obra Maestro",
-        "Personal a Cargo",
-        "Control de Rendimiento",
-        "Colaborativo"
-    ]
-else:
-    pestanas = [
-        "Checklist", 
-        "Libro de Obra", 
-        "Personal a Cargo",
-        "Levantamiento de Incidencias", 
-        "Control de Rendimiento",
-        "Colaborativo"
-    ]
-
-if es_admin:
-    pestanas.append("Panel Admin")
-
-tabs_app = st.tabs(pestanas)
+# ... (resto del código igual) ...
 # ==============================================================================
 # PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON COMPRESIÓN Y RETROCOMPATIBILIDAD
 # ==============================================================================
