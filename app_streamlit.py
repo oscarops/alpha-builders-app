@@ -19,6 +19,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 import streamlit as st
 import streamlit.components.v1 as components
+import extra_streamlit_components as stx
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from supabase import Client, create_client
@@ -669,6 +670,7 @@ def load_db_from_supabase():
     except Exception as e:
         print(f"[Warn] Error en tabla trabajadores: {e}")
 
+    # Ordenamiento alfabético automático de la nómina
     for u_k in db_trabajadores_por_usuario:
         db_trabajadores_por_usuario[u_k] = sorted(
             db_trabajadores_por_usuario[u_k], 
@@ -676,28 +678,18 @@ def load_db_from_supabase():
         )
 
     # -------------------------------------------------------------------------
-    # CARGA TOLERANTE DE CHECKLISTS (CON VINCULACIÓN MULTI-CAMPO Y NORMALIZACIÓN)
+    # CARGA BLINDADA DE CHECKLISTS (FILA POR FILA Y RESILIENTE A FORMATOS ANTIGUOS)
     # -------------------------------------------------------------------------
     db_checklists = {}
     try:
-        res_chk = supabase.table("checklists").select("*").order("fecha", desc=True).execute()
+        res_chk = supabase.table("checklists").select("*").execute()
         if res_chk.data:
             for r in res_chk.data:
                 try:
-                    c = str(
-                        r.get("usuario_email") 
-                        or r.get("correo") 
-                        or r.get("user_email") 
-                        or r.get("usuario") 
-                        or ""
-                    ).lower().strip()
-
-                    if not c or c in ["none", "null", "undefined"]:
+                    c = str(r.get("usuario_email") or r.get("correo") or r.get("user_email") or r.get("usuario") or "").lower().strip()
+                    if not c:
                         resp_nom = str(r.get("responsable", "")).lower().strip()
-                        matched_u = next(
-                            (u["Correo"] for u in db_usuarios if f"{u['Nombres']} {u['Apellidos']}".lower().strip() == resp_nom), 
-                            None
-                        )
+                        matched_u = next((u["Correo"] for u in db_usuarios if f"{u['Nombres']} {u['Apellidos']}".lower().strip() == resp_nom), None)
                         c = matched_u if matched_u else "general"
 
                     if c not in db_checklists:
@@ -714,14 +706,12 @@ def load_db_from_supabase():
                     else:
                         datos_parsed = {}
 
-                    fecha_limpia = str(r.get("fecha", "")).split("T")[0].strip()
-
                     db_checklists[c].append({
                         "db_id": r.get("id"),
-                        "Fecha": fecha_limpia,
+                        "Fecha": str(r.get("fecha", "")),
                         "Hora_Inicio": r.get("hora_inicio", "07:00"),
                         "Hora_Fin": r.get("hora_fin", "17:00"),
-                        "Edificio": str(r.get("edificio", "")).strip(),
+                        "Edificio": r.get("edificio", ""),
                         "Responsable": r.get("responsable", ""),
                         "Cargo": r.get("cargo", ""),
                         "Observacion_General": r.get("observacion_general", ""),
@@ -737,7 +727,7 @@ def load_db_from_supabase():
     # -------------------------------------------------------------------------
     db_inspecciones = {}
     try:
-        res_insp = supabase.table("inspecciones").select("*").order("fecha", desc=True).execute()
+        res_insp = supabase.table("inspecciones").select("*").execute()
         if res_insp.data:
             for r in res_insp.data:
                 try:
@@ -761,13 +751,11 @@ def load_db_from_supabase():
                     else:
                         datos_parsed = {}
 
-                    fecha_insp_limpia = str(r.get("fecha", "")).split("T")[0].strip()
-
                     db_inspecciones[c].append({
                         "db_id": r.get("id"),
-                        "Fecha": fecha_insp_limpia,
+                        "Fecha": str(r.get("fecha", "")),
                         "Dia": r.get("dia", ""),
-                        "Proyecto": str(r.get("proyecto", "")).strip(),
+                        "Proyecto": r.get("proyecto", ""),
                         "Residente": r.get("residente", ""),
                         "Frente": r.get("frente", ""),
                         "Clima": r.get("clima", ""),
@@ -796,9 +784,9 @@ def load_db_from_supabase():
                         "Descripcion": r.get("descripcion", ""),
                         "Responsable": r.get("responsable", ""),
                         "Prioridad": r.get("prioridad", "Media"),
-                        "Fecha_Compromiso": str(r.get("fecha_compromiso", "")).split("T")[0],
+                        "Fecha_Compromiso": str(r.get("fecha_compromiso", "")),
                         "Estado": r.get("estado", "Abierta"),
-                        "Proyecto": str(r.get("proyecto", "")).strip(),
+                        "Proyecto": r.get("proyecto", ""),
                         "Usuario": c_inc
                     })
                 except Exception as ex_inc:
@@ -824,7 +812,7 @@ def load_db_from_supabase():
                         "db_id": r.get("id"),
                         "Usuario_Registro": c,
                         "Cargo_Registrador": r.get("cargo_obrero", ""),
-                        "Fecha": str(r.get("fecha", "")).split("T")[0],
+                        "Fecha": str(r.get("fecha", "")),
                         "Trabajador": r.get("trabajador", ""),
                         "Cargo_Obrero": r.get("cargo_obrero", ""),
                         "Rubro": r.get("rubro", ""),
@@ -881,7 +869,7 @@ if "db_usuarios" not in st.session_state:
 
 
 # ==============================================================================
-# 5. OPTIMIZADOR DE IMÁGENES Y EXPORTADORES
+# 5. OPTIMIZADOR / COMPRESOR DE IMÁGENES Y EXPORTADORES EN CACHÉ
 # ==============================================================================
 def render_estado_badge(estado_str):
     if not estado_str:
@@ -895,13 +883,20 @@ def render_estado_badge(estado_str):
 
 
 def image_to_base64(image_file, max_width=800, quality=65):
-    """Comprime y redimensiona imágenes automáticamente evitando saturación."""
+    """
+    Comprime y redimensiona imágenes automáticamente para evitar 'statement timeout'
+    y saturación de red en bases de datos PostgreSQL / Supabase.
+    """
     if image_file is not None:
         try:
             img = Image.open(image_file)
             img = ImageOps.exif_transpose(img)
+            
+            # Convertir a RGB si viene en RGBA/P
             if img.mode in ("RGBA", "P"):
                 img = img.convert("RGB")
+            
+            # Redimensionamiento proporcional
             w, h = img.size
             if w > max_width:
                 new_h = int(h * (max_width / w))
@@ -1647,8 +1642,140 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 # ==============================================================================
 
 # ==============================================================================
-# PERSISTENCIA SEGURA Y PRIVADA DE SESIÓN (TOKEN FIRMADO + LOCALSTORAGE)
+# PERSISTENCIA SEGURA Y PRIVADA DE SESIÓN (COOKIE PERSISTENTE + RECUPERACIÓN)
+# VERSIÓN: autenticación persistente con opción "Mantener la sesión iniciada"
 # ==============================================================================
+# La sesión persistente se guarda en una cookie real del navegador mediante
+# Extra-Streamlit-Components. NO usamos parámetros de URL, por lo que copiar
+# el enlace NO copia la sesión del usuario.
+
+SESSION_COOKIE_NAME = "alpha_session_v3"
+SESSION_COOKIE_DAYS = 30
+
+# CookieManager necesita una sola instancia por ejecución de la app.
+@st.cache_resource
+def _get_cookie_manager():
+    return stx.CookieManager(key="alpha_cookie_manager")
+
+cookie_manager = _get_cookie_manager()
+
+def _get_session_secret():
+    """Obtiene una clave estable para firmar las sesiones persistentes."""
+    secret = str(st.secrets.get("SESSION_SECRET", "")).strip()
+    if not secret:
+        secret = str(st.secrets.get("SUPABASE_KEY", "")).strip()
+    if not secret:
+        secret = "alpha-builders-session-fallback"
+    return secret.encode("utf-8")
+
+def _make_session_token(user_row):
+    """Crea un token firmado sin colocar el correo en la URL."""
+    password = str(user_row.get("Password", ""))
+    payload = {
+        "email": str(user_row.get("Correo", "")).lower().strip(),
+        # No guardamos la contraseña en texto dentro de la cookie.
+        "password_hash": hashlib.sha256(password.encode("utf-8")).hexdigest(),
+        "iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
+    }
+    raw_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    payload_b64 = base64.urlsafe_b64encode(raw_payload).decode("ascii").rstrip("=")
+    signature = hmac.new(
+        _get_session_secret(),
+        payload_b64.encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+    signature_b64 = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
+    return f"{payload_b64}.{signature_b64}"
+
+def _validate_session_token(token):
+    """Valida firma, expiración, usuario y contraseña actual."""
+    if not token or "." not in str(token):
+        return None
+
+    try:
+        payload_b64, signature_b64 = str(token).split(".", 1)
+        expected_signature = hmac.new(
+            _get_session_secret(),
+            payload_b64.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+        provided_signature = base64.urlsafe_b64decode(
+            signature_b64 + "=" * (-len(signature_b64) % 4)
+        )
+
+        if not hmac.compare_digest(expected_signature, provided_signature):
+            return None
+
+        payload_raw = base64.urlsafe_b64decode(
+            payload_b64 + "=" * (-len(payload_b64) % 4)
+        )
+        payload = json.loads(payload_raw.decode("utf-8"))
+
+        email = str(payload.get("email", "")).lower().strip()
+        password_hash = str(payload.get("password_hash", ""))
+        issued_at = int(payload.get("iat", 0))
+
+        now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        max_age = SESSION_COOKIE_DAYS * 24 * 60 * 60
+
+        if not email or not issued_at or not password_hash:
+            return None
+        if issued_at > now_ts + 60 or now_ts - issued_at > max_age:
+            return None
+
+        user_match = next(
+            (u for u in st.session_state.db_usuarios
+             if str(u.get("Correo", "")).lower().strip() == email),
+            None,
+        )
+        if not user_match:
+            return None
+
+        current_password_hash = hashlib.sha256(
+            str(user_match.get("Password", "")).encode("utf-8")
+        ).hexdigest()
+        if not hmac.compare_digest(current_password_hash, password_hash):
+            return None
+
+        if str(user_match.get("Estado", "Activo")).strip().lower() not in (
+            "", "activo", "active"
+        ):
+            return None
+
+        return user_match
+    except Exception:
+        return None
+
+def _restore_authenticated_user(user_match):
+    if not user_match:
+        return False
+    st.session_state.autenticado = True
+    st.session_state.usuario_email = str(user_match.get("Correo", "")).lower().strip()
+    st.session_state.usuario_nombres = user_match.get("Nombres", "")
+    st.session_state.usuario_apellidos = user_match.get("Apellidos", "")
+    st.session_state.usuario_cargo = user_match.get("Cargo", "Residente")
+    st.session_state.usuario_edificios = user_match.get("Edificios", [])
+    return True
+
+def _browser_set_session_cookie(token):
+    """Guarda la cookie persistente en el navegador."""
+    cookie_manager.set(
+        SESSION_COOKIE_NAME,
+        str(token),
+        key="alpha_session_cookie",
+        path="/",
+        max_age=SESSION_COOKIE_DAYS * 24 * 60 * 60,
+        secure=True,
+        same_site="lax",
+    )
+
+def _browser_clear_session_cookie():
+    """Elimina la cookie persistente."""
+    try:
+        cookie_manager.delete(SESSION_COOKIE_NAME, key="alpha_session_cookie")
+    except Exception:
+        pass
+
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.usuario_email = ""
@@ -1657,105 +1784,29 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-def _get_session_secret():
-    secret = str(st.secrets.get("SESSION_SECRET", "")).strip()
-    if not secret:
-        secret = str(st.secrets.get("SUPABASE_KEY", "")).strip()
-    if not secret:
-        secret = "alpha-builders-session-key-2026"
-    return secret.encode("utf-8")
-
-def _make_session_token(user_email_str):
-    """Crea un token firmado y seguro que se guarda únicamente en el navegador local."""
-    payload = {
-        "email": str(user_email_str).lower().strip(),
-        "iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-    }
-    raw_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    payload_b64 = base64.urlsafe_b64encode(raw_payload).decode("ascii").rstrip("=")
-    signature = hmac.new(_get_session_secret(), payload_b64.encode("utf-8"), hashlib.sha256).digest()
-    signature_b64 = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
-    return f"{payload_b64}.{signature_b64}"
-
-def _validate_session_token(token_str):
-    """Valida la integridad del token local sin exponer credenciales."""
-    if not token_str or "." not in str(token_str):
-        return None
-    try:
-        payload_b64, signature_b64 = str(token_str).split(".", 1)
-        expected_sig = hmac.new(_get_session_secret(), payload_b64.encode("utf-8"), hashlib.sha256).digest()
-        provided_sig = base64.urlsafe_b64decode(signature_b64 + "=" * (-len(signature_b64) % 4))
-        if not hmac.compare_digest(expected_sig, provided_sig):
-            return None
-        
-        payload_raw = base64.urlsafe_b64decode(payload_b64 + "=" * (-len(payload_b64) % 4))
-        payload = json.loads(payload_raw.decode("utf-8"))
-        email = str(payload.get("email", "")).lower().strip()
-        
-        user_match = next((u for u in st.session_state.db_usuarios if str(u.get("Correo", "")).lower().strip() == email), None)
-        return user_match
-    except Exception:
-        return None
-
-# Validación de token seguro temporal al recargar
-auth_token_param = st.query_params.get("session_auth")
-if auth_token_param and not st.session_state.autenticado:
-    matched_user = _validate_session_token(auth_token_param)
-    if matched_user:
-        st.session_state.autenticado = True
-        st.session_state.usuario_email = matched_user["Correo"]
-        st.session_state.usuario_nombres = matched_user["Nombres"]
-        st.session_state.usuario_apellidos = matched_user["Apellidos"]
-        st.session_state.usuario_cargo = matched_user["Cargo"]
-        st.session_state.usuario_edificios = matched_user.get("Edificios", [])
-    try:
-        del st.query_params["session_auth"]
-    except Exception:
-        st.query_params.clear()
-
-# Auto-reconexión local en el navegador
+# -------------------------------------------------------------------------
+# RECUPERACIÓN AUTOMÁTICA DESDE COOKIE
+# -------------------------------------------------------------------------
 if not st.session_state.autenticado:
-    components.html(
-        """
-        <script>
-        (function() {
-            try {
-                const win = window.top || window.parent || window;
-                const token = win.localStorage.getItem('alpha_persistent_token');
-                if (token && !window.location.search.includes('session_auth=')) {
-                    const currentUrl = new URL(win.location.href);
-                    currentUrl.searchParams.set('session_auth', token);
-                    win.location.replace(currentUrl.href);
-                }
-            } catch(e) {}
-        })();
-        </script>
-        """,
-        height=0,
-        width=0
-    )
-else:
-    # URL limpia sin tokens para que al copiar el enlace nunca viaje la sesión
-    components.html(
-        """
-        <script>
-        (function() {
-            try {
-                const win = window.top || window.parent || window;
-                const currentUrl = new URL(win.location.href);
-                if (currentUrl.searchParams.has('session_auth') || currentUrl.searchParams.has('auth_t') || currentUrl.searchParams.has('u')) {
-                    currentUrl.searchParams.delete('session_auth');
-                    currentUrl.searchParams.delete('auth_t');
-                    currentUrl.searchParams.delete('u');
-                    win.history.replaceState({}, document.title, currentUrl.pathname);
-                }
-            } catch(e) {}
-        })();
-        </script>
-        """,
-        height=0,
-        width=0
-    )
+    try:
+        saved_session_cookie = cookie_manager.get(SESSION_COOKIE_NAME)
+    except Exception:
+        saved_session_cookie = None
+
+    if saved_session_cookie:
+        recovered_user = _validate_session_token(str(saved_session_cookie))
+        if recovered_user:
+            _restore_authenticated_user(recovered_user)
+        else:
+            _browser_clear_session_cookie()
+
+# Nunca usamos auth_t ni u para autenticar. Si existe algún enlace antiguo,
+# simplemente lo limpiamos para evitar que vuelva a compartirse.
+try:
+    if st.query_params.get("auth_t") or st.query_params.get("u"):
+        st.query_params.clear()
+except Exception:
+    pass
 
 # ==============================================================================
 # 6. MÓDULO DE AUTENTICACIÓN: LOGIN DIRECTO, REGISTRO Y RECUPERACIÓN
@@ -1786,7 +1837,12 @@ if not st.session_state.autenticado:
                 login_email = st.text_input("Correo electrónico:", placeholder="nombre@correo.com", key="log_email")
                 login_pass = st.text_input("Contraseña:", type="password", key="log_pass")
                 login_pin = st.text_input("Código de Seguridad (PIN de 4 dígitos):", type="password", max_chars=4, placeholder="****", key="log_pin")
-                mantener_sesion = st.checkbox("🔒 Mantener sesión en este dispositivo", value=True, key="chk_keep_session")
+                mantener_sesion = st.checkbox(
+                    "Mantener la sesión iniciada",
+                    value=False,
+                    key="mantener_sesion_login",
+                    help="Si está activado, permanecerás conectado en este navegador durante 30 días o hasta cerrar sesión."
+                )
 
                 btn_log = st.form_submit_button("Entrar al Portal", type="primary", use_container_width=True)
 
@@ -1843,21 +1899,14 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = u_match["Cargo"]
                                 st.session_state.usuario_edificios = u_match.get("Edificios", [])
                                 
+                                # Solo crear cookie persistente si el usuario lo solicita.
                                 if mantener_sesion:
-                                    secure_token = _make_session_token(mail_clean)
-                                    components.html(
-                                        f"""
-                                        <script>
-                                        try {{
-                                            const win = window.top || window.parent || window;
-                                            win.localStorage.setItem('alpha_persistent_token', '{secure_token}');
-                                        }} catch(e) {{}}
-                                        </script>
-                                        """,
-                                        height=0,
-                                        width=0
-                                    )
-                                
+                                    persistent_token = _make_session_token(u_match)
+                                    _browser_set_session_cookie(persistent_token)
+                                else:
+                                    # Si existía una sesión recordada anteriormente, la quitamos.
+                                    _browser_clear_session_cookie()
+
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
                                 
@@ -1883,7 +1932,6 @@ if not st.session_state.autenticado:
 
                                 st.session_state.db_loaded = False
                                 st.success("Acceso concedido...")
-                                st.rerun()
                             else:
                                 st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
                         else:
@@ -1921,7 +1969,6 @@ if not st.session_state.autenticado:
                     key="reg_edif_multisel"
                 )
                 reg_pin = st.text_input("Código de Seguridad de Registro (PIN de 4 dígitos):*", type="password", max_chars=4, placeholder="****", key="reg_pin")
-                reg_mantener = st.checkbox("🔒 Mantener sesión en este dispositivo", value=True, key="chk_reg_keep")
                 btn_reg = st.form_submit_button("Completar Registro", type="primary", use_container_width=True)
 
             if btn_reg:
@@ -1983,19 +2030,17 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_cargo = reg_cargo
                                 st.session_state.usuario_edificios = reg_edificios_sel
                                 
-                                secure_token = _make_session_token(mail_clean)
-                                components.html(
-                                    f"""
-                                    <script>
-                                    try {{
-                                        const win = window.top || window.parent || window;
-                                        win.localStorage.setItem('alpha_persistent_token', '{secure_token}');
-                                    }} catch(e) {{}}
-                                    </script>
-                                    """,
-                                    height=0,
-                                    width=0
-                                )
+                                # Crear una sesión persistente firmada para el nuevo usuario.
+                                registered_user = {
+                                    "Correo": mail_clean,
+                                    "Nombres": reg_nombres.strip(),
+                                    "Apellidos": reg_apellidos.strip(),
+                                    "Password": reg_pass.strip(),
+                                    "Cargo": reg_cargo,
+                                    "Edificios": reg_edificios_sel,
+                                }
+                                persistent_token = _make_session_token(registered_user)
+                                _browser_set_session_cookie(persistent_token)
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -2176,36 +2221,10 @@ with st.sidebar:
                 st.error(f"Error actualizando perfil: {e}")
 
     st.markdown("<hr>", unsafe_allow_html=True)
-    
-    # CIERRE DE SESIÓN SÍNCRONO DEFINITIVO
-    if st.button("Cerrar Sesión", use_container_width=True, type="secondary"):
+    if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.autenticado = False
         st.session_state.usuario_email = ""
-        st.session_state.usuario_nombres = ""
-        st.session_state.usuario_apellidos = ""
-        st.session_state.usuario_cargo = ""
-        st.session_state.usuario_edificios = []
-        
-        components.html(
-            """
-            <script>
-            (function() {
-                try {
-                    const win = window.top || window.parent || window;
-                    win.localStorage.removeItem('alpha_persistent_token');
-                    win.localStorage.removeItem('alpha_secure_token');
-                    const currentUrl = new URL(win.location.href);
-                    currentUrl.searchParams.delete('session_auth');
-                    currentUrl.searchParams.delete('auth_t');
-                    currentUrl.searchParams.delete('u');
-                    win.location.replace(currentUrl.pathname);
-                } catch(e) {}
-            })();
-            </script>
-            """,
-            height=0,
-            width=0
-        )
+        _browser_clear_session_cookie()
         st.rerun()
 
 # ==============================================================================
@@ -2419,7 +2438,7 @@ if es_admin:
 
 tabs_app = st.tabs(pestanas)
 # ==============================================================================
-# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON OBSERVACIONES CONSERVADAS
+# PARTE 4 DE 5: MÓDULOS DE CONTROL SEGÚN ROL CON COMPRESIÓN Y RETROCOMPATIBILIDAD
 # ==============================================================================
 
 # ==============================================================================
@@ -2462,9 +2481,7 @@ if es_maestro_mayor:
             if st.button("➕ Llenar Libro de Obra", type="primary", key="btn_open_llenar_mm"):
                 st.session_state.llenando_libro_mm = True
                 st.session_state.edit_mm_id = None
-                st.session_state.filas_maestro_act = [
-                    {"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}
-                ]
+                st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                 for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
                     if k in st.session_state:
                         del st.session_state[k]
@@ -2588,16 +2605,12 @@ if es_maestro_mayor:
                     if len(st.session_state.filas_maestro_act) > 1:
                         st.session_state.filas_maestro_act.pop(del_i)
                     else:
-                        st.session_state.filas_maestro_act = [
-                            {"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}
-                        ]
+                        st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                 st.rerun()
 
             if st.button("➕ Agregar Otra Actividad", key="btn_add_mm_act_row"):
                 next_id_mm = (max([x["id"] for x in st.session_state.filas_maestro_act]) + 1) if st.session_state.filas_maestro_act else 1
-                st.session_state.filas_maestro_act.append(
-                    {"id": next_id_mm, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}
-                )
+                st.session_state.filas_maestro_act.append({"id": next_id_mm, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""})
                 st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
@@ -2646,9 +2659,7 @@ if es_maestro_mayor:
                             st.session_state.db_loaded = False
                             st.session_state.llenando_libro_mm = False
                             st.session_state.edit_mm_id = None
-                            st.session_state.filas_maestro_act = [
-                                {"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}
-                            ]
+                            st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                             for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
                                 if k in st.session_state:
                                     del st.session_state[k]
@@ -2660,9 +2671,7 @@ if es_maestro_mayor:
             if st.button(lbl_cancel_mm, key="btn_cancel_mm_bottom", use_container_width=True):
                 st.session_state.llenando_libro_mm = False
                 st.session_state.edit_mm_id = None
-                st.session_state.filas_maestro_act = [
-                    {"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}
-                ]
+                st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                 for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
                     if k in st.session_state:
                         del st.session_state[k]
@@ -2672,19 +2681,12 @@ if es_maestro_mayor:
         st.markdown("### Historial de Reportes del Maestro Mayor")
         mis_libros_m = st.session_state.get("db_inspecciones", {}).get(user_email, [])
 
-        if not mis_libros_m and user_nombre_completo:
-            todos_los_libros = [item for sublist in st.session_state.get("db_inspecciones", {}).values() for item in sublist]
-            mis_libros_m = [
-                i for i in todos_los_libros 
-                if i.get("Residente", "").strip().lower() == user_nombre_completo.strip().lower()
-            ]
-
         if len(mis_libros_m) > 0:
             df_libros_m = pd.DataFrame(mis_libros_m)
-            df_libros_m["fecha_dt"] = pd.to_datetime(df_libros_m["Fecha"], errors="coerce")
+            df_libros_m["fecha_dt"] = pd.to_datetime(df_libros_m["Fecha"])
             df_libros_m = df_libros_m.sort_values(by="fecha_dt", ascending=False)
-            df_libros_m["año"] = df_libros_m["fecha_dt"].dt.year.fillna(datetime.datetime.now().year).astype(int)
-            df_libros_m["mes_num"] = df_libros_m["fecha_dt"].dt.month.fillna(datetime.datetime.now().month).astype(int)
+            df_libros_m["año"] = df_libros_m["fecha_dt"].dt.year
+            df_libros_m["mes_num"] = df_libros_m["fecha_dt"].dt.month
 
             grupos_m = df_libros_m.groupby(["año", "mes_num"], sort=False)
 
@@ -2699,6 +2701,7 @@ if es_maestro_mayor:
                             raw_dm = insp_dict_m.get("Datos", {})
                             d_parsed = raw_dm if isinstance(raw_dm, dict) else json.loads(raw_dm or "{}") if isinstance(raw_dm, str) else {}
                             
+                            # Compatible con versiones antiguas y nuevas
                             if isinstance(d_parsed, dict):
                                 acts_guardadas = d_parsed.get("Actividades_Maestro", [])
                             elif isinstance(d_parsed, list):
@@ -2724,7 +2727,7 @@ if es_maestro_mayor:
                                         get_cached_libro_maestro_excel(safe_json_dumps(insp_dict_m)),
                                         file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.xlsx",
                                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                        key=f"dl_mm_xlsx_{idx_insp_m}_{insp_db_id_m}",
+                                        key=f"dl_mm_xlsx_{idx_insp_m}",
                                         use_container_width=True
                                     )
                             with c_dl_m2:
@@ -2734,7 +2737,7 @@ if es_maestro_mayor:
                                         get_cached_libro_maestro_pdf(safe_json_dumps(insp_dict_m)),
                                         file_name=f"Libro_Maestro_{insp_dict_m['Proyecto']}_{insp_dict_m['Fecha']}.pdf",
                                         mime="application/pdf",
-                                        key=f"dl_mm_pdf_{idx_insp_m}_{insp_db_id_m}",
+                                        key=f"dl_mm_pdf_{idx_insp_m}",
                                         use_container_width=True
                                     )
                             with c_ed_m:
@@ -2761,9 +2764,7 @@ if es_maestro_mayor:
                                             "personal_a_cargo": it.get("Personal_A_Cargo", it.get("personal_a_cargo", [])),
                                             "observaciones": it.get("Observaciones", it.get("observaciones", ""))
                                         } for i, it in enumerate(acts_rec)
-                                    ] if acts_rec else [
-                                        {"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}
-                                    ]
+                                    ] if acts_rec else [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
                                     st.rerun()
 
                             with c_del_m:
@@ -2782,7 +2783,7 @@ if es_maestro_mayor:
 # 9.B. MÓDULOS PARA RESIDENTE Y ASISTENTE: CHECKLIST Y LIBRO DE OBRA OFICIAL
 # ------------------------------------------------------------------------------
 else:
-    # 1. CHECKLIST (HISTORIAL REPARADO Y COMPATIBLE)
+    # 1. CHECKLIST (CONTROL DIARIO DE OBRA)
     with tab_chk:
         if "creando_jornada" not in st.session_state:
             st.session_state.creando_jornada = False
@@ -3224,53 +3225,40 @@ else:
 
         st.markdown("---")
         st.markdown("### Historial General de Checklists Creados")
-        
         mis_jornadas = st.session_state.get("db_checklists", {}).get(user_email, [])
-        if not mis_jornadas and user_nombre_completo:
-            todos_los_chks = [item for sublist in st.session_state.get("db_checklists", {}).values() for item in sublist]
-            mis_jornadas = [
-                j for j in todos_los_chks 
-                if j.get("Responsable", "").strip().lower() == user_nombre_completo.strip().lower()
-            ]
 
         if len(mis_jornadas) > 0:
             col_edif_sel, _ = st.columns([2, 2])
             with col_edif_sel:
-                edificios_en_historial = sorted(list(set([str(j.get("Edificio", "")).strip() for j in mis_jornadas if j.get("Edificio")])))
-                opciones_filtro = ["-- Todos los Edificios --"] + (edificios_en_historial if edificios_en_historial else EDIFICIOS_ALPHA)
-                edificio_filtro = st.selectbox("🏢 Seleccionar Edificio / Proyecto:", opciones_filtro, key="filtro_edificio_historial")
+                edificio_filtro = st.selectbox("🏢 Seleccionar Edificio / Proyecto:", ["-- Todos los Edificios --"] + EDIFICIOS_ALPHA, key="filtro_edificio_historial")
 
-            if edificio_filtro != "-- Todos los Edificios --":
-                jornadas_filtradas = [j for j in mis_jornadas if str(j.get("Edificio", "")).strip().lower() == edificio_filtro.strip().lower()]
-            else:
-                jornadas_filtradas = mis_jornadas.copy()
-
+            jornadas_filtradas = [j for j in mis_jornadas if j.get("Edificio") == edificio_filtro] if edificio_filtro != "-- Todos los Edificios --" else mis_jornadas.copy()
             st.caption(f"Mostrando **{len(jornadas_filtradas)}** checklist(s).")
 
             df_jornadas = pd.DataFrame(jornadas_filtradas)
-            df_jornadas["fecha_dt"] = pd.to_datetime(df_jornadas["Fecha"], errors="coerce")
+            df_jornadas["fecha_dt"] = pd.to_datetime(df_jornadas["Fecha"])
             df_jornadas = df_jornadas.sort_values(by="fecha_dt", ascending=False)
-            df_jornadas["año"] = df_jornadas["fecha_dt"].dt.year.fillna(datetime.datetime.now().year).astype(int)
-            df_jornadas["mes_num"] = df_jornadas["fecha_dt"].dt.month.fillna(datetime.datetime.now().month).astype(int)
+            df_jornadas["año"] = df_jornadas["fecha_dt"].dt.year
+            df_jornadas["mes_num"] = df_jornadas["fecha_dt"].dt.month
 
             grupos_chk = df_jornadas.groupby(["año", "mes_num"], sort=False)
 
             for (anio, mes_num), items_mes in grupos_chk:
                 nombre_mes_str = f"📅 {NOMBRES_MESES.get(mes_num, 'Mes')} {anio} ({len(items_mes)} Checklists)"
-                with st.expander(nombre_mes_str, expanded=True):
+                with st.expander(nombre_mes_str, expanded=False):
                     for orig_idx, j in items_mes.iterrows():
                         j_dict = j.to_dict()
                         chk_db_id = j_dict.get("db_id")
 
-                        with st.expander(f"📌 {j_dict.get('Edificio', 'General')} — {j_dict.get('Fecha')} (Horario: {j_dict.get('Hora_Inicio', 'N/A')} - {j_dict.get('Hora_Fin', 'N/A')})", expanded=False):
+                        with st.expander(f"📌 {j_dict['Edificio']} — {j_dict['Fecha']} (Horario: {j_dict.get('Hora_Inicio', 'N/A')} - {j_dict.get('Hora_Fin', 'N/A')})", expanded=False):
                             c_dl1, c_dl2, c_ed_chk, c_del_chk = st.columns([2, 2, 1, 1])
                             with c_dl1:
                                 with st.popover("📊 Exportar Excel", use_container_width=True):
                                     st.download_button(
                                         "Confirmar Descarga (.xlsx)", 
                                         get_cached_checklist_excel(safe_json_dumps(j_dict)), 
-                                        file_name=f"Checklist_{j_dict.get('Edificio', 'Obra')}_{j_dict.get('Fecha')}.xlsx", 
-                                        key=f"dl_xlsx_{orig_idx}_{chk_db_id}", 
+                                        file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.xlsx", 
+                                        key=f"dl_xlsx_{orig_idx}", 
                                         use_container_width=True
                                     )
                             with c_dl2:
@@ -3278,8 +3266,8 @@ else:
                                     st.download_button(
                                         "Confirmar Descarga (.pdf)", 
                                         get_cached_checklist_pdf(safe_json_dumps(j_dict)), 
-                                        file_name=f"Checklist_{j_dict.get('Edificio', 'Obra')}_{j_dict.get('Fecha')}.pdf", 
-                                        key=f"dl_pdf_{orig_idx}_{chk_db_id}", 
+                                        file_name=f"Checklist_{j_dict['Edificio']}_{j_dict['Fecha']}.pdf", 
+                                        key=f"dl_pdf_{orig_idx}", 
                                         use_container_width=True
                                     )
                             with c_ed_chk:
@@ -3335,7 +3323,7 @@ else:
         else:
             st.info("Aún no hay checklists guardados en tu cuenta.")
 
-    # 2. LIBRO DE OBRA OFICIAL
+    # 2. LIBRO DE OBRA OFICIAL (ESTRUCTURA ORIGINAL CON BOTÓN LLENAR Y CIERRE)
     with tab_libro:
         st.markdown("### Libro de Obra – Formato Oficial")
         st.caption("Estructura técnica de control diario con recopilación automática de personal y sincronización de Checklist.")
@@ -3346,6 +3334,7 @@ else:
         if "edit_lo_id" not in st.session_state:
             st.session_state.edit_lo_id = None
 
+        # Botón inicial para abrir el formulario del libro oficial
         if not st.session_state.llenando_libro_oficial and not st.session_state.edit_lo_id:
             if st.button("➕ Llenar Libro de Obra", type="primary", key="btn_open_llenar_lo_oficial"):
                 st.session_state.llenando_libro_oficial = True
@@ -3356,6 +3345,7 @@ else:
                         del st.session_state[k]
                 st.rerun()
 
+        # Despliegue del formulario únicamente si está activo
         if st.session_state.llenando_libro_oficial or st.session_state.edit_lo_id:
             st.markdown("---")
             if st.session_state.edit_lo_id:
@@ -3566,6 +3556,7 @@ else:
                 seg_auditivo = st.checkbox("Auditivo", value=bool(saved_seg_map.get("Auditivo", False)), key=f"seg_auditivo_{st.session_state.get('edit_lo_id', 'new')}")
 
             with c_ss2:
+                st.markdown("##### 🚧 Señalización")
                 sen_conos = st.checkbox("Conos", value=bool(saved_seg_map.get("Conos", False)), key=f"sen_conos_{st.session_state.get('edit_lo_id', 'new')}")
                 sen_cintas = st.checkbox("Cintas", value=bool(saved_seg_map.get("Cintas", False)), key=f"sen_cintas_{st.session_state.get('edit_lo_id', 'new')}")
                 sen_rotulos = st.checkbox("Rótulos", value=bool(saved_seg_map.get("Rótulos", False)), key=f"sen_rotulos_{st.session_state.get('edit_lo_id', 'new')}")
@@ -3788,10 +3779,10 @@ else:
             st.caption(f"Mostrando **{len(insps_filtradas)}** registro(s) en Libro de Obra.")
 
             df_insps = pd.DataFrame(insps_filtradas)
-            df_insps["fecha_dt"] = pd.to_datetime(df_insps["Fecha"], errors="coerce")
+            df_insps["fecha_dt"] = pd.to_datetime(df_insps["Fecha"])
             df_insps = df_insps.sort_values(by="fecha_dt", ascending=False)
-            df_insps["año"] = df_insps["fecha_dt"].dt.year.fillna(datetime.datetime.now().year).astype(int)
-            df_insps["mes_num"] = df_insps["fecha_dt"].dt.month.fillna(datetime.datetime.now().month).astype(int)
+            df_insps["año"] = df_insps["fecha_dt"].dt.year
+            df_insps["mes_num"] = df_insps["fecha_dt"].dt.month
 
             grupos_insp = df_insps.groupby(["año", "mes_num"], sort=False)
 
@@ -3889,7 +3880,7 @@ else:
             st.info("Aún no tienes registros guardados en tu Libro de Obra.")
 # ==============================================================================
 # PARTE 5 DE 5: PERSONAL, INCIDENCIAS, RENDIMIENTO, ESPACIO COLABORATIVO
-#                Y PANEL ADMINISTRADOR (COMPATIBILIDAD TOTAL CON OBSERVACIONES)
+#                Y PANEL ADMINISTRADOR (COMPATIBILIDAD TOTAL CON HISTÓRICOS)
 # ==============================================================================
 
 # ==============================================================================
@@ -4101,6 +4092,7 @@ with tab_personal:
     st.markdown("---")
 
     mi_personal_actual = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+    # Garantizar orden alfabético
     mi_personal_actual = sorted(mi_personal_actual, key=lambda it_w: str(it_w.get("nombre", "")).upper())
     st.markdown(f"#### Tu Nómina de Personal a Cargo ({len(mi_personal_actual)} integrantes)")
 
@@ -4488,6 +4480,7 @@ with tab_rend:
     st.caption("Asignación de rubros, ingreso manual de horario/HH, cantidades ejecutadas y diagnóstico de productividad.")
 
     mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
+    # Ordenar alfabéticamente
     mi_personal_propio = sorted(mi_personal_propio, key=lambda it_w: str(it_w.get("nombre", "")).upper())
     nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
 
@@ -4658,7 +4651,7 @@ with tab_rend:
         st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
 # ==============================================================================
-# 14. MÓDULO 6: ESPACIO COLABORATIVO (CON OBSERVACIONES ORIGINALES)
+# 14. MÓDULO 6: ESPACIO COLABORATIVO (AGRUPACIÓN MENSUAL DESPLEGABLE)
 # ==============================================================================
 with tab_colab:
     st.markdown("### Espacio de Trabajo Colaborativo")
@@ -4727,10 +4720,10 @@ with tab_colab:
                     insps_maestro = st.session_state.get("db_inspecciones", {}).get(c_mail, [])
                     if len(insps_maestro) > 0:
                         df_col_mm = pd.DataFrame(insps_maestro)
-                        df_col_mm["fecha_dt"] = pd.to_datetime(df_col_mm["Fecha"], errors="coerce")
+                        df_col_mm["fecha_dt"] = pd.to_datetime(df_col_mm["Fecha"])
                         df_col_mm = df_col_mm.sort_values(by="fecha_dt", ascending=False)
-                        df_col_mm["año"] = df_col_mm["fecha_dt"].dt.year.fillna(datetime.datetime.now().year).astype(int)
-                        df_col_mm["mes_num"] = df_col_mm["fecha_dt"].dt.month.fillna(datetime.datetime.now().month).astype(int)
+                        df_col_mm["año"] = df_col_mm["fecha_dt"].dt.year
+                        df_col_mm["mes_num"] = df_col_mm["fecha_dt"].dt.month
                         grupos_col_mm = df_col_mm.groupby(["año", "mes_num"], sort=False)
 
                         st.caption(f"Mostrando **{len(insps_maestro)}** reporte(s) de Maestro Mayor registrados por **{colega_u['Nombres']}** agrupados por mes:")
@@ -4770,10 +4763,10 @@ with tab_colab:
                     rnds_colega = st.session_state.get("db_rendimientos", {}).get(c_mail, [])
                     if len(rnds_colega) > 0:
                         df_r_col = pd.DataFrame(rnds_colega)
-                        df_r_col["fecha_dt"] = pd.to_datetime(df_r_col["Fecha"], errors="coerce")
+                        df_r_col["fecha_dt"] = pd.to_datetime(df_r_col["Fecha"])
                         df_r_col = df_r_col.sort_values(by="fecha_dt", ascending=False)
-                        df_r_col["año"] = df_r_col["fecha_dt"].dt.year.fillna(datetime.datetime.now().year).astype(int)
-                        df_r_col["mes_num"] = df_r_col["fecha_dt"].dt.month.fillna(datetime.datetime.now().month).astype(int)
+                        df_r_col["año"] = df_r_col["fecha_dt"].dt.year
+                        df_r_col["mes_num"] = df_r_col["fecha_dt"].dt.month
                         grupos_r_col = df_r_col.groupby(["año", "mes_num"], sort=False)
 
                         st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento de **{colega_u['Nombres']}** organizados por mes:")
@@ -4799,10 +4792,10 @@ with tab_colab:
                     chks_colega = st.session_state.get("db_checklists", {}).get(c_mail, [])
                     if len(chks_colega) > 0:
                         df_chks_col = pd.DataFrame(chks_colega)
-                        df_chks_col["fecha_dt"] = pd.to_datetime(df_chks_col["Fecha"], errors="coerce")
+                        df_chks_col["fecha_dt"] = pd.to_datetime(df_chks_col["Fecha"])
                         df_chks_col = df_chks_col.sort_values(by="fecha_dt", ascending=False)
-                        df_chks_col["año"] = df_chks_col["fecha_dt"].dt.year.fillna(datetime.datetime.now().year).astype(int)
-                        df_chks_col["mes_num"] = df_chks_col["fecha_dt"].dt.month.fillna(datetime.datetime.now().month).astype(int)
+                        df_chks_col["año"] = df_chks_col["fecha_dt"].dt.year
+                        df_chks_col["mes_num"] = df_chks_col["fecha_dt"].dt.month
                         grupos_chks_col = df_chks_col.groupby(["año", "mes_num"], sort=False)
 
                         st.caption(f"Mostrando **{len(chks_colega)}** checklist(s) registrados por **{colega_u['Nombres']}** organizados por mes:")
@@ -4826,10 +4819,10 @@ with tab_colab:
                     insps_colega = st.session_state.get("db_inspecciones", {}).get(c_mail, [])
                     if len(insps_colega) > 0:
                         df_insps_col = pd.DataFrame(insps_colega)
-                        df_insps_col["fecha_dt"] = pd.to_datetime(df_insps_col["Fecha"], errors="coerce")
+                        df_insps_col["fecha_dt"] = pd.to_datetime(df_insps_col["Fecha"])
                         df_insps_col = df_insps_col.sort_values(by="fecha_dt", ascending=False)
-                        df_insps_col["año"] = df_insps_col["fecha_dt"].dt.year.fillna(datetime.datetime.now().year).astype(int)
-                        df_insps_col["mes_num"] = df_insps_col["fecha_dt"].dt.month.fillna(datetime.datetime.now().month).astype(int)
+                        df_insps_col["año"] = df_insps_col["fecha_dt"].dt.year
+                        df_insps_col["mes_num"] = df_insps_col["fecha_dt"].dt.month
                         grupos_insps_col = df_insps_col.groupby(["año", "mes_num"], sort=False)
 
                         st.caption(f"Mostrando **{len(insps_colega)}** registro(s) en Libro de Obra organizados por mes:")
@@ -4863,10 +4856,10 @@ with tab_colab:
                     rnds_colega = st.session_state.get("db_rendimientos", {}).get(c_mail, [])
                     if len(rnds_colega) > 0:
                         df_r_col = pd.DataFrame(rnds_colega)
-                        df_r_col["fecha_dt"] = pd.to_datetime(df_r_col["Fecha"], errors="coerce")
+                        df_r_col["fecha_dt"] = pd.to_datetime(df_r_col["Fecha"])
                         df_r_col = df_r_col.sort_values(by="fecha_dt", ascending=False)
-                        df_r_col["año"] = df_r_col["fecha_dt"].dt.year.fillna(datetime.datetime.now().year).astype(int)
-                        df_r_col["mes_num"] = df_r_col["fecha_dt"].dt.month.fillna(datetime.datetime.now().month).astype(int)
+                        df_r_col["año"] = df_r_col["fecha_dt"].dt.year
+                        df_r_col["mes_num"] = df_r_col["fecha_dt"].dt.month
                         grupos_r_col = df_r_col.groupby(["año", "mes_num"], sort=False)
 
                         st.caption(f"Mostrando **{len(rnds_colega)}** registros de rendimiento de **{colega_u['Nombres']}** organizados por mes:")
@@ -4935,7 +4928,7 @@ if es_admin:
 
             jornadas_admin_filtradas = todas_las_jornadas_admin.copy()
             if filtro_edif_admin != "-- Todos los Edificios --":
-                jornadas_admin_filtradas = [j for j in jornadas_admin_filtradas if str(j.get("Edificio", "")).strip().lower() == filtro_edif_admin.strip().lower()]
+                jornadas_admin_filtradas = [j for j in jornadas_admin_filtradas if j.get("Edificio") == filtro_edif_admin]
             if filtro_usr_chk != "-- Todos los Usuarios --":
                 jornadas_admin_filtradas = [j for j in jornadas_admin_filtradas if j["Usuario_Correo"] == filtro_usr_chk]
 
@@ -4988,7 +4981,7 @@ if es_admin:
 
             insps_admin_filtradas = todas_las_inspecciones_admin.copy()
             if filtro_edif_insp_adm != "-- Todos los Edificios --":
-                insps_admin_filtradas = [i for i in insps_admin_filtradas if str(i.get("Proyecto", "")).strip().lower() == filtro_edif_insp_adm.strip().lower()]
+                insps_admin_filtradas = [i for i in insps_admin_filtradas if i.get("Proyecto") == filtro_edif_insp_adm]
             if filtro_usr_insp_adm != "-- Todos los Usuarios --":
                 insps_admin_filtradas = [i for i in insps_admin_filtradas if i["Usuario_Correo"] == filtro_usr_insp_adm]
 
@@ -5006,11 +4999,7 @@ if es_admin:
                         for a in acts_mm:
                             pers_str = ", ".join(a.get("Personal_A_Cargo", [])) if isinstance(a.get("Personal_A_Cargo"), list) else str(a.get("Personal_A_Cargo", ""))
                             pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
-                            act_n = a.get('Actividad', a.get('actividad', ''))
-                            act_c = a.get('Cantidad', a.get('cantidad', ''))
-                            act_o = a.get('Observaciones', a.get('observaciones', 'Sin observaciones'))
-                            st.write(f"• **{act_n}**: `{act_c}`{pers_tag} — *{act_o}*")
-
+                            st.write(f"• **{a.get('Actividad', a.get('actividad', ''))}**: `{a.get('Cantidad', a.get('cantidad', ''))}`{pers_tag} — *{a.get('Observaciones', a.get('observaciones', ''))}*")
                         c_ad_idl1, c_ad_idl2 = st.columns(2)
                         with c_ad_idl1:
                             with st.popover("📊 Exportar Excel", use_container_width=True):
