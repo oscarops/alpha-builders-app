@@ -4,12 +4,12 @@
 import base64
 import hashlib
 import hmac
+import time
 import datetime
 import io
 import json
 import os
 import zoneinfo
-import urllib.parse
 import openpyxl
 import pandas as pd
 from PIL import Image, ImageOps
@@ -1304,9 +1304,9 @@ def get_cached_libro_maestro_excel(insp_dict_str):
 
     ws.append([f"Fecha: {insp_dict.get('Fecha', '')}", f"Proyecto: {insp_dict.get('Proyecto', '')}", f"Maestro: {insp_dict.get('Residente', '')}", "", ""])
     ws.append([])
-    ws.append(["N°", "Actividad Ejecutada", "Personal a Cargo", "Cantidad Realizada", "Observaciones"])
+    ws.append(["N°", "Actividad Ejecutada", "Personal a Cargo", "Cantidad Realizada", "Piso", "Departamento"])
 
-    for col_i in range(1, 6):
+    for col_i in range(1, 7):
         c = ws.cell(row=4, column=col_i)
         c.font = Font(name="Arial", bold=True, color="FFFFFF", size=9.5)
         c.fill = fill_header
@@ -1319,9 +1319,9 @@ def get_cached_libro_maestro_excel(insp_dict_str):
 
     for idx_m, a_m in enumerate(acts, 1):
         pers_str = ", ".join(a_m.get("Personal_A_Cargo", [])) if isinstance(a_m.get("Personal_A_Cargo"), list) else str(a_m.get("Personal_A_Cargo", ""))
-        ws.append([idx_m, a_m.get("Actividad", ""), pers_str, str(a_m.get("Cantidad", "")), a_m.get("Observaciones", "")])
+        ws.append([idx_m, a_m.get("Actividad", ""), pers_str, str(a_m.get("Cantidad", "")), a_m.get("Piso", a_m.get("piso", "")), a_m.get("Departamento", a_m.get("departamento", ""))])
         r_idx = ws.max_row
-        for col_i in range(1, 6):
+        for col_i in range(1, 7):
             cell = ws.cell(row=r_idx, column=col_i)
             cell.font = Font(name="Arial", size=9)
             cell.border = thin_border
@@ -1332,7 +1332,8 @@ def get_cached_libro_maestro_excel(insp_dict_str):
     ws.column_dimensions['B'].width = 38
     ws.column_dimensions['C'].width = 30
     ws.column_dimensions['D'].width = 22
-    ws.column_dimensions['E'].width = 32
+    ws.column_dimensions['E'].width = 14
+    ws.column_dimensions['F'].width = 18
 
     output = io.BytesIO()
     wb.save(output)
@@ -1356,7 +1357,7 @@ def get_cached_libro_maestro_pdf(insp_dict_str):
     story.append(Paragraph(f"LIBRO DE OBRA — MAESTRO MAYOR ({insp_dict.get('Proyecto', '').upper()})", title_style))
     story.append(Paragraph(f"<b>Fecha:</b> {insp_dict.get('Fecha', '')} | <b>Maestro Mayor:</b> {insp_dict.get('Residente', '')}", sub_style))
 
-    data_m = [[Paragraph("<b>N°</b>", hdr_tbl), Paragraph("<b>Actividad</b>", hdr_tbl), Paragraph("<b>Personal a Cargo</b>", hdr_tbl), Paragraph("<b>Cantidad</b>", hdr_tbl), Paragraph("<b>Observaciones</b>", hdr_tbl)]]
+    data_m = [[Paragraph("<b>N°</b>", hdr_tbl), Paragraph("<b>Actividad</b>", hdr_tbl), Paragraph("<b>Personal a Cargo</b>", hdr_tbl), Paragraph("<b>Cantidad</b>", hdr_tbl), Paragraph("<b>Piso</b>", hdr_tbl), Paragraph("<b>Departamento</b>", hdr_tbl)]]
     
     raw_dm = insp_dict.get("Datos", {})
     d_parsed = raw_dm if isinstance(raw_dm, dict) else json.loads(raw_dm or "{}") if isinstance(raw_dm, str) else {}
@@ -1369,10 +1370,11 @@ def get_cached_libro_maestro_pdf(insp_dict_str):
             Paragraph(str(a_m.get("Actividad", "")), cell_style),
             Paragraph(pers_str, cell_style),
             Paragraph(str(a_m.get("Cantidad", "")), cell_center),
-            Paragraph(str(a_m.get("Observaciones", "")), cell_style)
+            Paragraph(str(a_m.get("Piso", a_m.get("piso", ""))), cell_center),
+            Paragraph(str(a_m.get("Departamento", a_m.get("departamento", ""))), cell_center)
         ])
 
-    table_m = Table(data_m, colWidths=[25, 175, 140, 95, 125])
+    table_m = Table(data_m, colWidths=[25, 160, 115, 75, 55, 85])
     table_m.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#121318')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
@@ -1641,140 +1643,50 @@ def get_cached_libro_oficial_pdf(insp_dict_str):
 # PARTE 3 DE 5: AUTENTICACIÓN PERSISTENTE SEGURA, BARRA LATERAL Y SMART DASHBOARD
 # ==============================================================================
 
-# ==============================================================================
-# PERSISTENCIA SEGURA Y PRIVADA DE SESIÓN (COOKIE PERSISTENTE + RECUPERACIÓN)
-# VERSIÓN: autenticación persistente con opción "Mantener la sesión iniciada"
-# ==============================================================================
-# La sesión persistente se guarda en una cookie real del navegador mediante
-# Extra-Streamlit-Components. NO usamos parámetros de URL, por lo que copiar
-# el enlace NO copia la sesión del usuario.
+# Cookie persistente privada por navegador. No utiliza query params ni localStorage.
+SESSION_COOKIE_NAME = "alpha_secure_session_v2"
+SESSION_MAX_AGE = 30 * 24 * 60 * 60
 
-SESSION_COOKIE_NAME = "alpha_session_v3"
-SESSION_COOKIE_DAYS = 30
-
-# CookieManager necesita una sola instancia por ejecución de la app.
-@st.cache_resource
-def _get_cookie_manager():
-    return stx.CookieManager(key="alpha_cookie_manager")
-
-cookie_manager = _get_cookie_manager()
-
-def _get_session_secret():
-    """Obtiene una clave estable para firmar las sesiones persistentes."""
-    secret = str(st.secrets.get("SESSION_SECRET", "")).strip()
+def _session_secret():
+    secret = st.secrets.get("SESSION_SECRET", "")
     if not secret:
-        secret = str(st.secrets.get("SUPABASE_KEY", "")).strip()
-    if not secret:
-        secret = "alpha-builders-session-fallback"
-    return secret.encode("utf-8")
+        secret = st.secrets.get("SUPABASE_KEY", "")
+    return str(secret).encode("utf-8")
 
 def _make_session_token(user_row):
-    """Crea un token firmado sin colocar el correo en la URL."""
-    password = str(user_row.get("Password", ""))
-    payload = {
-        "email": str(user_row.get("Correo", "")).lower().strip(),
-        # No guardamos la contraseña en texto dentro de la cookie.
-        "password_hash": hashlib.sha256(password.encode("utf-8")).hexdigest(),
-        "iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
-    }
-    raw_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    payload_b64 = base64.urlsafe_b64encode(raw_payload).decode("ascii").rstrip("=")
-    signature = hmac.new(
-        _get_session_secret(),
-        payload_b64.encode("utf-8"),
-        hashlib.sha256,
-    ).digest()
-    signature_b64 = base64.urlsafe_b64encode(signature).decode("ascii").rstrip("=")
-    return f"{payload_b64}.{signature_b64}"
+    email = str(user_row.get("Correo", "")).strip().lower()
+    password_hash = hashlib.sha256(str(user_row.get("Password", "")).encode("utf-8")).hexdigest()
+    issued = str(int(time.time()))
+    payload = f"{email}|{password_hash}|{issued}"
+    signature = hmac.new(_session_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return base64.urlsafe_b64encode(f"{payload}|{signature}".encode("utf-8")).decode("utf-8")
 
-def _validate_session_token(token):
-    """Valida firma, expiración, usuario y contraseña actual."""
-    if not token or "." not in str(token):
-        return None
-
+def _verify_session_token(token):
     try:
-        payload_b64, signature_b64 = str(token).split(".", 1)
-        expected_signature = hmac.new(
-            _get_session_secret(),
-            payload_b64.encode("utf-8"),
-            hashlib.sha256,
-        ).digest()
-        provided_signature = base64.urlsafe_b64decode(
-            signature_b64 + "=" * (-len(signature_b64) % 4)
-        )
-
-        if not hmac.compare_digest(expected_signature, provided_signature):
+        raw = base64.urlsafe_b64decode(str(token).encode("utf-8")).decode("utf-8")
+        email, password_hash, issued_str, signature = raw.split("|", 3)
+        issued = int(issued_str)
+        if time.time() - issued > SESSION_MAX_AGE:
             return None
-
-        payload_raw = base64.urlsafe_b64decode(
-            payload_b64 + "=" * (-len(payload_b64) % 4)
-        )
-        payload = json.loads(payload_raw.decode("utf-8"))
-
-        email = str(payload.get("email", "")).lower().strip()
-        password_hash = str(payload.get("password_hash", ""))
-        issued_at = int(payload.get("iat", 0))
-
-        now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-        max_age = SESSION_COOKIE_DAYS * 24 * 60 * 60
-
-        if not email or not issued_at or not password_hash:
+        email = email.lower().strip()
+        payload = f"{email}|{password_hash}|{issued_str}"
+        expected = hmac.new(_session_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, expected):
             return None
-        if issued_at > now_ts + 60 or now_ts - issued_at > max_age:
-            return None
-
-        user_match = next(
-            (u for u in st.session_state.db_usuarios
-             if str(u.get("Correo", "")).lower().strip() == email),
-            None,
-        )
-        if not user_match:
-            return None
-
-        current_password_hash = hashlib.sha256(
-            str(user_match.get("Password", "")).encode("utf-8")
-        ).hexdigest()
-        if not hmac.compare_digest(current_password_hash, password_hash):
-            return None
-
-        if str(user_match.get("Estado", "Activo")).strip().lower() not in (
-            "", "activo", "active"
-        ):
-            return None
-
-        return user_match
+        return email, password_hash
     except Exception:
         return None
 
-def _restore_authenticated_user(user_match):
-    if not user_match:
-        return False
+def _apply_authenticated_user(u_match, email):
     st.session_state.autenticado = True
-    st.session_state.usuario_email = str(user_match.get("Correo", "")).lower().strip()
-    st.session_state.usuario_nombres = user_match.get("Nombres", "")
-    st.session_state.usuario_apellidos = user_match.get("Apellidos", "")
-    st.session_state.usuario_cargo = user_match.get("Cargo", "Residente")
-    st.session_state.usuario_edificios = user_match.get("Edificios", [])
-    return True
+    st.session_state.usuario_email = email
+    st.session_state.usuario_nombres = u_match.get("Nombres", "")
+    st.session_state.usuario_apellidos = u_match.get("Apellidos", "")
+    st.session_state.usuario_cargo = u_match.get("Cargo", "Residente")
+    st.session_state.usuario_edificios = u_match.get("Edificios", [])
 
-def _browser_set_session_cookie(token):
-    """Guarda la cookie persistente en el navegador."""
-    cookie_manager.set(
-        SESSION_COOKIE_NAME,
-        str(token),
-        key="alpha_session_cookie",
-        path="/",
-        max_age=SESSION_COOKIE_DAYS * 24 * 60 * 60,
-        secure=True,
-        same_site="lax",
-    )
-
-def _browser_clear_session_cookie():
-    """Elimina la cookie persistente."""
-    try:
-        cookie_manager.delete(SESSION_COOKIE_NAME, key="alpha_session_cookie")
-    except Exception:
-        pass
+# IMPORTANTE: CookieManager es un widget y NO se coloca dentro de @st.cache_resource.
+cookie_manager = stx.CookieManager(key="alpha_cookie_manager")
 
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -1784,33 +1696,29 @@ if "autenticado" not in st.session_state:
     st.session_state.usuario_cargo = ""
     st.session_state.usuario_edificios = []
 
-# -------------------------------------------------------------------------
-# RECUPERACIÓN AUTOMÁTICA DESDE COOKIE
-# -------------------------------------------------------------------------
-if not st.session_state.autenticado:
+if "forzar_login" not in st.session_state:
+    st.session_state.forzar_login = False
+
+# Recuperación automática únicamente desde la cookie de este navegador.
+if not st.session_state.autenticado and not st.session_state.forzar_login:
     try:
-        saved_session_cookie = cookie_manager.get(SESSION_COOKIE_NAME)
-    except Exception:
-        saved_session_cookie = None
+        persistent_token = cookie_manager.get(SESSION_COOKIE_NAME)
+        verified = _verify_session_token(persistent_token) if persistent_token else None
+        if verified:
+            token_email, token_password_hash = verified
+            u_match = next((u for u in st.session_state.db_usuarios if str(u.get("Correo", "")).lower().strip() == token_email), None)
+            if u_match:
+                current_hash = hashlib.sha256(str(u_match.get("Password", "")).encode("utf-8")).hexdigest()
+                if hmac.compare_digest(token_password_hash, current_hash):
+                    _apply_authenticated_user(u_match, token_email)
+                else:
+                    cookie_manager.delete(SESSION_COOKIE_NAME)
+    except Exception as e:
+        print(f"[Warn] Recuperación de sesión persistente: {e}")
 
-    if saved_session_cookie:
-        recovered_user = _validate_session_token(str(saved_session_cookie))
-        if recovered_user:
-            _restore_authenticated_user(recovered_user)
-        else:
-            _browser_clear_session_cookie()
-
-# Nunca usamos auth_t ni u para autenticar. Si existe algún enlace antiguo,
-# simplemente lo limpiamos para evitar que vuelva a compartirse.
-try:
-    if st.query_params.get("auth_t") or st.query_params.get("u"):
-        st.query_params.clear()
-except Exception:
-    pass
-
-# ==============================================================================
+# ------------------------------------------------------------------------------
 # 6. MÓDULO DE AUTENTICACIÓN: LOGIN DIRECTO, REGISTRO Y RECUPERACIÓN
-# ==============================================================================
+# ------------------------------------------------------------------------------
 if not st.session_state.autenticado:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
 
@@ -1841,15 +1749,13 @@ if not st.session_state.autenticado:
                     "Mantener la sesión iniciada",
                     value=False,
                     key="mantener_sesion_login",
-                    help="Si está activado, permanecerás conectado en este navegador durante 30 días o hasta cerrar sesión."
+                    help="Conserva tu sesión en este navegador durante 30 días o hasta cerrar sesión.",
                 )
-
                 btn_log = st.form_submit_button("Entrar al Portal", type="primary", use_container_width=True)
 
             if btn_log:
                 if login_email and login_pass and login_pin:
                     mail_clean = login_email.strip().lower()
-
                     u_match = None
                     try:
                         res_direct = supabase.table("usuarios").select("correo, nombres, apellidos, password, cargo, edificios").ilike("correo", mail_clean).execute()
@@ -1866,7 +1772,6 @@ if not st.session_state.autenticado:
                                     edifs_list = [edifs.strip()] if edifs.strip() else []
                             else:
                                 edifs_list = []
-
                             u_match = {
                                 "Nombres": row.get("nombres", ""),
                                 "Apellidos": row.get("apellidos", ""),
@@ -1892,46 +1797,36 @@ if not st.session_state.autenticado:
                                 current_pin = st.session_state.get("access_pin", "1254")
 
                             if login_pin.strip() == current_pin.strip():
-                                st.session_state.autenticado = True
-                                st.session_state.usuario_email = mail_clean
-                                st.session_state.usuario_nombres = u_match["Nombres"]
-                                st.session_state.usuario_apellidos = u_match["Apellidos"]
-                                st.session_state.usuario_cargo = u_match["Cargo"]
-                                st.session_state.usuario_edificios = u_match.get("Edificios", [])
-                                
-                                # Solo crear cookie persistente si el usuario lo solicita.
+                                _apply_authenticated_user(u_match, mail_clean)
+                                st.session_state.forzar_login = False
+
                                 if mantener_sesion:
-                                    persistent_token = _make_session_token(u_match)
-                                    _browser_set_session_cookie(persistent_token)
+                                    try:
+                                        persistent_token = _make_session_token(u_match)
+                                        cookie_manager.set(SESSION_COOKIE_NAME, persistent_token, max_age=SESSION_MAX_AGE, secure=True, same_site="lax")
+                                    except Exception as e_cookie:
+                                        print(f"[Warn] No se pudo guardar cookie: {e_cookie}")
                                 else:
-                                    # Si existía una sesión recordada anteriormente, la quitamos.
-                                    _browser_clear_session_cookie()
+                                    try:
+                                        cookie_manager.delete(SESSION_COOKIE_NAME)
+                                    except Exception:
+                                        pass
 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
-                                
                                 try:
                                     res_t_user = supabase.table("trabajadores").select("*").ilike("usuario_email", mail_clean).order("id", desc=False).execute()
                                     st.session_state.db_trabajadores_por_usuario[mail_clean] = [
-                                        {
-                                            "id": r.get("id"),
-                                            "nombre": r.get("nombre", ""),
-                                            "cargo": r.get("cargo", ""),
-                                            "edificio": r.get("edificio") or "General",
-                                            "usuario_email": mail_clean
-                                        } for r in res_t_user.data
+                                        {"id": r.get("id"), "nombre": r.get("nombre", ""), "cargo": r.get("cargo", ""), "edificio": r.get("edificio") or "General", "usuario_email": mail_clean}
+                                        for r in res_t_user.data
                                     ] if res_t_user.data else []
                                 except Exception:
                                     if mail_clean not in st.session_state.db_trabajadores_por_usuario:
                                         st.session_state.db_trabajadores_por_usuario[mail_clean] = []
-
-                                st.session_state.db_trabajadores_por_usuario[mail_clean] = sorted(
-                                    st.session_state.db_trabajadores_por_usuario[mail_clean],
-                                    key=lambda it: str(it.get("nombre", "")).upper()
-                                )
-
+                                st.session_state.db_trabajadores_por_usuario[mail_clean] = sorted(st.session_state.db_trabajadores_por_usuario[mail_clean], key=lambda it: str(it.get("nombre", "")).upper())
                                 st.session_state.db_loaded = False
                                 st.success("Acceso concedido...")
+                                st.rerun()
                             else:
                                 st.error("⚠️ Código de Seguridad (PIN) incorrecto.")
                         else:
@@ -2029,18 +1924,6 @@ if not st.session_state.autenticado:
                                 st.session_state.usuario_apellidos = reg_apellidos.strip()
                                 st.session_state.usuario_cargo = reg_cargo
                                 st.session_state.usuario_edificios = reg_edificios_sel
-                                
-                                # Crear una sesión persistente firmada para el nuevo usuario.
-                                registered_user = {
-                                    "Correo": mail_clean,
-                                    "Nombres": reg_nombres.strip(),
-                                    "Apellidos": reg_apellidos.strip(),
-                                    "Password": reg_pass.strip(),
-                                    "Cargo": reg_cargo,
-                                    "Edificios": reg_edificios_sel,
-                                }
-                                persistent_token = _make_session_token(registered_user)
-                                _browser_set_session_cookie(persistent_token)
                                 
                                 if "db_trabajadores_por_usuario" not in st.session_state:
                                     st.session_state.db_trabajadores_por_usuario = {}
@@ -2160,8 +2043,6 @@ with st.sidebar:
     if es_admin:
         st.markdown("<div style='text-align: center; margin-bottom: 4px; font-size: 0.65rem; color: #ffffff; font-weight: 800; background: #111827; padding: 3px; border-radius: 6px; border: 1px solid #1f2937;'>ADMINISTRADOR GENERAL</div>", unsafe_allow_html=True)
 
-    st.markdown("<hr>", unsafe_allow_html=True)
-
     with st.expander("⚙️ Configuración de Cuenta", expanded=False):
         edit_nombres = st.text_input("Nombres:", value=st.session_state.usuario_nombres, key="sb_nom")
         edit_apellidos = st.text_input("Apellidos:", value=st.session_state.usuario_apellidos, key="sb_ape")
@@ -2222,10 +2103,19 @@ with st.sidebar:
 
     st.markdown("<hr>", unsafe_allow_html=True)
     if st.button("Cerrar Sesión", use_container_width=True):
+        st.session_state.forzar_login = True
         st.session_state.autenticado = False
         st.session_state.usuario_email = ""
-        _browser_clear_session_cookie()
+        st.session_state.usuario_nombres = ""
+        st.session_state.usuario_apellidos = ""
+        st.session_state.usuario_cargo = ""
+        st.session_state.usuario_edificios = []
+        try:
+            cookie_manager.delete(SESSION_COOKIE_NAME)
+        except Exception as e_cookie_logout:
+            print(f"[Warn] No se pudo eliminar cookie: {e_cookie_logout}")
         st.rerun()
+
 
 # ==============================================================================
 # 8. SMART DASHBOARD GLASSMORPHISM Y AUTOGUARDADO (DRAFTS)
@@ -2473,7 +2363,7 @@ if es_maestro_mayor:
 
         if "filas_maestro_act" not in st.session_state:
             st.session_state.filas_maestro_act = [
-                {"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}
+                {"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "piso": "", "departamento": ""}
             ]
 
         # Botón inicial para abrir el formulario
@@ -2481,7 +2371,7 @@ if es_maestro_mayor:
             if st.button("➕ Llenar Libro de Obra", type="primary", key="btn_open_llenar_mm"):
                 st.session_state.llenando_libro_mm = True
                 st.session_state.edit_mm_id = None
-                st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "piso": "", "departamento": ""}]
                 for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
                     if k in st.session_state:
                         del st.session_state[k]
@@ -2560,7 +2450,7 @@ if es_maestro_mayor:
                         key=f"mm_cant_txt_{f_id}"
                     )
 
-                c_m3, c_m4, c_m5 = st.columns([2.2, 2.2, 0.4])
+                c_m3, c_m4, c_m5, c_m6 = st.columns([2.0, 1.0, 1.0, 0.4])
                 with c_m3:
                     if personal_filtrado_edif:
                         pers_sel_m = st.multiselect(
@@ -2580,14 +2470,22 @@ if es_maestro_mayor:
                         pers_sel_m = [p.strip() for p in pers_sel_txt.split(",") if p.strip()]
 
                 with c_m4:
-                    obs_m_txt = st.text_input(
-                        f"Observaciones / Frente {idx_m}:",
-                        value=f_data.get("observaciones", ""),
-                        placeholder="Ej. Piso 2 departamento 201...",
-                        key=f"mm_obs_txt_{f_id}"
+                    piso_m_txt = st.text_input(
+                        f"Piso {idx_m}:",
+                        value=str(f_data.get("piso", "")),
+                        placeholder="Ej. 2",
+                        key=f"mm_piso_txt_{f_id}"
                     )
 
                 with c_m5:
+                    departamento_m_txt = st.text_input(
+                        f"Departamento {idx_m}:",
+                        value=str(f_data.get("departamento", "")),
+                        placeholder="Ej. 201",
+                        key=f"mm_departamento_txt_{f_id}"
+                    )
+
+                with c_m6:
                     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
                     if st.button("🗑️", key=f"btn_del_mm_row_{f_id}", help="Eliminar fila"):
                         indices_del_m.append(idx_m - 1)
@@ -2597,7 +2495,8 @@ if es_maestro_mayor:
                     "Actividad": act_m_txt.strip(),
                     "Cantidad": cant_m_txt.strip(),
                     "Personal_A_Cargo": pers_sel_m,
-                    "Observaciones": obs_m_txt.strip()
+                    "Piso": piso_m_txt.strip(),
+                    "Departamento": departamento_m_txt.strip()
                 })
 
             if indices_del_m:
@@ -2605,12 +2504,12 @@ if es_maestro_mayor:
                     if len(st.session_state.filas_maestro_act) > 1:
                         st.session_state.filas_maestro_act.pop(del_i)
                     else:
-                        st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                        st.session_state.filas_maestro_act = [{"id": int(datetime.datetime.now().timestamp() * 1000), "actividad": "", "cantidad": "", "personal_a_cargo": [], "piso": "", "departamento": ""}]
                 st.rerun()
 
             if st.button("➕ Agregar Otra Actividad", key="btn_add_mm_act_row"):
                 next_id_mm = (max([x["id"] for x in st.session_state.filas_maestro_act]) + 1) if st.session_state.filas_maestro_act else 1
-                st.session_state.filas_maestro_act.append({"id": next_id_mm, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""})
+                st.session_state.filas_maestro_act.append({"id": next_id_mm, "actividad": "", "cantidad": "", "personal_a_cargo": [], "piso": "", "departamento": ""})
                 st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
@@ -2659,7 +2558,7 @@ if es_maestro_mayor:
                             st.session_state.db_loaded = False
                             st.session_state.llenando_libro_mm = False
                             st.session_state.edit_mm_id = None
-                            st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                            st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "piso": "", "departamento": ""}]
                             for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
                                 if k in st.session_state:
                                     del st.session_state[k]
@@ -2671,7 +2570,7 @@ if es_maestro_mayor:
             if st.button(lbl_cancel_mm, key="btn_cancel_mm_bottom", use_container_width=True):
                 st.session_state.llenando_libro_mm = False
                 st.session_state.edit_mm_id = None
-                st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                st.session_state.filas_maestro_act = [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "piso": "", "departamento": ""}]
                 for k in ["mm_edit_fecha_val", "mm_edit_edif_val"]:
                     if k in st.session_state:
                         del st.session_state[k]
@@ -2716,8 +2615,10 @@ if es_maestro_mayor:
                                     pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
                                     act_n = a_g.get('Actividad', a_g.get('actividad', ''))
                                     act_c = a_g.get('Cantidad', a_g.get('cantidad', ''))
-                                    act_o = a_g.get('Observaciones', a_g.get('observaciones', 'Sin observaciones'))
-                                    st.write(f"• **{act_n}**: `{act_c}`{pers_tag} — *{act_o}*")
+                                    act_piso = a_g.get('Piso', a_g.get('piso', ''))
+                                    act_depto = a_g.get('Departamento', a_g.get('departamento', ''))
+                                    ubicacion_tag = f" | 🏢 **Piso:** {act_piso or '—'} | 🚪 **Departamento:** {act_depto or '—'}"
+                                    st.write(f"• **{act_n}**: `{act_c}`{pers_tag}{ubicacion_tag}")
 
                             c_dl_m1, c_dl_m2, c_ed_m, c_del_m = st.columns([2, 2, 1, 1])
                             with c_dl_m1:
@@ -2762,9 +2663,10 @@ if es_maestro_mayor:
                                             "actividad": it.get("Actividad", it.get("actividad", "")),
                                             "cantidad": it.get("Cantidad", it.get("cantidad", "")),
                                             "personal_a_cargo": it.get("Personal_A_Cargo", it.get("personal_a_cargo", [])),
-                                            "observaciones": it.get("Observaciones", it.get("observaciones", ""))
+                                            "piso": it.get("Piso", it.get("piso", "")),
+                                            "departamento": it.get("Departamento", it.get("departamento", ""))
                                         } for i, it in enumerate(acts_rec)
-                                    ] if acts_rec else [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "observaciones": ""}]
+                                    ] if acts_rec else [{"id": 1, "actividad": "", "cantidad": "", "personal_a_cargo": [], "piso": "", "departamento": ""}]
                                     st.rerun()
 
                             with c_del_m:
@@ -4743,7 +4645,7 @@ with tab_colab:
                                                 if isinstance(a_it, dict):
                                                     act_nombre = a_it.get('Actividad', a_it.get('actividad', ''))
                                                     act_cant = a_it.get('Cantidad', a_it.get('cantidad', ''))
-                                                    act_obs = a_it.get('Observaciones', a_it.get('observaciones', 'Sin observaciones'))
+                                                    act_obs = f"Piso: {a_it.get('Piso', a_it.get('piso', '—'))} | Departamento: {a_it.get('Departamento', a_it.get('departamento', '—'))}"
                                                     pers_raw = a_it.get('Personal_A_Cargo', a_it.get('personal_a_cargo', []))
                                                     pers_str = ", ".join(pers_raw) if isinstance(pers_raw, list) else str(pers_raw or "")
                                                     pers_tag = f" | 👷 **Personal:** {pers_str}" if pers_str else ""
