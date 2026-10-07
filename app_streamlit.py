@@ -4379,180 +4379,443 @@ if not es_maestro_mayor:
 # ==============================================================================
 with tab_rend:
     st.markdown("### Control de Rendimiento por Personal")
-    st.caption("Asignación de rubros, ingreso manual de horario/HH, cantidades ejecutadas y diagnóstico de productividad.")
+    st.caption("Registro manual de personal, rubro, jornada, avances parciales y cálculo automático del rendimiento.")
 
-    mi_personal_propio = st.session_state.get("db_trabajadores_por_usuario", {}).get(user_email, [])
-    # Ordenar alfabéticamente
-    mi_personal_propio = sorted(mi_personal_propio, key=lambda it_w: str(it_w.get("nombre", "")).upper())
-    nombres_personal = [f"{t['nombre']} ({t.get('edificio', 'General')})" for t in mi_personal_propio]
+    # -------------------------------------------------------------------------
+    # Funciones auxiliares del módulo
+    # -------------------------------------------------------------------------
+    def _rend_time_to_minutes(value):
+        if value is None:
+            return None
+        if isinstance(value, datetime.time):
+            return value.hour * 60 + value.minute
+        txt = str(value).strip()
+        try:
+            hh, mm = txt.split(":")[:2]
+            return int(hh) * 60 + int(mm)
+        except Exception:
+            return None
 
-    col1, col2 = st.columns(2)
-    with col1:
-        opciones_personal = ["-- Seleccione un Integrante --"] + nombres_personal
-        personal_sel = st.selectbox(
-            f"Seleccionar de tu Personal ({len(nombres_personal)} Activos):*",
-            opciones_personal,
-            index=0,
-            key="sel_trabajador_rend_p5"
+    def _rend_minutes_between(inicio, fin):
+        a = _rend_time_to_minutes(inicio)
+        b = _rend_time_to_minutes(fin)
+        if a is None or b is None:
+            return 0
+        # Permitir jornadas que crucen medianoche.
+        if b < a:
+            b += 24 * 60
+        return max(0, b - a)
+
+    def _rend_minutes_dead(value):
+        """Acepta minutos (número) o HH:MM como texto."""
+        if value is None or value == "":
+            return 0
+        try:
+            return max(0, int(float(value)))
+        except Exception:
+            mins = _rend_time_to_minutes(value)
+            return mins if mins is not None else 0
+
+    def _rend_hh_from_form(inicio, fin, hora_muerta, lunch, almuerzo):
+        minutos = _rend_minutes_between(inicio, fin)
+        minutos -= _rend_minutes_dead(hora_muerta)
+        if lunch:
+            minutos -= 15
+        if almuerzo:
+            minutos -= 60
+        return max(0, minutos) / 60.0
+
+    def _rend_parse_payload(item):
+        """Recupera los datos nuevos desde el campo intervalo sin romper registros antiguos."""
+        raw = item.get("Intervalo", "")
+        data = {}
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict) and parsed.get("_rend_v2"):
+                    data = parsed
+            except Exception:
+                pass
+        if not data:
+            data = {
+                "_rend_v2": True,
+                "hora_inicio": "07:00",
+                "hora_fin": "17:00",
+                "hora_muerta": 0,
+                "lunch": False,
+                "almuerzo": False,
+                "avance_manana": float(item.get("Avance") or 0),
+                "avance_mediodia": 0.0,
+                "avance_tarde": 0.0,
+                "foto_manana": "",
+                "foto_mediodia": "",
+                "foto_tarde": "",
+            }
+        return data
+
+    def _rend_foto_to_b64(uploaded):
+        if uploaded is None:
+            return ""
+        try:
+            return image_to_base64(uploaded, max_width=900, quality=70) or ""
+        except Exception:
+            return ""
+
+    def _rend_total_avance(data):
+        vals = []
+        for k in ("avance_manana", "avance_mediodia", "avance_tarde"):
+            try:
+                vals.append(max(0.0, float(data.get(k, 0) or 0)))
+            except Exception:
+                vals.append(0.0)
+        return sum(vals)
+
+    def _rend_estado(total_avance, hh, unidad):
+        # El estado se conserva como diagnóstico simple. No depende de un
+        # catálogo de rubros porque ahora rubro/unidad son completamente manuales.
+        if hh <= 0:
+            return "SIN TIEMPO"
+        if total_avance <= 0:
+            return "SIN AVANCE"
+        return "CON AVANCE"
+
+    # -------------------------------------------------------------------------
+    # FORMULARIO NUEVO / EDICIÓN
+    # -------------------------------------------------------------------------
+    if "rend_edit_id" not in st.session_state:
+        st.session_state.rend_edit_id = None
+
+    editar_id = st.session_state.get("rend_edit_id")
+    registros_rend = st.session_state.get("db_rendimientos", {}).get(user_email, [])
+    registro_editar = next((x for x in registros_rend if x.get("db_id") == editar_id), None) if editar_id else None
+    datos_editar = _rend_parse_payload(registro_editar) if registro_editar else {}
+
+    st.markdown("#### 👷 Personal y rubro")
+    c1, c2 = st.columns(2)
+    with c1:
+        personal_manual = st.text_input(
+            "Personal:",
+            value=str(registro_editar.get("Trabajador", "") if registro_editar else ""),
+            placeholder="Escriba el nombre del trabajador",
+            key="rend_personal_manual"
         )
-        
-        if personal_sel != "-- Seleccione un Integrante --":
-            nom_p_clean = personal_sel.split(" (")[0]
-            cargo_actual = next((t["cargo"] for t in mi_personal_propio if t["nombre"] == nom_p_clean), "PERSONAL")
-            st.info(f"**Cargo en obra:** {cargo_actual}")
-        else:
-            cargo_actual = "PERSONAL"
-
-    with col2:
-        opciones_rubros = ["-- Seleccione un Rubro --", "Enlucidos", "Fijos", "Fajas", "Dinteles"]
-        rubro_sel = st.selectbox("Seleccionar Rubro:*", opciones_rubros, index=0, key="sel_rubro_rend_p5")
-        
-        if rubro_sel != "-- Seleccione un Rubro --":
-            unidad_medida = UNIDADES_RUBRO[rubro_sel]
-            st.caption(f"Unidad de medida: **{unidad_medida}** | Rend. Teórico: **{RENDIMIENTOS_TEORICOS.get(rubro_sel, 1.0)} HH/{unidad_medida}**")
-        else:
-            unidad_medida = "unid"
-
-    st.markdown("---")
-    st.markdown("#### ⏱️ Horario e Intervalo Trabajado")
-
-    c_int1, c_int2 = st.columns(2)
-    with c_int1:
-        intervalo_manual = st.text_input(
-            "Intervalo de Horas Trabajadas:*",
-            placeholder="Ej. 07:00 - 12:00 / 13:00 - 16:00",
-            key="in_intervalo_manual_rend_p5"
+        cargo_manual = st.text_input(
+            "Cargo:",
+            value=str(registro_editar.get("Cargo_Obrero", "") if registro_editar else ""),
+            placeholder="Ej. Albañil, ayudante, fierrero...",
+            key="rend_cargo_manual"
         )
-    with c_int2:
-        hh_manual = st.number_input(
-            "Total Horas-Hombre (HH):*",
+    with c2:
+        rubro_manual = st.text_input(
+            "Rubro:",
+            value=str(registro_editar.get("Rubro", "") if registro_editar else ""),
+            placeholder="Escriba el rubro ejecutado",
+            key="rend_rubro_manual"
+        )
+        unidad_manual = st.text_input(
+            "Unidad:",
+            value=str(registro_editar.get("Unidad", "") if registro_editar else ""),
+            placeholder="m², m, kg, u, etc.",
+            key="rend_unidad_manual"
+        )
+
+    st.markdown("#### ⏱️ Jornada y tiempo trabajado")
+    h1, h2, h3 = st.columns(3)
+    default_ini = datos_editar.get("hora_inicio", "07:00")
+    default_fin = datos_editar.get("hora_fin", "17:00")
+    try:
+        hora_ini_default = datetime.time.fromisoformat(str(default_ini)[:5])
+    except Exception:
+        hora_ini_default = datetime.time(7, 0)
+    try:
+        hora_fin_default = datetime.time.fromisoformat(str(default_fin)[:5])
+    except Exception:
+        hora_fin_default = datetime.time(17, 0)
+
+    with h1:
+        hora_inicio = st.time_input("Hora de inicio:", value=hora_ini_default, key="rend_hora_inicio")
+    with h2:
+        hora_fin = st.time_input("Hora de finalización:", value=hora_fin_default, key="rend_hora_fin")
+    with h3:
+        hora_muerta = st.number_input(
+            "Hora muerta (minutos):",
+            min_value=0,
+            max_value=1440,
+            step=5,
+            value=int(datos_editar.get("hora_muerta", 0) or 0),
+            key="rend_hora_muerta"
+        )
+
+    d1, d2, d3 = st.columns(3)
+    with d1:
+        lunch = st.checkbox(
+            "☑ Lunch (15 minutos)",
+            value=bool(datos_editar.get("lunch", False)),
+            key="rend_lunch"
+        )
+    with d2:
+        almuerzo = st.checkbox(
+            "☑ Almuerzo (1 hora)",
+            value=bool(datos_editar.get("almuerzo", False)),
+            key="rend_almuerzo"
+        )
+    with d3:
+        hh_calculadas = _rend_hh_from_form(hora_inicio, hora_fin, hora_muerta, lunch, almuerzo)
+        st.metric("Tiempo trabajado", f"{hh_calculadas:.2f} h")
+
+    if _rend_minutes_between(hora_inicio, hora_fin) > 0:
+        descuentos_txt = []
+        if lunch:
+            descuentos_txt.append("15 min lunch")
+        if almuerzo:
+            descuentos_txt.append("1 h almuerzo")
+        if hora_muerta > 0:
+            descuentos_txt.append(f"{hora_muerta} min hora muerta")
+        st.caption("Tiempo base: " + f"{_rend_minutes_between(hora_inicio, hora_fin) / 60:.2f} h" +
+                   (" | Descuentos: " + ", ".join(descuentos_txt) if descuentos_txt else " | Sin descuentos"))
+
+    st.markdown("#### 📊 Avances y fotografías")
+    st.caption("Los tres avances son independientes. Puede completar uno, dos o los tres; el cálculo utilizará únicamente los valores registrados.")
+
+    a1, a2, a3 = st.columns(3)
+    with a1:
+        avance_manana = st.number_input(
+            "Avance de la mañana",
             min_value=0.0,
-            max_value=24.0,
-            step=0.5,
-            value=0.0,
+            step=0.01,
+            value=float(datos_editar.get("avance_manana", 0) or 0),
             format="%.2f",
-            key="in_hh_manual_rend_p5"
+            key="rend_avance_manana"
+        )
+        foto_manana = st.file_uploader(
+            "Foto de la mañana",
+            type=["jpg", "jpeg", "png", "webp"],
+            key="rend_foto_manana"
+        )
+    with a2:
+        avance_mediodia = st.number_input(
+            "Avance de mediodía",
+            min_value=0.0,
+            step=0.01,
+            value=float(datos_editar.get("avance_mediodia", 0) or 0),
+            format="%.2f",
+            key="rend_avance_mediodia"
+        )
+        foto_mediodia = st.file_uploader(
+            "Foto de mediodía",
+            type=["jpg", "jpeg", "png", "webp"],
+            key="rend_foto_mediodia"
+        )
+    with a3:
+        avance_tarde = st.number_input(
+            "Avance de la tarde",
+            min_value=0.0,
+            step=0.01,
+            value=float(datos_editar.get("avance_tarde", 0) or 0),
+            format="%.2f",
+            key="rend_avance_tarde"
+        )
+        foto_tarde = st.file_uploader(
+            "Foto de la tarde",
+            type=["jpg", "jpeg", "png", "webp"],
+            key="rend_foto_tarde"
         )
 
-    st.markdown("#### 📊 Cantidades de Obra")
-    c_cant1, c_cant2 = st.columns(2)
-    with c_cant1:
-        avance_cant = st.number_input(
-            f"Cantidad Ejecutada Real ({unidad_medida}):*",
-            min_value=0.0,
-            step=0.1,
-            format="%.2f",
-            key="in_ejec_rend_p5"
-        )
-    with c_cant2:
-        esperado_cant = st.number_input(
-            f"Cantidad Esperada / Meta ({unidad_medida}):*",
-            min_value=0.0,
-            step=0.1,
-            format="%.2f",
-            key="in_esp_rend_p5"
-        )
+    st.markdown("#### 📈 Resultado")
+    avance_actual = {
+        "avance_manana": avance_manana,
+        "avance_mediodia": avance_mediodia,
+        "avance_tarde": avance_tarde,
+    }
+    total_avance_preview = _rend_total_avance(avance_actual)
+    rendimiento_preview = (total_avance_preview / hh_calculadas) if hh_calculadas > 0 else 0.0
+    st.info(
+        f"**Avance acumulado:** {total_avance_preview:.2f} {unidad_manual.strip() or 'unid'}  |  "
+        f"**Tiempo trabajado:** {hh_calculadas:.2f} h  |  "
+        f"**Rendimiento:** {rendimiento_preview:.3f} {unidad_manual.strip() or 'unid'}/h"
+    )
 
-    if st.button("💾 Registrar Rendimiento", type="primary", use_container_width=True, key="btn_reg_rend_p5"):
-        if personal_sel == "-- Seleccione un Integrante --":
-            st.error("⚠️ Por favor seleccione un integrante de tu nómina de personal.")
-        elif rubro_sel == "-- Seleccione un Rubro --":
-            st.error("⚠️ Por favor seleccione un rubro.")
-        elif not intervalo_manual.strip():
-            st.error("⚠️ Por favor ingrese el intervalo de horas trabajadas.")
-        elif hh_manual <= 0:
-            st.error("⚠️ Por favor ingrese un valor de Horas-Hombre (HH) mayor a 0.")
-        elif avance_cant <= 0:
-            st.warning("⚠️ Ingrese una cantidad ejecutada mayor a 0.")
+    if editar_id:
+        b1, b2 = st.columns(2)
+        with b1:
+            guardar_label = "💾 Guardar cambios"
+        with b2:
+            cancelar_edicion = st.button("✖ Cancelar edición", use_container_width=True, key="rend_cancelar_edicion")
+            if cancelar_edicion:
+                st.session_state.rend_edit_id = None
+                st.rerun()
+    else:
+        guardar_label = "💾 Registrar Rendimiento"
+
+    if st.button(guardar_label, type="primary", use_container_width=True, key="btn_reg_rend_p5"):
+        errores = []
+        if not personal_manual.strip():
+            errores.append("ingrese el personal")
+        if not cargo_manual.strip():
+            errores.append("ingrese el cargo")
+        if not rubro_manual.strip():
+            errores.append("ingrese el rubro")
+        if not unidad_manual.strip():
+            errores.append("ingrese la unidad")
+        if _rend_minutes_between(hora_inicio, hora_fin) <= 0:
+            errores.append("la hora de finalización debe ser posterior a la hora de inicio")
+        if hh_calculadas <= 0:
+            errores.append("el tiempo trabajado debe ser mayor que 0; revise los descuentos")
+        if total_avance_preview <= 0:
+            errores.append("registre al menos un avance mayor que 0")
+
+        if errores:
+            st.error("⚠️ " + "; ".join(errores) + ".")
         else:
-            rend_real = round(hh_manual / avance_cant, 3)
-            rend_teorico = RENDIMIENTOS_TEORICOS.get(rubro_sel, 1.0)
-            
-            if esperado_cant > 0:
-                estado_diag = "CUMPLE META" if avance_cant >= esperado_cant else "BAJO RENDIMIENTO"
-            else:
-                estado_diag = "EFICIENTE" if rend_real <= rend_teorico else "EXCESO DE HH"
+            # Mantener fotos anteriores si se está editando y no se selecciona una nueva.
+            foto_manana_b64 = _rend_foto_to_b64(foto_manana) or str(datos_editar.get("foto_manana", "") or "")
+            foto_mediodia_b64 = _rend_foto_to_b64(foto_mediodia) or str(datos_editar.get("foto_mediodia", "") or "")
+            foto_tarde_b64 = _rend_foto_to_b64(foto_tarde) or str(datos_editar.get("foto_tarde", "") or "")
 
+            payload_v2 = {
+                "_rend_v2": True,
+                "hora_inicio": hora_inicio.strftime("%H:%M"),
+                "hora_fin": hora_fin.strftime("%H:%M"),
+                "hora_muerta": int(hora_muerta),
+                "lunch": bool(lunch),
+                "almuerzo": bool(almuerzo),
+                "avance_manana": float(avance_manana),
+                "avance_mediodia": float(avance_mediodia),
+                "avance_tarde": float(avance_tarde),
+                "foto_manana": foto_manana_b64,
+                "foto_mediodia": foto_mediodia_b64,
+                "foto_tarde": foto_tarde_b64,
+            }
+            intervalo_guardado = json.dumps(payload_v2, ensure_ascii=False)
+            estado_diag = _rend_estado(total_avance_preview, hh_calculadas, unidad_manual.strip())
             local_fecha_r = get_local_datetime_ecuador().strftime("%Y-%m-%d")
 
+            datos_db = {
+                "usuario_email": user_email,
+                "cargo_obrero": cargo_manual.strip(),
+                "fecha": registro_editar.get("Fecha", local_fecha_r) if registro_editar else local_fecha_r,
+                "trabajador": personal_manual.strip(),
+                "rubro": rubro_manual.strip(),
+                "intervalo": intervalo_guardado,
+                "horas_hh": round(hh_calculadas, 3),
+                "avance": round(total_avance_preview, 3),
+                "esperado": 0,
+                "unidad": unidad_manual.strip(),
+                "rend_real": round(rendimiento_preview, 3),
+                "rend_teorico": 0,
+                "estado": estado_diag
+            }
+
             try:
-                supabase.table("rendimientos").insert({
-                    "usuario_email": user_email,
-                    "cargo_obrero": cargo_actual,
-                    "fecha": local_fecha_r,
-                    "trabajador": personal_sel.split(" (")[0],
-                    "rubro": rubro_sel,
-                    "intervalo": intervalo_manual.strip(),
-                    "horas_hh": hh_manual,
-                    "avance": avance_cant,
-                    "esperado": esperado_cant,
-                    "unidad": unidad_medida,
-                    "rend_real": rend_real,
-                    "rend_teorico": rend_teorico,
-                    "estado": estado_diag
-                }).execute()
+                if editar_id:
+                    supabase.table("rendimientos").update(datos_db).eq("id", editar_id).eq("usuario_email", user_email).execute()
+                    st.success("✅ Registro de rendimiento actualizado correctamente.")
+                    st.session_state.rend_edit_id = None
+                else:
+                    supabase.table("rendimientos").insert(datos_db).execute()
+                    st.success("✅ Rendimiento registrado correctamente.")
 
                 st.session_state.db_loaded = False
-                st.success(f"¡Rendimiento registrado exitosamente para {personal_sel.split(' (')[0]}!")
                 st.rerun()
             except Exception as e:
-                st.error(f"Error registrando rendimiento: {e}")
+                st.error(f"Error guardando el rendimiento: {e}")
 
+    # -------------------------------------------------------------------------
+    # RESULTADOS GUARDADOS
+    # -------------------------------------------------------------------------
     st.markdown("---")
-    st.markdown("### Tabla de Resultados de Rendimiento Propios")
+    st.markdown("### Registros de Rendimiento")
 
     mis_rendimientos = st.session_state.get("db_rendimientos", {}).get(user_email, [])
 
     if len(mis_rendimientos) > 0:
         for idx_r, r_item in enumerate(mis_rendimientos, 1):
             r_db_id = r_item.get("db_id")
-            badge_r = render_estado_badge(r_item.get('Estado'))
+            datos_r = _rend_parse_payload(r_item)
+            total_r = _rend_total_avance(datos_r)
+            hh_r = float(r_item.get("Horas Trabajadas (HH)") or 0)
+            rendimiento_r = (total_r / hh_r) if hh_r > 0 else 0
 
-            st.markdown('<div class="card-item-body-compact">', unsafe_allow_html=True)
-            c_r1, c_r2, c_r3, c_r4, c_r5, c_r6, c_r7 = st.columns([0.5, 1.2, 2.5, 1.5, 1.5, 1.5, 0.5])
+            with st.expander(
+                f"{idx_r}. {r_item.get('Trabajador', '')} | {r_item.get('Rubro', '')} | "
+                f"{total_r:.2f} {r_item.get('Unidad', '')} | {rendimiento_r:.3f} {r_item.get('Unidad', '')}/h",
+                expanded=False
+            ):
+                rc1, rc2, rc3, rc4 = st.columns(4)
+                with rc1:
+                    st.write(f"**Fecha:** {r_item.get('Fecha', '')}")
+                    st.write(f"**Personal:** {r_item.get('Trabajador', '')}")
+                with rc2:
+                    st.write(f"**Cargo:** {r_item.get('Cargo_Obrero', '')}")
+                    st.write(f"**Rubro:** {r_item.get('Rubro', '')}")
+                with rc3:
+                    st.write(f"**Unidad:** {r_item.get('Unidad', '')}")
+                    st.write(f"**Tiempo trabajado:** {hh_r:.2f} h")
+                with rc4:
+                    st.write(f"**Avance total:** {total_r:.2f} {r_item.get('Unidad', '')}")
+                    st.write(f"**Rendimiento:** {rendimiento_r:.3f} {r_item.get('Unidad', '')}/h")
 
-            with c_r1:
-                st.markdown(f"**{idx_r}.**")
-            with c_r2:
-                st.caption(r_item.get('Fecha'))
-            with c_r3:
-                st.markdown(f"**{r_item.get('Trabajador')}** ({r_item.get('Cargo_Obrero', 'PERSONAL')})")
-            with c_r4:
-                st.write(f"{r_item.get('Rubro')} - {r_item.get('Horas Trabajadas (HH)')} HH")
-            with c_r5:
-                st.write(f"Ejec: {r_item.get('Avance')} {r_item.get('Unidad')}")
-            with c_r6:
-                st.markdown(badge_r, unsafe_allow_html=True)
-            with c_r7:
-                if st.button("🗑️", key=f"del_rnd_btn_{idx_r}_{r_db_id}_p5", help="Eliminar registro"):
-                    try:
-                        supabase.table("rendimientos").delete().eq("id", r_db_id).execute()
-                        st.session_state.db_loaded = False
-                        st.success("Registro de rendimiento eliminado.")
+                st.markdown("**Avances registrados**")
+                ar1, ar2, ar3 = st.columns(3)
+                for col, titulo, clave_av, clave_foto in [
+                    (ar1, "Mañana", "avance_manana", "foto_manana"),
+                    (ar2, "Mediodía", "avance_mediodia", "foto_mediodia"),
+                    (ar3, "Tarde", "avance_tarde", "foto_tarde"),
+                ]:
+                    with col:
+                        st.write(f"**{titulo}:** {float(datos_r.get(clave_av, 0) or 0):.2f} {r_item.get('Unidad', '')}")
+                        img = base64_to_image(datos_r.get(clave_foto, ""))
+                        if img is not None:
+                            st.image(img, caption=f"Foto {titulo}", use_container_width=True)
+                        else:
+                            st.caption("Sin fotografía")
+
+                descuentos_r = []
+                if datos_r.get("lunch"):
+                    descuentos_r.append("Lunch 15 min")
+                if datos_r.get("almuerzo"):
+                    descuentos_r.append("Almuerzo 1 h")
+                if float(datos_r.get("hora_muerta", 0) or 0) > 0:
+                    descuentos_r.append(f"Hora muerta {datos_r.get('hora_muerta')} min")
+                st.caption(
+                    f"Horario: {datos_r.get('hora_inicio', '')} - {datos_r.get('hora_fin', '')} | "
+                    + ("Descuentos: " + ", ".join(descuentos_r) if descuentos_r else "Sin descuentos")
+                )
+
+                eb1, eb2 = st.columns(2)
+                with eb1:
+                    if st.button("✏️ Editar registro", key=f"edit_rnd_btn_{idx_r}_{r_db_id}_p5", use_container_width=True):
+                        st.session_state.rend_edit_id = r_db_id
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al eliminar: {e}")
-            st.markdown('</div>', unsafe_allow_html=True)
+                with eb2:
+                    if st.button("🗑️ Eliminar registro", key=f"del_rnd_btn_{idx_r}_{r_db_id}_p5", use_container_width=True):
+                        try:
+                            supabase.table("rendimientos").delete().eq("id", r_db_id).eq("usuario_email", user_email).execute()
+                            st.session_state.db_loaded = False
+                            if st.session_state.get("rend_edit_id") == r_db_id:
+                                st.session_state.rend_edit_id = None
+                            st.success("Registro de rendimiento eliminado.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al eliminar: {e}")
 
         st.markdown("<br>", unsafe_allow_html=True)
         df_mis_r = pd.DataFrame(mis_rendimientos)
         df_display = df_mis_r.drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador"], errors="ignore")
         if not df_display.empty:
             df_display.index = range(1, len(df_display) + 1)
-
         csv_bytes_r = export_dataframe_to_excel_csv(df_display)
         st.download_button(
-            label="📥 Descargar Rendimientos en CSV (Excel)", 
-            data=csv_bytes_r, 
-            file_name=f"Rendimientos_{user_email}.csv", 
-            mime="text/csv", 
-            key="dl_csv_rend_tab_p5", 
+            label="📥 Descargar Rendimientos en CSV (Excel)",
+            data=csv_bytes_r,
+            file_name=f"Rendimientos_{user_email}.csv",
+            mime="text/csv",
+            key="dl_csv_rend_tab_p5",
             use_container_width=True
         )
     else:
         st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
-# ==============================================================================
 # 14. MÓDULO 6: ESPACIO COLABORATIVO (AGRUPACIÓN MENSUAL DESPLEGABLE)
 # ==============================================================================
 with tab_colab:
