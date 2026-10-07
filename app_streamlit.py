@@ -4548,29 +4548,29 @@ with tab_rend:
             st.caption("Escriba las horas directamente en formato HH:MM. Los cambios recalculan el tiempo y el rendimiento automáticamente en esta misma pestaña.")
             h1, h2, h3 = st.columns(3)
             modo_key = str(editar_id) if editar_id else "nuevo"
-            default_ini = _rend_normalize_hhmm(datos_editar.get("hora_inicio", "07:00"), "07:00")
-            default_fin = _rend_normalize_hhmm(datos_editar.get("hora_fin", "17:00"), "17:00")
-            default_muerta = _rend_normalize_hhmm(datos_editar.get("hora_muerta", "00:00"), "00:00")
+            default_ini = _rend_normalize_hhmm(datos_editar.get("hora_inicio"), "") if editar_id else ""
+            default_fin = _rend_normalize_hhmm(datos_editar.get("hora_fin"), "") if editar_id else ""
+            default_muerta = _rend_normalize_hhmm(datos_editar.get("hora_muerta"), "") if editar_id else ""
             
             with h1:
                 hora_inicio = st.text_input(
                     "Hora de inicio:",
                     value=default_ini,
-                    placeholder="07:00",
+                    placeholder="HH:MM (ej. 07:00)",
                     key=f"rend_hora_inicio_{modo_key}"
                 )
             with h2:
                 hora_fin = st.text_input(
                     "Hora de finalización:",
                     value=default_fin,
-                    placeholder="17:00",
+                    placeholder="HH:MM (ej. 17:00)",
                     key=f"rend_hora_fin_{modo_key}"
                 )
             with h3:
                 hora_muerta = st.text_input(
                     "Hora muerta (HH:MM):",
                     value=default_muerta,
-                    placeholder="00:00",
+                    placeholder="HH:MM (ej. 00:30)",
                     key=f"rend_hora_muerta_{modo_key}"
                 )
             
@@ -4857,8 +4857,6 @@ with tab_rend:
                 st.info("Aún no existen registros de rendimiento en tu cuenta.")
             
             
-            _render_control_rendimiento()
-
         _render_control_rendimiento()
     else:
         # Compatibilidad con versiones antiguas de Streamlit.
@@ -5025,9 +5023,9 @@ with tab_rend:
         st.caption("Escriba las horas directamente en formato HH:MM. Los cambios recalculan el tiempo y el rendimiento automáticamente en esta misma pestaña.")
         h1, h2, h3 = st.columns(3)
         modo_key = str(editar_id) if editar_id else "nuevo"
-        default_ini = _rend_normalize_hhmm(datos_editar.get("hora_inicio", "07:00"), "07:00")
-        default_fin = _rend_normalize_hhmm(datos_editar.get("hora_fin", "17:00"), "17:00")
-        default_muerta = _rend_normalize_hhmm(datos_editar.get("hora_muerta", "00:00"), "00:00")
+        default_ini = _rend_normalize_hhmm(datos_editar.get("hora_inicio"), "") if editar_id else ""
+        default_fin = _rend_normalize_hhmm(datos_editar.get("hora_fin"), "") if editar_id else ""
+        default_muerta = _rend_normalize_hhmm(datos_editar.get("hora_muerta"), "") if editar_id else ""
         
         with h1:
             hora_inicio = st.text_input(
