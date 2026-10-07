@@ -4714,8 +4714,8 @@ with tab_rend:
             
                     payload_v2 = {
                         "_rend_v2": True,
-                        "hora_inicio": hora_inicio.strftime("%H:%M"),
-                        "hora_fin": hora_fin.strftime("%H:%M"),
+                        "hora_inicio": _rend_normalize_hhmm(hora_inicio, "00:00"),
+                        "hora_fin": _rend_normalize_hhmm(hora_fin, "00:00"),
                         "hora_muerta": _rend_normalize_hhmm(hora_muerta, "00:00"),
                         "lunch": bool(lunch),
                         "almuerzo": bool(almuerzo),
@@ -5189,8 +5189,8 @@ with tab_rend:
         
                 payload_v2 = {
                     "_rend_v2": True,
-                    "hora_inicio": hora_inicio.strftime("%H:%M"),
-                    "hora_fin": hora_fin.strftime("%H:%M"),
+                    "hora_inicio": _rend_normalize_hhmm(hora_inicio, "00:00"),
+                    "hora_fin": _rend_normalize_hhmm(hora_fin, "00:00"),
                     "hora_muerta": _rend_normalize_hhmm(hora_muerta, "00:00"),
                     "lunch": bool(lunch),
                     "almuerzo": bool(almuerzo),
