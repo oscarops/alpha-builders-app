@@ -871,6 +871,27 @@ if "db_usuarios" not in st.session_state:
 # ==============================================================================
 # 5. OPTIMIZADOR / COMPRESOR DE IMÁGENES Y EXPORTADORES EN CACHÉ
 # ==============================================================================
+def _rend_guardar_en_db(supabase_client, datos_db, editar_id, user_email):
+    """Inserta/actualiza en 'rendimientos'. Si la tabla no tiene alguna columna
+    opcional (error PGRST204), la omite y reintenta en vez de fallar."""
+    import re as _re
+    datos = dict(datos_db)
+    obligatorias = {"usuario_email", "fecha", "trabajador", "rubro", "intervalo"}
+    for _ in range(8):
+        try:
+            tabla = supabase_client.table("rendimientos")
+            if editar_id:
+                return tabla.update(datos).eq("id", editar_id).eq("usuario_email", user_email).execute()
+            return tabla.insert(datos).execute()
+        except Exception as e:
+            m = _re.search(r"Could not find the '([^']+)' column", str(e))
+            if m and m.group(1) in datos and m.group(1) not in obligatorias:
+                datos.pop(m.group(1))
+                continue
+            raise
+    raise RuntimeError("No se pudo guardar: la tabla 'rendimientos' no coincide con los campos enviados.")
+
+
 def render_estado_badge(estado_str):
     if not estado_str:
         return '<span style="color: #64748b; font-weight: 600;">Sin Responder</span>'
@@ -4733,7 +4754,6 @@ with tab_rend:
                         "intervalo": intervalo_guardado,
                         "horas_hh": round(hh_calculadas, 3),
                         "avance": round(total_avance_preview, 3),
-                        "esperado": 0,
                         "unidad": unidad_manual.strip(),
                         "rend_real": round(rendimiento_preview, 3),
                         "rend_teorico": 0,
@@ -4742,11 +4762,11 @@ with tab_rend:
             
                     try:
                         if editar_id:
-                            supabase.table("rendimientos").update(datos_db).eq("id", editar_id).eq("usuario_email", user_email).execute()
+                            _rend_guardar_en_db(supabase, datos_db, editar_id, user_email)
                             st.success("✅ Registro de rendimiento actualizado correctamente.")
                             st.session_state.rend_edit_id = None
                         else:
-                            supabase.table("rendimientos").insert(datos_db).execute()
+                            _rend_guardar_en_db(supabase, datos_db, None, user_email)
                             st.success("✅ Rendimiento registrado correctamente.")
             
                         st.session_state.db_loaded = False
@@ -5202,7 +5222,6 @@ with tab_rend:
                     "intervalo": intervalo_guardado,
                     "horas_hh": round(hh_calculadas, 3),
                     "avance": round(total_avance_preview, 3),
-                    "esperado": 0,
                     "unidad": unidad_manual.strip(),
                     "rend_real": round(rendimiento_preview, 3),
                     "rend_teorico": 0,
@@ -5211,11 +5230,11 @@ with tab_rend:
         
                 try:
                     if editar_id:
-                        supabase.table("rendimientos").update(datos_db).eq("id", editar_id).eq("usuario_email", user_email).execute()
+                        _rend_guardar_en_db(supabase, datos_db, editar_id, user_email)
                         st.success("✅ Registro de rendimiento actualizado correctamente.")
                         st.session_state.rend_edit_id = None
                     else:
-                        supabase.table("rendimientos").insert(datos_db).execute()
+                        _rend_guardar_en_db(supabase, datos_db, None, user_email)
                         st.success("✅ Rendimiento registrado correctamente.")
         
                     st.session_state.db_loaded = False
