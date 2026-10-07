@@ -4577,12 +4577,6 @@ with tab_rend:
             hora_inicio_ok = _rend_hhmm_valid(hora_inicio)
             hora_fin_ok = _rend_hhmm_valid(hora_fin)
             hora_muerta_ok = _rend_hhmm_valid(hora_muerta)
-            if not hora_inicio_ok:
-                st.warning("⚠️ La hora de inicio debe escribirse como HH:MM, por ejemplo 07:00.")
-            if not hora_fin_ok:
-                st.warning("⚠️ La hora de finalización debe escribirse como HH:MM, por ejemplo 17:00.")
-            if not hora_muerta_ok:
-                st.warning("⚠️ La hora muerta debe escribirse como HH:MM, por ejemplo 00:30.")
             
             d1, d2, d3 = st.columns(3)
             with d1:
@@ -5052,12 +5046,6 @@ with tab_rend:
         hora_inicio_ok = _rend_hhmm_valid(hora_inicio)
         hora_fin_ok = _rend_hhmm_valid(hora_fin)
         hora_muerta_ok = _rend_hhmm_valid(hora_muerta)
-        if not hora_inicio_ok:
-            st.warning("⚠️ La hora de inicio debe escribirse como HH:MM, por ejemplo 07:00.")
-        if not hora_fin_ok:
-            st.warning("⚠️ La hora de finalización debe escribirse como HH:MM, por ejemplo 17:00.")
-        if not hora_muerta_ok:
-            st.warning("⚠️ La hora muerta debe escribirse como HH:MM, por ejemplo 00:30.")
         
         d1, d2, d3 = st.columns(3)
         with d1:
