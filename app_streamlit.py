@@ -4563,7 +4563,7 @@ with tab_rend:
                 hora_fin = st.text_input(
                     "Hora de finalización:",
                     value=default_fin,
-                    placeholder="HH:MM (ej. 17:00)",
+                    placeholder="HH:MM (ej. 16:00)",
                     key=f"rend_hora_fin_{modo_key}"
                 )
             with h3:
