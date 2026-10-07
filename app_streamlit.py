@@ -873,19 +873,30 @@ if "db_usuarios" not in st.session_state:
 # ==============================================================================
 def _rend_guardar_en_db(supabase_client, datos_db, editar_id, user_email):
     """Inserta/actualiza en 'rendimientos'. Si la tabla no tiene alguna columna
-    opcional (error PGRST204), la omite y reintenta en vez de fallar."""
+    (error PGRST204), la omite y reintenta en vez de fallar. Solo las columnas
+    realmente indispensables hacen fallar el guardado."""
     import re as _re
     datos = dict(datos_db)
-    obligatorias = {"usuario_email", "fecha", "trabajador", "rubro", "intervalo"}
-    for _ in range(8):
+    obligatorias = {"usuario_email", "fecha", "trabajador", "rubro"}
+    omitidas = []
+    for _ in range(12):
         try:
             tabla = supabase_client.table("rendimientos")
             if editar_id:
-                return tabla.update(datos).eq("id", editar_id).eq("usuario_email", user_email).execute()
-            return tabla.insert(datos).execute()
+                res = tabla.update(datos).eq("id", editar_id).eq("usuario_email", user_email).execute()
+            else:
+                res = tabla.insert(datos).execute()
+            if omitidas:
+                st.toast(
+                    "⚠️ Guardado sin las columnas: " + ", ".join(omitidas)
+                    + ". Ejecuta el SQL de migración en Supabase para guardar horas y fotos.",
+                    icon="⚠️",
+                )
+            return res
         except Exception as e:
             m = _re.search(r"Could not find the '([^']+)' column", str(e))
             if m and m.group(1) in datos and m.group(1) not in obligatorias:
+                omitidas.append(m.group(1))
                 datos.pop(m.group(1))
                 continue
             raise
