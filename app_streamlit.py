@@ -4542,7 +4542,8 @@ with tab_rend:
     registro_editar = next((x for x in registros_rend if x.get("db_id") == editar_id), None) if editar_id else None
     datos_editar = _rend_parse_payload(registro_editar) if registro_editar else {}
 
-    proyectos_rend = user_edificios if len(user_edificios) > 0 else EDIFICIOS_ALPHA
+    # Permitir seleccionar cualquier edificio del catálogo completo, no solo los asignados
+proyectos_rend = EDIFICIOS_ALPHA
 
     # Si estamos editando, forzar mostrar formulario
     if editar_id:
