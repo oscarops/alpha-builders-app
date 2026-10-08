@@ -817,6 +817,7 @@ def load_db_from_supabase():
                         "Cargo_Obrero": r.get("cargo_obrero", ""),
                         "Rubro": r.get("rubro", ""),
                         "Intervalo": r.get("intervalo", "Jornada"),
+                        "Datos_Rendimiento": r.get("datos"),
                         "Horas Trabajadas (HH)": float(r.get("horas_hh") or 0.0),
                         "Avance": float(r.get("avance") or 0.0),
                         "Esperado": float(r.get("esperado") or 0.0),
@@ -874,34 +875,39 @@ if "db_usuarios" not in st.session_state:
 # 5. OPTIMIZADOR / COMPRESOR DE IMÁGENES Y EXPORTADORES EN CACHÉ
 # ==============================================================================
 def _rend_guardar_en_db(supabase_client, datos_db, editar_id, user_email):
-    """Inserta/actualiza en 'rendimientos'. Si la tabla no tiene alguna columna
-    (error PGRST204), la omite y reintenta en vez de fallar."""
+    """Guarda rendimientos sin descartar nunca las fotografías ni el JSON del formulario.
+
+    Requiere columna rendimientos.datos (jsonb); véase SQL adjunto.
+    """
     import re as _re
     datos = dict(datos_db)
-    obligatorias = {"usuario_email", "fecha", "trabajador", "rubro"}
+    obligatorias = {"usuario_email", "fecha", "trabajador", "rubro", "datos"}
     omitidas = []
     for _ in range(12):
         try:
             tabla = supabase_client.table("rendimientos")
-            if editar_id:
+            if editar_id is not None:
                 res = tabla.update(datos).eq("id", editar_id).eq("usuario_email", user_email).execute()
             else:
                 res = tabla.insert(datos).execute()
             if omitidas:
-                st.toast(
-                    "⚠️ Guardado sin las columnas: " + ", ".join(omitidas)
-                    + ". Ejecuta el SQL de migración en Supabase para guardar horas y fotos.",
-                    icon="⚠️",
-                )
+                st.warning("Campos opcionales no disponibles en Supabase: " + ", ".join(omitidas))
             return res
         except Exception as e:
-            m = _re.search(r"Could not find the '([^']+)' column", str(e))
+            mensaje = str(e)
+            m = _re.search(r"Could not find the '([^']+)' column", mensaje)
+            if m and m.group(1) == "datos":
+                raise RuntimeError(
+                    "La columna rendimientos.datos (JSONB) no existe en Supabase. "
+                    "Ejecuta primero MIGRACION_FOTOS_RENDIMIENTOS.sql en SQL Editor. "
+                    "No se guardó el registro para evitar perder las fotografías."
+                ) from e
             if m and m.group(1) in datos and m.group(1) not in obligatorias:
                 omitidas.append(m.group(1))
                 datos.pop(m.group(1))
                 continue
             raise
-    raise RuntimeError("No se pudo guardar: la tabla 'rendimientos' no coincide con los campos enviados.")
+    raise RuntimeError("No se pudo guardar el rendimiento: columnas de Supabase incompatibles.")
 
 
 def render_estado_badge(estado_str):
@@ -4469,6 +4475,20 @@ with tab_rend:
 
     def _rend_parse_payload(item):
         """Recupera los datos desde el campo intervalo sin romper registros antiguos."""
+        if not item:
+            return {}
+        # Formato nuevo: columna JSONB dedicada, que conserva fotos y horarios.
+        almacenado = item.get("Datos_Rendimiento")
+        if isinstance(almacenado, dict) and almacenado.get("_rend_v4"):
+            return almacenado
+        if isinstance(almacenado, str):
+            try:
+                valor = json.loads(almacenado)
+                if isinstance(valor, dict) and valor.get("_rend_v4"):
+                    return valor
+            except (ValueError, TypeError):
+                pass
+        # Compatibilidad con registros antiguos en la columna intervalo.
         raw = item.get("Intervalo", "")
         data = {}
         if isinstance(raw, str):
@@ -4902,6 +4922,14 @@ with tab_rend:
                     foto_mediodia_b64 = _rend_foto_to_b64(foto_mediodia_obj) or str(datos_editar.get("foto_mediodia", "") or "")
                     foto_tarde_b64 = _rend_foto_to_b64(foto_tarde_obj) or str(datos_editar.get("foto_tarde", "") or "")
 
+                    if any(obj is not None and not img for obj, img in (
+                        (foto_manana_obj, foto_manana_b64),
+                        (foto_mediodia_obj, foto_mediodia_b64),
+                        (foto_tarde_obj, foto_tarde_b64),
+                    )):
+                        st.error("Una fotografía no pudo procesarse; vuelve a subirla antes de guardar.")
+                        st.stop()
+
                     payload_v4 = {
                         "_rend_v4": True,
                         "hora_inicio": _rend_normalize_hhmm(hora_inicio, "00:00"),
@@ -4920,7 +4948,9 @@ with tab_rend:
                         "trabajadores": trabajadores_validos,
                         "comentarios": comentarios_rend.strip(),
                     }
-                    intervalo_guardado = json.dumps(payload_v4, ensure_ascii=False)
+                    # El JSON completo, incluidas las fotos, va en una columna JSONB.
+                    # No duplicar el contenido de imágenes en intervalo (texto).
+                    intervalo_guardado = "Jornada"
                     estado_diag = _rend_estado(total_avance_preview, hh_calculadas)
 
                     nombres_concat = ", ".join([t["nombre"] for t in trabajadores_validos])
@@ -4933,6 +4963,7 @@ with tab_rend:
                         "trabajador": nombres_concat,
                         "rubro": rubro_manual.strip(),
                         "intervalo": intervalo_guardado,
+                        "datos": payload_v4,
                         "horas_hh": round(hh_calculadas, 3),
                         "avance": round(total_avance_preview, 3),
                         "unidad": unidad_manual.strip(),
