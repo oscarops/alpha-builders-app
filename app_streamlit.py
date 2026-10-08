@@ -875,10 +875,7 @@ if "db_usuarios" not in st.session_state:
 # 5. OPTIMIZADOR / COMPRESOR DE IMÁGENES Y EXPORTADORES EN CACHÉ
 # ==============================================================================
 def _rend_guardar_en_db(supabase_client, datos_db, editar_id, user_email):
-    """Guarda rendimientos sin descartar nunca las fotografías ni el JSON del formulario.
-
-    Requiere columna rendimientos.datos (jsonb); véase SQL adjunto.
-    """
+    """Guarda rendimientos sin descartar nunca las fotografías ni el JSON del formulario."""
     import re as _re
     datos = dict(datos_db)
     obligatorias = {"usuario_email", "fecha", "trabajador", "rubro", "datos"}
@@ -4408,6 +4405,7 @@ if not es_maestro_mayor:
 #     - Formulario se oculta al guardar
 #     - Horas vacías se toman como 0 sin bloquear el guardado
 #     - Registros agrupados por día en pestañas
+#     - AGRUPACIÓN POR EDIFICIO REAL (nunca "General")
 # ==============================================================================
 with tab_rend:
     st.markdown("### Control de Rendimiento por Personal")
@@ -4546,6 +4544,20 @@ with tab_rend:
         return "CON AVANCE"
 
     # -------------------------------------------------------------------------
+    # NUEVA: Extraer el edificio real desde el payload JSON o la columna.
+    # Nunca devuelve "General"; si no hay edificio, devuelve "Sin Edificio Asignado".
+    # -------------------------------------------------------------------------
+    def _rend_edificio_valor(r_item, payload=None):
+        payload = payload if isinstance(payload, dict) else {}
+        edificio_val = str(
+            payload.get("edificio")
+            or r_item.get("Edificio")
+            or r_item.get("edificio")
+            or ""
+        ).strip()
+        return edificio_val if edificio_val else "Sin Edificio Asignado"
+
+    # -------------------------------------------------------------------------
     # Estado del formulario (visible / oculto)
     # -------------------------------------------------------------------------
     if "rend_mostrar_form" not in st.session_state:
@@ -4590,8 +4602,6 @@ with tab_rend:
     if st.session_state.rend_mostrar_form:
         st.markdown("---")
 
-        # Envolvemos todo el formulario interactivo en un fragment para que
-        # los botones de agregar/eliminar trabajadores no salgan de la pestaña.
         _frag = getattr(st, "fragment", None)
 
         def _render_formulario_rend():
@@ -4911,9 +4921,8 @@ with tab_rend:
                     errores.append("ingrese el rubro")
                 if not unidad_manual.strip():
                     errores.append("ingrese la unidad")
-                if not edificio_rend:
-                    errores.append("seleccione el edificio")
-                # Las horas vacías ya NO son error: se toman como 0.
+                if not edificio_rend or not str(edificio_rend).strip():
+                    errores.append("seleccione un edificio válido")
 
                 if errores:
                     st.error("⚠️ " + "; ".join(errores) + ".")
@@ -4948,8 +4957,6 @@ with tab_rend:
                         "trabajadores": trabajadores_validos,
                         "comentarios": comentarios_rend.strip(),
                     }
-                    # El JSON completo, incluidas las fotos, va en una columna JSONB.
-                    # No duplicar el contenido de imágenes en intervalo (texto).
                     intervalo_guardado = "Jornada"
                     estado_diag = _rend_estado(total_avance_preview, hh_calculadas)
 
@@ -5005,18 +5012,9 @@ with tab_rend:
 
     mis_rendimientos = st.session_state.get("db_rendimientos", {}).get(user_email, [])
 
-    def _rend_edificio_valor(r_item, payload=None):
-        payload = payload if isinstance(payload, dict) else {}
-        edificio_val = str(
-            payload.get("edificio")
-            or r_item.get("Edificio")
-            or "General"
-        ).strip()
-        return edificio_val or "General"
-
     if len(mis_rendimientos) > 0:
         # ---------------------------------------------------------------------
-        # 1. Agrupación principal: EDIFICIO
+        # 1. Agrupación principal: EDIFICIO REAL (nunca "General")
         # ---------------------------------------------------------------------
         registros_por_edificio = {}
         for r_item in mis_rendimientos:
@@ -5026,7 +5024,7 @@ with tab_rend:
 
         edificios_rend_ordenados = sorted(
             registros_por_edificio.keys(),
-            key=lambda x: (str(x).lower() == "general", str(x).lower())
+            key=lambda x: (str(x).lower() == "sin edificio asignado", str(x).lower())
         )
 
         # ---------------------------------------------------------------------
@@ -5120,11 +5118,7 @@ with tab_rend:
                                 ]
                             ) or r_item.get("Trabajador", "")
 
-                            edificio_r = (
-                                datos_r.get("edificio")
-                                or r_item.get("Edificio")
-                                or edificio_key
-                            )
+                            edificio_r = _rend_edificio_valor(r_item, datos_r)
                             piso_r = (
                                 datos_r.get("piso")
                                 or r_item.get("Piso")
@@ -5370,8 +5364,27 @@ with tab_rend:
 
         df_r_export = pd.DataFrame(mis_rendimientos)
         if not df_r_export.empty:
-            if "Edificio" in df_r_export.columns:
-                df_r_export["Edificio"] = df_r_export["Edificio"].fillna("General").replace("", "General")
+            # -----------------------------------------------------------------
+            # CORRECCIÓN CLAVE: extraer el edificio REAL desde el payload JSON.
+            # Nunca "General"; si no hay edificio, usar "Sin Edificio Asignado".
+            # -----------------------------------------------------------------
+            def _extraer_edificio_export(reg):
+                if not isinstance(reg, dict):
+                    return "Sin Edificio Asignado"
+                payload = _rend_parse_payload(reg)
+                edif = (
+                    payload.get("edificio")
+                    or reg.get("Edificio")
+                    or reg.get("edificio")
+                    or ""
+                )
+                edif = str(edif).strip()
+                return edif if edif else "Sin Edificio Asignado"
+
+            df_r_export["Edificio"] = df_r_export.apply(
+                _extraer_edificio_export, axis=1
+            )
+
             if "Fecha" in df_r_export.columns:
                 df_r_export["_fecha_orden"] = pd.to_datetime(df_r_export["Fecha"], errors="coerce")
             sort_cols = [c for c in ["Edificio", "_fecha_orden", "Trabajador"] if c in df_r_export.columns]
@@ -5405,7 +5418,6 @@ with tab_rend:
                 ws = wb.active
                 ws.title = "Rendimientos"
                 azul = "17365D"
-                azul_claro = "D9EAF7"
                 gris = "F3F6F9"
                 borde = Border(*( [Side(style="thin", color="CBD5E1")] * 4 ))
                 headers = ["N°", "Edificio", "Piso", "Fecha", "Trabajador", "Cargo", "Rubro", "Horas trabajadas (HH)", "Avance", "Esperado", "Unidad", "Rend. real (HH/Unid)", "Rend. teórico", "Estado", "Hora inicio", "Hora fin", "Hora muerta", "Avance mañana", "Avance mediodía", "Avance tarde", "Comentarios", "Foto mañana", "Foto mediodía", "Foto tarde"]
@@ -5427,7 +5439,8 @@ with tab_rend:
                 fotos_pendientes = []
                 for ri, reg in enumerate(registros, 5):
                     payload = _rend_payload_export(reg)
-                    vals = [ri-4, reg.get("Edificio", "General"), reg.get("Piso", ""), reg.get("Fecha", ""), reg.get("Trabajador", ""), reg.get("Cargo_Obrero", ""), reg.get("Rubro", ""), reg.get("Horas Trabajadas (HH)", 0), reg.get("Avance", 0), reg.get("Esperado", 0), reg.get("Unidad", ""), reg.get("Rend. Real (HH/Unid)", 0), reg.get("Rend. Teórico", 0), reg.get("Estado", ""), payload.get("hora_inicio", ""), payload.get("hora_fin", ""), payload.get("hora_muerta", ""), payload.get("avance_manana", 0), payload.get("avance_mediodia", 0), payload.get("avance_tarde", 0), payload.get("comentarios", ""), "", "", ""]
+                    edif_final = payload.get("edificio") or reg.get("Edificio") or reg.get("edificio") or "Sin Edificio Asignado"
+                    vals = [ri-4, edif_final, reg.get("Piso", ""), reg.get("Fecha", ""), reg.get("Trabajador", ""), reg.get("Cargo_Obrero", ""), reg.get("Rubro", ""), reg.get("Horas Trabajadas (HH)", 0), reg.get("Avance", 0), reg.get("Esperado", 0), reg.get("Unidad", ""), reg.get("Rend. Real (HH/Unid)", 0), reg.get("Rend. Teórico", 0), reg.get("Estado", ""), payload.get("hora_inicio", ""), payload.get("hora_fin", ""), payload.get("hora_muerta", ""), payload.get("avance_manana", 0), payload.get("avance_mediodia", 0), payload.get("avance_tarde", 0), payload.get("comentarios", ""), "", "", ""]
                     for ci, val in enumerate(vals, 1):
                         cell = ws.cell(ri, ci, val)
                         cell.border = borde
@@ -5464,7 +5477,7 @@ with tab_rend:
                 return out.getvalue()
 
             def _rend_pdf_profesional(registros):
-                from reportlab.platypus import Image as RLImage, KeepTogether, PageBreak
+                from reportlab.platypus import Image as RLImage
                 from reportlab.lib.enums import TA_CENTER, TA_LEFT
                 from reportlab.lib.units import mm
                 from xml.sax.saxutils import escape
@@ -5477,10 +5490,12 @@ with tab_rend:
                 styles.add(ParagraphStyle(name="RendCell", parent=styles["Normal"], fontSize=7, leading=8, textColor=colors.HexColor("#1E293B"), wordWrap="CJK"))
                 styles.add(ParagraphStyle(name="RendSection", parent=styles["Heading2"], fontSize=10, leading=13, textColor=colors.HexColor("#17365D"), spaceBefore=8, spaceAfter=4))
                 story = [Paragraph("ALPHA BUILDERS", styles["RendTitle"]), Paragraph("INFORME DE CONTROL DE RENDIMIENTOS", styles["RendTitle"]), Paragraph(f"Generado el {get_local_datetime_ecuador().strftime('%d/%m/%Y %H:%M')} &nbsp; | &nbsp; Total de registros: {len(registros)}", styles["RendSub"])]
-                # Resumen por edificio
                 by_building = {}
                 for reg in registros:
-                    b = str(reg.get("Edificio") or "General")
+                    payload = _rend_payload_export(reg)
+                    b = str(payload.get("edificio") or reg.get("Edificio") or reg.get("edificio") or "Sin Edificio Asignado").strip()
+                    if not b:
+                        b = "Sin Edificio Asignado"
                     by_building.setdefault(b, []).append(reg)
                 summary = [[Paragraph("Edificio", styles["RendHead"]), Paragraph("Registros", styles["RendHead"]), Paragraph("Avance total", styles["RendHead"]), Paragraph("Horas-Hombre", styles["RendHead"])]]
                 for building, items in sorted(by_building.items()):
@@ -5959,7 +5974,7 @@ if es_admin:
 
         if len(todos_los_rendimientos) > 0:
             df_rend_admin = pd.DataFrame(todos_los_rendimientos)
-            cols_first = ["Usuario_Correo", "Fecha", "Trabajador", "Cargo_Obrero", "Rubro", "Intervalo", "Horas Trabajadas (HH)", "Avance", "Esperado", "Unidad", "Rend. Real (HH/Unid)", "Rend. Teórico", "Estado", "Edificio", "Piso"]
+            cols_first = ["Usuario_Correo", "Edificio", "Piso", "Fecha", "Trabajador", "Cargo_Obrero", "Rubro", "Intervalo", "Horas Trabajadas (HH)", "Avance", "Esperado", "Unidad", "Rend. Real (HH/Unid)", "Rend. Teórico", "Estado"]
             df_rend_admin = df_rend_admin.reindex(columns=[c for c in cols_first if c in df_rend_admin.columns])
             if not df_rend_admin.empty:
                 df_rend_admin.index = range(1, len(df_rend_admin) + 1)
