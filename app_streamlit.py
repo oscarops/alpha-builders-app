@@ -4543,7 +4543,7 @@ with tab_rend:
     datos_editar = _rend_parse_payload(registro_editar) if registro_editar else {}
 
     # Permitir seleccionar cualquier edificio del catálogo completo, no solo los asignados
-proyectos_rend = EDIFICIOS_ALPHA
+    proyectos_rend = EDIFICIOS_ALPHA
 
     # Si estamos editando, forzar mostrar formulario
     if editar_id:
