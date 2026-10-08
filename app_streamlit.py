@@ -4997,157 +4997,430 @@ with tab_rend:
             _render_formulario_rend()
 
     # -------------------------------------------------------------------------
-    # RESULTADOS GUARDADOS — Agrupados por día en pestañas
+    # RESULTADOS GUARDADOS — AGRUPADOS POR EDIFICIO Y FECHA
     # -------------------------------------------------------------------------
     st.markdown("---")
-    st.markdown("### Registros de Rendimiento por Día")
+    st.markdown("### Registros de Rendimiento por Edificio")
+    st.caption("Los rendimientos se organizan primero por **edificio/proyecto** y dentro de cada edificio por **fecha**, para facilitar el control de cada frente de trabajo.")
 
     mis_rendimientos = st.session_state.get("db_rendimientos", {}).get(user_email, [])
 
+    def _rend_edificio_valor(r_item, payload=None):
+        payload = payload if isinstance(payload, dict) else {}
+        edificio_val = str(
+            payload.get("edificio")
+            or r_item.get("Edificio")
+            or "General"
+        ).strip()
+        return edificio_val or "General"
+
     if len(mis_rendimientos) > 0:
-        # Agrupar por fecha
-        registros_por_fecha = {}
+        # ---------------------------------------------------------------------
+        # 1. Agrupación principal: EDIFICIO
+        # ---------------------------------------------------------------------
+        registros_por_edificio = {}
         for r_item in mis_rendimientos:
-            fecha_key = str(r_item.get("Fecha", "")).strip() or "Sin fecha"
-            registros_por_fecha.setdefault(fecha_key, []).append(r_item)
+            datos_item = _rend_parse_payload(r_item)
+            edificio_key = _rend_edificio_valor(r_item, datos_item)
+            registros_por_edificio.setdefault(edificio_key, []).append(r_item)
 
-        # Ordenar fechas descendente
-        fechas_ordenadas = sorted(registros_por_fecha.keys(), reverse=True)
+        edificios_rend_ordenados = sorted(
+            registros_por_edificio.keys(),
+            key=lambda x: (str(x).lower() == "general", str(x).lower())
+        )
 
-        # Etiquetas de pestañas con conteo
-        etiquetas_tabs = []
-        for f in fechas_ordenadas:
-            n_regs = len(registros_por_fecha[f])
-            try:
-                f_dt = pd.to_datetime(f)
-                etiqueta = f"{f_dt.strftime('%d/%m/%Y')} ({n_regs})"
-            except Exception:
-                etiqueta = f"{f} ({n_regs})"
-            etiquetas_tabs.append(etiqueta)
+        # ---------------------------------------------------------------------
+        # 2. Resumen general
+        # ---------------------------------------------------------------------
+        total_registros_rend = len(mis_rendimientos)
+        total_edificios_rend = len(edificios_rend_ordenados)
 
-        tabs_fechas = st.tabs(etiquetas_tabs)
+        rr1, rr2, rr3 = st.columns(3)
+        with rr1:
+            st.metric("🏢 Edificios con registros", total_edificios_rend)
+        with rr2:
+            st.metric("📊 Rendimientos registrados", total_registros_rend)
+        with rr3:
+            edificios_txt = ", ".join(edificios_rend_ordenados)
+            st.caption("Edificios registrados:")
+            st.write(edificios_txt)
 
-        for idx_fecha, fecha_key in enumerate(fechas_ordenadas):
-            with tabs_fechas[idx_fecha]:
-                registros_del_dia = registros_por_fecha[fecha_key]
-                st.caption(f"**{len(registros_del_dia)}** registro(s) con fecha **{fecha_key}**.")
+        # ---------------------------------------------------------------------
+        # 3. Pestañas por EDIFICIO
+        # ---------------------------------------------------------------------
+        etiquetas_edificios = [
+            f"🏢 {edificio} ({len(registros_por_edificio[edificio])})"
+            for edificio in edificios_rend_ordenados
+        ]
 
-                for idx_r, r_item in enumerate(registros_del_dia, 1):
-                    r_db_id = r_item.get("db_id")
-                    datos_r = _rend_parse_payload(r_item)
-                    total_r = _rend_total_avance(datos_r)
-                    hh_r = float(r_item.get("Horas Trabajadas (HH)") or 0)
-                    rendimiento_r = (total_r / hh_r) if hh_r > 0 else 0
+        tabs_edificios_rend = st.tabs(etiquetas_edificios)
 
-                    trabajadores_r = datos_r.get("trabajadores", [])
-                    trabajadores_txt_r = ", ".join([f"{t.get('nombre','')} ({t.get('cargo','')})" for t in trabajadores_r]) or r_item.get("Trabajador", "")
-                    edificio_r = datos_r.get("edificio") or r_item.get("Edificio", "—")
-                    piso_r = datos_r.get("piso") or r_item.get("Piso", "—")
+        for idx_edificio, edificio_key in enumerate(edificios_rend_ordenados):
+            with tabs_edificios_rend[idx_edificio]:
+                registros_edificio = registros_por_edificio[edificio_key]
+
+                st.markdown(f"#### 🏢 {edificio_key}")
+                st.caption(
+                    f"Este edificio tiene **{len(registros_edificio)}** "
+                    f"registro(s) de rendimiento."
+                )
+
+                # -------------------------------------------------------------
+                # Agrupar el edificio por FECHA
+                # -------------------------------------------------------------
+                registros_por_fecha = {}
+
+                for r_item in registros_edificio:
+                    fecha_key = str(r_item.get("Fecha", "")).strip() or "Sin fecha"
+                    registros_por_fecha.setdefault(fecha_key, []).append(r_item)
+
+                def _fecha_sort_key(fecha_val):
+                    try:
+                        return pd.to_datetime(fecha_val)
+                    except Exception:
+                        return pd.Timestamp.min
+
+                fechas_ordenadas = sorted(
+                    registros_por_fecha.keys(),
+                    key=_fecha_sort_key,
+                    reverse=True
+                )
+
+                for idx_fecha, fecha_key in enumerate(fechas_ordenadas):
+                    registros_del_dia = registros_por_fecha[fecha_key]
+
+                    try:
+                        fecha_legible = pd.to_datetime(fecha_key).strftime("%d/%m/%Y")
+                    except Exception:
+                        fecha_legible = fecha_key
 
                     with st.expander(
-                        f"{idx_r}. {trabajadores_txt_r} | {r_item.get('Rubro', '')} | "
-                        f"{total_r:.2f} {r_item.get('Unidad', '')} | {rendimiento_r:.3f} {r_item.get('Unidad', '')}/h",
+                        f"📅 {fecha_legible} — "
+                        f"{len(registros_del_dia)} rendimiento(s)",
                         expanded=False
                     ):
-                        rc1, rc2, rc3, rc4 = st.columns(4)
-                        with rc1:
-                            st.write(f"**Fecha:** {r_item.get('Fecha', '')}")
-                            st.write(f"**Edificio:** {edificio_r}")
-                        with rc2:
-                            st.write(f"**Piso:** {piso_r}")
-                            st.write(f"**Rubro:** {r_item.get('Rubro', '')}")
-                        with rc3:
-                            st.write(f"**Unidad:** {r_item.get('Unidad', '')}")
-                            st.write(f"**Tiempo trabajado:** {hh_r:.2f} h")
-                        with rc4:
-                            st.write(f"**Avance total:** {total_r:.2f} {r_item.get('Unidad', '')}")
-                            st.write(f"**Rendimiento:** {rendimiento_r:.3f} {r_item.get('Unidad', '')}/h")
+                        for idx_r, r_item in enumerate(registros_del_dia, 1):
+                            r_db_id = r_item.get("db_id")
+                            datos_r = _rend_parse_payload(r_item)
 
-                        st.markdown("**Trabajadores asignados:**")
-                        if trabajadores_r:
-                            for t in trabajadores_r:
-                                st.write(f"• **{t.get('nombre','')}** — {t.get('cargo','')}")
-                        else:
-                            st.write(f"• {r_item.get('Trabajador', '')} — {r_item.get('Cargo_Obrero', '')}")
+                            total_r = _rend_total_avance(datos_r)
+                            hh_r = float(
+                                r_item.get("Horas Trabajadas (HH)") or 0
+                            )
+                            rendimiento_r = (
+                                total_r / hh_r if hh_r > 0 else 0
+                            )
 
-                        comentarios_guardados = datos_r.get("comentarios", "")
-                        if comentarios_guardados:
-                            st.markdown("**📝 Comentarios:**")
-                            st.info(comentarios_guardados)
+                            trabajadores_r = datos_r.get("trabajadores", [])
+                            trabajadores_txt_r = ", ".join(
+                                [
+                                    f"{t.get('nombre', '')} ({t.get('cargo', '')})"
+                                    for t in trabajadores_r
+                                    if t.get("nombre")
+                                ]
+                            ) or r_item.get("Trabajador", "")
 
-                        st.markdown("**Avances registrados**")
-                        ar1, ar2, ar3 = st.columns(3)
-                        for col, titulo, clave_av, clave_foto in [
-                            (ar1, "Mañana", "avance_manana", "foto_manana"),
-                            (ar2, "Mediodía", "avance_mediodia", "foto_mediodia"),
-                            (ar3, "Tarde", "avance_tarde", "foto_tarde"),
-                        ]:
-                            with col:
-                                st.write(f"**{titulo}:** {float(datos_r.get(clave_av, 0) or 0):.2f} {r_item.get('Unidad', '')}")
-                                img = base64_to_image(datos_r.get(clave_foto, ""))
-                                if img is not None:
-                                    st.image(img, caption=f"Foto {titulo}", use_container_width=True)
-                                else:
-                                    st.caption("Sin fotografía")
+                            edificio_r = (
+                                datos_r.get("edificio")
+                                or r_item.get("Edificio")
+                                or edificio_key
+                            )
+                            piso_r = (
+                                datos_r.get("piso")
+                                or r_item.get("Piso")
+                                or "—"
+                            )
+                            rubro_r = r_item.get("Rubro", "")
+                            unidad_r = r_item.get("Unidad", "")
 
-                        descuentos_r = []
-                        if datos_r.get("lunch"):
-                            descuentos_r.append("Lunch 15 min")
-                        if datos_r.get("almuerzo"):
-                            descuentos_r.append("Almuerzo 1 h")
-                        if _rend_minutes_dead(datos_r.get("hora_muerta", "00:00")) > 0:
-                            descuentos_r.append(f"Hora muerta {_rend_normalize_hhmm(datos_r.get('hora_muerta', '00:00'))}")
-                        st.caption(
-                            f"Horario: {datos_r.get('hora_inicio', '')} - {datos_r.get('hora_fin', '')} | "
-                            + ("Descuentos: " + ", ".join(descuentos_r) if descuentos_r else "Sin descuentos")
-                        )
+                            with st.expander(
+                                f"{idx_r}. {trabajadores_txt_r or 'Sin trabajador'} | "
+                                f"{rubro_r} | "
+                                f"{total_r:.2f} {unidad_r} | "
+                                f"{rendimiento_r:.3f} {unidad_r}/h",
+                                expanded=False
+                            ):
+                                rc1, rc2, rc3, rc4 = st.columns(4)
 
-                        eb1, eb2 = st.columns(2)
-                        with eb1:
-                            if st.button("✏️ Editar registro", key=f"edit_rnd_btn_{idx_fecha}_{idx_r}_{r_db_id}_p5", use_container_width=True):
-                                st.session_state.rend_edit_id = r_db_id
-                                st.session_state.rend_mostrar_form = True
-                                # Precargar filas de trabajadores
+                                with rc1:
+                                    st.write(f"**Fecha:** {r_item.get('Fecha', '')}")
+                                    st.write(f"**Edificio:** {edificio_r}")
+
+                                with rc2:
+                                    st.write(f"**Piso:** {piso_r}")
+                                    st.write(f"**Rubro:** {rubro_r}")
+
+                                with rc3:
+                                    st.write(f"**Unidad:** {unidad_r}")
+                                    st.write(f"**Tiempo trabajado:** {hh_r:.2f} h")
+
+                                with rc4:
+                                    st.write(
+                                        f"**Avance total:** "
+                                        f"{total_r:.2f} {unidad_r}"
+                                    )
+                                    st.write(
+                                        f"**Rendimiento:** "
+                                        f"{rendimiento_r:.3f} {unidad_r}/h"
+                                    )
+
+                                st.markdown("**Trabajadores asignados:**")
                                 if trabajadores_r:
-                                    st.session_state.rend_filas_trabajadores = [
-                                        {"id": i + 1, "nombre": t.get("nombre", ""), "cargo": t.get("cargo", "")}
-                                        for i, t in enumerate(trabajadores_r)
-                                    ]
+                                    for t in trabajadores_r:
+                                        st.write(
+                                            f"• **{t.get('nombre', '')}** — "
+                                            f"{t.get('cargo', '')}"
+                                        )
                                 else:
-                                    st.session_state.rend_filas_trabajadores = [{"id": 1, "nombre": r_item.get("Trabajador", ""), "cargo": r_item.get("Cargo_Obrero", "")}]
-                                # Precargar fecha
-                                try:
-                                    st.session_state.rend_fecha_sel = pd.to_datetime(r_item.get("Fecha")).date()
-                                except Exception:
-                                    pass
-                                st.rerun()
-                        with eb2:
-                            if st.button("🗑️ Eliminar registro", key=f"del_rnd_btn_{idx_fecha}_{idx_r}_{r_db_id}_p5", use_container_width=True):
-                                try:
-                                    supabase.table("rendimientos").delete().eq("id", r_db_id).eq("usuario_email", user_email).execute()
-                                    st.session_state.db_loaded = False
-                                    if st.session_state.get("rend_edit_id") == r_db_id:
-                                        st.session_state.rend_edit_id = None
-                                        st.session_state.rend_mostrar_form = False
-                                    st.success("Registro de rendimiento eliminado.")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error al eliminar: {e}")
+                                    st.write(
+                                        f"• {r_item.get('Trabajador', '')} — "
+                                        f"{r_item.get('Cargo_Obrero', '')}"
+                                    )
 
+                                comentarios_guardados = datos_r.get(
+                                    "comentarios", ""
+                                )
+                                if comentarios_guardados:
+                                    st.markdown("**📝 Comentarios:**")
+                                    st.info(comentarios_guardados)
+
+                                st.markdown("**Avances registrados**")
+                                ar1, ar2, ar3 = st.columns(3)
+
+                                for col, titulo, clave_av, clave_foto in [
+                                    (
+                                        ar1,
+                                        "Mañana",
+                                        "avance_manana",
+                                        "foto_manana",
+                                    ),
+                                    (
+                                        ar2,
+                                        "Mediodía",
+                                        "avance_mediodia",
+                                        "foto_mediodia",
+                                    ),
+                                    (
+                                        ar3,
+                                        "Tarde",
+                                        "avance_tarde",
+                                        "foto_tarde",
+                                    ),
+                                ]:
+                                    with col:
+                                        avance_val = float(
+                                            datos_r.get(clave_av, 0) or 0
+                                        )
+                                        st.write(
+                                            f"**{titulo}:** "
+                                            f"{avance_val:.2f} {unidad_r}"
+                                        )
+
+                                        img = base64_to_image(
+                                            datos_r.get(clave_foto, "")
+                                        )
+
+                                        if img is not None:
+                                            st.image(
+                                                img,
+                                                caption=f"Foto {titulo}",
+                                                use_container_width=True,
+                                            )
+                                        else:
+                                            st.caption("Sin fotografía")
+
+                                descuentos_r = []
+
+                                if datos_r.get("lunch"):
+                                    descuentos_r.append("Lunch 15 min")
+
+                                if datos_r.get("almuerzo"):
+                                    descuentos_r.append("Almuerzo 1 h")
+
+                                if _rend_minutes_dead(
+                                    datos_r.get("hora_muerta", "00:00")
+                                ) > 0:
+                                    descuentos_r.append(
+                                        "Hora muerta "
+                                        + _rend_normalize_hhmm(
+                                            datos_r.get(
+                                                "hora_muerta",
+                                                "00:00",
+                                            )
+                                        )
+                                    )
+
+                                st.caption(
+                                    f"Horario: "
+                                    f"{datos_r.get('hora_inicio', '')} - "
+                                    f"{datos_r.get('hora_fin', '')} | "
+                                    + (
+                                        "Descuentos: "
+                                        + ", ".join(descuentos_r)
+                                        if descuentos_r
+                                        else "Sin descuentos"
+                                    )
+                                )
+
+                                # -------------------------------------------------
+                                # Botones de edición y eliminación
+                                # -------------------------------------------------
+                                eb1, eb2 = st.columns(2)
+
+                                with eb1:
+                                    if st.button(
+                                        "✏️ Editar registro",
+                                        key=(
+                                            f"edit_rnd_btn_edif_{idx_edificio}_"
+                                            f"{idx_fecha}_{idx_r}_{r_db_id}_p5"
+                                        ),
+                                        use_container_width=True,
+                                    ):
+                                        st.session_state.rend_edit_id = r_db_id
+                                        st.session_state.rend_mostrar_form = True
+
+                                        if trabajadores_r:
+                                            st.session_state.rend_filas_trabajadores = [
+                                                {
+                                                    "id": i + 1,
+                                                    "nombre": t.get(
+                                                        "nombre", ""
+                                                    ),
+                                                    "cargo": t.get(
+                                                        "cargo", ""
+                                                    ),
+                                                }
+                                                for i, t in enumerate(
+                                                    trabajadores_r
+                                                )
+                                            ]
+                                        else:
+                                            st.session_state.rend_filas_trabajadores = [
+                                                {
+                                                    "id": 1,
+                                                    "nombre": r_item.get(
+                                                        "Trabajador", ""
+                                                    ),
+                                                    "cargo": r_item.get(
+                                                        "Cargo_Obrero", ""
+                                                    ),
+                                                }
+                                            ]
+
+                                        try:
+                                            st.session_state.rend_fecha_sel = (
+                                                pd.to_datetime(
+                                                    r_item.get("Fecha")
+                                                ).date()
+                                            )
+                                        except Exception:
+                                            pass
+
+                                        st.rerun()
+
+                                with eb2:
+                                    if st.button(
+                                        "🗑️ Eliminar registro",
+                                        key=(
+                                            f"del_rnd_btn_edif_{idx_edificio}_"
+                                            f"{idx_fecha}_{idx_r}_{r_db_id}_p5"
+                                        ),
+                                        use_container_width=True,
+                                    ):
+                                        try:
+                                            (
+                                                supabase
+                                                .table("rendimientos")
+                                                .delete()
+                                                .eq("id", r_db_id)
+                                                .eq(
+                                                    "usuario_email",
+                                                    user_email,
+                                                )
+                                                .execute()
+                                            )
+
+                                            st.session_state.db_loaded = False
+
+                                            if (
+                                                st.session_state.get(
+                                                    "rend_edit_id"
+                                                )
+                                                == r_db_id
+                                            ):
+                                                st.session_state.rend_edit_id = None
+                                                st.session_state.rend_mostrar_form = False
+
+                                            st.success(
+                                                "Registro de rendimiento eliminado."
+                                            )
+                                            st.rerun()
+
+                                        except Exception as e:
+                                            st.error(
+                                                f"Error al eliminar: {e}"
+                                            )
+
+        # ---------------------------------------------------------------------
+        # 4. Exportación de todos los rendimientos
+        # ---------------------------------------------------------------------
         st.markdown("<br>", unsafe_allow_html=True)
+
         df_mis_r = pd.DataFrame(mis_rendimientos)
-        df_display = df_mis_r.drop(columns=["db_id", "Usuario_Registro", "Cargo_Registrador"], errors="ignore")
+        df_display = df_mis_r.drop(
+            columns=[
+                "db_id",
+                "Usuario_Registro",
+                "Cargo_Registrador",
+            ],
+            errors="ignore",
+        )
+
         if not df_display.empty:
+            # Ordenar también la exportación por edificio y fecha.
+            if "Edificio" in df_display.columns:
+                df_display["_orden_edificio"] = (
+                    df_display["Edificio"]
+                    .fillna("General")
+                    .astype(str)
+                )
+
+            if "Fecha" in df_display.columns:
+                df_display["_orden_fecha"] = pd.to_datetime(
+                    df_display["Fecha"],
+                    errors="coerce",
+                )
+
+            orden_cols = [
+                c
+                for c in ["_orden_edificio", "_orden_fecha"]
+                if c in df_display.columns
+            ]
+
+            if orden_cols:
+                df_display = df_display.sort_values(
+                    by=orden_cols,
+                    ascending=[True, False][:len(orden_cols)],
+                    na_position="last",
+                )
+
+            df_display = df_display.drop(
+                columns=["_orden_edificio", "_orden_fecha"],
+                errors="ignore",
+            )
             df_display.index = range(1, len(df_display) + 1)
+
         csv_bytes_r = export_dataframe_to_excel_csv(df_display)
+
         st.download_button(
             label="📥 Descargar Rendimientos en CSV (Excel)",
             data=csv_bytes_r,
             file_name=f"Rendimientos_{user_email}.csv",
             mime="text/csv",
             key="dl_csv_rend_tab_p5",
-            use_container_width=True
+            use_container_width=True,
         )
+
     else:
         st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
