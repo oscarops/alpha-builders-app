@@ -5362,64 +5362,191 @@ with tab_rend:
                                             )
 
         # ---------------------------------------------------------------------
-        # 4. Exportación de todos los rendimientos
+        # 4. Exportación profesional de rendimientos a Excel y PDF con fotografías
         # ---------------------------------------------------------------------
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown("#### 📤 Exportar informe de rendimientos")
+        st.caption("Informes ordenados por edificio y fecha, con resumen, datos de jornada y fotografías disponibles.")
 
-        df_mis_r = pd.DataFrame(mis_rendimientos)
-        df_display = df_mis_r.drop(
-            columns=[
-                "db_id",
-                "Usuario_Registro",
-                "Cargo_Registrador",
-            ],
-            errors="ignore",
-        )
+        df_r_export = pd.DataFrame(mis_rendimientos)
+        if not df_r_export.empty:
+            if "Edificio" in df_r_export.columns:
+                df_r_export["Edificio"] = df_r_export["Edificio"].fillna("General").replace("", "General")
+            if "Fecha" in df_r_export.columns:
+                df_r_export["_fecha_orden"] = pd.to_datetime(df_r_export["Fecha"], errors="coerce")
+            sort_cols = [c for c in ["Edificio", "_fecha_orden", "Trabajador"] if c in df_r_export.columns]
+            if sort_cols:
+                df_r_export = df_r_export.sort_values(sort_cols, ascending=[True, False, True][:len(sort_cols)], na_position="last")
+            df_r_export = df_r_export.drop(columns=["_fecha_orden"], errors="ignore").reset_index(drop=True)
 
-        if not df_display.empty:
-            # Ordenar también la exportación por edificio y fecha.
-            if "Edificio" in df_display.columns:
-                df_display["_orden_edificio"] = (
-                    df_display["Edificio"]
-                    .fillna("General")
-                    .astype(str)
+            def _rend_payload_export(reg):
+                try:
+                    return _rend_parse_payload(reg)
+                except Exception:
+                    return {}
+
+            def _rend_foto_stream(b64_value, max_size=(190, 130)):
+                if not b64_value:
+                    return None
+                try:
+                    raw = base64.b64decode(b64_value)
+                    im = Image.open(io.BytesIO(raw))
+                    im = ImageOps.exif_transpose(im).convert("RGB")
+                    im.thumbnail(max_size, Image.Resampling.LANCZOS)
+                    buff = io.BytesIO()
+                    im.save(buff, format="JPEG", quality=82)
+                    buff.seek(0)
+                    return buff
+                except Exception:
+                    return None
+
+            def _rend_excel_profesional(registros):
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                ws.title = "Rendimientos"
+                azul = "17365D"
+                azul_claro = "D9EAF7"
+                gris = "F3F6F9"
+                borde = Border(*( [Side(style="thin", color="CBD5E1")] * 4 ))
+                headers = ["N°", "Edificio", "Piso", "Fecha", "Trabajador", "Cargo", "Rubro", "Horas trabajadas (HH)", "Avance", "Esperado", "Unidad", "Rend. real (HH/Unid)", "Rend. teórico", "Estado", "Hora inicio", "Hora fin", "Hora muerta", "Avance mañana", "Avance mediodía", "Avance tarde", "Comentarios", "Foto mañana", "Foto mediodía", "Foto tarde"]
+                ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+                title = ws.cell(1, 1, "ALPHA BUILDERS | INFORME DE CONTROL DE RENDIMIENTOS")
+                title.font = Font(name="Aptos Display", size=16, bold=True, color="FFFFFF")
+                title.fill = PatternFill("solid", fgColor=azul)
+                title.alignment = Alignment(horizontal="center", vertical="center")
+                ws.row_dimensions[1].height = 32
+                ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(headers))
+                ws.cell(2, 1, f"Generado: {get_local_datetime_ecuador().strftime('%d/%m/%Y %H:%M')} | Registros: {len(registros)}").font = Font(italic=True, color="475569", size=10)
+                for ci, h in enumerate(headers, 1):
+                    c = ws.cell(4, ci, h)
+                    c.font = Font(bold=True, color="FFFFFF", size=9)
+                    c.fill = PatternFill("solid", fgColor=azul)
+                    c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    c.border = borde
+                ws.row_dimensions[4].height = 34
+                fotos_pendientes = []
+                for ri, reg in enumerate(registros, 5):
+                    payload = _rend_payload_export(reg)
+                    vals = [ri-4, reg.get("Edificio", "General"), reg.get("Piso", ""), reg.get("Fecha", ""), reg.get("Trabajador", ""), reg.get("Cargo_Obrero", ""), reg.get("Rubro", ""), reg.get("Horas Trabajadas (HH)", 0), reg.get("Avance", 0), reg.get("Esperado", 0), reg.get("Unidad", ""), reg.get("Rend. Real (HH/Unid)", 0), reg.get("Rend. Teórico", 0), reg.get("Estado", ""), payload.get("hora_inicio", ""), payload.get("hora_fin", ""), payload.get("hora_muerta", ""), payload.get("avance_manana", 0), payload.get("avance_mediodia", 0), payload.get("avance_tarde", 0), payload.get("comentarios", ""), "", "", ""]
+                    for ci, val in enumerate(vals, 1):
+                        cell = ws.cell(ri, ci, val)
+                        cell.border = borde
+                        cell.alignment = Alignment(vertical="center", wrap_text=True)
+                        if ri % 2 == 0:
+                            cell.fill = PatternFill("solid", fgColor=gris)
+                    ws.row_dimensions[ri].height = 94
+                    for foto_idx, foto_key in enumerate(("foto_manana", "foto_mediodia", "foto_tarde"), 22):
+                        stream = _rend_foto_stream(payload.get(foto_key))
+                        if stream:
+                            try:
+                                img = OpenpyxlImage(stream)
+                                img.width, img.height = 100, 70
+                                img.anchor = f"{openpyxl.utils.get_column_letter(foto_idx)}{ri}"
+                                ws.add_image(img)
+                                fotos_pendientes.append(stream)
+                            except Exception:
+                                ws.cell(ri, foto_idx, "Foto no disponible")
+                        else:
+                            ws.cell(ri, foto_idx, "Sin foto")
+                widths = [6, 18, 10, 13, 24, 18, 16, 16, 12, 12, 10, 18, 14, 18, 12, 12, 12, 13, 14, 13, 30, 19, 19, 19]
+                for i, width in enumerate(widths, 1):
+                    ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = width
+                ws.freeze_panes = "A5"
+                ws.auto_filter.ref = f"A4:X{max(4, ws.max_row)}"
+                ws.sheet_view.showGridLines = False
+                ws.page_setup.orientation = "landscape"
+                ws.page_setup.paperSize = ws.PAPERSIZE_A3
+                ws.page_setup.fitToWidth = 1
+                ws.page_setup.fitToHeight = 0
+                ws.sheet_properties.pageSetUpPr.fitToPage = True
+                out = io.BytesIO()
+                wb.save(out)
+                return out.getvalue()
+
+            def _rend_pdf_profesional(registros):
+                from reportlab.platypus import Image as RLImage, KeepTogether, PageBreak
+                from reportlab.lib.enums import TA_CENTER, TA_LEFT
+                from reportlab.lib.units import mm
+                from xml.sax.saxutils import escape
+                out = io.BytesIO()
+                doc = SimpleDocTemplate(out, pagesize=landscape(letter), rightMargin=12*mm, leftMargin=12*mm, topMargin=12*mm, bottomMargin=12*mm, title="Informe de rendimientos - Alpha Builders", author="Alpha Builders")
+                styles = getSampleStyleSheet()
+                styles.add(ParagraphStyle(name="RendTitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=16, leading=20, textColor=colors.HexColor("#17365D"), alignment=TA_CENTER, spaceAfter=5))
+                styles.add(ParagraphStyle(name="RendSub", parent=styles["Normal"], fontSize=8, leading=11, textColor=colors.HexColor("#475569"), alignment=TA_CENTER, spaceAfter=10))
+                styles.add(ParagraphStyle(name="RendHead", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=7, leading=8, textColor=colors.white, alignment=TA_CENTER))
+                styles.add(ParagraphStyle(name="RendCell", parent=styles["Normal"], fontSize=7, leading=8, textColor=colors.HexColor("#1E293B"), wordWrap="CJK"))
+                styles.add(ParagraphStyle(name="RendSection", parent=styles["Heading2"], fontSize=10, leading=13, textColor=colors.HexColor("#17365D"), spaceBefore=8, spaceAfter=4))
+                story = [Paragraph("ALPHA BUILDERS", styles["RendTitle"]), Paragraph("INFORME DE CONTROL DE RENDIMIENTOS", styles["RendTitle"]), Paragraph(f"Generado el {get_local_datetime_ecuador().strftime('%d/%m/%Y %H:%M')} &nbsp; | &nbsp; Total de registros: {len(registros)}", styles["RendSub"])]
+                # Resumen por edificio
+                by_building = {}
+                for reg in registros:
+                    b = str(reg.get("Edificio") or "General")
+                    by_building.setdefault(b, []).append(reg)
+                summary = [[Paragraph("Edificio", styles["RendHead"]), Paragraph("Registros", styles["RendHead"]), Paragraph("Avance total", styles["RendHead"]), Paragraph("Horas-Hombre", styles["RendHead"])]]
+                for building, items in sorted(by_building.items()):
+                    summary.append([Paragraph(escape(building), styles["RendCell"]), str(len(items)), f"{sum(float(x.get('Avance') or 0) for x in items):.2f}", f"{sum(float(x.get('Horas Trabajadas (HH)') or 0) for x in items):.2f}"])
+                stbl = Table(summary, colWidths=[95*mm, 30*mm, 35*mm, 35*mm], repeatRows=1, hAlign="LEFT")
+                stbl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#17365D")),("GRID",(0,0),(-1,-1),0.4,colors.HexColor("#CBD5E1")),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F3F6F9")]),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4)]))
+                story += [Paragraph("Resumen por edificio", styles["RendSection"]), stbl, Spacer(1, 7)]
+                for building, items in sorted(by_building.items()):
+                    story.append(Paragraph(f"Edificio: {escape(building)}", styles["RendSection"]))
+                    for reg in items:
+                        payload = _rend_payload_export(reg)
+                        info = [[Paragraph("Fecha", styles["RendHead"]), Paragraph("Piso", styles["RendHead"]), Paragraph("Trabajador", styles["RendHead"]), Paragraph("Cargo", styles["RendHead"]), Paragraph("Rubro", styles["RendHead"]), Paragraph("HH", styles["RendHead"]), Paragraph("Avance", styles["RendHead"]), Paragraph("Esperado", styles["RendHead"]), Paragraph("Rend. real", styles["RendHead"]), Paragraph("Estado", styles["RendHead"])], [Paragraph(escape(str(reg.get("Fecha", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Piso", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Trabajador", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Cargo_Obrero", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Rubro", ""))), styles["RendCell"]), f"{float(reg.get('Horas Trabajadas (HH)') or 0):.2f}", f"{float(reg.get('Avance') or 0):.2f}", f"{float(reg.get('Esperado') or 0):.2f}", f"{float(reg.get('Rend. Real (HH/Unid)') or 0):.3f}", Paragraph(escape(str(reg.get("Estado", ""))), styles["RendCell"])]]
+                        tbl = Table(info, colWidths=[20*mm, 15*mm, 35*mm, 25*mm, 23*mm, 12*mm, 15*mm, 15*mm, 18*mm, 23*mm], repeatRows=1)
+                        tbl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#17365D")),("GRID",(0,0),(-1,-1),0.35,colors.HexColor("#CBD5E1")),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F8FAFC")]),("LEFTPADDING",(0,0),(-1,-1),3),("RIGHTPADDING",(0,0),(-1,-1),3),("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4)]))
+                        story.append(tbl)
+                        detail = f"<b>Jornada:</b> {escape(str(payload.get('hora_inicio','—')))} a {escape(str(payload.get('hora_fin','—')))} &nbsp; <b>Hora muerta:</b> {escape(str(payload.get('hora_muerta','—')))} &nbsp; <b>Avances:</b> mañana {float(payload.get('avance_manana') or 0):.2f}, mediodía {float(payload.get('avance_mediodia') or 0):.2f}, tarde {float(payload.get('avance_tarde') or 0):.2f}"
+                        if payload.get("comentarios"):
+                            detail += f"<br/><b>Comentarios:</b> {escape(str(payload.get('comentarios')))}"
+                        story.append(Paragraph(detail, styles["RendCell"]))
+                        photo_cells = []
+                        photo_labels = []
+                        for label, key in [("Mañana", "foto_manana"), ("Mediodía", "foto_mediodia"), ("Tarde", "foto_tarde")]:
+                            stream = _rend_foto_stream(payload.get(key), (330, 220))
+                            if stream:
+                                photo_cells.append(RLImage(stream, width=47*mm, height=31*mm, kind="proportional"))
+                            else:
+                                photo_cells.append(Paragraph("Sin fotografía", styles["RendCell"]))
+                            photo_labels.append(Paragraph(f"<b>Foto {label}</b>", styles["RendCell"]))
+                        story.append(Table([photo_labels, photo_cells], colWidths=[52*mm,52*mm,52*mm], style=TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("ALIGN",(0,0),(-1,-1),"CENTER"),("LEFTPADDING",(0,0),(-1,-1),4),("RIGHTPADDING",(0,0),(-1,-1),4),("TOPPADDING",(0,0),(-1,-1),3),("BOTTOMPADDING",(0,0),(-1,-1),3)])))
+                        story.append(Spacer(1, 8))
+                def _footer(canvas, doc_obj):
+                    canvas.saveState()
+                    canvas.setStrokeColor(colors.HexColor("#CBD5E1"))
+                    canvas.line(12*mm, 9*mm, landscape(letter)[0]-12*mm, 9*mm)
+                    canvas.setFont("Helvetica", 7)
+                    canvas.setFillColor(colors.HexColor("#64748B"))
+                    canvas.drawString(12*mm, 5*mm, "Alpha Builders | Control de rendimientos")
+                    canvas.drawRightString(landscape(letter)[0]-12*mm, 5*mm, f"Página {doc_obj.page}")
+                    canvas.restoreState()
+                doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
+                return out.getvalue()
+
+            col_pdf, col_xlsx = st.columns(2)
+            fecha_export = get_local_datetime_ecuador().strftime('%Y%m%d_%H%M')
+            with col_pdf:
+                st.download_button(
+                    label="📄 Descargar informe en PDF (con fotos)",
+                    data=_rend_pdf_profesional(df_r_export.to_dict("records")),
+                    file_name=f"Informe_Rendimientos_{fecha_export}.pdf",
+                    mime="application/pdf",
+                    key="dl_pdf_rend_tab_p5",
+                    use_container_width=True,
                 )
-
-            if "Fecha" in df_display.columns:
-                df_display["_orden_fecha"] = pd.to_datetime(
-                    df_display["Fecha"],
-                    errors="coerce",
+            with col_xlsx:
+                st.download_button(
+                    label="📊 Descargar Excel profesional (con fotos)",
+                    data=_rend_excel_profesional(df_r_export.to_dict("records")),
+                    file_name=f"Informe_Rendimientos_{fecha_export}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_xlsx_rend_tab_p5",
+                    use_container_width=True,
                 )
-
-            orden_cols = [
-                c
-                for c in ["_orden_edificio", "_orden_fecha"]
-                if c in df_display.columns
-            ]
-
-            if orden_cols:
-                df_display = df_display.sort_values(
-                    by=orden_cols,
-                    ascending=[True, False][:len(orden_cols)],
-                    na_position="last",
-                )
-
-            df_display = df_display.drop(
-                columns=["_orden_edificio", "_orden_fecha"],
-                errors="ignore",
-            )
-            df_display.index = range(1, len(df_display) + 1)
-
-        csv_bytes_r = export_dataframe_to_excel_csv(df_display)
-
-        st.download_button(
-            label="📥 Descargar Rendimientos en CSV (Excel)",
-            data=csv_bytes_r,
-            file_name=f"Rendimientos_{user_email}.csv",
-            mime="text/csv",
-            key="dl_csv_rend_tab_p5",
-            use_container_width=True,
-        )
+            vista_cols = [c for c in ["Edificio", "Piso", "Fecha", "Trabajador", "Cargo_Obrero", "Rubro", "Horas Trabajadas (HH)", "Avance", "Esperado", "Unidad", "Rend. Real (HH/Unid)", "Rend. Teórico", "Estado"] if c in df_r_export.columns]
+            st.dataframe(df_r_export[vista_cols], use_container_width=True, hide_index=True)
+        else:
+            st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
     else:
         st.info("Aún no existen registros de rendimiento en tu cuenta.")
