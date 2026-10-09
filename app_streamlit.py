@@ -5420,7 +5420,7 @@ with tab_rend:
                 azul = "17365D"
                 gris = "F3F6F9"
                 borde = Border(*( [Side(style="thin", color="CBD5E1")] * 4 ))
-                headers = ["N°", "Edificio", "Piso", "Fecha", "Trabajador", "Cargo", "Rubro", "Horas trabajadas (HH)", "Avance", "Esperado", "Unidad", "Rend. real (HH/Unid)", "Rend. teórico", "Estado", "Hora inicio", "Hora fin", "Hora muerta", "Avance mañana", "Avance mediodía", "Avance tarde", "Comentarios", "Foto mañana", "Foto mediodía", "Foto tarde"]
+                headers = ["N°", "Edificio", "Piso", "Fecha", "Trabajador", "Cargo", "Rubro", "Horas trabajadas (HH)", "Avance", "Unidad", "Rend. real (HH/Unid)", "Rend. teórico", "Estado", "Hora inicio", "Hora fin", "Hora muerta", "Avance mañana", "Avance mediodía", "Avance tarde", "Comentarios", "Foto mañana", "Foto mediodía", "Foto tarde"]
                 ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
                 title = ws.cell(1, 1, "ALPHA BUILDERS | INFORME DE CONTROL DE RENDIMIENTOS")
                 title.font = Font(name="Aptos Display", size=16, bold=True, color="FFFFFF")
@@ -5440,7 +5440,7 @@ with tab_rend:
                 for ri, reg in enumerate(registros, 5):
                     payload = _rend_payload_export(reg)
                     edif_final = payload.get("edificio") or reg.get("Edificio") or reg.get("edificio") or "Sin Edificio Asignado"
-                    vals = [ri-4, edif_final, reg.get("Piso", ""), reg.get("Fecha", ""), reg.get("Trabajador", ""), reg.get("Cargo_Obrero", ""), reg.get("Rubro", ""), reg.get("Horas Trabajadas (HH)", 0), reg.get("Avance", 0), reg.get("Esperado", 0), reg.get("Unidad", ""), reg.get("Rend. Real (HH/Unid)", 0), reg.get("Rend. Teórico", 0), reg.get("Estado", ""), payload.get("hora_inicio", ""), payload.get("hora_fin", ""), payload.get("hora_muerta", ""), payload.get("avance_manana", 0), payload.get("avance_mediodia", 0), payload.get("avance_tarde", 0), payload.get("comentarios", ""), "", "", ""]
+                    vals = [ri-4, edif_final, reg.get("Piso", ""), reg.get("Fecha", ""), reg.get("Trabajador", ""), reg.get("Cargo_Obrero", ""), reg.get("Rubro", ""), reg.get("Horas Trabajadas (HH)", 0), reg.get("Avance", 0), reg.get("Unidad", ""), reg.get("Rend. Real (HH/Unid)", 0), reg.get("Rend. Teórico", 0), reg.get("Estado", ""), payload.get("hora_inicio", ""), payload.get("hora_fin", ""), payload.get("hora_muerta", ""), payload.get("avance_manana", 0), payload.get("avance_mediodia", 0), payload.get("avance_tarde", 0), payload.get("comentarios", ""), "", "", ""]
                     for ci, val in enumerate(vals, 1):
                         cell = ws.cell(ri, ci, val)
                         cell.border = borde
@@ -5448,7 +5448,7 @@ with tab_rend:
                         if ri % 2 == 0:
                             cell.fill = PatternFill("solid", fgColor=gris)
                     ws.row_dimensions[ri].height = 94
-                    for foto_idx, foto_key in enumerate(("foto_manana", "foto_mediodia", "foto_tarde"), 22):
+                    for foto_idx, foto_key in enumerate(("foto_manana", "foto_mediodia", "foto_tarde"), 21):
                         stream = _rend_foto_stream(payload.get(foto_key))
                         if stream:
                             try:
@@ -5461,11 +5461,11 @@ with tab_rend:
                                 ws.cell(ri, foto_idx, "Foto no disponible")
                         else:
                             ws.cell(ri, foto_idx, "Sin foto")
-                widths = [6, 18, 10, 13, 24, 18, 16, 16, 12, 12, 10, 18, 14, 18, 12, 12, 12, 13, 14, 13, 30, 19, 19, 19]
+                widths = [6, 18, 10, 13, 24, 18, 28, 16, 12, 10, 18, 14, 18, 12, 12, 12, 13, 14, 13, 30, 19, 19, 19]
                 for i, width in enumerate(widths, 1):
                     ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = width
                 ws.freeze_panes = "A5"
-                ws.auto_filter.ref = f"A4:X{max(4, ws.max_row)}"
+                ws.auto_filter.ref = f"A4:W{max(4, ws.max_row)}"
                 ws.sheet_view.showGridLines = False
                 ws.page_setup.orientation = "landscape"
                 ws.page_setup.paperSize = ws.PAPERSIZE_A3
@@ -5475,6 +5475,56 @@ with tab_rend:
                 out = io.BytesIO()
                 wb.save(out)
                 return out.getvalue()
+
+            _rend_excel_profesional_original = _rend_excel_profesional
+            def _rend_excel_profesional(registros):
+                # Libro general con una hoja por edificio; cada registro mantiene su edificio visible.
+                registros = list(registros or [])
+                if not registros:
+                    return _rend_excel_profesional_original(registros)
+                # Generar un libro único con pestañas individuales por edificio.
+                wb = openpyxl.Workbook()
+                wb.remove(wb.active)
+                azul, gris = "17365D", "F3F6F9"
+                borde = Border(*([Side(style="thin", color="CBD5E1")] * 4))
+                headers = ["N°", "Edificio", "Piso", "Fecha", "Trabajador", "Cargo", "Rubro", "Horas trabajadas (HH)", "Avance", "Unidad", "Rend. real (HH/Unid)", "Rend. teórico", "Estado", "Hora inicio", "Hora fin", "Hora muerta", "Avance mañana", "Avance mediodía", "Avance tarde", "Comentarios", "Foto mañana", "Foto mediodía", "Foto tarde"]
+                grupos = {}
+                for reg in registros:
+                    pay = _rend_payload_export(reg)
+                    edificio = str(pay.get("edificio") or reg.get("Edificio") or reg.get("edificio") or "Sin Edificio Asignado").strip() or "Sin Edificio Asignado"
+                    grupos.setdefault(edificio, []).append((reg, pay, edificio))
+                for edificio, items in sorted(grupos.items()):
+                    nombre = re.sub(r'[\\/*?:\[\]]', '_', edificio)[:31] or "Edificio"
+                    base, n = nombre, 2
+                    while nombre in wb.sheetnames:
+                        suf = f"_{n}"; nombre = base[:31-len(suf)] + suf; n += 1
+                    ws = wb.create_sheet(nombre)
+                    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+                    c = ws.cell(1,1, f"ALPHA BUILDERS | RENDIMIENTOS — {edificio}")
+                    c.font = Font(name="Aptos Display", size=15, bold=True, color="FFFFFF"); c.fill = PatternFill("solid", fgColor=azul); c.alignment = Alignment(horizontal="center")
+                    ws.row_dimensions[1].height = 30
+                    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(headers))
+                    ws.cell(2,1, f"Generado: {get_local_datetime_ecuador().strftime('%d/%m/%Y %H:%M')} | Registros: {len(items)}").font = Font(italic=True, color="475569")
+                    for ci,h in enumerate(headers,1):
+                        c=ws.cell(4,ci,h); c.font=Font(bold=True,color="FFFFFF",size=9); c.fill=PatternFill("solid",fgColor=azul); c.alignment=Alignment(horizontal="center",vertical="center",wrap_text=True); c.border=borde
+                    for ri,(reg,pay,edif) in enumerate(items,5):
+                        vals=[ri-4,edif,reg.get("Piso",""),reg.get("Fecha",""),reg.get("Trabajador",""),reg.get("Cargo_Obrero",""),reg.get("Rubro",""),reg.get("Horas Trabajadas (HH)",0),reg.get("Avance",0),reg.get("Unidad",""),reg.get("Rend. Real (HH/Unid)",0),reg.get("Rend. Teórico",0),reg.get("Estado",""),pay.get("hora_inicio",""),pay.get("hora_fin",""),pay.get("hora_muerta",""),pay.get("avance_manana",0),pay.get("avance_mediodia",0),pay.get("avance_tarde",0),pay.get("comentarios",""),"","",""]
+                        for ci,val in enumerate(vals,1):
+                            c=ws.cell(ri,ci,val); c.border=borde; c.alignment=Alignment(vertical="center",wrap_text=True)
+                            if ri%2==0: c.fill=PatternFill("solid",fgColor=gris)
+                        ws.row_dimensions[ri].height=80
+                        for ci,key in enumerate(("foto_manana","foto_mediodia","foto_tarde"),21):
+                            stream=_rend_foto_stream(pay.get(key))
+                            if stream:
+                                try:
+                                    img=OpenpyxlImage(stream); img.width,img.height=90,60; img.anchor=f"{openpyxl.utils.get_column_letter(ci)}{ri}"; ws.add_image(img)
+                                except Exception: ws.cell(ri,ci,"Foto no disponible")
+                            else: ws.cell(ri,ci,"Sin foto")
+                    widths=[6,20,10,13,24,18,30,16,12,10,18,14,18,12,12,12,13,14,13,30,19,19,19]
+                    for i,w in enumerate(widths,1): ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width=w
+                    ws.freeze_panes="A5"; ws.auto_filter.ref=f"A4:W{max(4,ws.max_row)}"; ws.sheet_view.showGridLines=False
+                    ws.page_setup.orientation="landscape"; ws.page_setup.paperSize=ws.PAPERSIZE_A3; ws.page_setup.fitToWidth=1; ws.page_setup.fitToHeight=0; ws.sheet_properties.pageSetUpPr.fitToPage=True
+                out=io.BytesIO(); wb.save(out); return out.getvalue()
 
             def _rend_pdf_profesional(registros):
                 from reportlab.platypus import Image as RLImage
@@ -5507,8 +5557,8 @@ with tab_rend:
                     story.append(Paragraph(f"Edificio: {escape(building)}", styles["RendSection"]))
                     for reg in items:
                         payload = _rend_payload_export(reg)
-                        info = [[Paragraph("Fecha", styles["RendHead"]), Paragraph("Piso", styles["RendHead"]), Paragraph("Trabajador", styles["RendHead"]), Paragraph("Cargo", styles["RendHead"]), Paragraph("Rubro", styles["RendHead"]), Paragraph("HH", styles["RendHead"]), Paragraph("Avance", styles["RendHead"]), Paragraph("Esperado", styles["RendHead"]), Paragraph("Rend. real", styles["RendHead"]), Paragraph("Estado", styles["RendHead"])], [Paragraph(escape(str(reg.get("Fecha", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Piso", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Trabajador", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Cargo_Obrero", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Rubro", ""))), styles["RendCell"]), f"{float(reg.get('Horas Trabajadas (HH)') or 0):.2f}", f"{float(reg.get('Avance') or 0):.2f}", f"{float(reg.get('Esperado') or 0):.2f}", f"{float(reg.get('Rend. Real (HH/Unid)') or 0):.3f}", Paragraph(escape(str(reg.get("Estado", ""))), styles["RendCell"])]]
-                        tbl = Table(info, colWidths=[20*mm, 15*mm, 35*mm, 25*mm, 23*mm, 12*mm, 15*mm, 15*mm, 18*mm, 23*mm], repeatRows=1)
+                        info = [[Paragraph("Fecha", styles["RendHead"]), Paragraph("Piso", styles["RendHead"]), Paragraph("Trabajador", styles["RendHead"]), Paragraph("Cargo", styles["RendHead"]), Paragraph("Rubro", styles["RendHead"]), Paragraph("HH", styles["RendHead"]), Paragraph("Avance", styles["RendHead"]), Paragraph("Unidad", styles["RendHead"]), Paragraph("Rend. real", styles["RendHead"]), Paragraph("Estado", styles["RendHead"])], [Paragraph(escape(str(reg.get("Fecha", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Piso", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Trabajador", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Cargo_Obrero", ""))), styles["RendCell"]), Paragraph(escape(str(reg.get("Rubro", ""))), styles["RendCell"]), f"{float(reg.get('Horas Trabajadas (HH)') or 0):.2f}", f"{float(reg.get('Avance') or 0):.2f}", Paragraph(escape(str(reg.get("Unidad", ""))), styles["RendCell"]), f"{float(reg.get('Rend. Real (HH/Unid)') or 0):.3f}", Paragraph(escape(str(reg.get("Estado", ""))), styles["RendCell"])]]
+                        tbl = Table(info, colWidths=[22*mm, 16*mm, 34*mm, 25*mm, 34*mm, 13*mm, 16*mm, 13*mm, 20*mm, 24*mm], repeatRows=1)
                         tbl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#17365D")),("GRID",(0,0),(-1,-1),0.35,colors.HexColor("#CBD5E1")),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#F8FAFC")]),("LEFTPADDING",(0,0),(-1,-1),3),("RIGHTPADDING",(0,0),(-1,-1),3),("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4)]))
                         story.append(tbl)
                         detail = f"<b>Jornada:</b> {escape(str(payload.get('hora_inicio','—')))} a {escape(str(payload.get('hora_fin','—')))} &nbsp; <b>Hora muerta:</b> {escape(str(payload.get('hora_muerta','—')))} &nbsp; <b>Avances:</b> mañana {float(payload.get('avance_manana') or 0):.2f}, mediodía {float(payload.get('avance_mediodia') or 0):.2f}, tarde {float(payload.get('avance_tarde') or 0):.2f}"
@@ -5538,13 +5588,21 @@ with tab_rend:
                 doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
                 return out.getvalue()
 
+            modo_export = st.radio("Tipo de exportación", ["Informe general (todos los edificios)", "Informe de un edificio específico"], horizontal=True, key="rend_modo_export_p6")
+            registros_exportar = df_r_export.to_dict("records")
+            edificio_export_sel = None
+            if modo_export == "Informe de un edificio específico":
+                opciones_edificios_export = sorted(df_r_export["Edificio"].dropna().astype(str).unique().tolist())
+                edificio_export_sel = st.selectbox("Selecciona el edificio para exportar", opciones_edificios_export, key="rend_edificio_export_p6")
+                registros_exportar = [r for r in registros_exportar if str(r.get("Edificio") or r.get("edificio") or _rend_payload_export(r).get("edificio") or "Sin Edificio Asignado") == edificio_export_sel]
+
             col_pdf, col_xlsx = st.columns(2)
             fecha_export = get_local_datetime_ecuador().strftime('%Y%m%d_%H%M')
             with col_pdf:
                 st.download_button(
                     label="📄 Descargar informe en PDF (con fotos)",
-                    data=_rend_pdf_profesional(df_r_export.to_dict("records")),
-                    file_name=f"Informe_Rendimientos_{fecha_export}.pdf",
+                    data=_rend_pdf_profesional(registros_exportar),
+                    file_name=f"Informe_Rendimientos_{re.sub(r'[^A-Za-z0-9_-]+', '_', edificio_export_sel) if edificio_export_sel else 'General'}_{fecha_export}.pdf",
                     mime="application/pdf",
                     key="dl_pdf_rend_tab_p5",
                     use_container_width=True,
@@ -5552,14 +5610,13 @@ with tab_rend:
             with col_xlsx:
                 st.download_button(
                     label="📊 Descargar Excel profesional (con fotos)",
-                    data=_rend_excel_profesional(df_r_export.to_dict("records")),
-                    file_name=f"Informe_Rendimientos_{fecha_export}.xlsx",
+                    data=_rend_excel_profesional(registros_exportar),
+                    file_name=f"Informe_Rendimientos_{re.sub(r'[^A-Za-z0-9_-]+', '_', edificio_export_sel) if edificio_export_sel else 'General'}_{fecha_export}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     key="dl_xlsx_rend_tab_p5",
                     use_container_width=True,
                 )
-            vista_cols = [c for c in ["Edificio", "Piso", "Fecha", "Trabajador", "Cargo_Obrero", "Rubro", "Horas Trabajadas (HH)", "Avance", "Esperado", "Unidad", "Rend. Real (HH/Unid)", "Rend. Teórico", "Estado"] if c in df_r_export.columns]
-            st.dataframe(df_r_export[vista_cols], use_container_width=True, hide_index=True)
+            
         else:
             st.info("Aún no existen registros de rendimiento en tu cuenta.")
 
