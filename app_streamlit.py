@@ -45,7 +45,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.10-v12-escritorio"
+APP_VERSION = "2026.10.10-v12.1-clima-auto"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -3329,42 +3329,60 @@ def home_weather_description(code):
 
 
 def home_widget_weather(repo):
-    city=home_load(repo,'city','Quito')
-    if city not in HOME_CITIES:city='Quito'
-    chosen=st.selectbox('Ciudad',list(HOME_CITIES),index=list(HOME_CITIES).index(city),
-                        key='home_weather_city')
-    if chosen!=city and st.button('Guardar ciudad favorita',key='home_save_weather_city'):
-        try:home_save(repo,'city',chosen);rerun_home()
-        except Exception as e:notice_error(e)
-    requested = st.session_state.get('home_weather_requested_city') == chosen
-    if not requested:
-        st.caption('Consulta el clima cuando lo necesites; así el inicio abre sin esperar por servicios externos.')
-        if st.button('🌤️ Consultar clima actual', key='home_weather_fetch',use_container_width=True):
-            st.session_state['home_weather_requested_city'] = chosen
-            rerun_home()
-        return
-    if st.button('↻ Actualizar clima', key='home_weather_refresh',use_container_width=True):
-        home_weather_data.clear()
+    """Clima automático al abrir Inicio; cacheado 15 minutos por ciudad.
+
+    Cambiar de ciudad muestra inmediatamente el nuevo pronóstico. El guardado
+    de la ciudad es individual; ninguna consulta de clima escribe en Supabase.
+    """
+    city = home_load(repo, 'city', 'Quito')
+    if city not in HOME_CITIES:
+        city = 'Quito'
+
+    chosen = st.selectbox(
+        'Ciudad', list(HOME_CITIES),
+        index=list(HOME_CITIES).index(city),
+        key='home_weather_city',
+    )
+    if chosen != city:
+        # Una única escritura cuando se elige otra ciudad; no hace falta botón.
+        try:
+            home_save(repo, 'city', chosen)
+        except Exception as exc:
+            notice_error(exc)
+
+    # Se ejecuta directamente al renderizar el widget. La caché evita
+    # solicitudes repetidas en cada rerun del formulario o cambio de pestaña.
     try:
-        data=home_weather_data(chosen)
-        current=data['current'];daily=data.get('daily') or {}
-        temperature=current.get('temperature_2m')
-        if temperature is None:raise ValueError('Sin temperatura disponible.')
-        st.markdown('<div class="ab-home-weather"><div class="ab-weather-big">'
-             + html_escape(f'{float(temperature):.1f} °C')+'</div><div>'
-             +html_escape(home_weather_description(current.get('weather_code')))
-             +'</div></div>',unsafe_allow_html=True)
-        a,b=st.columns(2)
-        a.metric('Sensación',str(current.get('apparent_temperature','—'))+' °C')
-        b.metric('Humedad',str(current.get('relative_humidity_2m','—'))+' %')
-        if daily.get('temperature_2m_max') and daily.get('temperature_2m_min'):
-            st.caption('Máx. '+str(daily['temperature_2m_max'][0])+' °C · Mín. '
-                       +str(daily['temperature_2m_min'][0])+' °C · Viento '
-                       +str(current.get('wind_speed_10m','—'))+' km/h')
-        st.caption('Fuente: Open-Meteo · datos externos actualizados cada 15 minutos')
+        with st.spinner('Consultando el clima…', show_time=False):
+            data = home_weather_data(chosen)
+        current = data['current']
+        daily = data.get('daily') or {}
+        temperature = current.get('temperature_2m')
+        if temperature is None:
+            raise ValueError('Sin temperatura disponible.')
+
+        st.markdown(
+            '<div class="ab-home-weather"><div class="ab-weather-big">'
+            + html_escape(f'{float(temperature):.1f} °C') + '</div><div>'
+            + html_escape(home_weather_description(current.get('weather_code')))
+            + '</div></div>',
+            unsafe_allow_html=True,
+        )
+        a, b = st.columns(2)
+        a.metric('Sensación', str(current.get('apparent_temperature', '—')) + ' °C')
+        b.metric('Humedad', str(current.get('relative_humidity_2m', '—')) + ' %')
+        maxima = daily.get('temperature_2m_max')
+        minima = daily.get('temperature_2m_min')
+        if maxima and minima:
+            st.caption(
+                'Máx. ' + str(maxima[0]) + ' °C · Mín. '
+                + str(minima[0]) + ' °C · Viento '
+                + str(current.get('wind_speed_10m', '—')) + ' km/h'
+            )
+        st.caption('Fuente: Open-Meteo · datos almacenados en caché hasta 15 minutos')
     except Exception:
-        st.warning('El clima no está disponible en este momento. Las demás herramientas funcionan normalmente.')
-        st.caption('Conéctate a internet para obtener datos meteorológicos actualizados.')
+        st.warning('No se pudo cargar el clima en este momento. Inténtalo más tarde.')
+        st.caption('El resto de herramientas continúa funcionando con normalidad.')
 
 
 def home_safe_calculate(expression):
