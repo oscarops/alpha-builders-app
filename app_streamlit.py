@@ -609,6 +609,76 @@ APP_CSS_V17 = """
 </style>
 """
 
+
+APP_CSS_V18 = """
+<style>
+/* Contraste reforzado para cualquier bloque azul u oscuro */
+.stApp [data-testid="stMainBlockContainer"] .banner-item-header,
+.stApp [data-testid="stMainBlockContainer"] .banner-item-header *,
+.stApp [data-testid="stMainBlockContainer"] .smart-dashboard-container,
+.stApp [data-testid="stMainBlockContainer"] .smart-dashboard-container *,
+.stApp [data-testid="stMainBlockContainer"] .ab-hero,
+.stApp [data-testid="stMainBlockContainer"] .ab-hero *,
+.stApp [data-testid="stMainBlockContainer"] .ab-home-weather,
+.stApp [data-testid="stMainBlockContainer"] .ab-home-weather *,
+.stApp [data-testid="stMainBlockContainer"] .widget-glass-card,
+.stApp [data-testid="stMainBlockContainer"] .widget-glass-card *,
+.stApp [data-testid="stMainBlockContainer"] .milestone-item,
+.stApp [data-testid="stMainBlockContainer"] .milestone-item *,
+.stApp [data-testid="stSidebar"] .sidebar-profile-box,
+.stApp [data-testid="stSidebar"] .sidebar-profile-box *,
+.stApp [data-testid="stSidebar"] .smart-dashboard-container,
+.stApp [data-testid="stSidebar"] .smart-dashboard-container * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
+/* Subtextos claros sobre superficies azules */
+.stApp [data-testid="stMainBlockContainer"] .smart-user-sub,
+.stApp [data-testid="stMainBlockContainer"] .w-card-title,
+.stApp [data-testid="stMainBlockContainer"] .ab-hero-desc,
+.stApp [data-testid="stMainBlockContainer"] .ab-overview-label,
+.stApp [data-testid="stMainBlockContainer"] .ab-overview-sub,
+.stApp [data-testid="stMainBlockContainer"] .ab-hero-date,
+.stApp [data-testid="stMainBlockContainer"] .ab-hero-tags span,
+.stApp [data-testid="stMainBlockContainer"] .milestone-name,
+.stApp [data-testid="stMainBlockContainer"] .edificio-tag-badge,
+.stApp [data-testid="stMainBlockContainer"] .smart-pill {
+  color:#e8f1ff !important;
+  -webkit-text-fill-color:#e8f1ff !important;
+}
+
+/* El título de actividad sobre azul debe verse siempre */
+.stApp [data-testid="stMainBlockContainer"] .banner-item-header span,
+.stApp [data-testid="stMainBlockContainer"] .banner-item-header strong,
+.stApp [data-testid="stMainBlockContainer"] .banner-item-header p {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  font-weight:800 !important;
+}
+
+/* Botones oscuros/azules: texto siempre visible */
+.stApp [data-testid="stMainBlockContainer"] .stButton button,
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stFormSubmitButton"] button {
+  color:inherit;
+}
+.stApp [data-testid="stMainBlockContainer"] .stButton button p,
+.stApp [data-testid="stMainBlockContainer"] .stButton button span,
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stFormSubmitButton"] button p,
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stFormSubmitButton"] button span {
+  opacity:1 !important;
+}
+
+/* Expanders con header oscuro */
+.stApp [data-testid="stExpander"] summary,
+.stApp [data-testid="stExpander"] summary * {
+  opacity:1 !important;
+}
+</style>
+"""
+
 def page_heading(eyebrow, title, subtitle):
     """Encabezado uniforme, evita mezclar títulos grandes y controles."""
     st.markdown(
@@ -6247,6 +6317,7 @@ def main():
     st.markdown(APP_CSS_V10,unsafe_allow_html=True)
     st.markdown(APP_CSS_V14,unsafe_allow_html=True)
     st.markdown(APP_CSS_V17,unsafe_allow_html=True)
+    st.markdown(APP_CSS_V18,unsafe_allow_html=True)
     try:
         actual_theme=st.context.theme.type
     except (AttributeError,RuntimeError,KeyError):
