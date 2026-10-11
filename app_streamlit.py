@@ -47,7 +47,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.10-v16-nomina"
+APP_VERSION = "2026.10.10-v17-nomina"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -584,6 +584,29 @@ APP_CSS_V14 = """
 </style>
 """
 
+
+APP_CSS_V17 = """
+<style>
+/* Tarjetas y navegación accesibles en claro y oscuro */
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stSegmentedControl"] {
+  border-radius:12px!important; overflow-x:auto; max-width:100%;
+}
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stSegmentedControl"] label {
+  color:var(--ab-ink)!important; font-weight:700!important;
+}
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stButton"] button {
+  white-space:normal!important; overflow-wrap:anywhere!important; min-height:2.9rem!important;
+  text-align:left!important; transition:background .15s ease, border-color .15s ease;
+}
+.stApp [data-testid="stMainBlockContainer"] button[kind="secondary"]:hover {
+  background:var(--ab-surface-soft-2)!important; border-color:var(--ab-primary)!important;
+}
+.ab-v17-page{text-align:center;padding:.7rem;color:var(--ab-muted)!important;font-size:.82rem;font-weight:800}
+.ab-v17-help {background:var(--ab-surface-soft)!important;border:1px solid var(--ab-outline);
+ border-radius:12px;padding:11px 15px;margin:5px 0 12px;color:var(--ab-ink)!important}
+@media (max-width:760px){.stApp [data-testid="stMainBlockContainer"] [data-testid="stButton"] button {font-size:.77rem!important}}
+</style>
+"""
 
 def page_heading(eyebrow, title, subtitle):
     """Encabezado uniforme, evita mezclar títulos grandes y controles."""
@@ -1636,39 +1659,112 @@ def full_name(user):
 
 
 def official_data(record=None):
-    """Valores iniciales editables: no se presuponen nombres reales ni trabajos realizados."""
+    """Formulario idéntico en conceptos a Ejemplo.xlsx; edición sin datos ficticios.
+
+    Fecha, residente y actividades se ingresan expresamente. Los datos
+    permanentes se recuperan únicamente de un libro previo del MISMO edificio.
+    """
     record=record or {}
-    payload=obj(record.get("datos"),{})
-    if not isinstance(payload,dict):
-        payload={"_legacy_items":payload}
-    # Los valores propuestos son puntos de partida, NO certificaciones.
+    payload=obj(record.get('datos'),{})
+    if not isinstance(payload,dict):payload={'_legacy_items':payload}
     suggested={
-        "Superintendente":"POR CONFIRMAR", "Fiscalizador":"POR CONFIRMAR",
-        "Ubicacion":record.get("frente") or "POR CONFIRMAR",
-        "Barrio":"POR CONFIRMAR", "Ciudad":"Quito", "Hoja":"1",
-        "Nomina_Conteo":{label:0 for label in OFICIOS_NOMINA_FORMATO},
-        "Rotativo_Conteo":{label:0 for label in RUROS_ROTATIVOS_FORMATO},
-        "Clima_Condicion":record.get("clima") or "SOL",
-        "Clima_Obs":"", "Maquinaria_Conteo":{label:0 for label in MAQUINARIAS_FORMATO},
-        "Seguridad_Check":{label:False for label in (
-            "Casco","Chalecos","Guantes","Gafas","Mascarilla","Auditivo",
-            "Conos","Cintas","Rótulos","Vallas","Extintor","Botiquin",
-            "Polvo","Ruido","Liquidos","Cerramiento","Limpieza")},
-        "Novedades":"",
+        'Superintendente':'', 'Fiscalizador':'', 'Ubicacion':record.get('frente') or '',
+        'Barrio':'', 'Ciudad':'Quito', 'Hoja':'1',
+        'Nomina_Conteo':{label:0 for label in OFICIOS_NOMINA_FORMATO},
+        'Rotativo_Conteo':{label:0 for label in RUROS_ROTATIVOS_FORMATO},
+        'Clima_Condicion':record.get('clima') or 'SOL',
+        'Clima_Obs':'', 'Maquinaria_Conteo':{label:0 for label in MAQUINARIAS_FORMATO},
+        'Seguridad_Check':{label:False for label in (
+            'Casco','Chalecos','Guantes','Gafas','Mascarilla','Auditivo',
+            'Conos','Cintas','Rótulos','Vallas','Extintor','Botiquin',
+            'Polvo','Ruido','Liquidos','Cerramiento','Limpieza')},
+        'Novedades':'',
     }
     values={**suggested,**payload}
-    for block in ("Nomina_Conteo","Rotativo_Conteo","Maquinaria_Conteo","Seguridad_Check"):
-        if not isinstance(values.get(block),dict): values[block]={}
+    for block in ('Nomina_Conteo','Rotativo_Conteo','Maquinaria_Conteo','Seguridad_Check'):
+        if not isinstance(values.get(block),dict):values[block]={}
         values[block]={**suggested[block],**values[block]}
     return {
-        "fecha":str(record.get("fecha") or now_ec().date()),
-        "proyecto":record.get("proyecto") or "",
-        "residente":record.get("residente") or "", # Nunca autocompletar.
-        "hora_inicio":str(record.get("hora_inicio") or "07:00")[:5],
-        "hora_fin":str(record.get("hora_fin") or "16:00")[:5],
-        "datos":values,
-        "actividades":{row_id():copy.deepcopy(v) for v in payload.get("Actividades_Ejecutadas",[]) if isinstance(v,dict)},
+        'fecha':str(record.get('fecha') or ''),
+        'proyecto':record.get('proyecto') or '',
+        'residente':record.get('residente') or '',
+        'hora_inicio':str(record.get('hora_inicio') or '07:00')[:5],
+        'hora_fin':str(record.get('hora_fin') or '16:00')[:5],
+        'datos':values,
+        'actividades':{row_id():copy.deepcopy(v) for v in payload.get('Actividades_Ejecutadas',[]) if isinstance(v,dict)},
     }
+
+
+def v17_previous_book_values(repo, project):
+    """Sugiere campos persistentes del último libro oficial del edificio.
+
+    No rellena fecha, residente ni actividades, que deben confirmarse diariamente.
+    """
+    if not project or project not in repo.projects:return {}
+    # Solo registros del edificio autorizado, propios o de compañeros de obra.
+    rows=(database().table('inspecciones').select('fecha,datos')
+        .eq('proyecto',project)
+        .order('fecha',desc=True).limit(25).execute().data or [])
+    for row in rows:
+        if is_master_book(row):continue
+        payload=obj(row.get('datos'),{})
+        if isinstance(payload,dict):
+            suggested={k:payload.get(k) for k in (
+                'Ubicacion','Barrio','Ciudad','Superintendente','Fiscalizador','Hoja')
+                if payload.get(k) and str(payload.get(k)).upper()!='POR CONFIRMAR'}
+            # El próximo número de hoja se sugiere, pero sigue editable.
+            if str(suggested.get('Hoja') or '').strip().isdigit():
+                suggested['Hoja']=str(int(str(suggested['Hoja']).strip())+1)
+            return suggested
+    return {}
+
+
+def v17_linked_master_activities(repo, project, date_iso):
+    """Actividades de Maestro Mayor solo con vínculo activo, edificio y día exactos."""
+    if not project or not date_iso:return []
+    if project not in repo.projects:return []
+    links=[x for x in validated_maestro_links(repo) if x['edificio']==project]
+    result=[]
+    for link in links:
+        rows=cached_rows('inspecciones',(
+            ('usuario_email',link['maestro']),('proyecto',project),('fecha',date_iso)),
+            columns='id,fecha,proyecto,residente,datos',order='id')
+        for row in rows:
+            if not is_master_book(row):continue
+            raw=obj(row.get('datos'),{})
+            activities=raw if isinstance(raw,list) else raw.get('Actividades_Maestro',[])
+            if not isinstance(activities,list):continue
+            for item in activities:
+                if not isinstance(item,dict):continue
+                title=str(item.get('Actividad') or item.get('actividad') or '').strip()
+                if not title:continue
+                people=item.get('Personal_A_Cargo') or item.get('personal_a_cargo') or []
+                if not isinstance(people,list):people=[str(people)]
+                result.append({
+                    'Maestro':link['nombre'] or 'Maestro Mayor',
+                    'Actividad':title,
+                    'Avance':str(item.get('Cantidad') or item.get('cantidad') or ''),
+                    'Piso':str(item.get('Piso') or item.get('piso') or ''),
+                    'Departamento':str(item.get('Departamento') or item.get('departamento') or ''),
+                    'Personal':', '.join(map(str,people)),
+                    'Observaciones':str(item.get('Observaciones') or ''),
+                })
+    return result
+
+
+def v17_import_master_activity(editor, activity):
+    """Copia asistida: el residente mantiene el control de la cantidad final."""
+    d=editor.data
+    quantity=str(activity.get('Avance') or '')
+    m=re.search(r'(?<!\w)(\d+(?:[.,]\d+)?)\s*(m2|m²|m3|m³|ml|m|u|unidades?)\b',quantity,re.I)
+    numeric=float(m.group(1).replace(',','.')) if m else 0.0
+    unit=m.group(2) if m else ''
+    place=' · '.join(x for x in [activity.get('Piso'),activity.get('Departamento')] if x)
+    d.setdefault('actividades',{})[row_id()]={
+        'Descripcion':activity.get('Actividad',''),'Area':place,'Unidad':unit,'Cantidad':numeric,
+    }
+    editor.persist()
+    rerun_selected_module()
 
 
 OFICIO_ALIASES={"ALBAÑILES":["ALBAÑIL","ALBANIL"],"AYUDANTE":["AYUDANTE","PEON","PEÓN"],"SOLDADOR":["SOLDADOR"],"OPERADOR":["OPERADOR","MAQUINISTA"],"FIERRERO":["FIERRERO","HIERRERO"],"PINTORES":["PINTOR","PINTORES"],"MAESTRO SUPERVISOR":["MAESTRO","SUPERVISOR","CAPATAZ"],"CARPINTERO":["CARPINTERO"],"GUACHIMAN":["GUACHIMAN","GUARDIA"],"GYPSEROS":["GYPS","TABLAYESO"],"ELECTRICOS":["ELECTRIC","ELÉCTRIC"],"PLOMEROS":["PLOMER","HIDROSANITARI","FONTANER"],"ALUMINIO Y VIDRIO":["ALUMIN","VIDRI"]}
@@ -1685,89 +1781,210 @@ def workforce_counts(workers):
 
 
 def render_official(editor,repo):
-    d=editor.data; original=d.get("_original")
-    editor.field("date_input","fecha","Fecha",str(now_ec().date()),disabled=bool(original))
-    editor.field("selectbox","proyecto","Proyecto","",options=[""]+project_options(repo.user,d.get("proyecto")))
-    matching=[r for r in repo.own("checklists") if str(r.get("fecha"))[:10]==str(d["fecha"])[:10] and r.get("edificio")==d["proyecto"]]
-    if matching:
-        chosen=st.selectbox("Checklist del mismo edificio y fecha",matching,format_func=lambda r:f"{display_date(r['fecha'])} · {r.get('hora_inicio') or 'Sin hora'}",key=editor.prefix+"checklist")
-        if st.button("Importar actividades y horario del checklist",key=editor.prefix+"importchk"):
-            raw=obj(chosen.get("datos"),{})
-            items=raw.get("Supervision_Trabajos",[]) if isinstance(raw,dict) else []
-            for item in items:
-                if item.get("Actividad"):
-                    d["actividades"][row_id()]={"Descripcion":item["Actividad"],"Area":"","Unidad":"","Cantidad":0.0}
-            d["hora_inicio"]=str(chosen.get("hora_inicio") or "07:00")[:5];d["hora_fin"]=str(chosen.get("hora_fin") or "16:00")[:5]
-            d["datos"]["Checklist_Origen_ID"]=str(chosen["id"])
-            for field in ("hora_inicio","hora_fin"):
-                st.session_state.pop(editor.prefix+field,None)
-            editor.persist();rerun_selected_module()
-    else: st.caption("No hay checklist del mismo edificio y fecha para importar.")
-    st.subheader("Datos generales")
-    st.caption("📝 Valores sugeridos: verifica ubicación, responsables y cantidades antes de guardar. "
-               "Los campos Residente y Actividades están vacíos deliberadamente.")
-    for key,label in [("Ubicacion","Ubicación"),("Barrio","Barrio"),("Ciudad","Ciudad"),("Superintendente","Superintendente"),("Fiscalizador","Fiscalizador"),("Hoja","Hoja N°")]:
-        editor.field("text_input",("datos",key),label,"")
-    editor.field("text_input","residente","Residente de obra (ingresa el nombre)","")
-    a,b=st.columns(2)
-    with a:editor.field("text_input","hora_inicio","Entrada","07:00")
-    with b:editor.field("text_input","hora_fin","Salida","16:00")
-    st.subheader("Personal nómina y subcontratos")
-    workers=combined_workers(repo,d.get("proyecto")) if d.get("proyecto") else []
-    # Preseleccionar cantidades reales solo una vez en cada nuevo edificio,
-    # sin tocar libros históricos ni sobrescribir cantidades modificadas.
-    if not original and d.get("proyecto") and d.get("_nomina_sugerida_proyecto")!=d["proyecto"]:
-        previous=d.get("_nomina_sugerida_conteos")
-        current=d["datos"]["Nomina_Conteo"]
-        # Evitar sobreescribir ajustes manuales al cambiar de edificio.
-        if previous is None or current==previous:
-            counts,unclassified=workforce_counts(workers)
-            d["datos"]["Nomina_Conteo"].update(counts)
-            d["_nomina_sugerida_conteos"]=dict(counts)
-            d["_unclassified"]=unclassified
-            for key in list(st.session_state):
-                if key.startswith(editor.prefix+"datos:Nomina_Conteo:"):
-                    del st.session_state[key]
-        d["_nomina_sugerida_proyecto"]=d["proyecto"]
-        editor.persist()
-    if st.button("Actualizar conteo desde mi nómina del edificio",key=editor.prefix+"nomina"):
-        counts,unclassified=workforce_counts(workers);d["datos"]["Nomina_Conteo"]=counts
-        for key in list(st.session_state):
-            if key.startswith(editor.prefix+"datos:Nomina_Conteo:"):del st.session_state[key]
-        d["_unclassified"]=unclassified;editor.persist();rerun_selected_module()
-    if d.get("_unclassified"):st.warning("Revise manualmente los oficios de: "+", ".join(d["_unclassified"]))
-    a,b=st.columns(2)
-    for col,field,labels in [(a,"Nomina_Conteo",OFICIOS_NOMINA_FORMATO),(b,"Rotativo_Conteo",RUROS_ROTATIVOS_FORMATO)]:
-        with col:
-            for label in labels:editor.field("number_input",("datos",field,label),label,0,min_value=0,step=1)
-    st.subheader("Clima y maquinaria")
-    editor.field("selectbox",("datos","Clima_Condicion"),"Clima observado","SOL",options=["SOL","NUBLADO","LLUVIA TENUE","LLUVIA INTENSA","GRANIZO"])
-    editor.field("text_input",("datos","Clima_Obs"),"Observaciones del clima","")
-    for label in MAQUINARIAS_FORMATO:editor.field("number_input",("datos","Maquinaria_Conteo",label),label,0,min_value=0,step=1)
-    st.subheader("Seguridad, señalización y mitigación")
-    labels=["Casco","Chalecos","Guantes","Gafas","Mascarilla","Auditivo","Conos","Cintas","Rótulos","Vallas","Extintor","Botiquin","Polvo","Ruido","Liquidos","Cerramiento","Limpieza"]
-    cols=st.columns(3)
-    for i,label in enumerate(labels):
-        with cols[i%3]:editor.field("checkbox",("datos","Seguridad_Check",label),label,False)
-    st.subheader("Actividades realizadas")
-    default={"Descripcion":"","Area":"","Unidad":"","Cantidad":0.0}
-    for rid,item in list(editor.rows("actividades",default).items()):
-        with st.container(border=True):
-            for key,label in [("Descripcion","Descripción"),("Area","Área de trabajo"),("Unidad","Unidad")]:editor.field("text_input",("actividades",rid,key),label,"")
-            editor.field("number_input",("actividades",rid,"Cantidad"),"Cantidad",0.0,min_value=0.0,step=0.01)
-            editor.remove("actividades",rid)
-    editor.add("actividades",default,"Agregar actividad")
-    editor.field("text_area",("datos","Novedades"),"Novedades y recomendaciones","")
-    if st.button("Guardar libro oficial",type="primary",key=editor.prefix+"save"):
+    """Formulario por pasos y referencia lateral por día del Maestro vinculado."""
+    d=editor.data
+    original=d.get('_original')
+    st.markdown('#### 🗓️ Libro de obra — datos de la jornada')
+    top1,top2=st.columns([1.35,1])
+    with top1:
+        editor.field('selectbox','proyecto','Edificio de obra','',
+                     options=['']+project_options(repo.user,d.get('proyecto')))
+    with top2:
+        # A diferencia de la versión anterior, la fecha NUEVA no se rellena
+        # automáticamente. El usuario la selecciona y se guarda como borrador.
+        date_key=editor.prefix+'v17_date'
+        def _date_changed():
+            current=st.session_state.get(date_key)
+            d['fecha']=current.isoformat() if current else ''
+            editor.persist()
+        initial=None
+        if d.get('fecha'):
+            try:initial=dt.date.fromisoformat(str(d['fecha'])[:10])
+            except ValueError:initial=None
+        st.date_input('Fecha del libro (selecciona una)',value=initial,
+            key=date_key,on_change=_date_changed,disabled=bool(original))
+    if not original and d.get('proyecto') and d.get('_v17_suggested_project')!=d['proyecto']:
         try:
-            time_calculation(d["hora_inicio"],d["hora_fin"])
-            activities=[v for v in d["actividades"].values() if str(v.get("Descripcion","")).strip()]
-            if not str(d.get("residente") or "").strip():
-                raise ValueError("Ingrese el nombre del Residente de obra antes de guardar.")
-            if not activities:raise ValueError("Ingrese al menos una actividad.")
-            payload=copy.deepcopy(d["datos"]);payload["Actividades_Ejecutadas"]=activities;payload["Tipo_Registro"]="Libro_Obra_Oficial"
-            day=dt.date.fromisoformat(d["fecha"])
-            save_editor(editor,repo,"inspecciones",{"fecha":d["fecha"],"dia":["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"][day.weekday()],"proyecto":d["proyecto"],"residente":d["residente"],"frente":payload["Ubicacion"],"clima":payload["Clima_Condicion"],"hora_inicio":d["hora_inicio"],"hora_fin":d["hora_fin"],"datos":payload})
+            prior=v17_previous_book_values(repo,d['proyecto'])
+            for key,value in prior.items():
+                if not str(d['datos'].get(key) or '').strip() or str(d['datos'].get(key)).upper()=='POR CONFIRMAR':
+                    d['datos'][key]=value
+                    st.session_state.pop(editor.prefix+'datos:'+key,None)
+            d['_v17_suggested_project']=d['proyecto']
+            editor.persist()
+        except Exception as exc:
+            LOG.warning('No se pudieron consultar las sugerencias del libro: %s',type(exc).__name__)
+    phases=['📋 Datos generales','👷 Nómina y subcontratos','🌤️ Clima y seguridad',
+            '🏗️ Actividades y Maestro','✅ Revisar y guardar']
+    phase=st.segmented_control('Paso de llenado',phases,default=phases[0],
+        key=editor.prefix+'v17_phase',label_visibility='collapsed') or phases[0]
+    st.caption('Los campos se guardan como borrador. Solo aparece el paso que selecciones.')
+
+    if phase==phases[0]:
+        st.markdown('#### 📋 Encabezado de Ejemplo.xlsx')
+        st.info('Edificio y fecha se toman de la parte superior. El residente se escribe manualmente. '
+                'La ubicación y los responsables se sugieren a partir del último libro de ESTE edificio, si existe.')
+        fields=[('Ubicacion','Ubicación de la obra'),('Barrio','Barrio'),('Ciudad','Ciudad'),
+                ('Superintendente','Superintendente'),('Fiscalizador','Fiscalizador'),('Hoja','Número de hoja')]
+        a,b=st.columns(2)
+        for i,(k,label) in enumerate(fields):
+            with (a if i%2==0 else b):
+                editor.field('text_input',('datos',k),label,'')
+        editor.field('text_input','residente','Residente de obra (obligatorio y manual)','')
+        a,b=st.columns(2)
+        with a:editor.field('text_input','hora_inicio','Entrada','07:00')
+        with b:editor.field('text_input','hora_fin','Salida','16:00')
+        if d.get('fecha') and d.get('proyecto'):
+            matching=[r for r in repo.own('checklists')
+                if str(r.get('fecha'))[:10]==str(d['fecha'])[:10] and r.get('edificio')==d['proyecto']]
+            if matching:
+                with st.expander('📥 Incorporar horarios del checklist',expanded=False):
+                    chosen=st.selectbox('Checklist de la misma fecha',matching,
+                        format_func=lambda r:f"{display_date(r['fecha'])} · {r.get('hora_inicio') or 'Sin hora'}",
+                        key=editor.prefix+'checklist')
+                    if st.button('Usar horarios y actividades de supervisión',key=editor.prefix+'importchk'):
+                        raw=obj(chosen.get('datos'),{})
+                        for item in raw.get('Supervision_Trabajos',[]) if isinstance(raw,dict) else []:
+                            if item.get('Actividad'):
+                                d.setdefault('actividades',{})[row_id()]={
+                                    'Descripcion':item['Actividad'],'Area':'','Unidad':'','Cantidad':0.0}
+                        d['hora_inicio']=str(chosen.get('hora_inicio') or '07:00')[:5]
+                        d['hora_fin']=str(chosen.get('hora_fin') or '16:00')[:5]
+                        d['datos']['Checklist_Origen_ID']=str(chosen['id'])
+                        for field in ('hora_inicio','hora_fin'):
+                            st.session_state.pop(editor.prefix+field,None)
+                        editor.persist();rerun_selected_module()
+        return
+
+    if phase==phases[1]:
+        st.markdown('#### 👷 Nómina fija y contratistas')
+        workers=combined_workers(repo,d.get('proyecto')) if d.get('proyecto') else []
+        if not original and d.get('proyecto') and d.get('_nomina_sugerida_proyecto')!=d['proyecto']:
+            previous=d.get('_nomina_sugerida_conteos')
+            current=d['datos']['Nomina_Conteo']
+            if previous is None or current==previous:
+                counts,unclassified=workforce_counts(workers)
+                d['datos']['Nomina_Conteo'].update(counts)
+                d['_nomina_sugerida_conteos']=dict(counts)
+                d['_unclassified']=unclassified
+                for name in list(st.session_state):
+                    if name.startswith(editor.prefix+'datos:Nomina_Conteo:'):
+                        del st.session_state[name]
+            d['_nomina_sugerida_proyecto']=d['proyecto']
+            editor.persist()
+        if st.button('Actualizar conteo desde mi nómina',key=editor.prefix+'nomina'):
+            counts,unclassified=workforce_counts(workers)
+            d['datos']['Nomina_Conteo']=counts
+            d['_unclassified']=unclassified
+            for name in list(st.session_state):
+                if name.startswith(editor.prefix+'datos:Nomina_Conteo:'):del st.session_state[name]
+            editor.persist();rerun_selected_module()
+        if d.get('_unclassified'):
+            st.warning('Revisa manualmente los oficios de: '+', '.join(d['_unclassified']))
+        a,b=st.columns(2)
+        for col,field,labels in [(a,'Nomina_Conteo',OFICIOS_NOMINA_FORMATO),
+                                  (b,'Rotativo_Conteo',RUROS_ROTATIVOS_FORMATO)]:
+            with col:
+                st.markdown('**Personal de nómina**' if field=='Nomina_Conteo' else '**Subcontratos y personal rotativo**')
+                for label in labels:
+                    editor.field('number_input',('datos',field,label),label,0,min_value=0,step=1)
+        return
+
+    if phase==phases[2]:
+        st.markdown('#### 🌤️ Clima y maquinaria (formato oficial)')
+        editor.field('selectbox',('datos','Clima_Condicion'),'Clima observado','SOL',
+            options=['SOL','NUBLADO','LLUVIA TENUE','LLUVIA INTENSA','GRANIZO'])
+        editor.field('text_input',('datos','Clima_Obs'),'Observaciones del clima','')
+        with st.expander('🏗️ Equipos y maquinaria',expanded=False):
+            a,b=st.columns(2)
+            for i,label in enumerate(MAQUINARIAS_FORMATO):
+                with (a if i%2==0 else b):
+                    editor.field('number_input',('datos','Maquinaria_Conteo',label),label,0,min_value=0,step=1)
+        with st.expander('🦺 Seguridad, señalización y mitigación',expanded=False):
+            labels=['Casco','Chalecos','Guantes','Gafas','Mascarilla','Auditivo','Conos','Cintas',
+                'Rótulos','Vallas','Extintor','Botiquin','Polvo','Ruido','Liquidos','Cerramiento','Limpieza']
+            cols=st.columns(3)
+            for i,label in enumerate(labels):
+                with cols[i%3]:editor.field('checkbox',('datos','Seguridad_Check',label),label,False)
+        return
+
+    if phase==phases[3]:
+        left,right=st.columns([1.25,1],gap='medium')
+        with left:
+            st.markdown('#### 🏗️ Actividades del Libro Oficial')
+            st.caption('Los rubros escritos aquí serán los que aparezcan en Ejemplo.xlsx.')
+            default={'Descripcion':'','Area':'','Unidad':'','Cantidad':0.0}
+            for idx,(rid,item) in enumerate(list(editor.rows('actividades',default).items()),1):
+                with st.container(border=True):
+                    st.markdown(f'**Rubro {idx}**')
+                    editor.field('text_input',('actividades',rid,'Descripcion'),'Descripción del rubro','')
+                    a,b=st.columns(2)
+                    with a:editor.field('text_input',('actividades',rid,'Area'),'Área o ubicación','')
+                    with b:editor.field('text_input',('actividades',rid,'Unidad'),'Unidad','')
+                    editor.field('number_input',('actividades',rid,'Cantidad'),'Cantidad ejecutada',
+                                 0.0,min_value=0.0,step=0.01)
+                    editor.remove('actividades',rid)
+            editor.add('actividades',default,'Agregar rubro')
+        with right:
+            st.markdown('#### 👷 Actividades del Maestro Mayor')
+            st.caption('Referencia del día y edificio seleccionados. No se mezcla automáticamente con el libro oficial.')
+            if not d.get('proyecto') or not d.get('fecha'):
+                st.info('Selecciona primero el edificio y la fecha, arriba.')
+            else:
+                try:
+                    master_acts=v17_linked_master_activities(repo,d['proyecto'],d['fecha'])
+                    if not master_acts:
+                        st.info('No hay un libro del Maestro Mayor vinculado para '+display_date(d['fecha'])+'.')
+                    else:
+                        st.caption(f'{len(master_acts)} actividades registradas ese día.')
+                        choice=st.selectbox('Actividad del Maestro Mayor',[None]+list(range(len(master_acts))),
+                            format_func=lambda i:'Selecciona una actividad…' if i is None else
+                                f"{master_acts[i]['Actividad']} · {master_acts[i]['Avance']}",
+                            key=editor.prefix+'v17_master_activity')
+                        if choice is not None:
+                            item=master_acts[choice]
+                            with st.container(border=True):
+                                st.markdown('**'+html_escape(item['Actividad'])+'**')
+                                st.caption('Maestro: '+item['Maestro'])
+                                st.write('**Avance:**',item['Avance'] or 'No especificado')
+                                st.write('**Piso:**',item['Piso'] or '—')
+                                st.write('**Departamento:**',item['Departamento'] or '—')
+                                st.write('**Personal:**',item['Personal'] or '—')
+                                if item.get('Observaciones'):st.info(item['Observaciones'])
+                            if st.button('➕ Copiar como rubro editable',key=editor.prefix+'v17_copy_master'):
+                                v17_import_master_activity(editor,item)
+                except Exception as exc:notice_error(exc)
+        return
+
+    # Final step only: no giant form or repeated sections visible on every click.
+    st.markdown('#### ✅ Revisar y guardar libro de obra')
+    summary=[('Edificio',d.get('proyecto') or 'Pendiente'),
+             ('Fecha',display_date(d['fecha']) if d.get('fecha') else 'Pendiente'),
+             ('Residente',d.get('residente') or 'Pendiente'),
+             ('Número de hoja',d['datos'].get('Hoja') or '—'),
+             ('Rubros registrados',sum(bool(str(x.get('Descripcion') or '').strip()) for x in d.get('actividades',{}).values()))]
+    st.dataframe(pd.DataFrame(summary,columns=['Campo','Valor']),hide_index=True,use_container_width=True)
+    editor.field('text_area',('datos','Novedades'),'Novedades y recomendaciones','')
+    if st.button('💾 Guardar libro oficial',type='primary',key=editor.prefix+'save',use_container_width=True):
+        try:
+            if not d.get('proyecto'):raise ValueError('Selecciona el edificio antes de guardar.')
+            if not d.get('fecha'):raise ValueError('Selecciona la fecha del libro antes de guardar.')
+            day=dt.date.fromisoformat(str(d['fecha'])[:10])
+            time_calculation(d['hora_inicio'],d['hora_fin'])
+            if not str(d.get('residente') or '').strip():
+                raise ValueError('Escribe el residente de obra antes de guardar.')
+            activities=[x for x in d.get('actividades',{}).values() if str(x.get('Descripcion') or '').strip()]
+            if not activities:raise ValueError('Registra al menos un rubro en Actividades y Maestro.')
+            payload=copy.deepcopy(d['datos'])
+            payload['Actividades_Ejecutadas']=copy.deepcopy(activities)
+            payload['Tipo_Registro']='Libro_Obra_Oficial'
+            save_editor(editor,repo,'inspecciones',{
+                'fecha':d['fecha'],
+                'dia':['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'][day.weekday()],
+                'proyecto':d['proyecto'],'residente':d['residente'],'frente':payload.get('Ubicacion') or '',
+                'clima':payload.get('Clima_Condicion') or '',
+                'hora_inicio':d['hora_inicio'],'hora_fin':d['hora_fin'],'datos':payload,
+            })
         except Exception as exc:notice_error(exc)
 
 
@@ -3296,69 +3513,82 @@ def show_record(table,record):
 
 
 def history(table, records, repo, key, editable=True):
-    """Navegación en tres pasos: filtros → seleccionar ficha → única sección visible."""
-    st.markdown('#### 📚 Consultar registros')
+    """Historial intuitivo: filtros optativos, tarjetas con un clic y una sola ficha."""
+    st.markdown('#### 📁 Mis registros')
     if not records:
-        st.info('Todavía no hay registros guardados en este módulo.');return
-    counts=defaultdict(int)
-    for rec in records:
-        counts[record_building(table,rec)]+=1
-    buildings=sorted(counts,key=lambda x:x.casefold())
-    a,b=st.columns([1.25,1])
-    with a:
-        building=st.selectbox('🏢 Edificio',['Todos los edificios']+buildings,
-           format_func=lambda x:x if x=='Todos los edificios' else f'{x} · {counts[x]}',key='hist_build_'+key)
-    filtered=[r for r in records if building=='Todos los edificios' or record_building(table,r)==building]
-    months=sorted({record_date(table,r)[:7] for r in filtered if len(record_date(table,r))>=7},reverse=True)
-    with b:
-        month=st.selectbox('🗓️ Mes',['Todos los meses']+months,
-            format_func=lambda x:display_month(x) if x!='Todos los meses' else x,key='hist_month_'+key)
-    if month!='Todos los meses':filtered=[r for r in filtered if record_date(table,r).startswith(month)]
+        st.info('Aún no hay registros. Abre Registrar para crear el primero.');return
+    building_choices=sorted({record_building(table,r) for r in records},key=str.casefold)
+    building='Todos los edificios';month='Todos los meses';search=''
+    with st.expander('🔎 Filtrar por edificio, fecha o palabra',expanded=False):
+        a,b=st.columns(2)
+        with a:building=st.selectbox('Edificio',['Todos los edificios']+building_choices,key='v17_hist_build_'+key)
+        filtered_month_source=[r for r in records if building=='Todos los edificios' or record_building(table,r)==building]
+        months=sorted({record_date(table,r)[:7] for r in filtered_month_source if len(record_date(table,r))>=7},reverse=True)
+        with b:month=st.selectbox('Mes',['Todos los meses']+months,
+            format_func=lambda x:display_month(x) if x!='Todos los meses' else x,key='v17_hist_month_'+key)
+        search=st.text_input('Buscar en actividades o responsables',placeholder='Escribe para buscar…',key='v17_hist_search_'+key)
+    filtered=[]
+    for r in records:
+        if building!='Todos los edificios' and record_building(table,r)!=building:continue
+        if month!='Todos los meses' and not record_date(table,r).startswith(month):continue
+        if search.strip() and search.strip().casefold() not in ' '.join((record_building(table,r),record_title(table,r),record_note(table,r))).casefold():continue
+        filtered.append(r)
     if table=='incidencias':
-        status=st.segmented_control('Estado',['Todas','Abierta','Cerrada'],default='Todas',key='hist_status_'+key)
+        status=st.segmented_control('Estado',['Todas','Abierta','Cerrada'],default='Todas',key='v17_hist_status_'+key)
         if status and status!='Todas':filtered=[r for r in filtered if r.get('estado')==status]
-    search=st.text_input('🔎 Buscar',placeholder='Actividad, responsable, rubro…',key='hist_search_'+key)
-    if search.strip():
-        needle=search.strip().casefold()
-        filtered=[r for r in filtered if needle in ' '.join((record_building(table,r),record_title(table,r),record_note(table,r))).casefold()]
-    st.caption(f'{len(filtered)} registros encontrados. Selecciona uno para ver su ficha.')
-    with st.expander('📤 Exportar resultados filtrados',expanded=False):
+    st.caption(f'{len(filtered)} registros · Elige una tarjeta para consultar sus datos.')
+    with st.expander('📤 Exportar registros',expanded=False):
         export_controls(table,filtered,'hist_export_'+key)
-    if not filtered:
-        st.info('No hay resultados con estos filtros.');return
+    if not filtered:st.info('No encontramos registros con esos filtros.');return
     ordered=sorted(filtered,key=lambda r:(record_date(table,r),str(r.get('id') or '')),reverse=True)
-    records_per_page=15
-    visible=page_slice(ordered,'hist_block_'+key,records_per_page)
-    options=[None]+visible
-    selected=st.selectbox('Selecciona un registro',options,
-        format_func=lambda r:'Elige una ficha para ver su contenido' if r is None else
-          f"{display_date(record_date(table,r))} · {record_title(table,r)} · {record_building(table,r)}",
-        key='v11_selected_record_'+key)
+    page_size=10
+    total_pages=(len(ordered)+page_size-1)//page_size
+    page_key='v17_hist_page_'+key
+    page=min(max(int(st.session_state.get(page_key,0)),0),total_pages-1)
+    st.session_state[page_key]=page
+    if total_pages>1:
+        c1,c2,c3=st.columns([1,1.3,1])
+        with c1:st.button('← Anteriores',key='v17_hist_prev_'+key,disabled=page==0,
+                          on_click=set_module_view,args=(page_key,max(0,page-1)),use_container_width=True)
+        with c2:st.markdown(f'<div class="ab-v17-page">Página {page+1} de {total_pages}</div>',unsafe_allow_html=True)
+        with c3:st.button('Siguientes →',key='v17_hist_next_'+key,disabled=page>=total_pages-1,
+                          on_click=set_module_view,args=(page_key,min(total_pages-1,page+1)),use_container_width=True)
+    visible=ordered[page*page_size:(page+1)*page_size]
+    selected_key='v17_hist_selected_'+key
+    selected_id=str(st.session_state.get(selected_key) or '')
+    st.markdown('**Selecciona una ficha**')
+    for r in visible:
+        identity=str(r.get('id'))
+        label=f"📅 {display_date(record_date(table,r))}  ·  🏢 {record_building(table,r)}  ·  {record_title(table,r)}"
+        selected=selected_id==identity
+        st.button(('✓ ' if selected else '▸ ')+label,key='v17_hist_card_'+key+'_'+identity,
+            on_click=set_module_view,args=(selected_key,identity),use_container_width=True,
+            type='primary' if selected else 'secondary')
+    selected=next((r for r in visible if str(r.get('id'))==selected_id),None)
     if selected is None:
-        st.info('Elige un registro del selector para visualizar sus detalles y acciones.');return
+        st.caption('Selecciona una de las fichas anteriores. Sus datos se abrirán aquí, sin desplegar las demás.');return
+    st.markdown('---')
     with st.container(border=True):
         st.markdown('#### '+html_escape(record_title(table,selected)))
         st.caption(display_date(record_date(table,selected),True)+' · '+record_building(table,selected))
         show_record(table,selected)
         if table=='inspecciones' and not is_master_book(selected):
-            with st.expander('📄 Descargar libro en el formato oficial de Excel',expanded=False):
+            with st.expander('📄 Descargar Excel con formato oficial',expanded=False):
                 signature=f"{selected.get('id')}:{selected.get('revision')}"
                 slot='official_excel_'+key
-                if st.button('Preparar Excel con el formato de Ejemplo.xlsx',key='prep_'+slot):
-                    try:
-                        st.session_state[slot]={'signature':signature,'data':official_book_excel_from_template(selected)}
+                if st.button('Preparar archivo Excel',key='prep_'+slot):
+                    try:st.session_state[slot]={'signature':signature,'data':official_book_excel_from_template(selected)}
                     except Exception as exc:notice_error(exc)
                 stored=st.session_state.get(slot)
                 if stored and stored.get('signature')==signature:
                     friendly=re.sub(r'[^A-Za-z0-9_-]+','_',str(selected.get('proyecto') or 'Edificio'))
-                    st.download_button('⬇️ Descargar libro de obra oficial',stored['data'],
+                    st.download_button('⬇️ Descargar libro de obra',stored['data'],
                         file_name=f"Libro_Obra_{friendly}_{str(selected.get('fecha'))[:10]}.xlsx",
-                        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                        key='dl_'+slot)
+                        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',key='dl_'+slot)
         if editable:
             ca,cb=st.columns(2)
             identity=key+':'+str(selected['id'])
-            if ca.button('✏️ Editar esta ficha',key='edit_'+identity,use_container_width=True):
+            if ca.button('✏️ Editar registro',key='edit_'+identity,use_container_width=True):
                 try:
                     repo._access(table,selected,write=True)
                     if table=='checklists':module='Checklist';factory=checklist_data
@@ -3369,11 +3599,10 @@ def history(table, records, repo, key, editable=True):
                         module='Libro maestro' if master else 'Libro oficial'
                         factory=maestro_data if master else official_data
                     begin_editor(module,repo.user,factory(selected),selected)
-                    st.session_state['_next_route']=module
-                    st.rerun()
+                    st.session_state['_next_route']=module;st.rerun()
                 except Exception as exc:notice_error(exc)
-            with cb.popover('🗑️ Eliminar ficha',use_container_width=True):
-                st.warning('Esta acción es irreversible.')
+            with cb.popover('🗑️ Eliminar registro',use_container_width=True):
+                st.warning('Esta acción no se puede deshacer.')
                 if st.button('Confirmar eliminación',key='delete_'+identity):
                     try:repo.delete(table,selected);st.session_state['_flash']='Registro eliminado.';st.rerun()
                     except Exception as exc:notice_error(exc)
@@ -3457,29 +3686,36 @@ def import_workers(repo,records,operation_id):
 
 
 def replacement_source_workers(repo, colleague_email, building):
-    """Leer fuentes ACTUALES y comprobar autorización y pertenencia al edificio."""
-    colleague_email = norm_email(colleague_email)
-    if colleague_email == repo.email:
-        raise ValueError('Selecciona una cuenta diferente de la tuya.')
-    user = fetch_user(colleague_email)
+    """Obtener la nómina VISIBLE real del compañero, SQL + legado sin duplicados.
+
+    Conserva permisos por edificio y NO lee datos de otros proyectos.
+    """
+    colleague_email=norm_email(colleague_email)
+    if colleague_email==repo.email:
+        raise ValueError('Elige una cuenta distinta de la tuya.')
+    user=fetch_user(colleague_email)
     if not user or not active_user(user):
-        raise PermissionError('La cuenta de origen no está activa.')
+        raise PermissionError('La cuenta del compañero no está activa.')
     if building not in repo.projects or building not in (user.get('edificios') or []):
-        raise PermissionError('El edificio debe estar asignado a ambas cuentas.')
-    rows = all_rows('trabajadores', filters={'usuario_email': colleague_email, 'edificio': building},
-                    columns='nombre,cargo,edificio', order='id')
+        raise PermissionError('El edificio debe estar autorizado para ambos usuarios.')
+    source=all_rows('trabajadores',filters={'usuario_email':colleague_email,'edificio':building},
+                    columns='nombre,cargo,edificio',order='id')
+    # El legado se guardó antes de migrar trabajadores a SQL. La pantalla de su
+    # propietario utiliza ambas fuentes: la sustitución debe hacer lo mismo.
+    owner=type('_NominaOwner',(),{'email':colleague_email})()
+    source += [w for w in legacy_worker_backup(owner)
+               if str(w.get('edificio') or '').casefold()==building.casefold()]
     cleaned=[];seen=set()
-    for row in rows:
-        name = str(row.get('nombre') or '').strip().upper()
-        cargo = str(row.get('cargo') or '').strip().upper()
+    for row in source:
+        name=str(row.get('nombre') or '').strip().upper()
+        cargo=str(row.get('cargo') or '').strip().upper()
         if not name or not cargo:
-            raise ValueError('La nómina del compañero contiene nombres o cargos vacíos. Deben corregirse antes de reemplazar.')
-        if (name, building) in seen:
-            continue
-        seen.add((name, building))
-        cleaned.append({'nombre': name, 'cargo': cargo, 'edificio': building})
-    if len(cleaned)>1000:
-        raise ValueError('No se permiten más de 1.000 trabajadores por reemplazo.')
+            raise ValueError('Hay nombres o cargos incompletos en la nómina de origen. Corrígelos antes de reemplazar.')
+        ident=(name,building.casefold())
+        if ident in seen:continue
+        seen.add(ident)
+        cleaned.append({'nombre':name,'cargo':cargo,'edificio':building})
+    if len(cleaned)>1000:raise ValueError('No se permite copiar más de 1.000 trabajadores de una vez.')
     return cleaned
 
 
@@ -3555,6 +3791,54 @@ def replace_collaborative_workers(repo, colleague_email, building, expected_snap
         raise ConflictError('Los trabajadores SQL ya se actualizaron, pero el respaldo anterior todavía puede aparecer en pantalla. Revisa la nómina y solicita ayuda antes de reintentar.') from exc
     invalidate()
     return prior_visible_count,len(source)
+
+
+def update_legacy_worker(repo, worker, *, new_name=None, new_role=None, new_building=None, delete=False):
+    """Editar o retirar personal histórico visible, sin tocar la nómina de otros usuarios.
+
+    Se archiva la versión previa antes de modificar el respaldo que alimenta la
+    pantalla. No se elimina el respaldo de seguridad.
+    """
+    repo._verify_write_session()
+    email=repo.email
+    old_name=str(worker.get('nombre') or '').strip().upper()
+    old_building=str(worker.get('edificio') or '').strip()
+    if old_building not in repo.projects:
+        raise PermissionError('No tienes permiso para modificar este edificio.')
+    key='user_trabajadores_'+email
+    entries=obj(get_config(key),[])
+    if not isinstance(entries,list):raise ValueError('El archivo histórico de nómina tiene un formato no compatible.')
+    match=[]
+    for i,item in enumerate(entries):
+        if not isinstance(item,dict):continue
+        if str(item.get('usuario_email') or email).strip().lower()!=email:continue
+        if str(item.get('nombre') or '').strip().upper()==old_name and str(item.get('edificio') or '').strip().casefold()==old_building.casefold():
+            match.append(i)
+    if len(match)!=1:
+        raise ConflictError('El trabajador histórico cambió o está duplicado; actualiza y revisa antes de editar.')
+    if not delete:
+        new_name=str(new_name or '').strip().upper()
+        new_role=str(new_role or '').strip().upper()
+        new_building=str(new_building or '').strip()
+        if not new_name or not new_role:raise ValueError('El nombre y el cargo son obligatorios.')
+        if new_building not in repo.projects:raise PermissionError('El edificio de destino no está autorizado.')
+        for w in combined_workers(repo):
+            if str(w.get('nombre') or '').strip().upper()==new_name and str(w.get('edificio') or '').strip().casefold()==new_building.casefold():
+                if (new_name,new_building.casefold())!=(old_name,old_building.casefold()):
+                    raise ValueError('Ya existe un trabajador con ese nombre en el edificio seleccionado.')
+    # Respaldo de seguridad exclusivo para el propietario, ANTES del cambio.
+    safe_email=hashlib.sha256(email.encode('utf-8')).hexdigest()[:16]
+    archive='alpha_nomina_archivo_'+safe_email+'_'+now_ec().strftime('%Y%m%d_%H%M%S')+'_'+uuid.uuid4().hex[:8]
+    set_config(archive,json_text({'fecha':now_ec().isoformat(),'edificio':old_building,
+                                   'accion':'eliminar' if delete else 'editar','trabajadores':entries}))
+    updated=copy.deepcopy(entries)
+    if delete:
+        updated.pop(match[0])
+    else:
+        updated[match[0]].update({'nombre':new_name,'cargo':new_role,'edificio':new_building})
+    set_config(key,json_text(updated))
+    invalidate()
+    return True
 
 
 def personal_module(repo):
@@ -3662,8 +3946,9 @@ def personal_module(repo):
                             source=replacement_source_workers(repo,colleague['correo'],chosen_building)
                             previous=[w for w in combined_workers(repo,chosen_building)]
                             a,b=st.columns(2)
-                            a.metric('En tu nómina actual',len(previous))
-                            b.metric('En la nómina del compañero',len(source))
+                            a.metric('Tu nómina visible',len(previous))
+                            b.metric('Nómina disponible del compañero',len(source))
+                            st.caption('Se cuentan los trabajadores de la tabla actual y del respaldo histórico, sin duplicar nombres por edificio.')
                             if source:
                                 st.dataframe(pd.DataFrame(source).rename(columns={'nombre':'Nombre','cargo':'Cargo','edificio':'Edificio'}),
                                     hide_index=True,use_container_width=True)
@@ -3691,32 +3976,46 @@ def personal_module(repo):
                             notice_error(exc)
         return
     if area=='✏️ Gestionar':
-        if not current:st.info('No hay colaboradores sincronizados para editar. Tu lista completa sigue visible en Nómina.');return
-        st.markdown('#### Editar un trabajador')
-        st.caption('Selecciona a una persona. Los cambios solo se aplican al guardar.')
-        selected=st.selectbox('Trabajador',current,
-            format_func=lambda r:f"{r.get('nombre') or 'Sin nombre'} · {r.get('cargo') or 'Sin cargo'} · {r.get('edificio') or 'Sin edificio'}",
-            key='v8_worker_edit')
-        # Solo claves internas; no se presentan en pantalla.
-        identity=f"{selected['id']}:{selected['revision']}"
-        with st.form('edit_worker_'+identity):
-            name=st.text_input('Nombre',value=selected.get('nombre') or '')
+        if not shown:
+            st.info('No hay trabajadores para gestionar. Registra o importa personal primero.');return
+        st.markdown('#### ✏️ Administrar trabajadores')
+        st.caption('Puedes editar nombre, especialidad y edificio, o eliminar un trabajador después de confirmarlo.')
+        choices=sorted(shown,key=lambda x:(str(x.get('edificio') or ''),str(x.get('nombre') or '')))
+        selected=st.selectbox('Buscar trabajador para editar',[None]+choices,
+            format_func=lambda r:'Selecciona un trabajador…' if r is None else
+                f"{r.get('nombre')} · {r.get('cargo')} · {r.get('edificio')}",key='v17_worker_edit')
+        if selected is None:return
+        is_legacy=bool(selected.get('_legacy'))
+        st.caption('Registro de la nómina histórica' if is_legacy else 'Registro sincronizado en Supabase')
+        selected_signature=hashlib.sha256((repo.email+'|'+str(selected.get('nombre'))+'|'+str(selected.get('edificio'))+'|'+str(selected.get('id'))).encode()).hexdigest()[:12]
+        with st.form('v17_edit_worker_'+selected_signature):
+            name=st.text_input('Nombre completo',value=selected.get('nombre') or '')
             role=st.text_input('Cargo / especialidad',value=selected.get('cargo') or '')
             options=project_options(repo.user,selected.get('edificio'))
-            building=st.selectbox('Edificio asignado',options,index=options.index(selected['edificio']) if selected.get('edificio') in options else 0)
-            submit=st.form_submit_button('💾 Actualizar trabajador',type='primary')
+            building=st.selectbox('Edificio asignado',options,
+                index=options.index(selected['edificio']) if selected.get('edificio') in options else 0)
+            submit=st.form_submit_button('💾 Guardar cambios',type='primary',use_container_width=True)
         if submit:
             try:
                 if not name.strip() or not role.strip():raise ValueError('Nombre y cargo son obligatorios.')
-                repo.save('trabajadores',{'nombre':name.strip().upper(),'cargo':role.strip().upper(),'edificio':building},selected)
-                st.session_state['_flash']='Trabajador actualizado.';st.rerun()
+                if is_legacy:
+                    update_legacy_worker(repo,selected,new_name=name,new_role=role,new_building=building)
+                else:
+                    repo.save('trabajadores',{'nombre':name.strip().upper(),
+                        'cargo':role.strip().upper(),'edificio':building},selected)
+                st.session_state['_flash']='Cambios guardados correctamente.';st.rerun()
             except Exception as exc:notice_error(exc)
-        with st.popover('🗑️ Eliminar trabajador'):
-            st.warning('Eliminar es permanente. Los reportes históricos conservarán sus nombres.')
-            if st.button('Confirmar eliminación del trabajador',key='v8_worker_delete'):
-                try:repo.delete('trabajadores',selected);st.session_state['_flash']='Trabajador eliminado.';st.rerun()
+        with st.expander('🗑️ Eliminar este trabajador',expanded=False):
+            st.warning('Se quitará al trabajador de TU nómina. Los libros y reportes históricos no se modifican.')
+            confirm=st.checkbox('Confirmo que deseo eliminar a '+str(selected.get('nombre') or ''),key='v17_delete_ack_'+selected_signature)
+            if st.button('Eliminar trabajador de mi nómina',type='primary',
+                         key='v17_delete_worker_'+selected_signature,disabled=not confirm):
+                try:
+                    if is_legacy:update_legacy_worker(repo,selected,delete=True)
+                    else:repo.delete('trabajadores',selected)
+                    st.session_state.pop('v17_worker_edit',None)
+                    st.session_state['_flash']='Trabajador eliminado de tu nómina.';st.rerun()
                 except Exception as exc:notice_error(exc)
-
 
 
 
@@ -4267,8 +4566,26 @@ def password_change(repo,cookie):
 
 def admin_module(repo):
     if not repo.admin:raise PermissionError("Acceso reservado al administrador.")
-    st.header("Panel administrador")
-    section=st.selectbox("Administrar",["Vínculos Maestro Mayor","Registros","Usuarios y permisos","Solicitudes","PIN de acceso","Revisión de migración"],key="admin_section")
+    page_heading('Administración','Panel administrador','Selecciona una herramienta. Solo cargaremos la sección que abras.')
+    tools=[('🔗 Vincular Maestro Mayor','Conecta equipos por edificio','Vínculos Maestro Mayor'),
+           ('📚 Revisar registros','Consulta documentos por módulo','Registros'),
+           ('👥 Usuarios y permisos','Administra cargos y edificios','Usuarios y permisos'),
+           ('📨 Solicitudes','Aprueba o rechaza solicitudes','Solicitudes'),
+           ('🔒 PIN de acceso','Actualiza el código de registro','PIN de acceso'),
+           ('🧩 Migración','Revisa incompatibilidades pendientes','Revisión de migración')]
+    section=st.session_state.get('v17_admin_section')
+    st.markdown('**Herramientas administrativas**')
+    for start in (0,3):
+        cols=st.columns(3)
+        for col,(label,description,destination) in zip(cols,tools[start:start+3]):
+            with col:
+                st.button(label,key='v17_admin_button_'+destination,
+                    on_click=set_module_view,args=('v17_admin_section',destination),
+                    use_container_width=True,type='primary' if section==destination else 'secondary')
+                st.caption(description)
+    if not section:
+        st.info('Elige una de las seis herramientas superiores para empezar.');return
+    st.markdown('---')
     if section=="Vínculos Maestro Mayor":
         admin_maestro_links(repo)
         return
@@ -5267,6 +5584,7 @@ def main():
     st.markdown(APP_CSS,unsafe_allow_html=True)
     st.markdown(APP_CSS_V10,unsafe_allow_html=True)
     st.markdown(APP_CSS_V14,unsafe_allow_html=True)
+    st.markdown(APP_CSS_V17,unsafe_allow_html=True)
     try:
         actual_theme=st.context.theme.type
     except (AttributeError,RuntimeError,KeyError):
