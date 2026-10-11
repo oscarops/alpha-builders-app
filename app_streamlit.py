@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.11-v18.9-planilla-interactiva"
+APP_VERSION = "2026.10.11-v19-rubros-integrados"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -1938,6 +1938,65 @@ def full_name(user):
     return f"{user.get('nombres') or ''} {user.get('apellidos') or ''}".strip()
 
 
+# Ubicaciones sugeridas a partir del listado entregado por el usuario.
+# Modificables en cada libro; no se convierten en ubicaciones GPS.
+DIRECCIONES_EDIFICIOS = {
+    'TESLA': 'CALLE LUXEMBURGO Y CALLE HOLANDA',
+    'LAFUENTE': 'AV. REPÚBLICA DE EL SALVADOR Y CALLE MOSCÚ',
+    'IMAGINE': 'AV. GONZÁLEZ SUÁREZ Y CALLE MUROS',
+    'ASIMOV': 'CALLE CHECOSLOVAQUIA Y AV. 6 DE DICIEMBRE',
+    'RUBIK': 'CALLE AUSTRIA Y CALLE CHECOSLOVAQUIA',
+    'CASTLE ROCK': 'CALLE FINLANDIA Y CALLE SUECIA',
+    'MUSK': 'AV. GONZÁLEZ SUÁREZ Y CALLE MUROS',
+    'WOLF': 'AV. DE LOS SHYRIS Y AV. REPÚBLICA DE EL SALVADOR',
+    'DABLANC': 'CALLE SUIZA Y CALLE CHECOSLOVAQUIA',
+    'THOMAS EDISON': 'AV. DE LOS SHYRIS Y CALLE SUECIA',
+    'WESTINGHOUSE': 'CALLE LUXEMBURGO Y CALLE HOLANDA',
+    'SMART': 'CALLE MOSCÚ Y AV. REPÚBLICA DE EL SALVADOR',
+    'MAGNUS': 'AV. DE LOS SHYRIS Y AV. NACIONES UNIDAS',
+    'SPARTA': 'AV. DE LOS SHYRIS Y CALLE BÉLGICA',
+}
+
+VALORES_PREDETERMINADOS_LIBRO = {
+    'Barrio': 'BENALCAZAR',
+    'Ciudad': 'QUITO',
+    'Superintendente': 'ING. PABLO ESPINOSA',
+    'Fiscalizador': 'ING. DIEGO CHARVET',
+}
+
+
+def direccion_sugerida_edificio(edificio):
+    return DIRECCIONES_EDIFICIOS.get(str(edificio or '').strip().upper(), '')
+
+
+def autocompletar_datos_obra(datos, edificio, proyecto_anterior=None):
+    """Actualiza únicamente valores sugeridos. Respeta ediciones manuales.
+
+    También conserva la calle editada cuando el usuario cambia de edificio.
+    Devuelve las claves cambiadas para renovar únicamente esos widgets.
+    """
+    changed=[]
+    for key, default in VALORES_PREDETERMINADOS_LIBRO.items():
+        current=str(datos.get(key) or '').strip()
+        if not current or current.upper()=='POR CONFIRMAR':
+            datos[key]=default
+            changed.append(key)
+        elif key in ('Barrio','Ciudad') and current.casefold()==default.casefold() and current!=default:
+            datos[key]=default
+            changed.append(key)
+    target=direccion_sugerida_edificio(edificio)
+    old_auto=str(datos.get('_Ubicacion_Auto') or direccion_sugerida_edificio(proyecto_anterior) or '').strip()
+    current=str(datos.get('Ubicacion') or '').strip()
+    known_streets={street.casefold() for street in DIRECCIONES_EDIFICIOS.values()}
+    if target and (not current or current.upper()=='POR CONFIRMAR' or
+                   (old_auto and current.casefold()==old_auto.casefold()) or
+                   (proyecto_anterior is not None and current.casefold() in known_streets)):
+        if current!=target:
+            datos['Ubicacion']=target
+            changed.append('Ubicacion')
+    datos['_Ubicacion_Auto']=target
+    return changed
+
 def official_data(record=None):
     """Formulario idéntico en conceptos a Ejemplo.xlsx; edición sin datos ficticios.
 
@@ -1948,8 +2007,9 @@ def official_data(record=None):
     payload=obj(record.get('datos'),{})
     if not isinstance(payload,dict):payload={'_legacy_items':payload}
     suggested={
-        'Superintendente':'', 'Fiscalizador':'', 'Ubicacion':record.get('frente') or '',
-        'Barrio':'', 'Ciudad':'Quito', 'Hoja':'1',
+        'Superintendente':'ING. PABLO ESPINOSA', 'Fiscalizador':'ING. DIEGO CHARVET',
+        'Ubicacion':record.get('frente') or direccion_sugerida_edificio(record.get('proyecto')),
+        'Barrio':'BENALCAZAR', 'Ciudad':'QUITO', 'Hoja':'1',
         'Nomina_Conteo':{label:0 for label in OFICIOS_NOMINA_FORMATO},
         'Rotativo_Conteo':{label:0 for label in RUROS_ROTATIVOS_FORMATO},
         'Clima_Condicion':record.get('clima') or 'SOL',
@@ -1961,6 +2021,11 @@ def official_data(record=None):
         'Novedades':'',
     }
     values={**suggested,**payload}
+    for key, value in VALORES_PREDETERMINADOS_LIBRO.items():
+        if str(values.get(key) or '').strip().upper() in ('', 'POR CONFIRMAR'):
+            values[key]=value
+    if str(values.get('Ubicacion') or '').strip().upper() in ('', 'POR CONFIRMAR'):
+        values['Ubicacion']=direccion_sugerida_edificio(record.get('proyecto'))
     for block in ('Nomina_Conteo','Rotativo_Conteo','Maquinaria_Conteo','Seguridad_Check'):
         if not isinstance(values.get(block),dict):values[block]={}
         values[block]={**suggested[block],**values[block]}
@@ -2486,6 +2551,71 @@ def v18_catalog_activity_picker(editor):
 
 
 
+def v19_aplicar_rubro_seleccionado(editor, rid, codigo, session_key=None):
+    """Autorrelleno no destructivo de un rubro: conserva área y cantidad manuales."""
+    catalog=v18_catalog_record(codigo)
+    if not catalog:
+        return
+    current=editor.data.setdefault('actividades',{}).get(rid)
+    if not isinstance(current,dict):
+        return
+    for key in ('Capitulo','Codigo_Rubro','Descripcion','Unidad'):
+        current[key]=catalog[key]
+        # Los campos normales pueden haber estado montados en una ejecución previa.
+        st.session_state.pop(editor.prefix+'actividades:'+str(rid)+':'+key,None)
+    editor.persist()
+
+
+def v19_catalogo_en_rubro(editor, rid, item):
+    """Catálogo y escritura manual unidos en UNA ficha; seleccionar actualiza sin botón."""
+    chapters=['']+[v18_chapter_label(ch) for ch,_ in sorted(
+        catalogo_rubros_v18()['capitulos'],key=lambda pair:int(pair[0][4:]))]
+    c1,c2=st.columns([1.05,1.75])
+    with c1:
+        chapter=editor.field('selectbox',('actividades',rid,'Capitulo'),
+            'Capítulo', '', options=chapters)
+    # Si el usuario modifica el capítulo de un rubro ya codificado, no mantener
+    # una referencia incompatible a otro capítulo.
+    if item.get('Codigo_Rubro') and v18_chapter_code(chapter)!=v18_chapter_code(item['Codigo_Rubro']):
+        item['Codigo_Rubro']=''
+        editor.persist()
+    with c2:
+        query=st.text_input('Buscar rubro (nombre o código)',
+            placeholder='Busca en el capítulo o escribe una descripción…',
+            key=editor.prefix+'v19_query:'+str(rid))
+    if not chapter and len(query.strip())<2:
+        st.caption('Selecciona un capítulo o escribe al menos dos caracteres. '
+                   'También puedes llenar manualmente la descripción y unidad.')
+        return
+    matches=v18_catalog_matches(chapter,query,limit=125)
+    code=str(item.get('Codigo_Rubro') or '')
+    if code and not any(code==r[0] for r in matches):
+        record=v18_catalog_record(code)
+        if record and (not chapter or v18_chapter_code(chapter)==v18_chapter_code(code)):
+            matches=[(code,record['Descripcion'],record['Unidad'])]+matches
+    if not matches:
+        st.caption('Sin coincidencias. Puedes escribir el rubro manualmente debajo.')
+        return
+    lookup={ident:(description,unit) for ident,description,unit in matches}
+    ids=list(lookup)
+    key=editor.prefix+'v19_choose:'+str(rid)
+    st.selectbox('Rubro del catálogo (opcional)',ids,
+        index=ids.index(code) if code in ids else None,
+        placeholder='Seleccionar rubro del catálogo…',
+        format_func=lambda ident:f'{ident} · {lookup[ident][0]} ({lookup[ident][1]})',
+        key=key,
+        on_change=v19_aplicar_rubro_desde_estado,
+        args=(editor,rid,key))
+    if len(matches)>=125:
+        st.caption('Primeros 125 resultados. Escribe más palabras para encontrar tu rubro.')
+
+
+def v19_aplicar_rubro_desde_estado(editor, rid, key):
+    code=st.session_state.get(key)
+    if code:
+        v19_aplicar_rubro_seleccionado(editor,rid,code)
+
+
 def v17_previous_book_values(repo, project):
     """Sugiere campos persistentes del último libro oficial del edificio.
 
@@ -2601,10 +2731,23 @@ def render_official(editor,repo):
             except ValueError:initial=None
         st.date_input('Fecha del libro (selecciona una)',value=initial,
             key=date_key,on_change=_date_changed,disabled=bool(original))
+    # Valores fijos editables y ubicación sugerida por edificio. El cambio de
+    # edificio conserva una dirección personalizada, no sobrescribe lo escrito.
+    previous=d.get('_v19_last_project')
+    changed=autocompletar_datos_obra(d['datos'],d.get('proyecto'),previous)
+    for field in changed:
+        st.session_state.pop(editor.prefix+'datos:'+field,None)
+    project_changed=(previous!=d.get('proyecto'))
+    if project_changed:
+        d['_v19_last_project']=d.get('proyecto')
+    if changed or project_changed:
+        editor.persist()
     if not original and d.get('proyecto') and d.get('_v17_suggested_project')!=d['proyecto']:
         try:
             prior=v17_previous_book_values(repo,d['proyecto'])
             for key,value in prior.items():
+                if key in VALORES_PREDETERMINADOS_LIBRO or key=='Ubicacion':
+                    continue  # Respetar la dirección definida y los responsables sugeridos.
                 if not str(d['datos'].get(key) or '').strip() or str(d['datos'].get(key)).upper()=='POR CONFIRMAR':
                     d['datos'][key]=value
                     st.session_state.pop(editor.prefix+'datos:'+key,None)
@@ -2709,29 +2852,27 @@ def render_official(editor,repo):
     if phase==phases[3]:
         left=st.container()
         with left:
-            st.markdown('#### 🏗️ Actividades del Libro Oficial')
-            st.caption('El capítulo ocupará la primera columna del Excel; la descripción estará al lado.')
-            v18_catalog_activity_picker(editor)
-            st.markdown('#### ✍️ Rubros añadidos y actividades manuales')
+            st.markdown('#### 🏗️ Rubros añadidos y actividades manuales')
+            st.caption('Cada rubro se selecciona aquí mismo desde el catálogo, o se escribe manualmente. '
+                       'Al elegirlo se completan capítulo, descripción, código y unidad sin otro botón de agregar.')
             default={'Capitulo':'','Codigo_Rubro':'','Descripcion':'','Area':'','Unidad':'','Cantidad':0.0}
             for idx,(rid,item) in enumerate(list(editor.rows('actividades',default).items()),1):
                 with st.container(border=True):
                     st.markdown(f'**Rubro {idx}**')
-                    chapters=['']+[v18_chapter_label(ch) for ch,_ in sorted(catalogo_rubros_v18()['capitulos'],key=lambda pair:int(pair[0][4:]))]
-                    c1,c2=st.columns([1,1.8])
-                    with c1:
-                        editor.field('selectbox',('actividades',rid,'Capitulo'),'Capítulo','',options=chapters)
-                    with c2:
-                        editor.field('text_input',('actividades',rid,'Descripcion'),'Descripción del rubro','')
+                    v19_catalogo_en_rubro(editor,rid,item)
+                    a,b=st.columns([1.7,1])
+                    with a:
+                        editor.field('text_input',('actividades',rid,'Descripcion'),'Descripción del rubro (editable)','')
+                    with b:
+                        editor.field('text_input',('actividades',rid,'Unidad'),'Unidad (editable)','')
                     if item.get('Codigo_Rubro'):
-                        st.caption('Código del catálogo: '+str(item['Codigo_Rubro']))
-                    a,b=st.columns(2)
+                        st.caption('Código seleccionado: '+str(item['Codigo_Rubro']))
+                    a,b=st.columns([1.7,1])
                     with a:editor.field('text_input',('actividades',rid,'Area'),'Área o ubicación','')
-                    with b:editor.field('text_input',('actividades',rid,'Unidad'),'Unidad','')
-                    editor.field('number_input',('actividades',rid,'Cantidad'),'Cantidad ejecutada',
+                    with b:editor.field('number_input',('actividades',rid,'Cantidad'),'Cantidad ejecutada',
                                  0.0,min_value=0.0,step=0.01)
                     editor.remove('actividades',rid)
-            editor.add('actividades',default,'Agregar rubro')
+            editor.add('actividades',default,'Agregar otro rubro / actividad')
         with st.container(border=True):
             st.markdown('#### 👷 Planilla de avance del Maestro Mayor')
             st.caption('Referencia del día y edificio seleccionados. Se muestran las seis columnas de la planilla, más una miniatura cuando hay evidencia. No se copia nada automáticamente.')
@@ -2748,7 +2889,7 @@ def render_official(editor,repo):
                         try:day_view=dt.date.fromisoformat(date_raw).strftime('%d/%m/%Y')
                         except ValueError:day_view=date_raw
                         master_planilla_preview(linked_master_planilla_rows(master_acts),d['proyecto'],day_view,show_thumbs=True)
-                        a,b=st.columns([2.4,1])
+                        a,b=st.columns([2.4,1],vertical_alignment='bottom')
                         with a:
                             choice=st.selectbox('Actividad para copiar al libro oficial',[None]+list(range(len(master_acts))),
                                 format_func=lambda i:'Selecciona una actividad…' if i is None else
@@ -2781,6 +2922,10 @@ def render_official(editor,repo):
             activities=[x for x in d.get('actividades',{}).values() if str(x.get('Descripcion') or '').strip()]
             if not activities:raise ValueError('Registra al menos un rubro en Actividades y Maestro.')
             payload=copy.deepcopy(d['datos'])
+            for field in ('Ubicacion','Barrio','Ciudad','Superintendente','Fiscalizador'):
+                payload[field]=str(payload.get(field) or '').strip().upper()
+            # Esta marca es solamente una sugerencia de la interfaz, no un campo del Excel.
+            payload.pop('_Ubicacion_Auto',None)
             payload['Actividades_Ejecutadas']=copy.deepcopy(activities)
             payload['Tipo_Registro']='Libro_Obra_Oficial'
             save_editor(editor,repo,'inspecciones',{
