@@ -41,7 +41,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.10-v6-interfaz-restaurada"
+APP_VERSION = "2026.10.10-v7-rendimiento"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -213,6 +213,7 @@ def image_b64(upload):
         raise ValueError("No se pudo procesar la fotografía. Use JPG, PNG o WEBP válido.") from exc
 
 
+@st.cache_data(ttl=900, show_spinner=False, max_entries=64)
 def image_stream(encoded):
     if not encoded:
         return None
@@ -266,7 +267,8 @@ def all_rows(table, *, filters=None, in_filters=None, columns="*", order="id", c
         result = q.order(order).range(offset, offset + 499).execute()
         batch = result.data or []
         rows.extend(batch)
-        if not batch:
+        # Si llegaron menos de 500 filas, no ejecutar otra consulta vacía.
+        if len(batch) < 500:
             return rows
         offset += len(batch)
 
@@ -281,6 +283,7 @@ def invalidate():
     st.session_state.pop("_export_artifact", None)
 
 
+@st.cache_data(ttl=180, show_spinner=False, max_entries=16)
 def get_config(key):
     rows = database().table("app_config").select("value").eq("key", key).execute().data
     return rows[0]["value"] if rows else None
@@ -290,6 +293,7 @@ def set_config(key, value):
     result = database().table("app_config").upsert({"key": key, "value": str(value)}, on_conflict="key").execute()
     if not result.data:
         raise RuntimeError("No se confirmó la actualización de configuración.")
+    get_config.clear()
 
 
 def fetch_user(email, credentials=False):
@@ -370,7 +374,26 @@ class Repository:
             return
         raise PermissionError("No tiene permiso para este registro.")
 
+    def _verify_write_session(self):
+        """Leer permisos y sesión vigentes en cada escritura; no confiar en caché de UI."""
+        raw = st.session_state.get("_session_raw")
+        if not raw:
+            raise PermissionError("La sesión ha expirado. Vuelva a iniciar sesión.")
+        sessions = database().table("alpha_sessions").select("correo,expires_at").eq("token_hash", digest_token(raw)).execute().data or []
+        if len(sessions) != 1 or sessions[0].get("correo") != self.email:
+            raise PermissionError("Sesión revocada. Inicie sesión nuevamente.")
+        expiry = dt.datetime.fromisoformat(str(sessions[0]["expires_at"]).replace("Z", "+00:00"))
+        if expiry <= dt.datetime.now(dt.timezone.utc):
+            raise PermissionError("La sesión ha expirado. Inicie sesión nuevamente.")
+        current = fetch_user(self.email)
+        if not current or not active_user(current) or current.get("must_change_password"):
+            raise PermissionError("Su cuenta no tiene autorización para guardar en este momento.")
+        self.user = current
+        self.admin = bool(current.get("es_admin"))
+        self.projects = set(current.get("edificios") or [])
+
     def save(self, table, payload, original=None):
+        self._verify_write_session()
         if table not in TABLES:
             raise ValueError("Tabla no permitida.")
         payload = copy.deepcopy(payload)
@@ -397,6 +420,7 @@ class Repository:
         return result.data[0]
 
     def delete(self, table, row):
+        self._verify_write_session()
         if table not in TABLES:
             raise ValueError("Tabla no permitida.")
         self._access(table, row, write=True)
@@ -638,6 +662,14 @@ def nested_set(data, path, value):
     target[path[-1]] = value
 
 
+def rerun_selected_module():
+    """Redibuja el módulo activo, sin reconstruir cabecera, login ni dashboard."""
+    if getattr(st, "fragment", None):
+        st.rerun(scope="fragment")
+    else:
+        st.rerun()
+
+
 class Editor:
     def __init__(self, module, user, draft):
         self.module = module; self.user = user; self.draft = draft
@@ -655,6 +687,7 @@ class Editor:
             if not result.data:
                 raise ConflictError("El borrador cambió en otro dispositivo. No se sobrescribió. Guarde una copia del borrador o recárguelo.")
             self.draft["revision"] = result.data[0]["revision"]
+            # El listado de borradores solo se actualiza en operaciones concretas.
             self.draft["saved"] = now_ec().strftime("%H:%M:%S")
             self.draft.pop("error", None)
         except Exception as exc:
@@ -744,7 +777,7 @@ class Editor:
             else:
                 st.warning("Hay una fotografía histórica que no se puede interpretar; se conservará hasta que decida retirarla.")
             if st.button("Retirar fotografía", key=upload_key + ":remove:" + str(idx)):
-                photos.pop(idx); nested_set(self.data, path, photos); self.persist(); st.rerun()
+                photos.pop(idx); nested_set(self.data, path, photos); self.persist(); rerun_selected_module()
 
     def rows(self, field, default):
         self.data.setdefault(field, {})
@@ -755,17 +788,17 @@ class Editor:
     def add(self, field, default, label="Agregar fila"):
         if st.button("➕ " + label, key=self.prefix + "add:" + field):
             self.data[field][row_id()] = copy.deepcopy(default)
-            self.persist(); st.rerun()
+            self.persist(); rerun_selected_module()
 
     def remove(self, field, rid):
         if st.button("🗑️ Retirar fila", key=self.prefix + "del:" + field + rid):
-            self.data[field].pop(rid, None); self.persist(); st.rerun()
+            self.data[field].pop(rid, None); self.persist(); rerun_selected_module()
 
     def status(self):
         if self.draft.get("error"):
             st.warning(self.draft["error"])
             if st.button("Reintentar autoguardado", key=self.prefix + "retry"):
-                self.persist(); st.rerun()
+                self.persist(); rerun_selected_module()
             st.download_button("Descargar respaldo del borrador", json_text(self.data), file_name=f"borrador_{self.module}_{self.slot}.json", mime="application/json", key=self.prefix + "backup")
         else:
             st.caption("Borrador guardado en el servidor: " + self.draft.get("saved", "restaurado") + ". Los campos de texto se guardan al confirmar con Enter o salir del campo; las fotos al terminar de cargarse.")
@@ -778,6 +811,7 @@ class Editor:
             if not result.data and self.draft.get("revision") is not None:
                 st.warning("El registro se guardó, pero el borrador cambió en otra sesión y se conservó.")
         st.session_state.get("_editors", {}).pop(self.module, None)
+        cached_rows.clear()
         st.session_state.setdefault("_cleanup_prefixes", []).append(self.prefix)
 
 
@@ -792,6 +826,7 @@ def begin_editor(module, user, data, original=None, slot=None):
     else:
         draft = {"slot": slot, "data": data, "revision": None}
     st.session_state.setdefault("_editors", {})[module] = draft
+    cached_rows.clear()
     editor = Editor(module, user, draft)
     if not existing:
         editor.persist()
@@ -805,24 +840,28 @@ def editor_picker(module, user, default_factory, allow_new=True):
         editor.status()
         a, b = st.columns(2)
         if a.button("Cerrar y conservar borrador", key=f"keep_{module}"):
-            editor.persist(); editor.close(); st.rerun()
+            editor.persist(); editor.close(); rerun_selected_module()
         with b.popover("Descartar borrador"):
             st.caption("Esta acción elimina únicamente este borrador, no el registro original.")
             if st.button("Confirmar descarte", key=f"discard_{module}"):
-                editor.close(delete=True); st.rerun()
+                editor.close(delete=True); rerun_selected_module()
         return editor
     if not allow_new:
         st.caption("Su cargo actual permite consultar y editar sus históricos de este libro. La creación corresponde al cargo asignado para este tipo de libro.")
     if st.button("➕ Crear nuevo registro", key=f"new_{module}", type="primary", disabled=not allow_new):
-        begin_editor(module, user, default_factory()); st.rerun()
-    drafts = all_rows("alpha_drafts", filters={"usuario_email": user["correo"], "modulo": module}, order="updated_at")
+        begin_editor(module, user, default_factory()); rerun_selected_module()
+    drafts = cached_rows("alpha_drafts", (("usuario_email", user["correo"]), ("modulo", module)), columns="slot,revision,updated_at", order="updated_at")
     if drafts:
-        choices = {f"{r['updated_at'][:16]} · {r['slot']} · {r['datos'].get('edificio', r['datos'].get('proyecto', ''))}": r for r in drafts}
+        choices = {f"{r['updated_at'][:16]} · {r['slot']}": r for r in drafts}
         choice = st.selectbox("Continuar un borrador", list(choices), key=f"draft_choice_{module}")
         if st.button("Recuperar borrador", key=f"restore_{module}"):
             row = choices[choice]
-            st.session_state["_editors"][module] = {"slot": row["slot"], "data": row["datos"], "revision": row["revision"]}
-            st.rerun()
+            recovered = all_rows("alpha_drafts", filters={"usuario_email": user["correo"], "modulo": module, "slot": row["slot"]}, columns="slot,datos,revision")
+            if recovered:
+                st.session_state["_editors"][module] = {"slot": recovered[0]["slot"], "data": recovered[0]["datos"], "revision": recovered[0]["revision"]}
+                rerun_selected_module()
+            else:
+                st.warning("El borrador ya no está disponible. Actualice la página.")
     return None
 
 
@@ -941,11 +980,11 @@ def render_checklist(editor, repo):
                             if st.button("🗑️", key=editor.prefix + rid + pid + "remove", help="Quitar responsable"):
                                 item["Responsables"].pop(pid, None)
                                 editor.persist()
-                                st.rerun()
+                                rerun_selected_module()
                     if st.button("➕ Agregar responsable", key=editor.prefix + rid + "add_responsable"):
                         item["Responsables"][row_id()] = {"nombre": "", "area": ""}
                         editor.persist()
-                        st.rerun()
+                        rerun_selected_module()
 
     st.markdown("#### 🏗️ Supervisión de la ejecución de trabajos")
     default = {"Actividad": "", "Encargados": "", "Observaciones": "", "Fotos": []}
@@ -1034,7 +1073,7 @@ def render_official(editor,repo):
             d["datos"]["Checklist_Origen_ID"]=str(chosen["id"])
             for field in ("hora_inicio","hora_fin"):
                 st.session_state.pop(editor.prefix+field,None)
-            editor.persist();st.rerun()
+            editor.persist();rerun_selected_module()
     else: st.caption("No hay checklist del mismo edificio y fecha para importar.")
     st.subheader("Datos generales")
     for key,label in [("Ubicacion","Ubicación"),("Barrio","Barrio"),("Superintendente","Superintendente"),("Fiscalizador","Fiscalizador"),("Hoja","Hoja N°")]:
@@ -1050,7 +1089,7 @@ def render_official(editor,repo):
         counts,unclassified=workforce_counts(workers);d["datos"]["Nomina_Conteo"]=counts
         for key in list(st.session_state):
             if key.startswith(editor.prefix+"datos:Nomina_Conteo:"):del st.session_state[key]
-        d["_unclassified"]=unclassified;editor.persist();st.rerun()
+        d["_unclassified"]=unclassified;editor.persist();rerun_selected_module()
     if d.get("_unclassified"):st.warning("Revise manualmente los oficios de: "+", ".join(d["_unclassified"]))
     a,b=st.columns(2)
     for col,field,labels in [(a,"Nomina_Conteo",OFICIOS_NOMINA_FORMATO),(b,"Rotativo_Conteo",RUROS_ROTATIVOS_FORMATO)]:
@@ -1565,10 +1604,16 @@ def history(table,records,repo,key,editable=True):
 
 
 def read_worker_file(upload,default_building,allowed_buildings):
+    raw = upload.getvalue()
+    if len(raw) > 10*1024*1024:
+        raise ValueError("El archivo supera 10 MB.")
+    return _read_worker_file_cached(raw, upload.name.lower(), default_building, tuple(allowed_buildings))
+
+
+@st.cache_data(ttl=900, show_spinner=False, max_entries=32)
+def _read_worker_file_cached(raw, file_name, default_building, allowed_buildings):
     import unicodedata
-    raw=upload.getvalue()
-    if len(raw)>10*1024*1024:raise ValueError("El archivo supera 10 MB.")
-    if upload.name.lower().endswith(".csv"):
+    if file_name.endswith(".csv"):
         try:text=raw.decode("utf-8-sig")
         except UnicodeDecodeError:text=raw.decode("latin-1")
         try:delimiter=csv.Sniffer().sniff(text[:8192],delimiters=";,\t").delimiter
@@ -1600,6 +1645,7 @@ def read_worker_file(upload,default_building,allowed_buildings):
 
 
 def import_workers(repo,records,operation_id):
+    repo._verify_write_session()
     existing={(str(r.get("nombre") or "").strip().upper(),r.get("edificio")) for r in repo.own("trabajadores")}
     payload=[]
     for index,record in enumerate(records):
@@ -1629,7 +1675,9 @@ def personal_module(repo):
                     if not name.strip() or not role.strip():raise ValueError("Complete nombre y cargo.")
                     operation=st.session_state.setdefault("_worker_operation",uuid.uuid4().hex)
                     count=import_workers(repo,[{"nombre":name.strip().upper(),"cargo":role.strip().upper(),"edificio":building}],operation)
-                    st.session_state.pop("_worker_operation",None);st.success("Trabajador guardado." if count else "El trabajador ya está registrado en ese edificio.")
+                    st.session_state.pop("_worker_operation",None)
+                    st.session_state["_flash"] = "Trabajador guardado." if count else "El trabajador ya está registrado en ese edificio."
+                    st.rerun()
                 except Exception as exc:notice_error(exc)
         with st.expander("Importación masiva de Excel / CSV"):
             building=st.selectbox("Edificio predeterminado",projects,key="import_building")
@@ -1640,19 +1688,25 @@ def personal_module(repo):
                     st.dataframe(pd.DataFrame(records),hide_index=True,use_container_width=True)
                     st.caption("Los duplicados con el mismo nombre y edificio se omiten. Los registros existentes conservan su cargo hasta que los edite.")
                     if st.button("Confirmar importación",key="import_confirm"):
-                        count=import_workers(repo,records,hashlib.sha256(upload.getvalue()+building.encode()).hexdigest());st.success(f"{count} trabajadores nuevos confirmados.")
+                        count=import_workers(repo,records,hashlib.sha256(upload.getvalue()+building.encode()).hexdigest())
+                        st.session_state["_flash"] = f"{count} trabajadores nuevos confirmados."
+                        st.rerun()
                 except Exception as exc:notice_error(exc)
         with st.expander("Importar nómina de un compañero"):
-            users=colleagues(repo)
-            if users:
-                colleague=st.selectbox("Compañero",users,format_func=lambda u:full_name(u)+" · "+u["correo"],key="workers_colleague")
-                records=[r for r in repo.shared("trabajadores",colleague["correo"]) if r.get("edificio") in repo.projects]
-                st.caption(f"{len(records)} trabajadores en edificios compartidos.")
-                if st.button("Importar a mi nómina",key="copy_workers"):
-                    try:
-                        count=import_workers(repo,[{k:r[k] for k in ["nombre","cargo","edificio"]} for r in records],"copy:"+colleague["correo"]+":"+hashlib.sha256(json_text(records).encode()).hexdigest());st.success(f"{count} trabajadores importados.")
-                    except Exception as exc:notice_error(exc)
-            else:st.info("No hay compañeros con edificios compartidos.")
+            # Un expander cerrado también ejecuta Python: exigir una acción explícita.
+            if st.checkbox("Consultar personal de compañeros", key="workers_load_colleagues"):
+                users=colleagues(repo)
+                if users:
+                    colleague=st.selectbox("Compañero",users,format_func=lambda u:full_name(u)+" · "+u["correo"],key="workers_colleague")
+                    records=[r for r in repo.shared("trabajadores",colleague["correo"]) if r.get("edificio") in repo.projects]
+                    st.caption(f"{len(records)} trabajadores en edificios compartidos.")
+                    if st.button("Importar a mi nómina",key="copy_workers"):
+                        try:
+                            count=import_workers(repo,[{k:r[k] for k in ["nombre","cargo","edificio"]} for r in records],"copy:"+colleague["correo"]+":"+hashlib.sha256(json_text(records).encode()).hexdigest())
+                            st.session_state["_flash"] = f"{count} trabajadores importados."
+                            st.rerun()
+                        except Exception as exc:notice_error(exc)
+                else:st.info("No hay compañeros con edificios compartidos.")
     records=sorted(repo.own("trabajadores"),key=lambda r:str(r.get("nombre") or "").casefold())
     if not records:st.info("Todavía no tiene personal registrado.");return
     selected=st.selectbox("Filtrar nómina por edificio",["Todos"]+sorted({r.get("edificio") or "Sin Edificio Asignado" for r in records}),key="personal_filter")
@@ -1855,24 +1909,34 @@ def dashboard(repo):
     date_label = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")[today.weekday()]
     date_label += f", {today.day} de {NOMBRES_MESES[today.month]} de {today.year}"
     email = user["correo"]
-    checks = repo.own("checklists") if user.get("cargo") != "Maestro Mayor" else []
-    books = repo.own("inspecciones")
-    yield_rows = repo.own("rendimientos")
-    workers = repo.own("trabajadores")
-    # El libro del maestro es distinto del libro oficial; no marcar hitos cruzados.
-    books_for_role = [r for r in books if is_master_book(r) == (user.get("cargo") == "Maestro Mayor")]
-    valid_yields = [r for r in yield_rows if rendimiento_payload(r).get("_rend_v5") and r.get("estado") in {"CUMPLE META", "BAJO RENDIMIENTO"}]
+    # Vista ligera: nunca descargar fotos/JSON completos para mostrar 4 indicadores.
+    own_filter = (("usuario_email", email),)
+    checks = cached_rows("checklists", own_filter, columns="fecha") if user.get("cargo") != "Maestro Mayor" else []
+    books = cached_rows("inspecciones", own_filter, columns="fecha,tipo:datos->>Tipo_Registro")
+    yield_rows = cached_rows("rendimientos", own_filter, columns="estado")
+    workers_count = len(cached_rows("trabajadores", own_filter, columns="id"))
+    master_role = user.get("cargo") == "Maestro Mayor"
+    # Los libros antiguos sin marca de tipo se inspeccionan solo en la fecha de hoy.
+    today_text = today.isoformat()
+    role_books_today = [r for r in books if str(r.get("fecha"))[:10] == today_text and
+                        (str(r.get("tipo") or "") == "Libro_Obra_Maestro") == master_role and bool(r.get("tipo"))]
+    if not role_books_today and any(str(r.get("fecha"))[:10] == today_text and not r.get("tipo") for r in books):
+        legacy_today = cached_rows("inspecciones", (("usuario_email",email),("fecha",today_text)), columns="fecha,datos")
+        role_books_today = [r for r in legacy_today if is_master_book(r) == master_role]
+    books_for_role = role_books_today
+    valid_yields = [r for r in yield_rows if r.get("estado") in {"CUMPLE META", "BAJO RENDIMIENTO"}]
     efficiency = round(100 * sum(r.get("estado") == "CUMPLE META" for r in valid_yields) / len(valid_yields)) if valid_yields else None
     efficiency_label = f"{efficiency}%" if efficiency is not None else "—"
     circle_value = efficiency if efficiency is not None else 0
     efficiency_detail = "Registros con meta verificada" if efficiency is not None else "Sin meta verificable"
     color = "#10b981" if efficiency is not None and efficiency >= 75 else "#f59e0b" if efficiency is not None and efficiency >= 50 else "#ef4444" if efficiency is not None else "#94a3b8"
-    open_incidents = sum(r.get("estado") == "Abierta" for r in repo.shared("incidencias"))
+    incidence_projects = tuple(sorted(repo.projects))
+    open_incidents = sum(r.get("estado") == "Abierta" for r in
+        (cached_rows("incidencias", (), (("proyecto", incidence_projects),), columns="estado") if incidence_projects else []))
     tags = "".join('<span class="edificio-tag-badge">' + html_escape(str(x)) + "</span>" for x in user.get("edificios") or [])
     def milestone(label, checked):
         badge = '<span class="milestone-status-done">✓ Registrado</span>' if checked else '<span class="milestone-status-pending">⏳ Pendiente</span>'
         return '<div class="milestone-item"><span class="milestone-name">' + html_escape(label) + '</span>' + badge + '</div>'
-    today_text = today.isoformat()
     milestones = milestone("Libro de Obra Maestro" if user.get("cargo") == "Maestro Mayor" else "Checklist", bool(books_for_role and any(str(r.get("fecha"))[:10] == today_text for r in books_for_role)) if user.get("cargo") == "Maestro Mayor" else any(str(r.get("fecha"))[:10] == today_text for r in checks))
     if user.get("cargo") != "Maestro Mayor":
         milestones += milestone("Libro de Obra", any(str(r.get("fecha"))[:10] == today_text for r in books_for_role))
@@ -1893,7 +1957,7 @@ def dashboard(repo):
         '<div class="stat-hero-number" style="color:#f87171!important">' + str(open_incidents) + '</div>'
         '<div style="font-size:.65rem;color:#94a3b8!important">En proyectos asignados</div></div>'
         '<div class="widget-glass-card"><div class="w-card-title"><span>👷 Personal</span><span>Registrados</span></div>'
-        '<div class="stat-hero-number" style="color:#60a5fa!important">' + str(len(workers)) + '</div>'
+        '<div class="stat-hero-number" style="color:#60a5fa!important">' + str(workers_count) + '</div>'
         '<div style="font-size:.65rem;color:#94a3b8!important">Personal a tu cargo</div></div>'
         '</div></div>'
     )
@@ -1901,6 +1965,12 @@ def dashboard(repo):
     st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
 
 
+
+
+@st.cache_data(show_spinner=False)
+def _logo_data(uri, stamp_ns):
+    with open(uri, "rb") as file:
+        return base64.b64encode(file.read()).decode("ascii")
 
 
 def sidebar_original(repo, cookie):
@@ -1911,8 +1981,7 @@ def sidebar_original(repo, cookie):
         logo_file = next((name for name in ("alpha.473f0c2dc3c48a682723-2.webp", "images.png") if os.path.isfile(name)), None)
         if logo_file:
             try:
-                with open(logo_file, "rb") as logo:
-                    encoded = base64.b64encode(logo.read()).decode("ascii")
+                encoded = _logo_data(logo_file, os.stat(logo_file).st_mtime_ns)
                 mime = "image/webp" if logo_file.endswith(".webp") else "image/png"
                 st.markdown('<div class="sidebar-logo-card"><img src="data:' + mime + ';base64,' + encoded + '" style="width:100%;height:auto;display:block;border-radius:8px;" alt="Alpha Builders"></div>', unsafe_allow_html=True)
             except OSError:
@@ -1954,13 +2023,31 @@ def is_master_book(record):
 
 
 def open_lazy_tabs(labels, key):
-    """Evita ejecutar pestañas ocultas en Streamlit 1.55+ y mantiene compatibilidad."""
+    """Siempre monta una sola pestaña. 1.55+ respeta el diseño nativo."""
     try:
         if "on_change" in inspect.signature(st.tabs).parameters:
             return st.tabs(labels, on_change="rerun", key=key), True
     except (TypeError, ValueError):
         pass
-    return st.tabs(labels), False
+    # Versiones anteriores: la API nativa ejecuta TODOS los paneles y bloquea
+    # la pantalla. La alternativa es un selector horizontal de carga diferida.
+    import contextlib
+    try:
+        selected = st.radio("Navegación", labels, key=key+"_legacy", horizontal=True, label_visibility="collapsed")
+    except TypeError:
+        selected = st.radio("Navegación", labels, key=key+"_legacy", horizontal=True)
+    class _LazyPanel:
+        def __init__(self, open_): self.open = open_
+        def __enter__(self):
+            if self.open:
+                self._ctx = st.container()
+                self._ctx.__enter__()
+            return self
+        def __exit__(self, *args):
+            if self.open:
+                return self._ctx.__exit__(*args)
+            return False
+    return [_LazyPanel(label == selected) for label in labels], True
 
 
 def history_rend_by_building(records, repo):
@@ -2116,16 +2203,21 @@ def module_original(label, repo):
         # Conservar botones originales, incluyendo recuperación explícita de borradores.
         if st.button(button, type="primary", key="original_new_" + module):
             begin_editor(module, repo.user, factory())
-            st.rerun()
-        drafts = all_rows("alpha_drafts", filters={"usuario_email": repo.email, "modulo": module}, order="updated_at")
+            rerun_selected_module()
+        drafts = cached_rows("alpha_drafts", (("usuario_email", repo.email), ("modulo", module)), columns="slot,revision,updated_at", order="updated_at")
         if drafts:
             with st.expander(f"📁 Recuperar mis borradores ({len(drafts)})", expanded=False):
                 choices = {f"{r['updated_at'][:16]} · {r['slot']}": r for r in drafts}
                 selected_name = st.selectbox("Seleccione un borrador", list(choices), key="restore_choice_" + module)
                 if st.button("Continuar borrador", key="restore_button_" + module):
                     draft = choices[selected_name]
-                    st.session_state.setdefault("_editors", {})[module] = {"slot": draft["slot"], "data": draft["datos"], "revision": draft["revision"]}
-                    st.rerun()
+                    recovered = all_rows("alpha_drafts", filters={"usuario_email": repo.email, "modulo": module, "slot": draft["slot"]}, columns="slot,datos,revision")
+                    if recovered:
+                        row = recovered[0]
+                        st.session_state.setdefault("_editors", {})[module] = {"slot": row["slot"], "data": row["datos"], "revision": row["revision"]}
+                        rerun_selected_module()
+                    else:
+                        st.warning("El borrador ya no existe. Actualice la página.")
         selected = None
     if selected:
         st.divider()
@@ -2146,6 +2238,30 @@ def module_original(label, repo):
             history(table, records, repo, "original_" + module)
     else:
         history(table, records, repo, "original_" + module)
+
+
+# Los widgets dentro de este fragmento no reconstruyen el dashboard al cambiar.
+# Conserva un solo archivo y funciona sin dependencia adicional en versiones modernas.
+_FRAGMENT = getattr(st, "fragment", None)
+
+
+@(_FRAGMENT if _FRAGMENT is not None else (lambda fn: fn))
+def render_active_module(name, repo):
+    role = repo.user.get("cargo")
+    if name == "Libro de Obra Maestro" and role != "Maestro Mayor":
+        raise PermissionError("El libro de obra maestro es exclusivo del Maestro Mayor.")
+    if role == "Maestro Mayor" and name in {"Checklist", "Libro de Obra", "Levantamiento de Incidencias"}:
+        raise PermissionError("El módulo no está habilitado para el cargo Maestro Mayor.")
+    if name == "Panel Admin" and not repo.admin:
+        raise PermissionError("La administración requiere permisos activos.")
+    if name == "Personal a Cargo":
+        personal_module(repo)
+    elif name == "Colaborativo":
+        collaborative_module(repo)
+    elif name == "Panel Admin":
+        admin_module(repo)
+    else:
+        module_original(name, repo)
 
 
 def main():
@@ -2198,14 +2314,7 @@ def main():
             with tab:
                 if lazy and not tab.open:
                     continue
-                if name == "Personal a Cargo":
-                    personal_module(repo)
-                elif name == "Colaborativo":
-                    collaborative_module(repo)
-                elif name == "Panel Admin":
-                    admin_module(repo)
-                else:
-                    module_original(name, repo)
+                render_active_module(name, repo)
     except Exception as exc:
         notice_error(exc)
         st.caption("No se interpretan errores de lectura como registros vacíos. Verifique conexión, configuración y permisos.")
