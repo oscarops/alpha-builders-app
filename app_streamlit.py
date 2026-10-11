@@ -4,6 +4,10 @@ Los módulos de interfaz solo se ejecutan desde main(); las funciones puras son 
 """
 from __future__ import annotations
 import base64
+import ast
+import calendar
+import urllib.parse
+import urllib.request
 import copy
 import csv
 import datetime as dt
@@ -41,7 +45,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.10-v11-dashboard"
+APP_VERSION = "2026.10.10-v12-escritorio"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -508,6 +512,34 @@ html { scroll-behavior:smooth; }
  .ab-record-table th,.ab-record-table td{padding:8px 9px;}
 }
 
+
+/* V12 — Escritorio modular. Respeta el tema claro y oscuro actual. */
+.ab-home-intro {margin:1px 0 6px;}
+.ab-home-kicker {font-size:.7rem;letter-spacing:.12em;font-weight:900;color:var(--ab-primary)!important;}
+.ab-home-intro h2 {font-size:1.52rem!important;letter-spacing:-.04em;margin:.17rem 0 .22rem!important;color:var(--ab-ink)!important;}
+.ab-home-intro p {font-size:.86rem!important;line-height:1.55;color:var(--ab-muted)!important;margin:0;}
+.ab-home-widget-head {display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--ab-outline);padding:2px 0 13px;margin-bottom:14px;}
+.ab-home-widget-icon {height:42px;width:42px;border-radius:13px;background:var(--ab-chip);display:grid;place-items:center;font-size:1.28rem;flex:0 0 auto;}
+.ab-home-widget-head h3 {margin:0!important;color:var(--ab-ink)!important;font-size:1.06rem!important;letter-spacing:-.01em;}
+.ab-home-widget-head p {margin:2px 0 0!important;font-size:.72rem!important;color:var(--ab-muted)!important;}
+.ab-home-cal {width:100%;border-collapse:separate;border-spacing:4px;text-align:center;margin:3px 0 12px;table-layout:fixed;}
+.ab-home-cal th {font-size:.73rem;padding:5px 1px;color:var(--ab-muted)!important;font-weight:800;}
+.ab-home-cal td {position:relative;height:39px;border:1px solid var(--ab-outline);border-radius:9px;color:var(--ab-ink)!important;background:var(--ab-surface-soft);font-weight:720;font-size:.79rem;}
+.ab-home-cal .ab-cal-empty {background:transparent;border:0;}
+.ab-home-cal .ab-cal-today {background:var(--ab-chip);border:2px solid var(--ab-primary);color:var(--ab-chip-text)!important;}
+.ab-home-cal small {position:absolute;right:1px;top:-3px;font-weight:850;font-size:.59rem;color:white!important;background:#2961d6;border-radius:100px;min-width:15px;height:15px;line-height:15px;}
+.ab-home-answer {background:var(--ab-chip);color:var(--ab-chip-text)!important;border:1px solid var(--ab-outline);padding:16px;border-radius:13px;text-align:center;font-size:1.45rem;font-weight:850;letter-spacing:-.03em;overflow-wrap:anywhere;margin-top:9px;}
+.ab-home-weather {background:linear-gradient(110deg,#152648,#334f80);color:white!important;border-radius:16px;padding:18px 20px;margin-bottom:12px;}
+.stApp [data-testid="stMainBlockContainer"] .ab-home-weather,
+.stApp [data-testid="stMainBlockContainer"] .ab-home-weather div,
+.stApp [data-testid="stMainBlockContainer"] .ab-home-weather span{color:white!important;}
+.ab-weather-big{font-size:2.25rem;font-weight:850;letter-spacing:-.055em;line-height:1.1;margin-bottom:4px;}
+@media (max-width:720px){
+ .ab-home-intro h2{font-size:1.27rem!important;}
+ .ab-home-cal {border-spacing:2px;}
+ .ab-home-cal td {height:34px;font-size:.69rem;}
+ .ab-home-widget-head{gap:8px;}
+}
 </style>
 """
 
@@ -3017,6 +3049,505 @@ def render_active_module(name, repo, cookie):
         module_original(name, repo)
 
 
+
+# ==============================================================================
+# V12 — ESCRITORIO PERSONAL (datos separados por cuenta, sin nuevas tablas)
+# ==============================================================================
+HOME_WIDGETS = {
+    "calendar": ("📅", "Calendario", "Agenda y eventos de obra"),
+    "tasks": ("✅", "Tareas", "Pendientes y prioridades"),
+    "notes": ("📝", "Mis notas", "Ideas y apuntes privados"),
+    "weather": ("🌤️", "Clima", "Tiempo real por ciudad"),
+    "calculator": ("🧮", "Calculadora", "Operaciones rápidas"),
+    "construction": ("📐", "Cálculos de obra", "Metrajes y rendimientos"),
+    "converter": ("🔁", "Conversor", "Unidades habituales"),
+    "bookmarks": ("🔗", "Enlaces", "Páginas frecuentes"),
+}
+HOME_DEFAULT = ["calendar", "tasks", "notes", "weather"]
+HOME_CITIES = {
+    "Quito": (-0.1807, -78.4678), "Guayaquil": (-2.1894, -79.8891),
+    "Cuenca": (-2.9001, -79.0059), "Ambato": (-1.2491, -78.6167),
+    "Ibarra": (0.3517, -78.1223), "Otavalo": (0.2346, -78.2625),
+    "Manta": (-0.9676, -80.7089), "Riobamba": (-1.6635, -78.6547),
+}
+
+
+def home_storage_key(repo, section):
+    """No incluye correos en las claves visibles de configuración."""
+    if section not in {"layout", "tasks", "notes", "events", "bookmarks", "city"}:
+        raise ValueError("Sección personal desconocida.")
+    fingerprint = hashlib.sha256(norm_email(repo.email).encode("utf-8")).hexdigest()[:32]
+    return f"alpha_home_v12_{fingerprint}_{section}"
+
+
+def home_load(repo, section, fallback):
+    value = get_config(home_storage_key(repo, section))
+    parsed = obj(value, fallback) if isinstance(fallback, (dict, list)) else value
+    if isinstance(fallback, (dict, list)) and not isinstance(parsed, type(fallback)):
+        return copy.deepcopy(fallback)
+    return copy.deepcopy(fallback) if parsed is None else parsed
+
+
+def home_save(repo, section, data):
+    """Confirma la identidad activa antes de escribir; sin sobrescribir otros módulos."""
+    repo._verify_write_session()
+    if section == "city":
+        if data not in HOME_CITIES:
+            raise ValueError("La ciudad no está disponible.")
+        serialized = str(data)
+    else:
+        serialized = json_text(data)
+        if len(serialized.encode("utf-8")) > 100_000:
+            raise ValueError("El espacio personal alcanzó su capacidad. Reduce el contenido.")
+    set_config(home_storage_key(repo, section), serialized)
+
+
+def home_active_widgets(repo):
+    layout = home_load(repo, "layout", HOME_DEFAULT)
+    if not isinstance(layout, list):
+        return HOME_DEFAULT.copy()
+    selected = []
+    for widget in layout:
+        if isinstance(widget, str) and widget in HOME_WIDGETS and widget not in selected:
+            selected.append(widget)
+    return selected or HOME_DEFAULT.copy()
+
+
+def rerun_home():
+    if getattr(st, "fragment", None) is not None:
+        try:
+            st.rerun(scope="fragment")
+            return
+        except (ValueError, RuntimeError):
+            pass
+    st.rerun()
+
+
+def home_widget_title(widget):
+    icon, name, description = HOME_WIDGETS[widget]
+    st.markdown('<div class="ab-home-widget-head"><div class="ab-home-widget-icon">'
+        + icon + '</div><div><h3>' + html_escape(name) + '</h3><p>'
+        + html_escape(description) + '</p></div></div>', unsafe_allow_html=True)
+
+
+def valid_home_records(items, max_items=150):
+    if not isinstance(items, list):
+        return []
+    return [r for r in items[:max_items] if isinstance(r, dict) and isinstance(r.get("id"), str)]
+
+
+def home_widget_tasks(repo):
+    items = valid_home_records(home_load(repo, "tasks", []))
+    open_items = [x for x in items if not x.get("done")]
+    st.caption(f"{len(open_items)} pendiente(s) · {len(items)-len(open_items)} completada(s)")
+    with st.expander('➕ Nueva tarea',expanded=not items):
+        with st.form("home_add_task", clear_on_submit=True):
+            title = st.text_input("Nueva tarea", placeholder="Ej. Revisar el hormigonado", max_chars=180)
+            c1, c2 = st.columns(2)
+            with c1: due = st.date_input("Fecha límite", now_ec().date(), key="home_task_due")
+            with c2: priority = st.selectbox("Prioridad", ["Normal", "Alta", "Baja"])
+            add = st.form_submit_button("+ Añadir tarea", use_container_width=True)
+    if add:
+        try:
+            if not title.strip():
+                raise ValueError("Escribe el nombre de la tarea.")
+            if len(items) >= 150:
+                raise ValueError("Máximo 150 tareas. Elimina algunas antes de agregar más.")
+            items.append({"id":uuid.uuid4().hex, "title":title.strip(), "date":due.isoformat(),
+                          "priority":priority, "done":False})
+            home_save(repo, "tasks", items);rerun_home()
+        except Exception as e:notice_error(e)
+    if not items:
+        st.info("Tu lista está vacía. Agrega una tarea para empezar.")
+        return
+    show_completed = st.checkbox("Mostrar completadas", value=False, key="home_completed_tasks")
+    ordered = sorted(items, key=lambda x:(bool(x.get("done")),
+        0 if x.get("priority")=="Alta" else 1, str(x.get("date") or "")))
+    displayed = [x for x in ordered if show_completed or not x.get("done")][:12]
+    for item in displayed:
+        title_text = str(item.get("title") or "Tarea")[:180]
+        row_a, row_b = st.columns([8, 1], vertical_alignment="center")
+        with row_a:
+            check = st.checkbox(title_text, value=bool(item.get("done")), key="h_task_"+item["id"])
+        with row_b:
+            delete = st.button("✕", key="h_del_task_"+item["id"], help="Eliminar tarea", use_container_width=True)
+        due_text = str(item.get("date") or "")
+        st.caption(("Prioridad alta · " if item.get("priority")=="Alta" else "") + due_text)
+        if delete:
+            try:
+                home_save(repo, "tasks", [x for x in items if x["id"]!=item["id"]]);rerun_home()
+            except Exception as e:notice_error(e)
+        if check != bool(item.get("done")):
+            try:
+                item["done"] = check;home_save(repo, "tasks", items);rerun_home()
+            except Exception as e:notice_error(e)
+    if len(open_items)>12 and not show_completed:
+        st.caption("Mostrando las primeras 12 tareas. Prioriza y completa para ver las siguientes.")
+
+
+def home_widget_notes(repo):
+    notes = valid_home_records(home_load(repo, "notes", []), max_items=80)
+    with st.expander('➕ Nueva nota',expanded=not notes):
+        with st.form("home_add_note", clear_on_submit=True):
+            title = st.text_input("Título", max_chars=120, placeholder="Ej. Observaciones de obra")
+            body = st.text_area("Nota", height=95, max_chars=6000,
+                                placeholder="Escribe tus apuntes aquí…")
+            add = st.form_submit_button("+ Guardar nota", use_container_width=True)
+    if add:
+        try:
+            if not title.strip() and not body.strip():
+                raise ValueError("La nota necesita título o contenido.")
+            if len(notes)>=80:
+                raise ValueError("Máximo 80 notas guardadas.")
+            notes.insert(0,{"id":uuid.uuid4().hex,"title":title.strip() or "Sin título",
+                            "body":body.strip(),"updated":now_ec().strftime('%Y-%m-%d %H:%M')})
+            home_save(repo,"notes",notes);rerun_home()
+        except Exception as e:notice_error(e)
+    if not notes:
+        st.info("Tus notas estarán aquí, disponibles al volver a iniciar sesión.")
+        return
+    selected = st.selectbox("Abrir nota", notes,
+        format_func=lambda n:str(n.get("title") or "Sin título")[:100], key="home_note_select")
+    with st.expander('✏️ Editar nota seleccionada',expanded=False):
+        with st.form("home_edit_note_"+selected["id"]):
+            new_title=st.text_input("Editar título",value=str(selected.get("title") or "")[:120],max_chars=120)
+            new_body=st.text_area("Editar nota",value=str(selected.get("body") or "")[:6000],height=140,max_chars=6000)
+            saved=st.form_submit_button("Guardar cambios",use_container_width=True)
+    if saved:
+        try:
+            selected["title"] = new_title.strip() or "Sin título"
+            selected["body"] = new_body.strip()
+            selected["updated"] = now_ec().strftime('%Y-%m-%d %H:%M')
+            home_save(repo,"notes",notes);rerun_home()
+        except Exception as e:notice_error(e)
+    with st.popover("Eliminar esta nota",use_container_width=True):
+        st.warning("La nota se eliminará permanentemente de tu espacio personal.")
+        if st.button("Confirmar eliminación",key="h_confirm_note_del"):
+            try:
+                home_save(repo,"notes",[n for n in notes if n["id"]!=selected["id"]]);rerun_home()
+            except Exception as e:notice_error(e)
+
+
+def home_calendar_html(year, month, events):
+    months=calendar.monthcalendar(year,month)
+    days=("L","M","M","J","V","S","D")
+    today=now_ec().date()
+    counts=defaultdict(int)
+    for e in events:
+        when=str(e.get("date") or "")
+        if when.startswith(f"{year:04d}-{month:02d}-"):
+            try:counts[int(when[8:10])]+=1
+            except ValueError:pass
+    pieces=['<table class="ab-home-cal"><thead><tr>']
+    pieces.extend('<th>'+d+'</th>' for d in days)
+    pieces.append('</tr></thead><tbody>')
+    for week in months:
+        pieces.append('<tr>')
+        for day in week:
+            if not day:
+                pieces.append('<td class="ab-cal-empty"></td>');continue
+            active=(year,month,day)==(today.year,today.month,today.day)
+            event_count=counts.get(day,0)
+            pieces.append('<td'+(' class="ab-cal-today"' if active else '')+'><span>'+str(day)+'</span>'+(
+                '<small title="Eventos">'+str(event_count)+'</small>' if event_count else '')+'</td>')
+        pieces.append('</tr>')
+    pieces.append('</tbody></table>')
+    return ''.join(pieces)
+
+
+def home_widget_calendar(repo):
+    events=valid_home_records(home_load(repo,"events",[]),max_items=150)
+    today=now_ec().date()
+    a,b=st.columns(2)
+    with a: month=st.selectbox("Mes",list(range(1,13)),index=today.month-1,
+         format_func=lambda i:NOMBRES_MESES[i],key="home_calendar_month")
+    with b: year=st.selectbox("Año",list(range(today.year-1,today.year+4)),
+         index=1,key="home_calendar_year")
+    st.markdown(home_calendar_html(year,month,events),unsafe_allow_html=True)
+    with st.expander("+ Agendar un evento",expanded=False):
+        with st.form("home_new_event",clear_on_submit=True):
+            title=st.text_input("Evento",max_chars=150,placeholder="Ej. Reunión de coordinación")
+            c1,c2=st.columns(2)
+            with c1: day=st.date_input("Fecha",value=today,key="home_event_date")
+            with c2: when=st.time_input("Hora",value=dt.time(8,0),key="home_event_time")
+            add=st.form_submit_button("Guardar en calendario",use_container_width=True)
+        if add:
+            try:
+                if not title.strip():raise ValueError("Escribe el nombre del evento.")
+                if len(events)>=150:raise ValueError("Máximo 150 eventos.")
+                events.append({"id":uuid.uuid4().hex,"title":title.strip(),
+                               "date":day.isoformat(),"time":when.strftime('%H:%M')})
+                home_save(repo,"events",events);rerun_home()
+            except Exception as e:notice_error(e)
+    monthly=sorted([x for x in events if str(x.get("date",'')).startswith(f"{year:04d}-{month:02d}-")],
+                   key=lambda x:(str(x.get("date")),str(x.get("time"))))
+    if not monthly:
+        st.caption("Sin eventos agendados para este mes.")
+    else:
+        st.caption(f"{len(monthly)} evento(s) este mes")
+        for event in monthly[:8]:
+            c1,c2=st.columns([8,1],vertical_alignment="center")
+            c1.markdown("**"+html_escape(str(event.get("title") or "Evento"))+"**")
+            c1.caption(f"{event.get('date','')} · {event.get('time','')}")
+            if c2.button("✕",key="h_event_del_"+event["id"],help="Eliminar evento"):
+                try:
+                    home_save(repo,"events",[e for e in events if e["id"]!=event["id"]]);rerun_home()
+                except Exception as e:notice_error(e)
+        if len(monthly)>8:st.caption(f"Mostrando 8 de {len(monthly)} eventos del mes.")
+
+
+@st.cache_data(ttl=900,show_spinner=False,max_entries=20)
+def home_weather_data(city):
+    if city not in HOME_CITIES:
+        raise ValueError("Ciudad no disponible.")
+    latitude,longitude=HOME_CITIES[city]
+    query=urllib.parse.urlencode({
+        'latitude':latitude,'longitude':longitude,
+        'current':'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m',
+        'daily':'temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+        'timezone':'America/Guayaquil','forecast_days':1})
+    request=urllib.request.Request('https://api.open-meteo.com/v1/forecast?'+query,
+                                   headers={'User-Agent':'AlphaBuilders/1.0'})
+    with urllib.request.urlopen(request,timeout=5) as response:
+        data=json.load(response)
+    if not isinstance(data,dict) or not isinstance(data.get('current'),dict):
+        raise ValueError("La respuesta del servicio meteorológico es inválida.")
+    return data
+
+
+def home_weather_description(code):
+    try:code=int(code)
+    except (ValueError,TypeError):return "Condición sin datos"
+    if code==0:return "Despejado ☀️"
+    if code in (1,2,3):return "Parcialmente nublado ⛅"
+    if code in (45,48):return "Neblina 🌫️"
+    if code in (51,53,55,56,57):return "Llovizna 🌦️"
+    if code in (61,63,65,66,67,80,81,82):return "Lluvia 🌧️"
+    if code in (71,73,75,77,85,86):return "Nieve ❄️"
+    if code in (95,96,99):return "Tormenta ⛈️"
+    return "Condición variable"
+
+
+def home_widget_weather(repo):
+    city=home_load(repo,'city','Quito')
+    if city not in HOME_CITIES:city='Quito'
+    chosen=st.selectbox('Ciudad',list(HOME_CITIES),index=list(HOME_CITIES).index(city),
+                        key='home_weather_city')
+    if chosen!=city and st.button('Guardar ciudad favorita',key='home_save_weather_city'):
+        try:home_save(repo,'city',chosen);rerun_home()
+        except Exception as e:notice_error(e)
+    requested = st.session_state.get('home_weather_requested_city') == chosen
+    if not requested:
+        st.caption('Consulta el clima cuando lo necesites; así el inicio abre sin esperar por servicios externos.')
+        if st.button('🌤️ Consultar clima actual', key='home_weather_fetch',use_container_width=True):
+            st.session_state['home_weather_requested_city'] = chosen
+            rerun_home()
+        return
+    if st.button('↻ Actualizar clima', key='home_weather_refresh',use_container_width=True):
+        home_weather_data.clear()
+    try:
+        data=home_weather_data(chosen)
+        current=data['current'];daily=data.get('daily') or {}
+        temperature=current.get('temperature_2m')
+        if temperature is None:raise ValueError('Sin temperatura disponible.')
+        st.markdown('<div class="ab-home-weather"><div class="ab-weather-big">'
+             + html_escape(f'{float(temperature):.1f} °C')+'</div><div>'
+             +html_escape(home_weather_description(current.get('weather_code')))
+             +'</div></div>',unsafe_allow_html=True)
+        a,b=st.columns(2)
+        a.metric('Sensación',str(current.get('apparent_temperature','—'))+' °C')
+        b.metric('Humedad',str(current.get('relative_humidity_2m','—'))+' %')
+        if daily.get('temperature_2m_max') and daily.get('temperature_2m_min'):
+            st.caption('Máx. '+str(daily['temperature_2m_max'][0])+' °C · Mín. '
+                       +str(daily['temperature_2m_min'][0])+' °C · Viento '
+                       +str(current.get('wind_speed_10m','—'))+' km/h')
+        st.caption('Fuente: Open-Meteo · datos externos actualizados cada 15 minutos')
+    except Exception:
+        st.warning('El clima no está disponible en este momento. Las demás herramientas funcionan normalmente.')
+        st.caption('Conéctate a internet para obtener datos meteorológicos actualizados.')
+
+
+def home_safe_calculate(expression):
+    """Evalúa aritmética básica con AST, sin eval(), funciones ni acceso a objetos."""
+    expression=str(expression).strip().replace('×','*').replace('÷','/').replace('^','**')
+    if len(expression)>120:raise ValueError('La operación es demasiado larga.')
+    tree=ast.parse(expression,mode='eval')
+    limit=[0]
+    def walk(node,depth=0):
+        limit[0]+=1
+        if limit[0]>60 or depth>20:
+            raise ValueError('La operación es demasiado compleja.')
+        if isinstance(node,ast.Expression):return walk(node.body,depth+1)
+        if isinstance(node,ast.Constant) and type(node.value) in (int,float):
+            value=float(node.value)
+        elif isinstance(node,ast.UnaryOp) and isinstance(node.op,(ast.UAdd,ast.USub)):
+            x=walk(node.operand,depth+1)
+            value=x if isinstance(node.op,ast.UAdd) else -x
+        elif isinstance(node,ast.BinOp) and isinstance(node.op,(ast.Add,ast.Sub,ast.Mult,ast.Div,ast.Mod,ast.Pow)):
+            a=walk(node.left,depth+1);b=walk(node.right,depth+1)
+            if isinstance(node.op,ast.Pow):
+                if abs(b)>12 or abs(a)>1e8:raise ValueError('Potencia fuera de límites.')
+                value=a**b
+            elif isinstance(node.op,ast.Add):value=a+b
+            elif isinstance(node.op,ast.Sub):value=a-b
+            elif isinstance(node.op,ast.Mult):value=a*b
+            elif isinstance(node.op,ast.Div):value=a/b
+            else:value=a%b
+        else:
+            raise ValueError('Usa solo números, +, −, ×, ÷, %, ^ y paréntesis.')
+        if isinstance(value,complex) or not math.isfinite(value) or abs(value)>1e14:
+            raise ValueError('El resultado está fuera de límites.')
+        return value
+    try:return walk(tree)
+    except ZeroDivisionError as exc:raise ValueError('No es posible dividir entre cero.') from exc
+    except SyntaxError as exc:raise ValueError('Revisa los signos de la operación.') from exc
+    except OverflowError as exc:raise ValueError('La operación supera el límite numérico.') from exc
+
+
+def home_widget_calculator(repo):
+    with st.form('home_calc_form'):
+        expression=st.text_input('Operación',placeholder='Ej. (12.5 × 8) / 2',max_chars=120,
+                                 key='home_calc_expr')
+        solve=st.form_submit_button('Calcular =',use_container_width=True)
+    if solve:
+        try:
+            result=home_safe_calculate(expression)
+            st.session_state['home_calc_result'] = (f'{result:,.8f}'.rstrip('0').rstrip('.') or '0') if abs(result)<1e14 else str(result)
+        except Exception as e:st.session_state['home_calc_result']=str(e)
+    if st.session_state.get('home_calc_result'):
+        st.markdown('<div class="ab-home-answer">'+html_escape(st.session_state['home_calc_result'])+'</div>',
+                    unsafe_allow_html=True)
+    st.caption('Permite operaciones con paréntesis, potencias y porcentajes mediante división.')
+
+
+def home_widget_construction(repo):
+    mode=st.selectbox('Tipo de cálculo',['Volumen de hormigón','Área de trabajo','Productividad por hora'],
+                      key='home_construction_type')
+    if mode=='Volumen de hormigón':
+        a,b=st.columns(2)
+        with a:length=st.number_input('Largo (m)',min_value=0.,value=5.,step=.5,key='hc_len')
+        with b:width=st.number_input('Ancho (m)',min_value=0.,value=4.,step=.5,key='hc_wid')
+        depth=st.number_input('Espesor (m)',min_value=0.,value=.15,step=.01,format='%.2f',key='hc_depth')
+        volume=length*width*depth
+        st.metric('Volumen geométrico',f'{volume:,.3f} m³')
+        st.caption(f'Con 5 % adicional como referencia: {volume*1.05:,.3f} m³. Verifica pérdidas reales en obra.')
+    elif mode=='Área de trabajo':
+        a,b=st.columns(2)
+        with a:length=st.number_input('Largo (m)',min_value=0.,value=8.,key='hc_area_l')
+        with b:height=st.number_input('Alto/ancho (m)',min_value=0.,value=3.,key='hc_area_h')
+        st.metric('Área estimada',f'{length*height:,.2f} m²')
+    else:
+        a,b=st.columns(2)
+        with a:amount=st.number_input('Cantidad ejecutada',min_value=0.,value=30.,key='hc_prod_amt')
+        with b:hours=st.number_input('Horas-hombre',min_value=.1,value=16.,key='hc_prod_hh')
+        st.metric('Productividad',f'{amount/hours:,.3f} unidades/HH')
+        st.caption('Indica la producción por hora-hombre. Verifica la unidad del rubro.')
+
+
+def home_widget_converter(repo):
+    types={
+        'Longitud':{'mm':0.001,'cm':0.01,'m':1.,'km':1000.},
+        'Área':{'cm²':.0001,'m²':1.,'ha':10000.},
+        'Volumen':{'L':.001,'m³':1.,'cm³':.000001},
+        'Masa':{'g':.001,'kg':1.,'t':1000.},
+    }
+    kind=st.selectbox('Magnitud',list(types),key='home_conv_type')
+    options=list(types[kind])
+    value=st.number_input('Cantidad',value=1.,key='home_conv_value')
+    c1,c2=st.columns(2)
+    with c1:from_unit=st.selectbox('De',options,key='home_conv_from')
+    with c2:to_unit=st.selectbox('A',options,index=min(1,len(options)-1),key='home_conv_to')
+    output=value*types[kind][from_unit]/types[kind][to_unit]
+    st.markdown('<div class="ab-home-answer">'+html_escape(f'{output:,.6g} {to_unit}')+'</div>',unsafe_allow_html=True)
+
+
+def home_widget_bookmarks(repo):
+    items=valid_home_records(home_load(repo,'bookmarks',[]),max_items=40)
+    with st.expander('➕ Añadir enlace',expanded=not items):
+        with st.form('home_new_bookmark',clear_on_submit=True):
+            name=st.text_input('Nombre del enlace',max_chars=90,placeholder='Ej. Plataforma de planos')
+            url=st.text_input('URL',max_chars=600,placeholder='https://…')
+            add=st.form_submit_button('+ Guardar enlace',use_container_width=True)
+    if add:
+        try:
+            uri=urllib.parse.urlsplit(url.strip())
+            if uri.scheme not in ('http','https') or not uri.netloc or uri.username or uri.password:
+                raise ValueError('Ingresa una URL válida que comience por https:// o http://')
+            if not name.strip():raise ValueError('Agrega un nombre al enlace.')
+            if len(items)>=40:raise ValueError('Máximo 40 enlaces personales.')
+            items.append({'id':uuid.uuid4().hex,'name':name.strip(),'url':url.strip()})
+            home_save(repo,'bookmarks',items);rerun_home()
+        except Exception as e:notice_error(e)
+    if not items:st.caption('Agrega enlaces frecuentes para abrirlos desde Inicio.')
+    for item in items:
+        c1,c2=st.columns([8,1],vertical_alignment='center')
+        link=str(item.get('url') or '')
+        if urllib.parse.urlsplit(link).scheme in ('http','https'):
+            c1.link_button('↗ '+str(item.get('name') or 'Abrir enlace')[:90],link,use_container_width=True)
+        if c2.button('✕',key='h_delete_link_'+item['id'],help='Eliminar enlace'):
+            try:home_save(repo,'bookmarks',[x for x in items if x['id']!=item['id']]);rerun_home()
+            except Exception as e:notice_error(e)
+
+
+HOME_RENDERERS = {
+    'calendar':home_widget_calendar,'tasks':home_widget_tasks,'notes':home_widget_notes,
+    'weather':home_widget_weather,'calculator':home_widget_calculator,
+    'construction':home_widget_construction,'converter':home_widget_converter,
+    'bookmarks':home_widget_bookmarks,
+}
+
+
+def home_customize(repo, selected):
+    with st.popover('⚙️ Personalizar widgets',use_container_width=False):
+        st.markdown('**Tu inicio, tus herramientas**')
+        st.caption('Selecciona cuáles aparecen. Puedes cambiar el orden con las flechas.')
+        with st.form('home_customize_form'):
+            chosen=st.multiselect('Widgets visibles',list(HOME_WIDGETS),default=selected,
+                      format_func=lambda key:HOME_WIDGETS[key][0]+' '+HOME_WIDGETS[key][1],
+                      key='home_widget_choices_'+hashlib.sha1(str(selected).encode()).hexdigest()[:8])
+            apply=st.form_submit_button('Guardar selección',use_container_width=True)
+        if apply:
+            try:
+                if not chosen:raise ValueError('Deja al menos una herramienta activa.')
+                updated=[name for name in selected if name in chosen]+[name for name in chosen if name not in selected]
+                home_save(repo,'layout',updated);rerun_home()
+            except Exception as e:notice_error(e)
+        if len(selected)>1:
+            moving=st.selectbox('Ordenar herramientas',selected,
+                          format_func=lambda name:HOME_WIDGETS[name][1],key='home_reorder_select')
+            idx=selected.index(moving)
+            up,down=st.columns(2)
+            if up.button('↑ Subir',disabled=idx==0,key='home_move_up',use_container_width=True):
+                try:
+                    reordered=selected.copy();reordered[idx-1],reordered[idx]=reordered[idx],reordered[idx-1]
+                    home_save(repo,'layout',reordered);rerun_home()
+                except Exception as e:notice_error(e)
+            if down.button('↓ Bajar',disabled=idx==len(selected)-1,key='home_move_down',use_container_width=True):
+                try:
+                    reordered=selected.copy();reordered[idx+1],reordered[idx]=reordered[idx],reordered[idx+1]
+                    home_save(repo,'layout',reordered);rerun_home()
+                except Exception as e:notice_error(e)
+
+
+@(_FRAGMENT if _FRAGMENT is not None else (lambda fn:fn))
+def render_home_widgets(repo):
+    selected=home_active_widgets(repo)
+    a,b=st.columns([5,1],vertical_alignment='center')
+    with a:
+        st.markdown('<div class="ab-home-intro"><div class="ab-home-kicker">TU ESPACIO PERSONAL</div>'
+                    '<h2>Mi escritorio</h2><p>Organiza tu día, tus notas y tus herramientas. '
+                    'Elige qué mostrar y cambia el orden cuando quieras.</p></div>',unsafe_allow_html=True)
+    with b:home_customize(repo,selected)
+    st.caption(f'{len(selected)} widget(s) activos · Preferencias privadas de tu cuenta · Guardado en Supabase')
+    for offset in range(0,len(selected),2):
+        columns=st.columns([1,1],gap='medium')
+        for col,widget in zip(columns,selected[offset:offset+2]):
+            with col:
+                with st.container(border=True):
+                    home_widget_title(widget)
+                    HOME_RENDERERS[widget](repo)
+
+
 def main():
     for prefix in st.session_state.pop('_cleanup_prefixes',[]):
         for key in list(st.session_state):
@@ -3092,16 +3623,7 @@ def main():
                                      label_visibility='collapsed') or short['Inicio']
         active=visible[labels.index(chosen)]
         if active=='Inicio':
-            st.markdown('<div class="ab-welcome"><h3>Centro de operaciones</h3>'
-                        '<p>Accede a un módulo sin cargar formularios, historiales ni fotografías innecesarias.</p></div>',
-                        unsafe_allow_html=True)
-            sections=[(m,short[m]) for m in visible if m not in ('Inicio','Mi cuenta','Panel Admin')]
-            for i in range(0,len(sections),3):
-                columns=st.columns(min(3,len(sections)-i))
-                for col,(module,label) in zip(columns,sections[i:i+3]):
-                    if col.button(label+'  →',key='v11_home_'+module,use_container_width=True):
-                        st.session_state[route_key]=short[module]
-                        st.rerun()
+            render_home_widgets(repo)
             return
         render_active_module(active,repo,cookie)
     except Exception as exc:
