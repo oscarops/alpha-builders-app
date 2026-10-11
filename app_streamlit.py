@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.11-v18.3-nomina-fotos-maestro"
+APP_VERSION = "2026.10.11-v18.5-nomina-atomica"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -4400,77 +4400,56 @@ def replace_collaborative_workers(repo, colleague_email, building, expected_snap
                             'No se modificó ningún trabajador. Comprueba los permisos de app_config '
                             'y los registros del servidor antes de intentar de nuevo.') from exc
 
-    phase = 'agregar trabajadores faltantes'
+    # v18.5: toda la sustitución ocurre en UNA transacción PostgreSQL.
+    # Requiere ejecutar Alpha_Builders_v18_5_CORRECCION_NOMINA.sql una sola vez.
+    # La función SQL conserva IDs coincidentes, copia solo los nombres faltantes,
+    # retira los sobrantes y oculta el respaldo del edificio al confirmar el commit.
     try:
-        if missing:
-            # Solo se envían las columnas propias del registro. No se fuerza
-            # client_request_id: la migración puede no tener esa columna.
-            new_rows = [{
-                'usuario_email': repo.email, 'edificio': building,
-                'nombre': w['nombre'], 'cargo': w['cargo'],
-            } for w in missing]
-            response = database().table('trabajadores').insert(new_rows).execute()
-            if len(response.data or []) != len(new_rows):
-                raise RuntimeError('No se confirmó la inserción completa de los trabajadores faltantes.')
-
-        phase = 'actualizar cargos de los trabajadores coincidentes'
-        for old, w in changed:
-            query = (database().table('trabajadores').update({'cargo': w['cargo']})
-                     .eq('id', old['id']).eq('usuario_email', repo.email)
-                     .eq('edificio', building))
-            if old.get('revision') is not None:
-                query = query.eq('revision', old['revision'])
-            response = query.execute()
-            if len(response.data or []) != 1:
-                raise ConflictError('Un trabajador se modificó en otra sesión. Verifica la nómina actual.')
-
-        # Comprobar que TODA la nómina nueva ya existe ANTES de quitar las filas
-        # anteriores. Es independiente de cómo responda la interfaz/caché.
-        phase = 'verificar nómina nueva'
-        current = all_rows('trabajadores', filters={'usuario_email': repo.email, 'edificio': building},
-                           columns='id,nombre,cargo,edificio', order='id')
-        have = {(norm_name(row), str(row.get('cargo') or '').strip().upper()) for row in current}
-        want = {(norm_name(row), row['cargo']) for row in source}
-        if not want.issubset(have):
-            raise RuntimeError('La nómina nueva no está completa; no se eliminarán trabajadores antiguos.')
-
-        phase = 'retirar trabajadores que ya no pertenecen a la nómina'
-        ids = [row['id'] for row in obsolete]
-        for start in range(0, len(ids), 100):
-            block = ids[start:start + 100]
-            response = (database().table('trabajadores').delete()
-                        .eq('usuario_email', repo.email).eq('edificio', building)
-                        .in_('id', block).execute())
-            if len(response.data or []) != len(block):
-                raise ConflictError('Algunos trabajadores antiguos cambiaron durante la sustitución.')
-
-        phase = 'verificar resultado final'
-        final = all_rows('trabajadores', filters={'usuario_email': repo.email, 'edificio': building},
-                         columns='nombre,cargo,edificio', order='id')
-        actual = sorted((norm_name(row), str(row.get('cargo') or '').strip().upper()) for row in final)
-        expected = sorted((norm_name(row), row['cargo']) for row in source)
-        if actual != expected:
-            raise RuntimeError('La comprobación final no coincide con la nómina elegida.')
-
-        phase = 'ocultar el respaldo histórico sustituido'
-        excluded = replaced_worker_buildings(repo)
-        excluded.add(building.casefold())
-        set_config('alpha_nomina_reemplazos_' + repo.email, json_text(sorted(excluded)))
+        response = database().rpc('alpha_replace_workers_atomic', {
+            'p_email': repo.email,
+            'p_building': building,
+            'p_workers': source,
+        }).execute()
+        result = response.data
+        if isinstance(result, list) and len(result) == 1 and isinstance(result[0], dict):
+            result = result[0]
+        if not isinstance(result, dict) or int(result.get('final', -1)) != len(source):
+            raise RuntimeError('La operación no devolvió la confirmación final esperada.')
         invalidate()
+        get_config.clear()
         return previous_count, len(source)
     except Exception as exc:
         invalidate()
-        LOG.exception('Sustitución de nómina interrumpida en la fase %s', phase)
+        LOG.exception('Fallo en la sustitución atómica de nómina para el edificio %s', building)
+        pg_code = str(getattr(exc, 'code', '') or '')
+        message = str(getattr(exc, 'message', '') or '')
+        if pg_code in {'PGRST202', '42883'} or 'alpha_replace_workers_atomic' in message.lower():
+            raise ConflictError(
+                'Falta instalar la actualización SQL v18.5 en Supabase. '
+                'La nómina actual no se modificó. Ejecuta primero el archivo '
+                'Alpha_Builders_v18_5_CORRECCION_NOMINA.sql en SQL Editor.'
+            ) from exc
+        if pg_code == '23505':
+            violated = re.search(r'(?:constraint|index) [\"\']?([a-zA-Z0-9_]+)', message, re.I)
+            name = violated.group(1) if violated else 'no identificada'
+            raise ConflictError(
+                f'La base de datos todavía tiene una restricción de duplicados ({name}). '
+                'La sustitución fue revertida por completo; tu nómina sigue intacta. '
+                'Comparte ese nombre de restricción para adaptar el SQL a tu esquema.'
+            ) from exc
+        if pg_code == '23503':
+            raise ConflictError(
+                'Algunos trabajadores están vinculados mediante relaciones de base de datos '
+                '(restricción de clave foránea). PostgreSQL canceló el reemplazo y conserva '
+                'todos los registros. Se necesita revisar esa relación antes de continuar.'
+            ) from exc
         if isinstance(exc, (ValueError, PermissionError, ConflictError)):
-            detail = str(exc)
-        else:
-            # No exponer tokens, datos privados o sentencias SQL a usuarios.
-            pg_code = str(getattr(exc, 'code', '') or '')
-            detail = ('Código de base de datos: ' + pg_code + '. ') if re.fullmatch(r'[0-9A-Z]{5}', pg_code) else ''
+            raise
+        safe_code = pg_code if re.fullmatch(r'[0-9A-Z]{5}', pg_code) else 'sin código'
         raise ConflictError(
-            f'No se pudo completar la sustitución al {phase}. {detail}'
-            f'La nómina original está respaldada y la del compañero no se modificó. '
-            f'Revisa tu nómina antes de volver a intentarlo. Si continúa, comparte este paso del error con el administrador.'
+            f'No se completó la sustitución atómica (código {safe_code}). '
+            'PostgreSQL revirtió cualquier modificación de esta operación. '
+            'Revisa los registros de Streamlit y comparte el código si el error continúa.'
         ) from exc
 
 
