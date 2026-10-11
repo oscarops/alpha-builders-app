@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.11-v18-catalogo"
+APP_VERSION = "2026.10.11-v18.3-nomina-fotos-maestro"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -1403,6 +1403,45 @@ class Editor:
             if st.button("Retirar fotografía", key=upload_key + ":remove:" + str(idx)):
                 photos.pop(idx); nested_set(self.data, path, photos); self.persist(); rerun_selected_module()
 
+    def activity_photo(self, path):
+        """Exactamente una foto por actividad; edición y borradores independientes."""
+        path = tuple(path)
+        photos = nested_get(self.data, path, [])
+        if isinstance(photos, str):
+            photos = [photos] if photos else []
+        if not isinstance(photos, list):
+            photos = []
+        nested_set(self.data, path, photos)
+        key = self.prefix + 'activity-photo:' + ':'.join(map(str, path))
+
+        def on_photo():
+            upload = st.session_state.get(key)
+            if upload is None:
+                return
+            try:
+                encoded = image_b64(upload)
+                nested_set(self.data, path, [encoded])
+                self.draft.pop('photo_error', None)
+                self.persist()
+            except Exception as exc:
+                self.draft['photo_error'] = str(exc)
+
+        st.file_uploader('Fotografía de esta actividad', type=['jpg', 'jpeg', 'png', 'webp'],
+                         accept_multiple_files=False, key=key, on_change=on_photo,
+                         help='Adjunta una fotografía como evidencia. Puedes reemplazarla seleccionando otra.')
+        if photos:
+            photo = image_stream(photos[0])
+            if photo:
+                st.image(photo, width=260, caption='Evidencia de esta actividad')
+            else:
+                st.warning('La foto guardada no se puede visualizar; no se eliminará automáticamente.')
+            if st.button('🗑️ Quitar foto', key=key + ':remove'):
+                nested_set(self.data, path, [])
+                self.persist()
+                rerun_selected_module()
+        else:
+            st.caption('📷 Pendiente: adjunta una fotografía antes de guardar el libro.')
+
     def rows(self, field, default):
         self.data.setdefault(field, {})
         if not self.data[field]:
@@ -2053,7 +2092,37 @@ def v18_chapter_label(code):
     return ''
 
 
+def codigo_rubro_orden_numerico(codigo):
+    """Clave de orden natural: capítulo, rubro y subcódigo (todos numéricos).
+
+    Ej.: CAP-05-130 > CAP-05-129 > CAP-05-13 > CAP-05-09.
+    También soporta sufijos presentes en el Excel: CAP-23-06 (11) y CAP-27-113E.
+    No cambia los códigos originales ni inventa códigos que no estén en el catálogo.
+    """
+    codigo=str(codigo or '').strip().upper()
+    patron=re.fullmatch(r'CAP-(\d+)-(\d+)(?:\s*\((\d+)\)|([A-Z]+))?',codigo)
+    if patron:
+        capitulo=int(patron.group(1))
+        rubro=int(patron.group(2))
+        subnumero=int(patron.group(3)) if patron.group(3) else 0
+        sufijo=patron.group(4) or ''
+        subletra=0
+        for letra in sufijo:
+            subletra=subletra*26+ord(letra)-ord('A')+1
+        return (capitulo,rubro,subnumero,subletra,codigo)
+    # Compatibilidad con posibles códigos adicionales de futuros Excel.
+    numeros=tuple(int(parte) for parte in re.findall(r'\d+',codigo))
+    return (*((numeros+(0,0,0,0))[:4]),codigo)
+
+
 def v18_catalog_matches(chapter='', query='', limit=100):
+    """Capítulos del 01 al 28 y rubros numéricamente descendentes EN CADA capítulo.
+
+    Antes, reverse=True invertía el capítulo y el rubro a la vez, de modo que el
+    catálogo general empezaba por CAP-28. Usamos dos ordenaciones estables:
+    rubros (mayor a menor) y capítulos (menor a mayor). También se respeta el
+    orden de subcódigos CAP-23-06 (11) y CAP-27-113E. Se ordena ANTES de limitar.
+    """
     records=catalogo_rubros_v18()['rubros']
     q=normalize_template_key(query)
     code=v18_chapter_code(chapter)
@@ -2064,9 +2133,12 @@ def v18_catalog_matches(chapter='', query='', limit=100):
         if q and q not in normalize_template_key(ident+' '+description+' '+unit):
             continue
         matches.append((ident,description,unit))
-        if len(matches)>=limit:
-            break
-    return matches
+    # Primero ordenar los rubros y subcódigos de mayor a menor.
+    matches.sort(key=lambda item:codigo_rubro_orden_numerico(item[0]),reverse=True)
+    # Python garantiza orden estable: dentro del capítulo no cambia el orden
+    # descendente anterior, pero TODOS los capítulos pasan a orden ascendente.
+    matches.sort(key=lambda item:codigo_rubro_orden_numerico(item[0])[0])
+    return matches[:limit] if limit is not None else matches
 
 
 def v18_catalog_record(code):
@@ -2096,7 +2168,7 @@ def v18_catalog_page(repo):
     page_heading('Catálogo técnico','Capítulos y rubros de Dablanc',
         'Busca por especialidad, código o descripción. Las unidades proceden del Excel que compartiste.')
     book=catalogo_rubros_v18()
-    chapters=book['capitulos'];items=book['rubros']
+    chapters=sorted(book['capitulos'],key=lambda pair:int(pair[0][4:]));items=book['rubros']
     m1,m2=st.columns(2)
     m1.metric('Capítulos',len(chapters))
     m2.metric('Rubros disponibles',len(items))
@@ -2116,10 +2188,16 @@ def v18_catalog_page(repo):
         st.info('No se encontraron rubros con esos filtros.');return
     pages=max(1,(len(full)+24)//25)
     page_key='v18_catalog_page_idx'
+    # Un cambio de capítulo o de búsqueda empieza en la primera página.
+    filter_signature=(prefix,normalize_template_key(query))
+    filter_state_key='v18_catalog_last_filter'
+    if st.session_state.get(filter_state_key)!=filter_signature:
+        st.session_state[page_key]=0
+        st.session_state[filter_state_key]=filter_signature
     if page_key not in st.session_state:st.session_state[page_key]=0
     page=max(0,min(int(st.session_state[page_key]),pages-1))
     st.session_state[page_key]=page
-    st.caption(f'{len(full)} rubros encontrados · Mostrando {page*25+1}–{min((page+1)*25,len(full))}')
+    st.caption(f'{len(full)} rubros encontrados · Capítulos 01 → 28; rubros dentro de cada capítulo de mayor a menor · Mostrando {page*25+1}–{min((page+1)*25,len(full))}')
     if pages>1:
         ca,cb,cc=st.columns([1,1.2,1])
         with ca:st.button('← Anteriores',key='v18_cat_prev',disabled=page==0,
@@ -2136,11 +2214,11 @@ def v18_catalog_activity_picker(editor):
     """Selecciona capítulo→rubro o busca por texto→capítulo sin miles de widgets."""
     with st.container(border=True):
         st.markdown('#### 📚 Añadir rubro del catálogo')
-        st.caption('Elige primero un capítulo o busca directamente un rubro en todo el catálogo. '
+        st.caption('Capítulos del 01 al 28 y rubros de mayor a menor dentro de cada capítulo. Elige primero un capítulo o busca directamente un rubro en todo el catálogo. '
                    'Se completarán el capítulo, código, descripción y unidad; tú indicarás el área y cantidad.')
         route=st.radio('Modo de búsqueda',['Por capítulo','Por nombre o código'],horizontal=True,
             key=editor.prefix+'v18_search_mode')
-        chapters=catalogo_rubros_v18()['capitulos']
+        chapters=sorted(catalogo_rubros_v18()['capitulos'],key=lambda pair:int(pair[0][4:]))
         chapter=''
         if route=='Por capítulo':
             chapter=st.selectbox('📂 Capítulo', [c for c,_ in chapters],
@@ -2224,6 +2302,7 @@ def v17_linked_master_activities(repo, project, date_iso):
                     'Departamento':str(item.get('Departamento') or item.get('departamento') or ''),
                     'Personal':', '.join(map(str,people)),
                     'Observaciones':str(item.get('Observaciones') or ''),
+                    'Foto_B64':next(iter(list_photos(item)),''),
                 })
     return result
 
@@ -2395,7 +2474,7 @@ def render_official(editor,repo):
             for idx,(rid,item) in enumerate(list(editor.rows('actividades',default).items()),1):
                 with st.container(border=True):
                     st.markdown(f'**Rubro {idx}**')
-                    chapters=['']+[v18_chapter_label(ch) for ch,_ in catalogo_rubros_v18()['capitulos']]
+                    chapters=['']+[v18_chapter_label(ch) for ch,_ in sorted(catalogo_rubros_v18()['capitulos'],key=lambda pair:int(pair[0][4:]))]
                     c1,c2=st.columns([1,1.8])
                     with c1:
                         editor.field('selectbox',('actividades',rid,'Capitulo'),'Capítulo','',options=chapters)
@@ -2436,6 +2515,9 @@ def render_official(editor,repo):
                                 st.write('**Departamento:**',item['Departamento'] or '—')
                                 st.write('**Personal:**',item['Personal'] or '—')
                                 if item.get('Observaciones'):st.info(item['Observaciones'])
+                                if item.get('Foto_B64'):
+                                    photo=image_stream(item['Foto_B64'])
+                                    if photo:st.image(photo,width=300,caption='Evidencia de esta actividad')
                             if st.button('➕ Copiar como rubro editable',key=editor.prefix+'v17_copy_master'):
                                 v17_import_master_activity(editor,item)
                 except Exception as exc:notice_error(exc)
@@ -2483,6 +2565,10 @@ def maestro_data(record=None):
         for upper,lower in [("Actividad","actividad"),("Cantidad","cantidad"),("Personal_A_Cargo","personal_a_cargo"),("Piso","piso"),("Departamento","departamento")]:
             value[upper]=item.get(upper,item.get(lower,[] if upper=="Personal_A_Cargo" else ""))
         if not isinstance(value["Personal_A_Cargo"],list):value["Personal_A_Cargo"]=[str(value["Personal_A_Cargo"])]
+        existing_photos = value.get('Fotos')
+        if not isinstance(existing_photos, list):
+            existing_photos = [value['Foto_B64']] if value.get('Foto_B64') else []
+        value['Fotos'] = [p for p in existing_photos if isinstance(p,str) and p]
         normalized[row_id()]=value
     extras=payload if isinstance(payload,dict) else {}
     return {"fecha":str(record.get("fecha") or now_ec().date()),"proyecto":record.get("proyecto") or "",
@@ -2500,7 +2586,8 @@ def render_maestro(editor, repo):
         st.text_input("Maestro responsable:", value=full_name(repo.user), disabled=True, key=editor.prefix + "maestro_visible")
     workers = [f"{r['nombre']} ({r['cargo']})" for r in combined_workers(repo,d.get("proyecto"))]
     st.markdown(f"#### 🔨 Actividades realizadas, personal y metrajes ({len(d['actividades']) or 1} registro/s)")
-    default = {"Actividad": "", "Cantidad": "", "Personal_A_Cargo": [], "Piso": "", "Departamento": "", "Observaciones": "", "Personal_Manual": ""}
+    st.caption("Cada actividad nueva necesita una fotografía de evidencia. Se guardará con el libro y estará disponible al consultarlo.")
+    default = {"Actividad": "", "Cantidad": "", "Personal_A_Cargo": [], "Piso": "", "Departamento": "", "Observaciones": "", "Personal_Manual": "", "Fotos": []}
     for index, (rid, item) in enumerate(list(editor.rows("actividades", default).items()), 1):
         st.markdown(f'<div class="banner-item-header"><span>Actividad N° {index}</span></div>', unsafe_allow_html=True)
         with st.container(border=True):
@@ -2521,6 +2608,8 @@ def render_maestro(editor, repo):
                 editor.field("text_input", ("actividades", rid, "Personal_Manual"), "Personal adicional (separado por comas)", "")
             with d2:
                 editor.remove("actividades", rid)
+            with st.expander("📷 Fotografía de esta actividad", expanded=not bool(item.get('Fotos'))):
+                editor.activity_photo(("actividades", rid, "Fotos"))
             with st.expander("Observaciones de la actividad", expanded=False):
                 editor.field("text_area", ("actividades", rid, "Observaciones"), "Observaciones", "")
     editor.add("actividades", default, "Agregar otra actividad")
@@ -2537,6 +2626,14 @@ def render_maestro(editor, repo):
                 acts.append(value)
             if not acts:
                 raise ValueError("Ingrese al menos una actividad.")
+            # En libros nuevos cada actividad debe contar con evidencia
+            # independiente. Los libros históricos sin fotos pueden editarse
+            # sin perder datos ni imponerles una obligación retroactiva.
+            if not d.get('_original'):
+                missing_photos = [i for i,act in enumerate(acts,1) if not act.get('Fotos')]
+                if missing_photos:
+                    raise ValueError('Adjunta una fotografía a cada actividad antes de guardar. Pendiente en actividad(es): '
+                                     + ', '.join(map(str,missing_photos)) + '.')
             payload = copy.deepcopy(d.get("_extra", {}))
             # Los requerimientos NO se crean ni actualizan desde los libros de obra.
             # Los registros antiguos permanecen intactos dentro de _extra en ediciones.
@@ -2726,6 +2823,8 @@ def sections_for(table,record):
                 if not isinstance(item,dict):continue
                 people=item.get("Personal_A_Cargo",item.get("personal_a_cargo",[]));people=", ".join(map(str,people)) if isinstance(people,list) else people
                 rows.append([item.get("Actividad",item.get("actividad","")),people,item.get("Cantidad",item.get("cantidad","")),item.get("Piso",item.get("piso","")),item.get("Departamento",item.get("departamento","")),item.get("Observaciones",item.get("observaciones",""))])
+                photos.extend([(f"Actividad: {item.get('Actividad',item.get('actividad',''))} · Evidencia {j + 1}",photo)
+                               for j,photo in enumerate(list_photos(item))])
             sections.append(("Actividades del maestro mayor",["Actividad","Personal","Cantidad","Piso","Departamento","Observaciones"],rows))
         else:
             meta += [("Ciudad",data.get("Ciudad","Quito")),("Hoja",data.get("Hoja","")),("Ubicación",data.get("Ubicacion",record.get("frente",""))),("Barrio",data.get("Barrio","")),("Superintendente",data.get("Superintendente","")),("Fiscalizador",data.get("Fiscalizador","")),("Clima",data.get("Clima_Condicion",record.get("clima",""))),("Observaciones del clima",data.get("Clima_Obs","")),("Novedades y recomendaciones",data.get("Novedades",""))]
@@ -4239,72 +4338,143 @@ def worker_snapshot(records):
 
 
 def replace_collaborative_workers(repo, colleague_email, building, expected_snapshot):
-    """Reemplazar nómina *propia* del edificio por la de un compañero.
+    """Sustituye TU nómina del edificio sin insertar duplicados preexistentes.
 
-    Protección de datos: se crea antes un respaldo en app_config, se insertan
-    los nuevos en un único lote y SOLAMENTE después se eliminan los anteriores.
-    Sin migración SQL no existe transacción atómica multi-petición: cualquier
-    fallo posterior al INSERT conserva la copia previa y no borra la fuente.
+    Importante: PostgREST no ofrece una transacción para varias solicitudes.
+    Se archiva ANTES de mutar; primero se insertan los nombres ausentes,
+    luego se actualizan las especialidades coincidentes y solo al final
+    se eliminan los trabajadores que no aparecen en la nómina de origen.
+    Un fallo deja una copia recuperable y el detalle de la fase del error.
+    Reejecutar es seguro porque se vuelve a comparar con el estado SQL real.
     """
     repo._verify_write_session()
     if building not in repo.projects:
         raise PermissionError('El edificio ya no está asignado a tu cuenta.')
     source = replacement_source_workers(repo, colleague_email, building)
     if not source:
-        raise ValueError('La nómina del compañero está vacía en este edificio; no se reemplazará tu personal.')
-    if worker_snapshot(source)!=expected_snapshot:
-        raise ConflictError('La nómina del compañero cambió desde la vista previa. Revísala y vuelve a confirmar.')
+        raise ValueError('El compañero no tiene trabajadores en este edificio. No se alteró tu nómina.')
+    if worker_snapshot(source) != expected_snapshot:
+        raise ConflictError('La nómina de origen cambió desde la vista previa. Revísala y confirma nuevamente.')
 
-    prior_visible_count = len(combined_workers(repo,building))
-    old_rows = all_rows('trabajadores', filters={'usuario_email':repo.email,'edificio':building},
+    old_rows = all_rows('trabajadores', filters={'usuario_email': repo.email, 'edificio': building},
                         columns='*', order='id')
-    old_legacy = [w for w in legacy_worker_backup(repo) if w.get('edificio','').casefold()==building.casefold()]
-    op_id=uuid.uuid4().hex
-    stamp=now_ec().strftime('%Y%m%d_%H%M%S')
-    # Guardar el archivo original sin modificar, asociado al propietario; 
-    # no escribir emails ni identificadores en logs o interfaz pública.
-    backup_key='alpha_nomina_archivo_'+hashlib.sha256(repo.email.encode()).hexdigest()[:16]+'_'+stamp+'_'+op_id[:8]
-    set_config(backup_key,json_text({
-        'version':16,'propietario':repo.email,'origen':norm_email(colleague_email),
-        'edificio':building,'fecha':now_ec().isoformat(),
-        'trabajadores_sql':old_rows,'trabajadores_respaldo':old_legacy,
-    }))
+    previous = combined_workers(repo, building)
+    previous_count = len(previous)
+    old_legacy = [r for r in legacy_worker_backup(repo)
+                  if str(r.get('edificio') or '').casefold() == building.casefold()]
 
-    payload=[]
-    for index,w in enumerate(source):
-        item={**w,'usuario_email':repo.email,
-              'client_request_id':str(uuid.uuid5(uuid.NAMESPACE_URL,repo.email+':reemplazo:'+op_id+':'+str(index)))}
-        payload.append(item)
-    # Nunca borrar antes de confirmar que todos los nuevos fueron insertados.
-    inserted=database().table('trabajadores').insert(payload).execute()
-    staged=list(inserted.data or [])
-    if len(staged)!=len(payload) or any('id' not in row for row in staged):
-        raise RuntimeError('No se confirmó el lote completo; se detuvo el borrado. El respaldo está guardado.')
+    # La operación es por persona y edificio; no por ID ni por especialidad.
+    def norm_name(row):
+        return ' '.join(str(row.get('nombre') or '').upper().split())
 
-    old_ids=[r['id'] for r in old_rows]
+    target = {norm_name(w): w for w in source}
+    if len(target) != len(source):
+        raise ValueError('Hay nombres repetidos en la nómina de origen. Revísalos antes de sustituirla.')
+    old_by_name = {}
+    obsolete = []
+    for row in old_rows:
+        name = norm_name(row)
+        if name in old_by_name:
+            obsolete.append(row)
+        else:
+            old_by_name[name] = row
+    # Reutilizar la fila original de los nombres coincidentes impide colisiones
+    # con restricciones UNIQUE(usuario_email, edificio, nombre) de Postgres.
+    missing = [w for name, w in target.items() if name not in old_by_name]
+    changed = [(old_by_name[name], w) for name, w in target.items()
+               if name in old_by_name and str(old_by_name[name].get('cargo') or '').strip().upper() != w['cargo']]
+    obsolete += [row for name, row in old_by_name.items() if name not in target]
+
+    stamp = now_ec().strftime('%Y%m%d_%H%M%S')
+    backup_key = ('alpha_nomina_archivo_' + hashlib.sha256(repo.email.encode('utf-8')).hexdigest()[:16]
+                  + '_' + stamp + '_' + uuid.uuid4().hex[:8])
+    # Respaldar antes de modificar ningún trabajador, incluso si el origen y
+    # destino ya comparten nombres. La copia histórica original NO se borra.
     try:
-        for pos in range(0,len(old_ids),100):
-            block=old_ids[pos:pos+100]
-            result=(database().table('trabajadores').delete()
-                .eq('usuario_email',repo.email).eq('edificio',building)
-                .in_('id',block).execute())
-            if len(result.data or [])!=len(block):
-                raise ConflictError('No todos los registros anteriores pudieron eliminarse.')
+        set_config(backup_key, json_text({
+            'version': 18, 'accion': 'sustitucion_colaborativa', 'propietario': repo.email,
+            'origen': norm_email(colleague_email), 'edificio': building,
+            'fecha': now_ec().isoformat(), 'trabajadores_sql': old_rows,
+            'trabajadores_respaldo': old_legacy,
+        }))
+    except Exception as exc:
+        LOG.exception('No se pudo respaldar la nómina antes de la sustitución')
+        raise ConflictError('No se pudo guardar el respaldo de seguridad en Supabase. '
+                            'No se modificó ningún trabajador. Comprueba los permisos de app_config '
+                            'y los registros del servidor antes de intentar de nuevo.') from exc
+
+    phase = 'agregar trabajadores faltantes'
+    try:
+        if missing:
+            # Solo se envían las columnas propias del registro. No se fuerza
+            # client_request_id: la migración puede no tener esa columna.
+            new_rows = [{
+                'usuario_email': repo.email, 'edificio': building,
+                'nombre': w['nombre'], 'cargo': w['cargo'],
+            } for w in missing]
+            response = database().table('trabajadores').insert(new_rows).execute()
+            if len(response.data or []) != len(new_rows):
+                raise RuntimeError('No se confirmó la inserción completa de los trabajadores faltantes.')
+
+        phase = 'actualizar cargos de los trabajadores coincidentes'
+        for old, w in changed:
+            query = (database().table('trabajadores').update({'cargo': w['cargo']})
+                     .eq('id', old['id']).eq('usuario_email', repo.email)
+                     .eq('edificio', building))
+            if old.get('revision') is not None:
+                query = query.eq('revision', old['revision'])
+            response = query.execute()
+            if len(response.data or []) != 1:
+                raise ConflictError('Un trabajador se modificó en otra sesión. Verifica la nómina actual.')
+
+        # Comprobar que TODA la nómina nueva ya existe ANTES de quitar las filas
+        # anteriores. Es independiente de cómo responda la interfaz/caché.
+        phase = 'verificar nómina nueva'
+        current = all_rows('trabajadores', filters={'usuario_email': repo.email, 'edificio': building},
+                           columns='id,nombre,cargo,edificio', order='id')
+        have = {(norm_name(row), str(row.get('cargo') or '').strip().upper()) for row in current}
+        want = {(norm_name(row), row['cargo']) for row in source}
+        if not want.issubset(have):
+            raise RuntimeError('La nómina nueva no está completa; no se eliminarán trabajadores antiguos.')
+
+        phase = 'retirar trabajadores que ya no pertenecen a la nómina'
+        ids = [row['id'] for row in obsolete]
+        for start in range(0, len(ids), 100):
+            block = ids[start:start + 100]
+            response = (database().table('trabajadores').delete()
+                        .eq('usuario_email', repo.email).eq('edificio', building)
+                        .in_('id', block).execute())
+            if len(response.data or []) != len(block):
+                raise ConflictError('Algunos trabajadores antiguos cambiaron durante la sustitución.')
+
+        phase = 'verificar resultado final'
+        final = all_rows('trabajadores', filters={'usuario_email': repo.email, 'edificio': building},
+                         columns='nombre,cargo,edificio', order='id')
+        actual = sorted((norm_name(row), str(row.get('cargo') or '').strip().upper()) for row in final)
+        expected = sorted((norm_name(row), row['cargo']) for row in source)
+        if actual != expected:
+            raise RuntimeError('La comprobación final no coincide con la nómina elegida.')
+
+        phase = 'ocultar el respaldo histórico sustituido'
+        excluded = replaced_worker_buildings(repo)
+        excluded.add(building.casefold())
+        set_config('alpha_nomina_reemplazos_' + repo.email, json_text(sorted(excluded)))
+        invalidate()
+        return previous_count, len(source)
     except Exception as exc:
         invalidate()
-        raise ConflictError('El reemplazo no terminó por completo. La copia anterior está respaldada; verifica la nómina antes de reintentar.') from exc
-
-    # El respaldo histórico anterior sigue intacto, pero deja de mostrarse
-    # en ese edificio después de sustituir con éxito la nómina activa.
-    excluded=replaced_worker_buildings(repo)
-    excluded.add(building.casefold())
-    try:
-        set_config('alpha_nomina_reemplazos_'+repo.email,json_text(sorted(excluded)))
-    except Exception as exc:
-        invalidate()
-        raise ConflictError('Los trabajadores SQL ya se actualizaron, pero el respaldo anterior todavía puede aparecer en pantalla. Revisa la nómina y solicita ayuda antes de reintentar.') from exc
-    invalidate()
-    return prior_visible_count,len(source)
+        LOG.exception('Sustitución de nómina interrumpida en la fase %s', phase)
+        if isinstance(exc, (ValueError, PermissionError, ConflictError)):
+            detail = str(exc)
+        else:
+            # No exponer tokens, datos privados o sentencias SQL a usuarios.
+            pg_code = str(getattr(exc, 'code', '') or '')
+            detail = ('Código de base de datos: ' + pg_code + '. ') if re.fullmatch(r'[0-9A-Z]{5}', pg_code) else ''
+        raise ConflictError(
+            f'No se pudo completar la sustitución al {phase}. {detail}'
+            f'La nómina original está respaldada y la del compañero no se modificó. '
+            f'Revisa tu nómina antes de volver a intentarlo. Si continúa, comparte este paso del error con el administrador.'
+        ) from exc
 
 
 def update_legacy_worker(repo, worker, *, new_name=None, new_role=None, new_building=None, delete=False):
