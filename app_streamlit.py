@@ -2116,12 +2116,13 @@ def codigo_rubro_orden_numerico(codigo):
 
 
 def v18_catalog_matches(chapter='', query='', limit=100):
-    """Capítulos del 01 al 28 y rubros numéricamente descendentes EN CADA capítulo.
+    """Capítulos del 01 al 28 y rubros numéricamente ascendentes EN CADA capítulo.
 
-    Antes, reverse=True invertía el capítulo y el rubro a la vez, de modo que el
-    catálogo general empezaba por CAP-28. Usamos dos ordenaciones estables:
-    rubros (mayor a menor) y capítulos (menor a mayor). También se respeta el
-    orden de subcódigos CAP-23-06 (11) y CAP-27-113E. Se ordena ANTES de limitar.
+    El usuario pidió que la navegación empiece por 1, 2, 3… en todos los capítulos.
+    Por eso el catálogo general queda en orden natural: primero el capítulo 01, luego
+    el 02, etc.; y dentro de cada capítulo los rubros avanzan de menor a mayor según
+    el valor numérico real del código. También se respetan subcódigos como
+    CAP-23-06 (11) y CAP-27-113E.
     """
     records=catalogo_rubros_v18()['rubros']
     q=normalize_template_key(query)
@@ -2133,11 +2134,7 @@ def v18_catalog_matches(chapter='', query='', limit=100):
         if q and q not in normalize_template_key(ident+' '+description+' '+unit):
             continue
         matches.append((ident,description,unit))
-    # Primero ordenar los rubros y subcódigos de mayor a menor.
-    matches.sort(key=lambda item:codigo_rubro_orden_numerico(item[0]),reverse=True)
-    # Python garantiza orden estable: dentro del capítulo no cambia el orden
-    # descendente anterior, pero TODOS los capítulos pasan a orden ascendente.
-    matches.sort(key=lambda item:codigo_rubro_orden_numerico(item[0])[0])
+    matches.sort(key=lambda item:codigo_rubro_orden_numerico(item[0]))
     return matches[:limit] if limit is not None else matches
 
 
@@ -2197,7 +2194,7 @@ def v18_catalog_page(repo):
     if page_key not in st.session_state:st.session_state[page_key]=0
     page=max(0,min(int(st.session_state[page_key]),pages-1))
     st.session_state[page_key]=page
-    st.caption(f'{len(full)} rubros encontrados · Capítulos 01 → 28; rubros dentro de cada capítulo de mayor a menor · Mostrando {page*25+1}–{min((page+1)*25,len(full))}')
+    st.caption(f'{len(full)} rubros encontrados · Capítulos 01 → 28; rubros dentro de cada capítulo de menor a mayor · Mostrando {page*25+1}–{min((page+1)*25,len(full))}')
     if pages>1:
         ca,cb,cc=st.columns([1,1.2,1])
         with ca:st.button('← Anteriores',key='v18_cat_prev',disabled=page==0,
@@ -2214,7 +2211,7 @@ def v18_catalog_activity_picker(editor):
     """Selecciona capítulo→rubro o busca por texto→capítulo sin miles de widgets."""
     with st.container(border=True):
         st.markdown('#### 📚 Añadir rubro del catálogo')
-        st.caption('Capítulos del 01 al 28 y rubros de mayor a menor dentro de cada capítulo. Elige primero un capítulo o busca directamente un rubro en todo el catálogo. '
+        st.caption('Capítulos del 01 al 28 y rubros de menor a mayor dentro de cada capítulo. Elige primero un capítulo o busca directamente un rubro en todo el catálogo. '
                    'Se completarán el capítulo, código, descripción y unidad; tú indicarás el área y cantidad.')
         route=st.radio('Modo de búsqueda',['Por capítulo','Por nombre o código'],horizontal=True,
             key=editor.prefix+'v18_search_mode')
