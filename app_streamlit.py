@@ -8,6 +8,7 @@ import copy
 import csv
 import datetime as dt
 import hashlib
+import inspect
 import hmac
 import io
 import json
@@ -40,7 +41,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.10-v5"
+APP_VERSION = "2026.10.10-v6-interfaz-restaurada"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -663,6 +664,8 @@ class Editor:
         value = st.session_state[key]
         if kind == "date_input":
             value = value.isoformat()
+        elif kind == "time_input":
+            value = value.strftime("%H:%M")
         nested_set(self.data, path, value)
         self.persist()
 
@@ -690,8 +693,18 @@ class Editor:
             except ValueError:
                 value = now_ec().date()
             return st.date_input(label, value=value, **callback, **kwargs)
+        if kind == "time_input":
+            try:
+                time_value = dt.time.fromisoformat(str(value or default or "07:00")[:5])
+            except ValueError:
+                time_value = dt.time(7, 0)
+            return st.time_input(label, value=time_value, step=300, **callback, **kwargs)
         if kind == "checkbox":
             return st.checkbox(label, value=bool(value), **callback, **kwargs)
+        if kind == "segmented_control":
+            options = list(kwargs.pop("options"))
+            selected = value if value in options else None
+            return st.segmented_control(label, options, default=selected, **callback, **kwargs)
         if kind == "selectbox":
             options = list(kwargs.pop("options"))
             if value not in options and value not in (None, ""):
@@ -878,54 +891,105 @@ def checklist_data(record=None):
 
 
 def render_checklist(editor, repo):
+    """Reproduce los bloques mañana/tarde del diseño clásico usando borradores seguros."""
     d = editor.data
-    st.subheader("Configuración de la jornada")
-    a,b,c,dcol = st.columns([2,2,1,1])
-    with a: editor.field("selectbox", "edificio", "Edificio", "", options=[""] + project_options(repo.user, d.get("edificio")))
-    with b: editor.field("date_input", "fecha", "Fecha", str(now_ec().date()), disabled=bool(d.get("_original")))
-    with c: editor.field("text_input", "hora_inicio", "Hora inicio", "07:00")
-    with dcol: editor.field("text_input", "hora_fin", "Hora fin", "16:00")
-    st.caption("Responsable: " + full_name(repo.user))
-    for rid, item in d["verificaciones"].items():
-        with st.expander(f"{item.get('Jornada')} · {item.get('N°')} · {item.get('Actividad')}", expanded=False):
-            editor.field("selectbox", ("verificaciones",rid,"Estado"), "Estado", "Sin responder", options=["Sin responder","✓ Cumple","✗ No Cumple"])
-            editor.field("text_area", ("verificaciones",rid,"Observaciones"), "Observaciones (una por línea)", "")
-            editor.photos(("verificaciones",rid,"Fotos"), "Fotos de evidencia")
-            # Los responsables existentes se preservan, incluso al cambiar el estado.
-            if item.get("Actividad") == "Coordinación con otras especialidades" or item.get("Responsables"):
-                st.caption("Responsables y especialidades")
-                for pid, person in list(item["Responsables"].items()):
-                    editor.field("text_input", ("verificaciones",rid,"Responsables",pid,"nombre"), "Nombre del responsable", "")
-                    editor.field("text_input", ("verificaciones",rid,"Responsables",pid,"area"), "Área", "")
-                    if st.button("Retirar responsable", key=editor.prefix+rid+pid):
-                        item["Responsables"].pop(pid); editor.persist(); st.rerun()
-                if st.button("Agregar responsable", key=editor.prefix+rid+"addperson"):
-                    item["Responsables"][row_id()]={"nombre":"","area":""}; editor.persist(); st.rerun()
-    st.subheader("Supervisión de la ejecución de trabajos")
-    default = {"Actividad":"", "Encargados":"", "Observaciones":"", "Fotos":[]}
-    for rid, item in list(editor.rows("supervision", default).items()):
+    st.markdown("#### ⚙️ Configuración de la Jornada")
+    col_ed, col_resp, col_fecha, col_ini, col_fin = st.columns([2.1, 2.1, 1.55, 1.25, 1.25])
+    with col_ed:
+        editor.field("selectbox", "edificio", "Edificio / Proyecto:", "", options=[""] + project_options(repo.user, d.get("edificio")))
+    with col_resp:
+        st.text_input("Responsable:", value=full_name(repo.user), disabled=True, key=editor.prefix + "responsable_visible")
+    with col_fecha:
+        editor.field("date_input", "fecha", "Fecha:", str(now_ec().date()), disabled=bool(d.get("_original")))
+    with col_ini:
+        editor.field("time_input", "hora_inicio", "Hora Inicio:", "07:00")
+    with col_fin:
+        editor.field("time_input", "hora_fin", "Hora Fin:", "16:00")
+
+    for turno, activities, title in [
+        ("Mañana", ACTIVIDADES_MANANA_CLEAN, "🌅 Jornada de la Mañana"),
+        ("Tarde", ACTIVIDADES_TARDE_CLEAN, "🌆 Jornada de la Tarde"),
+    ]:
+        st.markdown("#### " + title)
+        selected = [(rid, item) for rid, item in d["verificaciones"].items() if item.get("Jornada") == turno]
+        for rid, item in selected:
+            st.markdown('<div class="banner-item-header"><span>N° ' +
+                        html_escape(str(item.get("N°", ""))) + ' — ' +
+                        html_escape(str(item.get("Actividad", ""))) + '</span></div>', unsafe_allow_html=True)
+            with st.container(border=True):
+                a, b, c = st.columns([1.25, 2.5, 1.9])
+                with a:
+                    editor.field("segmented_control", ("verificaciones", rid, "Estado"), "Estado general", None,
+                                 options=["✓ Cumple", "✗ No Cumple"])
+                with b:
+                    editor.field("text_area", ("verificaciones", rid, "Observaciones"),
+                                 "Observaciones del ítem (una por línea)", "", height=80)
+                with c:
+                    if turno == "Mañana" and item.get("N°") == 1 and not item.get("Fotos"):
+                        st.caption("📷 Evidencia fotográfica opcional")
+                    with st.expander("📷 Fotografías de evidencia", expanded=False):
+                        editor.photos(("verificaciones", rid, "Fotos"), "Evidencia")
+                if item.get("Actividad") == "Coordinación con otras especialidades" and (item.get("Estado") == "✗ No Cumple" or item.get("Responsables")):
+                    st.markdown("**Responsables y especialidades involucradas**")
+                    for pid, person in list(item["Responsables"].items()):
+                        p1, p2, p3 = st.columns([2.5, 2.5, .65])
+                        with p1:
+                            editor.field("text_input", ("verificaciones", rid, "Responsables", pid, "nombre"), "Nombre", "")
+                        with p2:
+                            editor.field("text_input", ("verificaciones", rid, "Responsables", pid, "area"), "Área", "")
+                        with p3:
+                            if st.button("🗑️", key=editor.prefix + rid + pid + "remove", help="Quitar responsable"):
+                                item["Responsables"].pop(pid, None)
+                                editor.persist()
+                                st.rerun()
+                    if st.button("➕ Agregar responsable", key=editor.prefix + rid + "add_responsable"):
+                        item["Responsables"][row_id()] = {"nombre": "", "area": ""}
+                        editor.persist()
+                        st.rerun()
+
+    st.markdown("#### 🏗️ Supervisión de la ejecución de trabajos")
+    default = {"Actividad": "", "Encargados": "", "Observaciones": "", "Fotos": []}
+    for index, (rid, item) in enumerate(list(editor.rows("supervision", default).items()), 1):
         with st.container(border=True):
-            for key,label in [("Actividad","Actividad supervisada"),("Encargados","Personal encargado"),("Observaciones","Observaciones de supervisión")]:
-                editor.field("text_input", ("supervision",rid,key), label, "")
-            editor.photos(("supervision",rid,"Fotos"), "Fotos de supervisión")
-            editor.remove("supervision",rid)
-    editor.add("supervision",default,"Agregar actividad")
-    editor.field("text_area","observacion_general","Observación general","")
-    if st.button("Guardar checklist", type="primary", key=editor.prefix+"save"):
+            st.markdown(f"**Actividad supervisada N° {index}**")
+            c1, c2 = st.columns(2)
+            with c1:
+                editor.field("text_input", ("supervision", rid, "Actividad"), "Trabajo supervisado", "")
+            with c2:
+                editor.field("text_input", ("supervision", rid, "Encargados"), "Personal encargado", "")
+            editor.field("text_area", ("supervision", rid, "Observaciones"), "Observaciones", "", height=72)
+            with st.expander("📷 Fotos de la supervisión", expanded=False):
+                editor.photos(("supervision", rid, "Fotos"))
+            editor.remove("supervision", rid)
+    editor.add("supervision", default, "Agregar actividad de supervisión")
+    editor.field("text_area", "observacion_general", "Observación general de la jornada", "")
+    if st.button("💾 Guardar Checklist de Obra", type="primary", key=editor.prefix + "save"):
         try:
-            time_calculation(d["hora_inicio"],d["hora_fin"])
-            verifications=[]
+            if not d.get("edificio"):
+                raise ValueError("Seleccione el edificio de la jornada.")
+            time_calculation(d["hora_inicio"], d["hora_fin"])
+            verifications = []
             for item in d["verificaciones"].values():
-                value=copy.deepcopy(item)
-                value["Observaciones"]=[x.strip() for x in value.get("Observaciones","").splitlines() if x.strip()]
-                value["Responsables"]=[v for v in value["Responsables"].values() if v.get("nombre","").strip()]
+                value = copy.deepcopy(item)
+                value["Estado"] = value.get("Estado") or "Sin responder"
+                value["Observaciones"] = [x.strip() for x in str(value.get("Observaciones") or "").splitlines() if x.strip()]
+                value["Responsables"] = [v for v in value.get("Responsables", {}).values() if str(v.get("nombre", "")).strip()]
                 verifications.append(value)
-            supervision=[copy.deepcopy(v) for v in d["supervision"].values() if v.get("Actividad","").strip() or v.get("Fotos") or v.get("Observaciones")]
-            if not any(v.get("Estado") not in {None,"Sin responder"} or v.get("Observaciones") or v.get("Fotos") for v in verifications) and not supervision and not d.get("observacion_general"):
-                raise ValueError("Ingrese al menos una respuesta, observación, fotografía o actividad.")
-            payload=copy.deepcopy(d.get("_extra",{})); payload.update({"Verificaciones":verifications+d.get("_otras_verificaciones",[]),"Supervision_Trabajos":supervision})
-            save_editor(editor,repo,"checklists",{"fecha":d["fecha"],"edificio":d["edificio"],"hora_inicio":d["hora_inicio"],"hora_fin":d["hora_fin"],"responsable":full_name(repo.user),"cargo":repo.user["cargo"],"observacion_general":d.get("observacion_general", ""),"datos":payload})
-        except Exception as exc: notice_error(exc)
+            supervision = [copy.deepcopy(v) for v in d["supervision"].values() if v.get("Actividad") or v.get("Fotos") or v.get("Observaciones")]
+            if not any(v.get("Estado") != "Sin responder" or v.get("Observaciones") or v.get("Fotos") for v in verifications) and not supervision and not d.get("observacion_general"):
+                raise ValueError("Registre al menos un control, actividad, observación o fotografía.")
+            payload = copy.deepcopy(d.get("_extra", {}))
+            payload.update({"Verificaciones": verifications + d.get("_otras_verificaciones", []), "Supervision_Trabajos": supervision})
+            save_editor(editor, repo, "checklists", {
+                "fecha": d["fecha"], "edificio": d["edificio"],
+                "hora_inicio": d["hora_inicio"], "hora_fin": d["hora_fin"],
+                "responsable": full_name(repo.user), "cargo": repo.user["cargo"],
+                "observacion_general": d.get("observacion_general", ""), "datos": payload,
+            })
+        except Exception as exc:
+            notice_error(exc)
+
+
 
 
 def full_name(user):
@@ -1035,32 +1099,66 @@ def maestro_data(record=None):
     return {"fecha":str(record.get("fecha") or now_ec().date()),"proyecto":record.get("proyecto") or "","actividades":normalized,"_extra":payload if isinstance(payload,dict) else {}}
 
 
-def render_maestro(editor,repo):
-    d=editor.data
-    editor.field("date_input","fecha","Fecha del trabajo",str(now_ec().date()),disabled=bool(d.get("_original")))
-    editor.field("selectbox","proyecto","Edificio","",options=[""]+project_options(repo.user,d.get("proyecto")))
-    workers=[f"{r['nombre']} ({r['cargo']})" for r in repo.own("trabajadores") if r.get("edificio")==d.get("proyecto")]
-    default={"Actividad":"","Cantidad":"","Personal_A_Cargo":[],"Piso":"","Departamento":"","Observaciones":"","Personal_Manual":""}
-    for rid,item in list(editor.rows("actividades",default).items()):
+def render_maestro(editor, repo):
+    d = editor.data
+    a, b, c = st.columns([1.4, 2.1, 1.6])
+    with a:
+        editor.field("date_input", "fecha", "Fecha de trabajo:*", str(now_ec().date()), disabled=bool(d.get("_original")))
+    with b:
+        editor.field("selectbox", "proyecto", "Proyecto / Edificio asignado:*", "", options=[""] + project_options(repo.user, d.get("proyecto")))
+    with c:
+        st.text_input("Maestro responsable:", value=full_name(repo.user), disabled=True, key=editor.prefix + "maestro_visible")
+    workers = [f"{r['nombre']} ({r['cargo']})" for r in repo.own("trabajadores") if r.get("edificio") == d.get("proyecto")]
+    st.markdown(f"#### 🔨 Actividades realizadas, personal y metrajes ({len(d['actividades']) or 1} registro/s)")
+    default = {"Actividad": "", "Cantidad": "", "Personal_A_Cargo": [], "Piso": "", "Departamento": "", "Observaciones": "", "Personal_Manual": ""}
+    for index, (rid, item) in enumerate(list(editor.rows("actividades", default).items()), 1):
+        st.markdown(f'<div class="banner-item-header"><span>Actividad N° {index}</span></div>', unsafe_allow_html=True)
         with st.container(border=True):
-            for key,label in [("Actividad","Actividad realizada"),("Cantidad","Cantidad / avance (incluya la unidad)"),("Piso","Piso"),("Departamento","Departamento"),("Observaciones","Observaciones")]:editor.field("text_input",("actividades",rid,key),label,"")
-            editor.field("multiselect",("actividades",rid,"Personal_A_Cargo"),"Personal a cargo",[],options=workers)
-            editor.field("text_input",("actividades",rid,"Personal_Manual"),"Otros trabajadores (separados por coma)","")
-            editor.remove("actividades",rid)
-    editor.add("actividades",default,"Agregar actividad")
-    if st.button("Guardar reporte de maestro",type="primary",key=editor.prefix+"save"):
+            c1, c2 = st.columns([2.6, 1.4])
+            with c1:
+                editor.field("text_input", ("actividades", rid, "Actividad"), "Descripción de la actividad", "")
+            with c2:
+                editor.field("text_input", ("actividades", rid, "Cantidad"), "Cantidad / avance y unidad", "")
+            c3, c4, c5 = st.columns([2.0, 1.0, 1.0])
+            with c3:
+                editor.field("multiselect", ("actividades", rid, "Personal_A_Cargo"), "Personal a cargo", [], options=workers)
+            with c4:
+                editor.field("text_input", ("actividades", rid, "Piso"), "Piso", "")
+            with c5:
+                editor.field("text_input", ("actividades", rid, "Departamento"), "Departamento", "")
+            d1, d2 = st.columns([3, 1])
+            with d1:
+                editor.field("text_input", ("actividades", rid, "Personal_Manual"), "Personal adicional (separado por comas)", "")
+            with d2:
+                editor.remove("actividades", rid)
+            with st.expander("Observaciones de la actividad", expanded=False):
+                editor.field("text_area", ("actividades", rid, "Observaciones"), "Observaciones", "")
+    editor.add("actividades", default, "Agregar otra actividad")
+    if st.button("💾 Guardar Reporte de Maestro Mayor", type="primary", key=editor.prefix + "save"):
         try:
-            acts=[]
+            if not d.get("proyecto"):
+                raise ValueError("Seleccione el edificio del reporte.")
+            acts = []
             for item in d["actividades"].values():
-                if not str(item.get("Actividad","")).strip():continue
-                value=copy.deepcopy(item)
-                value["Personal_A_Cargo"]=list(dict.fromkeys(value.get("Personal_A_Cargo",[])+[x.strip() for x in value.pop("Personal_Manual","").split(",") if x.strip()]))
+                if not str(item.get("Actividad", "")).strip():
+                    continue
+                value = copy.deepcopy(item)
+                value["Personal_A_Cargo"] = list(dict.fromkeys(value.get("Personal_A_Cargo", []) + [x.strip() for x in value.pop("Personal_Manual", "").split(",") if x.strip()]))
                 acts.append(value)
-            if not acts:raise ValueError("Ingrese al menos una actividad.")
-            payload=copy.deepcopy(d.get("_extra",{}));payload.update({"Tipo_Registro":"Libro_Obra_Maestro","Actividades_Maestro":acts,"Edificio":d["proyecto"],"Maestro":full_name(repo.user),"Fecha":d["fecha"]})
-            day=dt.date.fromisoformat(d["fecha"])
-            save_editor(editor,repo,"inspecciones",{"fecha":d["fecha"],"dia":["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"][day.weekday()],"proyecto":d["proyecto"],"residente":full_name(repo.user),"frente":"Reporte de Maestro Mayor","clima":"N/A","hora_inicio":"07:00","hora_fin":"16:00","datos":payload})
-        except Exception as exc:notice_error(exc)
+            if not acts:
+                raise ValueError("Ingrese al menos una actividad.")
+            payload = copy.deepcopy(d.get("_extra", {}))
+            payload.update({"Tipo_Registro": "Libro_Obra_Maestro", "Actividades_Maestro": acts, "Edificio": d["proyecto"], "Maestro": full_name(repo.user), "Fecha": d["fecha"]})
+            day = dt.date.fromisoformat(d["fecha"])
+            save_editor(editor, repo, "inspecciones", {
+                "fecha": d["fecha"], "dia": ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][day.weekday()],
+                "proyecto": d["proyecto"], "residente": full_name(repo.user), "frente": "Reporte de Maestro Mayor",
+                "clima": "N/A", "hora_inicio": "07:00", "hora_fin": "16:00", "datos": payload,
+            })
+        except Exception as exc:
+            notice_error(exc)
+
+
 
 
 def rend_data(record=None):
@@ -1392,7 +1490,10 @@ def export_controls(table,records,key):
     with st.expander("Exportar Excel, PDF o CSV",expanded=False):
         st.caption("Se generará únicamente el formato solicitado, con los registros del filtro actual.")
         format_=st.selectbox("Formato",["Excel (.xlsx)","PDF (.pdf)","CSV (.csv)"],key="format_"+key)
-        signature=hashlib.sha256(json_text(records).encode()).hexdigest()
+        signature=hashlib.sha256(json_text([
+            (str(r.get("id")), str(r.get("revision")), str(r.get("updated_at")))
+            for r in records
+        ]).encode()).hexdigest()
         artifact_key=(key,signature,format_)
         if st.button("Preparar descarga",key="prepare_"+key):
             try:
@@ -1556,8 +1657,33 @@ def personal_module(repo):
     if not records:st.info("Todavía no tiene personal registrado.");return
     selected=st.selectbox("Filtrar nómina por edificio",["Todos"]+sorted({r.get("edificio") or "Sin Edificio Asignado" for r in records}),key="personal_filter")
     visible=[r for r in records if selected=="Todos" or (r.get("edificio") or "Sin Edificio Asignado")==selected]
-    st.dataframe(pd.DataFrame([{k:r.get(k) for k in ("id","nombre","cargo","edificio")} for r in visible]),hide_index=True,use_container_width=True)
-    export_controls("trabajadores",visible,"personal")
+    # Tarjetas compactas y pestañas por edificio como en el portal original.
+    groups = defaultdict(list)
+    for worker in visible:
+        groups[worker.get("edificio") or "Sin Edificio Asignado"].append(worker)
+    buildings = sorted(groups, key=str.casefold)
+    if buildings:
+        panels, lazy = open_lazy_tabs([f"🏢 {ed} ({len(groups[ed])})" for ed in buildings], "alpha_personal_edificios")
+        for building, panel in zip(buildings, panels):
+            with panel:
+                if lazy and not panel.open:
+                    continue
+                st.markdown("#### 🏢 " + html_escape(building))
+                for worker in groups[building]:
+                    worker_name = html_escape(str(worker.get("nombre") or ""))
+                    worker_role = html_escape(str(worker.get("cargo") or ""))
+                    worker_building = html_escape(str(worker.get("edificio") or ""))
+                    st.markdown(
+                        '<div class="worker-card-row"><div class="worker-info-block">'
+                        f'<div class="worker-name-title">👷 {worker_name}</div>'
+                        '<div class="worker-meta-tags">'
+                        f'<span class="tag-cargo-chip">{worker_role}</span>'
+                        f'<span class="tag-edif-chip">{worker_building}</span>'
+                        '</div></div></div>', unsafe_allow_html=True
+                    )
+    with st.expander("📊 Lista general y exportaciones", expanded=False):
+        st.dataframe(pd.DataFrame([{k:r.get(k) for k in ("id","nombre","cargo","edificio")} for r in visible]),hide_index=True,use_container_width=True)
+        export_controls("trabajadores", visible, "personal")
     if not visible:return
     selected_record=st.selectbox("Editar trabajador",visible,format_func=lambda r:f"{r.get('nombre')} · {r.get('edificio')} · ID {r['id']}",key="worker_edit_choice")
     key=str(selected_record["id"])+":"+str(selected_record["revision"])
@@ -1724,20 +1850,302 @@ def admin_module(repo):
 
 
 def dashboard(repo):
-    st.header("Alpha Builders | Portal de obra")
-    st.caption(full_name(repo.user)+" · "+str(repo.user.get("cargo"))+" · "+now_ec().strftime("%d/%m/%Y"))
-    today=str(now_ec().date());checks=repo.own("checklists");books=repo.own("inspecciones");rend=repo.own("rendimientos")
-    valid=[r for r in rend if rendimiento_payload(r).get("_rend_v5") and r.get("estado") in {"CUMPLE META","BAJO RENDIMIENTO"}]
-    efficiency=100*sum(r.get("estado")=="CUMPLE META" for r in valid)/len(valid) if valid else None
-    a,b,c=st.columns(3)
-    a.metric("Registros que cumplen la meta",f"{efficiency:.0f}%" if efficiency is not None else "Sin datos con meta")
-    b.metric("Incidencias abiertas",sum(r.get("estado")=="Abierta" for r in repo.shared("incidencias")))
-    c.metric("Personal en mi nómina",len(repo.own("trabajadores")))
-    rows=[]
-    for building in repo.user.get("edificios") or []:
-        rows.append({"Edificio":building,"Checklist hoy":"Registrado" if any(str(r.get("fecha"))[:10]==today and r.get("edificio")==building for r in checks) else "Pendiente","Libro hoy":"Registrado" if any(str(r.get("fecha"))[:10]==today and r.get("proyecto")==building for r in books) else "Pendiente"})
-    if rows:st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
-    st.caption("Los hitos indican que existe un registro del día, no que todas las actividades hayan cumplido. El clima se registra como observación de obra; no se simulan temperaturas.")
+    user = repo.user
+    today = now_ec().date()
+    date_label = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")[today.weekday()]
+    date_label += f", {today.day} de {NOMBRES_MESES[today.month]} de {today.year}"
+    email = user["correo"]
+    checks = repo.own("checklists") if user.get("cargo") != "Maestro Mayor" else []
+    books = repo.own("inspecciones")
+    yield_rows = repo.own("rendimientos")
+    workers = repo.own("trabajadores")
+    # El libro del maestro es distinto del libro oficial; no marcar hitos cruzados.
+    books_for_role = [r for r in books if is_master_book(r) == (user.get("cargo") == "Maestro Mayor")]
+    valid_yields = [r for r in yield_rows if rendimiento_payload(r).get("_rend_v5") and r.get("estado") in {"CUMPLE META", "BAJO RENDIMIENTO"}]
+    efficiency = round(100 * sum(r.get("estado") == "CUMPLE META" for r in valid_yields) / len(valid_yields)) if valid_yields else None
+    efficiency_label = f"{efficiency}%" if efficiency is not None else "—"
+    circle_value = efficiency if efficiency is not None else 0
+    efficiency_detail = "Registros con meta verificada" if efficiency is not None else "Sin meta verificable"
+    color = "#10b981" if efficiency is not None and efficiency >= 75 else "#f59e0b" if efficiency is not None and efficiency >= 50 else "#ef4444" if efficiency is not None else "#94a3b8"
+    open_incidents = sum(r.get("estado") == "Abierta" for r in repo.shared("incidencias"))
+    tags = "".join('<span class="edificio-tag-badge">' + html_escape(str(x)) + "</span>" for x in user.get("edificios") or [])
+    def milestone(label, checked):
+        badge = '<span class="milestone-status-done">✓ Registrado</span>' if checked else '<span class="milestone-status-pending">⏳ Pendiente</span>'
+        return '<div class="milestone-item"><span class="milestone-name">' + html_escape(label) + '</span>' + badge + '</div>'
+    today_text = today.isoformat()
+    milestones = milestone("Libro de Obra Maestro" if user.get("cargo") == "Maestro Mayor" else "Checklist", bool(books_for_role and any(str(r.get("fecha"))[:10] == today_text for r in books_for_role)) if user.get("cargo") == "Maestro Mayor" else any(str(r.get("fecha"))[:10] == today_text for r in checks))
+    if user.get("cargo") != "Maestro Mayor":
+        milestones += milestone("Libro de Obra", any(str(r.get("fecha"))[:10] == today_text for r in books_for_role))
+    output = (
+        '<div class="smart-dashboard-container"><div class="smart-header-bar"><div>'
+        '<div class="smart-title">Alpha Builders | Portal de Obra</div>'
+        '<div class="smart-user-sub">' + html_escape(full_name(user)) + ' &bull; <b>' + html_escape(str(user.get("cargo") or "")) + '</b> ' + tags + '</div>'
+        '</div><div class="smart-pill">📅 ' + html_escape(date_label) + '</div></div>'
+        '<div class="widgets-grid">'
+        '<div class="widget-glass-card"><div class="w-card-title"><span>🎯 Hitos Diarios</span><span>Hoy</span></div>' + milestones + '</div>'
+        '<div class="widget-glass-card"><div class="w-card-title"><span>⚡ Rendimiento</span><span>Meta</span></div>'
+        '<div class="donut-container"><svg class="donut-chart-svg" viewBox="0 0 36 36">'
+        '<circle class="donut-bg" cx="18" cy="18" r="15.9155" />'
+        '<circle class="donut-progress" cx="18" cy="18" r="15.9155" stroke="' + color + '" stroke-dasharray="' + str(circle_value) + ', 100" />'
+        '</svg><div><div class="donut-info-val" style="color:' + color + '!important">' + efficiency_label + '</div>'
+        '<div class="donut-info-lbl">' + efficiency_detail + '</div></div></div></div>'
+        '<div class="widget-glass-card"><div class="w-card-title"><span>🚨 Incidencias</span><span>Abiertas</span></div>'
+        '<div class="stat-hero-number" style="color:#f87171!important">' + str(open_incidents) + '</div>'
+        '<div style="font-size:.65rem;color:#94a3b8!important">En proyectos asignados</div></div>'
+        '<div class="widget-glass-card"><div class="w-card-title"><span>👷 Personal</span><span>Registrados</span></div>'
+        '<div class="stat-hero-number" style="color:#60a5fa!important">' + str(len(workers)) + '</div>'
+        '<div style="font-size:.65rem;color:#94a3b8!important">Personal a tu cargo</div></div>'
+        '</div></div>'
+    )
+    st.markdown(output, unsafe_allow_html=True)
+    st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
+
+
+
+
+def sidebar_original(repo, cookie):
+    """Perfil, logo y configuración visual del diseño de 6.000 líneas."""
+    user = repo.user
+    email = user["correo"]
+    with st.sidebar:
+        logo_file = next((name for name in ("alpha.473f0c2dc3c48a682723-2.webp", "images.png") if os.path.isfile(name)), None)
+        if logo_file:
+            try:
+                with open(logo_file, "rb") as logo:
+                    encoded = base64.b64encode(logo.read()).decode("ascii")
+                mime = "image/webp" if logo_file.endswith(".webp") else "image/png"
+                st.markdown('<div class="sidebar-logo-card"><img src="data:' + mime + ';base64,' + encoded + '" style="width:100%;height:auto;display:block;border-radius:8px;" alt="Alpha Builders"></div>', unsafe_allow_html=True)
+            except OSError:
+                st.markdown("### 🏗️ Alpha Builders")
+        else:
+            st.markdown("### 🏗️ Alpha Builders")
+        photo = image_stream(user.get("foto_b64"))
+        if photo:
+            st.image(photo, use_container_width=True)
+        else:
+            profile_file = next((name for name in ("perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png") if os.path.isfile(name)), None)
+            if profile_file:
+                st.image(profile_file, use_container_width=True)
+        badges = "".join('<span class="edificio-tag-badge" style="margin:2px;">' + html_escape(str(b)) + '</span>' for b in (user.get("edificios") or []))
+        if not badges:
+            badges = '<span style="font-size: .7rem; color: #94a3b8;">Sin proyectos asignados</span>'
+        st.markdown(f'''<div class="sidebar-profile-box">
+            <div class="sidebar-user-nombres">{html_escape(str(user.get('nombres') or ''))}</div>
+            <div class="sidebar-user-apellidos">{html_escape(str(user.get('apellidos') or ''))}</div>
+            <div class="sidebar-user-email">{html_escape(email)}</div>
+            <div style="margin:5px 0"><span class="sidebar-user-cargo">{html_escape(str(user.get('cargo') or ''))}</span></div>
+            <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:3px">{badges}</div>
+            </div>''', unsafe_allow_html=True)
+        if repo.admin:
+            st.markdown('<div style="text-align:center;background:#111827;border:1px solid #374151;border-radius:6px;padding:4px;font-size:.7rem;font-weight:800;color:white">ADMINISTRADOR GENERAL</div>', unsafe_allow_html=True)
+        with st.expander("⚙️ Configuración de Cuenta", expanded=False):
+            account_module(repo, cookie)
+        if st.button("🔄 Actualizar información", key="sidebar_refresh", use_container_width=True):
+            invalidate()
+            st.rerun()
+        if st.button("Cerrar Sesión", key="sidebar_logout", use_container_width=True):
+            logout(cookie)
+        st.caption(APP_VERSION)
+
+
+def is_master_book(record):
+    raw = obj(record.get("datos"), {})
+    return isinstance(raw, list) or raw.get("Tipo_Registro") == "Libro_Obra_Maestro" or "Actividades_Maestro" in raw
+
+
+def open_lazy_tabs(labels, key):
+    """Evita ejecutar pestañas ocultas en Streamlit 1.55+ y mantiene compatibilidad."""
+    try:
+        if "on_change" in inspect.signature(st.tabs).parameters:
+            return st.tabs(labels, on_change="rerun", key=key), True
+    except (TypeError, ValueError):
+        pass
+    return st.tabs(labels), False
+
+
+def history_rend_by_building(records, repo):
+    """Vista del primer código: agrupación por edificio/fecha, exportación total y local."""
+    st.markdown("### 📊 Registros de Rendimiento por Edificio")
+    if not records:
+        st.info("Aún no existen registros de rendimiento en su cuenta.")
+        return
+    groups = defaultdict(list)
+    for record in records:
+        groups[record_building("rendimientos", record)].append(record)
+    buildings = sorted(groups, key=lambda x: (x == "Sin Edificio Asignado", x.casefold()))
+    a, b, c = st.columns(3)
+    a.metric("🏢 Edificios con registros", len(buildings))
+    b.metric("📊 Rendimientos registrados", len(records))
+    c.caption("Edificios: " + ", ".join(buildings))
+    with st.expander("📁 Exportación general — todos los edificios", expanded=False):
+        export_controls("rendimientos", records, "rend_general_original")
+    tabs, lazy = open_lazy_tabs([f"🏢 {b} ({len(groups[b])})" for b in buildings], "alpha_rend_edificios")
+    for building, tab in zip(buildings, tabs):
+        with tab:
+            if lazy and not tab.open:
+                continue
+            rows = sorted(groups[building], key=lambda r: (str(r.get("fecha") or ""), str(r.get("id"))), reverse=True)
+            st.markdown("#### 🏢 " + building)
+            st.caption(f"Este edificio contiene {len(rows)} registro(s).")
+            with st.expander("📄 Exportación de este edificio", expanded=False):
+                export_controls("rendimientos", rows, "rend_export_" + hashlib.md5(building.encode()).hexdigest()[:10])
+            months = sorted({str(r.get("fecha") or "")[:7] for r in rows}, reverse=True)
+            selected_month = st.selectbox("Filtrar mes", ["Todos los meses"] + months, key="rend_month_" + hashlib.md5(building.encode()).hexdigest()[:10])
+            rows = [r for r in rows if selected_month == "Todos los meses" or str(r.get("fecha") or "").startswith(selected_month)]
+            by_date = defaultdict(list)
+            for r in rows:
+                by_date[str(r.get("fecha") or "Sin fecha")[:10]].append(r)
+            days = sorted(by_date, reverse=True)
+            if len(days) > 31:
+                page = st.number_input("Página de fechas", 1, max(1, math.ceil(len(days) / 31)), 1, key="rend_day_page_" + hashlib.md5(building.encode()).hexdigest()[:10])
+                days = days[(page - 1) * 31:page * 31]
+            for day in days:
+                st.markdown("##### 📅 " + day)
+                for record in by_date[day]:
+                    result = rendimiento_values(record)
+                    with st.container(border=True):
+                        st.markdown("**" + html_escape(str(record.get("rubro") or "Rubro")) + "**  · " + html_escape(str(record.get("piso") or "Sin piso")))
+                        p1, p2, p3 = st.columns(3)
+                        p1.metric("Avance", f"{result['avance']:.2f} {record.get('unidad') or ''}")
+                        p2.metric("Horas-hombre", f"{result['hh']:.2f} HH" if result["hh"] is not None else "Histórico")
+                        p3.metric("Productividad", f"{result['productividad']:.3f} {record.get('unidad') or ''}/h" if result["productividad"] is not None else "—")
+                        record_actions("rendimientos", record, repo, "rend_view_" + str(record["id"]))
+
+
+def record_actions(table, record, repo, key, editable=True):
+    """Detalles bajo demanda; conserva editar/eliminar con protección de versión."""
+    with st.expander("Ver detalle, fotografías y acciones", expanded=False):
+        if st.checkbox("Mostrar contenido y evidencias", key=key + "_detail"):
+            show_record(table, record)
+        if editable:
+            a, b = st.columns(2)
+            if a.button("✏️ Editar", key=key + "_edit"):
+                try:
+                    repo._access(table, record, write=True)
+                    factories = {"checklists": ("Checklist", checklist_data), "rendimientos": ("Rendimientos", rend_data), "incidencias": ("Incidencias", incident_data)}
+                    module, factory = factories[table]
+                    begin_editor(module, repo.user, factory(record), record)
+                    st.session_state["_next_route"] = module
+                    st.rerun()
+                except Exception as exc:
+                    notice_error(exc)
+            with b.popover("🗑️ Eliminar"):
+                st.caption("La eliminación es permanente.")
+                if st.button("Confirmar eliminación", key=key + "_delete"):
+                    try:
+                        repo.delete(table, record)
+                        st.session_state["_flash"] = "Registro eliminado."
+                        st.rerun()
+                    except Exception as exc:
+                        notice_error(exc)
+
+
+def incidencias_original_matrix(records, repo):
+    """Matriz de incidencias del primer diseño, sin HTML sin escapar."""
+    st.markdown("### Matriz de Incidencias en tus Proyectos")
+    a, b = st.columns([2, 2])
+    with a:
+        buildings = sorted({str(r.get("proyecto") or "") for r in records if r.get("proyecto")})
+        selected_building = st.selectbox("🏢 Seleccionar Proyecto / Edificio:", ["-- Todos Mis Proyectos --"] + buildings, key="inc_original_building")
+    with b:
+        selected_state = st.segmented_control("Filtrar por Estado:", ["Todos", "Abierta", "Cerrada"], default="Todos", key="inc_original_state")
+    visible = [r for r in records if (selected_building == "-- Todos Mis Proyectos --" or r.get("proyecto") == selected_building) and (selected_state in ("Todos", None) or r.get("estado") == selected_state)]
+    st.markdown(f"**{len(visible)} incidencia(s) según el filtro**")
+    if not visible:
+        st.info("No hay incidencias registradas para esta selección.")
+        return
+    content = []
+    for i, item in enumerate(sorted(visible, key=lambda r: (str(r.get("fecha_compromiso") or ""),str(r.get("id")))), 1):
+        safe = lambda k: html_escape(str(item.get(k) or ""))
+        priority = str(item.get("prioridad") or "Media")
+        status = str(item.get("estado") or "Abierta")
+        badges = " ".join(("☒" if priority == x else "☐") + " " + x for x in ("Alta", "Media", "Baja"))
+        color = "#dc2626" if priority == "Alta" else "#d97706" if priority == "Media" else "#16a34a"
+        status_color = "#dc2626" if status == "Abierta" else "#16a34a"
+        content.append(
+            '<tr><td class="center">' + str(i) + '</td>'
+            '<td><b>' + safe("area") + '</b><div style="font-size:.7rem">' + safe("proyecto") + '</div></td>'
+            '<td>' + safe("descripcion") + '</td>'
+            '<td>' + safe("responsable") + '</td>'
+            '<td style="color:' + color + ';font-weight:700">' + html_escape(badges) + '</td>'
+            '<td class="center">' + safe("fecha_compromiso") + '</td>'
+            '<td style="color:' + status_color + ';font-weight:800">' + html_escape(status) + '</td></tr>'
+        )
+    st.markdown(
+        '<div style="overflow-x:auto"><table class="incidencias-table"><thead><tr>'
+        '<th class="center">N°</th><th>Área / Edificio</th><th>Descripción</th><th>Responsable</th>'
+        '<th>Prioridad</th><th class="center">Fecha Comp.</th><th>Estado</th>'
+        '</tr></thead><tbody>' + "".join(content) + '</tbody></table></div>', unsafe_allow_html=True
+    )
+    # Exportación con el mismo filtro de la matriz: ambas librerías generan fotos si existen.
+    with st.expander("📄 Exportar matriz filtrada (Excel, PDF, CSV)", expanded=False):
+        export_controls("incidencias", visible, "inc_matrix")
+    with st.expander("⚙️ Cambiar estado de una incidencia", expanded=False):
+        editable = [r for r in visible if r.get("usuario_email") == repo.email or repo.admin or r.get("proyecto") in repo.projects]
+        if editable:
+            record = st.selectbox("Incidencia", editable, format_func=lambda r: str(r.get("area") or "") + " · " + str(r.get("proyecto") or "") + " · ID " + str(r["id"]), key="inc_matrix_edit")
+            new_status = "Cerrada" if record.get("estado") == "Abierta" else "Abierta"
+            if st.button("Cambiar estado a: " + new_status, key="inc_matrix_toggle"):
+                try:
+                    repo.save("incidencias", {"estado": new_status}, record)
+                    st.session_state["_flash"] = "Estado de incidencia actualizado."
+                    st.rerun()
+                except Exception as exc:
+                    notice_error(exc)
+        else:
+            st.caption("No hay incidencias con permiso de edición.")
+
+
+def module_original(label, repo):
+    """Restaura la distribución de los formularios originales, sin perder repositorio seguro."""
+    spec = {
+        "Checklist": ("checklists", "Checklist", checklist_data, render_checklist, "### Checklist – Control de Obra", "Supervisión técnica y control de ejecución diaria en obra.", "➕ Crear Nueva Jornada de Inspección"),
+        "Libro de Obra": ("inspecciones", "Libro oficial", official_data, render_official, "### Libro de Obra – Formato Oficial", "Estructura técnica de control diario y sincronización con Checklist.", "➕ Llenar Libro de Obra"),
+        "Libro de Obra Maestro": ("inspecciones", "Libro maestro", maestro_data, render_maestro, "### Libro de Obra – Maestro Mayor", "Registro diario de actividades, cuadrillas y metrajes ejecutados en obra.", "➕ Llenar Libro de Obra Maestro"),
+        "Levantamiento de Incidencias": ("incidencias", "Incidencias", incident_data, render_incident, "### Levantamiento de Incidencias", "Registro y seguimiento técnico de novedades en obra.", "➕ Registrar Incidencia"),
+        "Control de Rendimiento": ("rendimientos", "Rendimientos", rend_data, render_rend, "### Control de Rendimiento por Personal", "Registro de trabajadores, edificios, rubros y horas, con cálculo automático y fotografías.", "➕ Registrar Rendimiento"),
+    }
+    table, module, factory, renderer, header, caption, button = spec[label]
+    st.markdown(header)
+    st.caption(caption)
+    editor = st.session_state.get("_editors", {}).get(module)
+    if editor:
+        selected = editor_picker(module, repo.user, factory)
+    else:
+        st.caption("Presione el botón para abrir el formulario. Al guardar se cerrará automáticamente, y el borrador se conserva si sale sin terminar.")
+        # Conservar botones originales, incluyendo recuperación explícita de borradores.
+        if st.button(button, type="primary", key="original_new_" + module):
+            begin_editor(module, repo.user, factory())
+            st.rerun()
+        drafts = all_rows("alpha_drafts", filters={"usuario_email": repo.email, "modulo": module}, order="updated_at")
+        if drafts:
+            with st.expander(f"📁 Recuperar mis borradores ({len(drafts)})", expanded=False):
+                choices = {f"{r['updated_at'][:16]} · {r['slot']}": r for r in drafts}
+                selected_name = st.selectbox("Seleccione un borrador", list(choices), key="restore_choice_" + module)
+                if st.button("Continuar borrador", key="restore_button_" + module):
+                    draft = choices[selected_name]
+                    st.session_state.setdefault("_editors", {})[module] = {"slot": draft["slot"], "data": draft["datos"], "revision": draft["revision"]}
+                    st.rerun()
+        selected = None
+    if selected:
+        st.divider()
+        st.markdown("**✏️ Edición de registro existente**" if selected.data.get("_original") else "**📝 Nuevo registro**")
+        renderer(selected, repo)
+        st.divider()
+    if table == "incidencias":
+        records = repo.shared(table)
+    else:
+        records = repo.own(table)
+    if table == "inspecciones":
+        records = [r for r in records if is_master_book(r) == (module == "Libro maestro")]
+    if table == "rendimientos":
+        history_rend_by_building(records, repo)
+    elif table == "incidencias":
+        incidencias_original_matrix(records, repo)
+        with st.expander("📂 Consultar, editar o eliminar un registro", expanded=False):
+            history(table, records, repo, "original_" + module)
+    else:
+        history(table, records, repo, "original_" + module)
 
 
 def main():
@@ -1745,71 +2153,67 @@ def main():
         for key in list(st.session_state):
             if key.startswith(prefix):
                 del st.session_state[key]
-    st.set_page_config(page_title="Alpha Builders | Portal de obra",page_icon="🏗️",layout="wide",initial_sidebar_state="expanded")
-    st.markdown(APP_CSS,unsafe_allow_html=True)
+    st.set_page_config(page_title="Alpha Builders | Portal Ejecutivo", page_icon="🏗️", layout="wide", initial_sidebar_state="expanded")
+    st.markdown(APP_CSS, unsafe_allow_html=True)
     try:
-        if get_config("alpha_schema_version")!="5":
-            st.error("Antes de iniciar, ejecute MIGRACION_ALPHA.sql en Supabase y configure los secretos indicados en ACTUALIZACION.md.");st.stop()
-        cookie=stx.CookieManager(key="alpha_cookie_"+str(st.session_state.get("_cookie_epoch",0)))
-        user=auth_user(cookie)
+        if get_config("alpha_schema_version") != "5":
+            st.error("El esquema depurado v5 no está activado. No se intentará usar el sistema anterior.")
+            st.caption("Revise la migración y SUPABASE_SERVICE_ROLE_KEY / SESSION_SECRET en los secretos de Streamlit.")
+            st.stop()
+        cookie = stx.CookieManager(key="alpha_cookie_" + str(st.session_state.get("_cookie_epoch", 0)))
+        user = auth_user(cookie)
         if user is None:
-            login_panel(cookie);st.stop()
-        previous=st.session_state.get("_user_identity")
-        if previous!=user["correo"]:
+            login_panel(cookie)
+            st.stop()
+        if st.session_state.get("_user_identity") != user["correo"]:
             for key in list(st.session_state):
-                if key.startswith("edit:") or key in {"_editors","_export_artifact","_temporary_password","_route"}:del st.session_state[key]
-            st.session_state["_user_identity"]=user["correo"]
-        st.session_state.pop("_pending_cookie",None)
-        repo=Repository(user)
+                if key.startswith("edit:") or key.startswith("alpha_tabs_") or key.startswith("alpha_rend_edificios") or key in {"_editors", "_export_artifact", "_temporary_password", "_route"}:
+                    del st.session_state[key]
+            st.session_state["_user_identity"] = user["correo"]
+        st.session_state.pop("_pending_cookie", None)
+        repo = Repository(user)
         if user.get("must_change_password"):
-            st.warning("Cambie la contraseña temporal antes de acceder al portal.");password_change(repo,cookie);st.stop()
-        with st.sidebar:
-            st.markdown("### Alpha Builders")
-            photo=image_stream(user.get("foto_b64"))
-            if photo:st.image(photo,width=160)
-            else:
-                for candidate in ("alpha.473f0c2dc3c48a682723-2.webp","images.png"):
-                    if os.path.exists(candidate):st.image(candidate,width=180);break
-            st.write(full_name(user));st.caption(user["correo"]);st.write(user.get("cargo"));st.caption(", ".join(user.get("edificios") or []) or "Sin edificios asignados")
-            modules=["Inicio"]+(["Libro maestro"] if user.get("cargo")=="Maestro Mayor" else ["Checklist","Libro oficial","Incidencias"])+["Personal","Rendimientos","Colaborativo","Cuenta"]
-            # Un cambio de cargo no oculta los registros históricos del otro tipo.
-            if "Libro maestro" not in modules:modules.insert(3,"Libro maestro")
-            if "Libro oficial" not in modules:modules.insert(2,"Libro oficial")
-            if repo.admin:modules.append("Administrador")
-            next_route=st.session_state.pop("_next_route",None)
-            if next_route in modules:st.session_state["_route"]=next_route
-            if st.session_state.get("_route") not in modules:st.session_state["_route"]="Inicio"
-            module=st.radio("Módulo",modules,key="_route")
-            if st.button("Actualizar información"):
-                invalidate();st.rerun()
-            if st.button("Cerrar sesión"):
-                logout(cookie)
-            st.caption(APP_VERSION+" · Los datos consultados se actualizan como máximo cada 30 s al interactuar, o con Actualizar información.")
-        if st.session_state.get("_flash"):st.success(st.session_state.pop("_flash"))
-        if module=="Inicio":dashboard(repo)
-        elif module=="Personal":personal_module(repo)
-        elif module=="Colaborativo":collaborative_module(repo)
-        elif module=="Cuenta":account_module(repo,cookie)
-        elif module=="Administrador":admin_module(repo)
-        else:
-            configs={"Checklist":("checklists",checklist_data,render_checklist),"Libro oficial":("inspecciones",official_data,render_official),"Libro maestro":("inspecciones",maestro_data,render_maestro),"Incidencias":("incidencias",incident_data,render_incident),"Rendimientos":("rendimientos",rend_data,render_rend)}
-            table,factory,renderer=configs[module]
-            st.header(module)
-            allow_new=repo.admin or (module!="Libro maestro" or user.get("cargo")=="Maestro Mayor") and (module!="Libro oficial" or user.get("cargo")!="Maestro Mayor")
-            editor=editor_picker(module,user,factory,allow_new=allow_new)
-            if editor:renderer(editor,repo)
-            records=repo.shared(table) if table=="incidencias" else repo.own(table)
-            if table=="inspecciones":
-                def master(record):
-                    data=obj(record.get("datos"),{})
-                    return isinstance(data,list) or data.get("Tipo_Registro")=="Libro_Obra_Maestro" or "Actividades_Maestro" in data
-                records=[r for r in records if master(r)==(module=="Libro maestro")]
-            history(table,records,repo,module)
+            st.warning("Debe cambiar su contraseña temporal antes de acceder al portal.")
+            password_change(repo, cookie)
+            st.stop()
+        sidebar_original(repo, cookie)
+        if st.session_state.get("_flash"):
+            st.success(st.session_state.pop("_flash"))
+        dashboard(repo)
+        master = user.get("cargo") == "Maestro Mayor"
+        # El libro de obra maestro no aparece ni puede editarse desde cargo diferente.
+        visible = (["Libro de Obra Maestro", "Personal a Cargo", "Control de Rendimiento", "Colaborativo"]
+                   if master else ["Checklist", "Libro de Obra", "Personal a Cargo", "Levantamiento de Incidencias", "Control de Rendimiento", "Colaborativo"])
+        if repo.admin:
+            visible.append("Panel Admin")
+        labels = ["📋 " + x if x == "Checklist" else "🏗️ " + x if "Libro de Obra" in x else "👷 " + x if x == "Personal a Cargo" else "🚨 " + x if x == "Levantamiento de Incidencias" else "📊 " + x if x == "Control de Rendimiento" else "🤝 " + x if x == "Colaborativo" else "⚙️ " + x for x in visible]
+        role_key = "alpha_tabs_maestro" if master else "alpha_tabs_obra"
+        next_module = st.session_state.pop("_next_route", None)
+        next_map = {"Libro maestro": "Libro de Obra Maestro", "Libro oficial": "Libro de Obra", "Rendimientos": "Control de Rendimiento", "Incidencias": "Levantamiento de Incidencias", "Checklist": "Checklist"}
+        next_label = next_map.get(next_module, next_module)
+        if next_label in visible:
+            st.session_state[role_key] = labels[visible.index(next_label)]
+        tabs, lazy = open_lazy_tabs(labels, role_key)
+        for name, tab in zip(visible, tabs):
+            with tab:
+                if lazy and not tab.open:
+                    continue
+                if name == "Personal a Cargo":
+                    personal_module(repo)
+                elif name == "Colaborativo":
+                    collaborative_module(repo)
+                elif name == "Panel Admin":
+                    admin_module(repo)
+                else:
+                    module_original(name, repo)
     except Exception as exc:
         notice_error(exc)
-        st.caption("La aplicación no interpreta un error de lectura como una lista vacía. Revise la conexión y vuelva a cargar.")
+        st.caption("No se interpretan errores de lectura como registros vacíos. Verifique conexión, configuración y permisos.")
         if st.button("Reintentar conexión"):
-            invalidate();st.rerun()
+            invalidate()
+            st.rerun()
+
+
 
 
 if __name__=="__main__":
