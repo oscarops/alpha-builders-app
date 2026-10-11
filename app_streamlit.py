@@ -41,7 +41,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.10-v7-rendimiento"
+APP_VERSION = "2026.10.10-v8-interfaz"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -119,6 +119,213 @@ MAQUINARIAS_FORMATO = [
 ]
 
 APP_CSS = '\n    <style>\n    @import url(\'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Montserrat:wght@500;600;700;800&display=swap\');\n\n    :root {\n        --bg-app: #f8fafc;\n        --text-app: #0f172a;\n        --card-bg: #ffffff;\n        --card-border: #cbd5e1;\n        --header-bg: #0f172a;\n        --header-text: #ffffff;\n        --sidebar-bg: #0b0f19;\n        --sidebar-card: #111827;\n        --sidebar-border: #1f2937;\n        --subtext: #64748b;\n        --hover-bg: #f1f5f9;\n        --table-row-even: #f8fafc;\n    }\n\n    @media (prefers-color-scheme: dark) {\n        :root {\n            --bg-app: #0f172a;\n            --text-app: #f8fafc;\n            --card-bg: #1e293b;\n            --card-border: #334155;\n            --header-bg: #020617;\n            --header-text: #ffffff;\n            --sidebar-bg: #030712;\n            --sidebar-card: #0f172a;\n            --sidebar-border: #1e293b;\n            --subtext: #94a3b8;\n            --hover-bg: #334155;\n            --table-row-even: #1e293b;\n        }\n    }\n\n    html, body, [class*="css"] { font-family: \'Plus Jakarta Sans\', sans-serif; }\n    h1, h2, h3, .brand-title { font-family: \'Montserrat\', sans-serif !important; letter-spacing: -0.03em !important; }\n\n    .block-container { \n        padding-top: 3.2rem !important; \n        padding-bottom: 1.2rem !important; \n        padding-left: 1rem !important; \n        padding-right: 1rem !important; \n        max-width: 100% !important; \n    }\n    .stApp { background-color: var(--bg-app) !important; color: var(--text-app) !important; }\n    .stApp p, .stApp label, .stApp span, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: var(--text-app); }\n    .stCaption, caption, small, [data-testid="stCaptionContainer"] { color: var(--subtext) !important; }\n\n    [data-testid="stInputInstructions"], div[data-testid="stInputInstructions"] { display: none !important; visibility: hidden !important; }\n    [data-testid="stHeader"] { background: transparent !important; z-index: 100 !important; }\n\n    /* BOTONES DE TOGGLE SIDEBAR */\n    [data-testid="stSidebarCollapseButton"] { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 999999 !important; }\n    [data-testid="collapsedControl"] { display: block !important; visibility: visible !important; opacity: 1 !important; position: fixed !important; top: 12px !important; left: 15px !important; z-index: 999999 !important; }\n\n    [data-testid="stSidebarCollapseButton"] button, [data-testid="collapsedControl"] button {\n        background-color: var(--header-bg) !important; \n        border: 1px solid var(--card-border) !important; \n        border-radius: 50% !important; \n        width: 34px !important; \n        height: 34px !important; \n        color: #ffffff !important; \n        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important; \n        transition: all 0.2s ease !important;\n    }\n    [data-testid="stSidebarCollapseButton"] button:hover, [data-testid="collapsedControl"] button:hover {\n        background-color: #3b82f6 !important; \n        border-color: #3b82f6 !important; \n        transform: scale(1.08);\n    }\n    [data-testid="stSidebarCollapseButton"] svg, [data-testid="collapsedControl"] svg { fill: #ffffff !important; color: #ffffff !important; }\n\n    /* SIDEBAR */\n    [data-testid="stSidebar"] { \n        background-color: var(--sidebar-bg) !important; \n        border-right: 1px solid var(--sidebar-border) !important; \n        padding-top: 0px !important; \n        padding-left: 10px !important; \n        padding-right: 10px !important; \n        padding-bottom: 12px !important; \n    }\n    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.4rem !important; padding-top: 0px !important; }\n    [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] div { color: #ffffff !important; }\n\n    .sidebar-logo-card { \n        background-color: #ffffff; \n        border-radius: 10px; \n        padding: 6px 8px; \n        margin-top: 0px !important; \n        margin-bottom: 14px !important; \n        box-shadow: 0 4px 12px rgba(0,0,0,0.3); \n        width: 100% !important; \n        box-sizing: border-box; \n        text-align: center; \n        display: block; \n    }\n    [data-testid="stSidebar"] [data-testid="stImage"] { \n        width: 100% !important; \n        display: block !important; \n        margin-top: 4px !important; \n        margin-bottom: 8px !important; \n        clear: both !important; \n    }\n    [data-testid="stImage"] img { \n        border-radius: 10px !important; \n        width: 100% !important; \n        height: auto !important; \n        max-width: 100% !important; \n        object-fit: cover !important; \n        border: 1px solid var(--card-border) !important; \n        margin: 0 !important; \n        display: block !important; \n    }\n\n    .sidebar-profile-box { \n        background: var(--sidebar-card); \n        border: 1px solid var(--sidebar-border); \n        border-radius: 10px; \n        padding: 10px 8px !important; \n        text-align: center; \n        margin-top: 2px; \n        margin-bottom: 6px; \n        width: 100% !important; \n        box-shadow: 0 4px 10px rgba(0,0,0,0.3); \n        box-sizing: border-box; \n    }\n    .sidebar-user-nombres { font-size: 0.84rem; font-weight: 800; color: #ffffff !important; line-height: 1.2; }\n    .sidebar-user-apellidos { font-size: 0.80rem; font-weight: 700; color: #e2e8f0 !important; margin-bottom: 3px !important; line-height: 1.2; }\n    .sidebar-user-email { font-size: 0.65rem; color: #60a5fa !important; font-weight: 600; margin-bottom: 4px !important; word-break: break-all; }\n    .sidebar-user-cargo { \n        display: inline-block; \n        background: #1f2937 !important; \n        color: #ffffff !important; \n        border: 1px solid #374151 !important; \n        font-size: 0.58rem !important; \n        font-weight: 800 !important; \n        padding: 2px 7px !important; \n        border-radius: 12px !important; \n        text-transform: uppercase !important; \n    }\n\n    [data-testid="stSidebar"] hr { margin: 4px 0 !important; border-color: var(--sidebar-border) !important; }\n\n    /* SMART DASHBOARD GLASSMORPHISM */\n    .smart-dashboard-container {\n        background: radial-gradient(120% 120% at 50% 0%, #1e293b 0%, #0f172a 60%, #090d16 100%);\n        border: 1px solid rgba(255, 255, 255, 0.12);\n        border-radius: 14px;\n        padding: 12px 14px;\n        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);\n        color: #ffffff !important;\n        margin-top: 4px;\n        margin-bottom: 12px;\n        width: 100%;\n        box-sizing: border-box;\n    }\n    .smart-dashboard-container * { color: #ffffff !important; }\n\n    .smart-header-bar {\n        display: flex;\n        justify-content: space-between;\n        align-items: center;\n        flex-wrap: wrap;\n        gap: 8px;\n        border-bottom: 1px solid rgba(255, 255, 255, 0.08);\n        padding-bottom: 8px;\n        margin-bottom: 10px;\n    }\n    .smart-title { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }\n    .smart-user-sub {\n        font-size: 0.78rem;\n        color: #94a3b8 !important;\n        margin-top: 3px;\n        display: flex;\n        align-items: center;\n        flex-wrap: wrap;\n        gap: 6px;\n    }\n\n    .edificio-tag-badge {\n        display: inline-flex;\n        align-items: center;\n        background: rgba(59, 130, 246, 0.20);\n        border: 1px solid rgba(96, 165, 250, 0.45);\n        color: #93c5fd !important;\n        font-size: 0.64rem;\n        font-weight: 800;\n        padding: 2px 7px;\n        border-radius: 6px;\n        letter-spacing: 0.02em;\n    }\n\n    .smart-pill {\n        display: inline-flex;\n        align-items: center;\n        gap: 4px;\n        background: rgba(255, 255, 255, 0.06);\n        border: 1px solid rgba(255, 255, 255, 0.12);\n        backdrop-filter: blur(8px);\n        padding: 3px 8px;\n        border-radius: 16px;\n        font-size: 0.70rem;\n        font-weight: 700;\n    }\n\n    .widgets-grid {\n        display: grid;\n        grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));\n        gap: 8px;\n    }\n\n    .widget-glass-card {\n        background: rgba(255, 255, 255, 0.04);\n        border: 1px solid rgba(255, 255, 255, 0.08);\n        border-radius: 10px;\n        padding: 8px 10px;\n        backdrop-filter: blur(10px);\n        display: flex;\n        flex-direction: column;\n        justify-content: space-between;\n        box-sizing: border-box;\n    }\n\n    .w-card-title {\n        font-size: 0.65rem;\n        font-weight: 800;\n        text-transform: uppercase;\n        color: #94a3b8 !important;\n        letter-spacing: 0.04em;\n        display: flex;\n        justify-content: space-between;\n        align-items: center;\n        margin-bottom: 4px;\n    }\n\n    .milestone-item {\n        display: flex;\n        justify-content: space-between;\n        align-items: center;\n        background: rgba(255, 255, 255, 0.03);\n        border: 1px solid rgba(255, 255, 255, 0.05);\n        border-radius: 6px;\n        padding: 4px 6px;\n        margin-bottom: 3px;\n    }\n    .milestone-name { font-size: 0.68rem; font-weight: 700; color: #e2e8f0 !important; }\n    .milestone-status-done {\n        background: #10b981;\n        color: #ffffff !important;\n        font-size: 0.58rem;\n        font-weight: 800;\n        padding: 1px 6px;\n        border-radius: 10px;\n    }\n    .milestone-status-pending {\n        background: rgba(239, 68, 68, 0.2);\n        border: 1px solid rgba(239, 68, 68, 0.4);\n        color: #fca5a5 !important;\n        font-size: 0.58rem;\n        font-weight: 800;\n        padding: 1px 6px;\n        border-radius: 10px;\n    }\n\n    /* DONA SVG */\n    .donut-container { display: flex; align-items: center; gap: 8px; }\n    .donut-chart-svg { width: 44px; height: 44px; transform: rotate(-90deg); flex-shrink: 0; }\n    .donut-bg { fill: none; stroke: #334155 !important; stroke-width: 4.5; }\n    .donut-progress { fill: none; stroke-width: 4.5; stroke-linecap: round; }\n    .donut-info-val { font-size: 0.98rem; font-weight: 900; line-height: 1; }\n    .donut-info-lbl { font-size: 0.60rem; color: #94a3b8 !important; font-weight: 600; margin-top: 1px; }\n    .stat-hero-number { font-size: 1.35rem; font-weight: 900; line-height: 1; margin-top: 2px; margin-bottom: 2px; }\n\n    /* PESTAÑAS */\n    .stTabs [data-baseweb="tab-list"] { \n        gap: 6px !important; \n        background-color: var(--card-border) !important; \n        padding: 4px !important; \n        border-radius: 10px !important; \n        border: 1px solid var(--card-border) !important; \n    }\n    .stTabs [data-baseweb="tab"] { \n        border-radius: 8px !important; \n        padding: 6px 14px !important; \n        background-color: var(--card-bg) !important; \n        border: 1px solid var(--card-border) !important; \n        box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important; \n        transition: all 0.2s ease !important; \n    }\n    .stTabs [data-baseweb="tab"]:hover { border-color: var(--subtext) !important; background-color: var(--hover-bg) !important; }\n    .stTabs [data-baseweb="tab"] p, .stTabs [data-baseweb="tab"] span { color: var(--text-app) !important; font-weight: 700 !important; font-size: 0.78rem !important; }\n    .stTabs [aria-selected="true"] { \n        background-color: var(--header-bg) !important; \n        border: 1px solid var(--header-bg) !important; \n        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important; \n    }\n    .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span, .stTabs [aria-selected="true"] div { \n        color: var(--header-text) !important; \n        font-weight: 800 !important; \n    }\n\n    .stButton > button { \n        background-color: var(--header-bg) !important; \n        color: #ffffff !important; \n        border-radius: 980px !important; \n        border: 1px solid var(--card-border) !important; \n        font-weight: 700 !important; \n        padding: 5px 12px !important; \n        font-size: 0.78rem !important; \n    }\n    .stButton > button p, .stButton > button span { color: #ffffff !important; }\n\n    .banner-item-header { \n        background-color: var(--header-bg) !important; \n        border: 1px solid var(--card-border) !important; \n        border-bottom: 2px solid #ffffff !important; \n        border-radius: 6px 6px 0 0 !important; \n        padding: 6px 10px !important; \n        margin-top: 4px !important; \n        margin-bottom: 0px !important; \n    }\n    .banner-item-header span { color: #ffffff !important; font-size: 0.80rem !important; font-weight: 800 !important; }\n\n    .card-item-body-compact { \n        border: 1px solid var(--card-border); \n        border-top: none; \n        border-radius: 0 0 6px 6px; \n        padding: 6px 8px 2px 8px; \n        background-color: var(--card-bg); \n        margin-bottom: 6px; \n    }\n\n    .worker-card-row { \n        background: var(--card-bg); \n        border: 1px solid var(--card-border); \n        border-radius: 8px; \n        padding: 8px 12px; \n        margin-bottom: 6px; \n        display: flex; \n        align-items: center; \n        justify-content: space-between; \n        gap: 8px; \n        box-shadow: 0 1px 3px rgba(0,0,0,0.03); \n    }\n    .worker-info-block { display: flex; flex-direction: column; flex: 1; min-width: 0; }\n    .worker-name-title { font-size: 0.82rem; font-weight: 800; color: var(--text-app); line-height: 1.2; word-break: break-word; }\n    .worker-meta-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; align-items: center; }\n    .tag-cargo-chip { \n        background: var(--card-border); \n        color: var(--text-app); \n        font-size: 0.68rem; \n        font-weight: 800; \n        padding: 2px 8px; \n        border-radius: 12px; \n        border: 1px solid var(--card-border); \n    }\n    .tag-edif-chip { \n        background: rgba(59, 130, 246, 0.15); \n        color: #3b82f6; \n        font-size: 0.68rem; \n        font-weight: 800; \n        padding: 2px 8px; \n        border-radius: 12px; \n        border: 1px solid rgba(59, 130, 246, 0.35); \n    }\n\n    @media (max-width: 768px) { \n        .block-container { padding-top: 3.6rem !important; padding-left: 0.4rem !important; padding-right: 0.4rem !important; }\n        .widgets-grid { grid-template-columns: 1fr 1fr; }\n        .smart-title { font-size: 0.95rem !important; }\n        .worker-card-row { padding: 6px 8px; }\n        .worker-name-title { font-size: 0.78rem; }\n    }\n\n    .incidencias-table { \n        width: 100%; \n        border-collapse: collapse !important; \n        margin-top: 4px; \n        margin-bottom: 8px; \n    }\n    .incidencias-table th { \n        background-color: var(--header-bg) !important; \n        color: #ffffff !important; \n        padding: 6px 8px !important; \n        font-size: 0.75rem !important; \n        font-weight: 700 !important; \n        border: 1px solid var(--card-border) !important; \n        text-align: left; \n    }\n    .incidencias-table th.center, .incidencias-table td.center { text-align: center !important; }\n    .incidencias-table td { \n        padding: 5px 7px !important; \n        font-size: 0.76rem !important; \n        border: 1px solid var(--card-border) !important; \n        vertical-align: middle !important; \n        background-color: var(--card-bg) !important; \n        color: var(--text-app) !important; \n    }\n    .incidencias-table tr:nth-child(even) td { \n        background-color: var(--table-row-even) !important; \n    }\n    #MainMenu {visibility: hidden;} footer {visibility: hidden;}\n    </style>\n    '
+
+
+
+# Estilos complementarios 2026.10: diseño adaptativo y contraste para ambos modos.
+# No modifica la lógica ni los componentes internos de Streamlit.
+APP_CSS_V8 = """
+<style>
+:root {
+  --ab-primary:#2459dc; --ab-primary-deep:#153fa5; --ab-accent:#7c55ef;
+  --ab-surface:#ffffff; --ab-surface-soft:#f5f8ff;
+  --ab-ink:#17233b; --ab-muted:#586781;
+  --ab-outline:#dbe4f1; --ab-shadow:0 8px 28px rgba(31,54,101,.07);
+  --ab-chip:#eaf1ff; --ab-chip-text:#234a94;
+}
+@media (prefers-color-scheme:dark){
+ :root { --ab-primary:#80a7ff; --ab-primary-deep:#568af3; --ab-accent:#baa3ff;
+ --ab-surface:#1e293b; --ab-surface-soft:#162237; --ab-ink:#f2f6ff;
+ --ab-muted:#bbc7de; --ab-outline:#40516b; --ab-shadow:0 8px 25px rgba(0,0,0,.18);
+ --ab-chip:#243b63; --ab-chip-text:#c6d8ff; }
+}
+/* Una app que usa tema oscuro manual respeta las variables de Streamlit si están presentes. */
+.stApp { background:var(--bg-app)!important; }
+.stApp [data-testid="stMainBlockContainer"] { max-width:1500px!important; margin:auto; }
+.stApp [data-testid="stMainBlockContainer"] p,
+.stApp [data-testid="stMainBlockContainer"] label,
+.stApp [data-testid="stMainBlockContainer"] span { line-height:1.4; }
+.stApp [data-testid="stMainBlockContainer"] h1,
+.stApp [data-testid="stMainBlockContainer"] h2,
+.stApp [data-testid="stMainBlockContainer"] h3 { color:var(--text-app)!important; }
+.stApp [data-testid="stExpander"] {
+ border:1px solid var(--ab-outline)!important; border-radius:13px!important;
+ background:var(--ab-surface)!important; overflow:hidden!important;
+ box-shadow:0 2px 7px rgba(0,0,0,.022);
+}
+.stApp [data-testid="stExpander"] summary { background:var(--ab-surface)!important; padding:0.65rem .8rem!important; }
+.stApp [data-testid="stExpander"] summary:hover { background:var(--ab-surface-soft)!important; }
+.stApp [data-testid="stExpander"] summary p,
+.stApp [data-testid="stExpander"] summary span { color:var(--ab-ink)!important; font-weight:650!important; }
+.stApp [data-testid="stVerticalBlockBorderWrapper"] > div[data-testid="stVerticalBlock"] { border-radius:14px; }
+.stApp [data-testid="stMetric"] {
+ border:1px solid var(--ab-outline); background:var(--ab-surface);
+ border-radius:13px; padding:10px 13px; min-height:87px;
+}
+.stApp [data-testid="stMetric"] label { color:var(--ab-muted)!important; font-size:.76rem; }
+.stApp [data-testid="stMetricValue"] { color:var(--ab-ink)!important; font-size:1.4rem; }
+.stApp [data-testid="stDataFrame"] { border-radius:12px; overflow:hidden; }
+.stApp [data-testid="stTabs"] [data-baseweb="tab-list"] {
+ background:var(--ab-surface-soft)!important; border-color:var(--ab-outline)!important;
+ flex-wrap:wrap!important; row-gap:4px!important;
+}
+.stApp [data-testid="stTabs"] [data-baseweb="tab"] { border-color:var(--ab-outline)!important; }
+.stApp [data-testid="stTabs"] [data-baseweb="tab"] p { font-size:.79rem!important; }
+.stApp .stButton > button[kind="primary"] { background:#2758c9!important; color:white!important; border:0!important; }
+.stApp [data-testid="stTextInput"] input, .stApp [data-testid="stNumberInput"] input,
+.stApp [data-testid="stTextArea"] textarea { border-radius:9px; }
+.ab-heading {
+ background:linear-gradient(120deg,var(--ab-surface),var(--ab-surface-soft));
+ border:1px solid var(--ab-outline); border-left:4px solid var(--ab-primary);
+ border-radius:14px; padding:14px 17px; margin:12px 0 16px;
+}
+.ab-heading .ab-eyebrow { color:var(--ab-primary)!important; font-size:.68rem; letter-spacing:.11em; font-weight:800; text-transform:uppercase; }
+.ab-heading h3 { font-size:1.35rem!important; color:var(--ab-ink)!important; margin:3px 0 4px!important; }
+.ab-heading p { font-size:.82rem!important; color:var(--ab-muted)!important; margin:0!important; }
+.ab-day {display:flex;align-items:center;gap:9px;margin:15px 0 7px; border-bottom:1px solid var(--ab-outline);padding-bottom:7px;}
+.ab-day-title {font-size:.86rem;font-weight:800;color:var(--ab-ink)!important;}
+.ab-count {display:inline-flex;align-items:center;border-radius:100px; background:var(--ab-chip);color:var(--ab-chip-text)!important;font-weight:750;font-size:.67rem;padding:3px 9px;}
+.ab-list-wrap {border:1px solid var(--ab-outline);border-radius:13px; overflow:hidden;background:var(--ab-surface);}
+.ab-item {display:grid;grid-template-columns: minmax(0,1fr) auto;column-gap:16px;align-items:center;padding:12px 15px;border-bottom:1px solid var(--ab-outline);}
+.ab-item:last-child{border-bottom:0;}
+.ab-item-title {color:var(--ab-ink)!important;font-size:.83rem;font-weight:800;overflow-wrap:anywhere;}
+.ab-item-sub {color:var(--ab-muted)!important;font-size:.72rem;margin-top:3px;}
+.ab-item-tags {display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;}
+.ab-chip {display:inline-block;border:1px solid var(--ab-outline);border-radius:8px;padding:3px 8px;background:var(--ab-chip);color:var(--ab-chip-text)!important;font-size:.69rem;font-weight:700;}
+.ab-chip-legacy {background:var(--ab-surface-soft);color:var(--ab-muted)!important;}
+.ab-subtle {color:var(--ab-muted)!important;font-size:.77rem;}
+.ab-inline-filter {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:5px 0 10px;}
+.ab-separator {height:1px;background:var(--ab-outline);margin:14px 0;}
+@media(max-width:768px){
+ .ab-heading{padding:12px;margin:10px 0;} .ab-heading h3{font-size:1.12rem!important;}
+ .ab-item{padding:10px 12px;grid-template-columns:1fr;gap:4px;}
+ .stApp [data-testid="stMetric"]{min-height:74px;padding:8px 10px;}
+}
+</style>
+"""
+
+
+def page_heading(eyebrow, title, subtitle):
+    """Encabezado uniforme, evita mezclar títulos grandes y controles."""
+    st.markdown(
+        '<div class="ab-heading"><div class="ab-eyebrow">' + html_escape(eyebrow) + '</div>'
+        '<h3>' + html_escape(title) + '</h3><p>' + html_escape(subtitle) + '</p></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def display_date(value, with_weekday=False):
+    """Formato humano para mostrar, el ISO se mantiene almacenado."""
+    day = date_valid(value)
+    if day is None:
+        return 'Fecha no especificada'
+    weekdays=('lunes','martes','miércoles','jueves','viernes','sábado','domingo')
+    prefix=weekdays[day.weekday()].capitalize()+', ' if with_weekday else ''
+    return f'{prefix}{day.day} de {NOMBRES_MESES[day.month].lower()} de {day.year}'
+
+
+def display_month(value):
+    try:
+        year,month=map(int,str(value)[:7].split('-'))
+        return f'{NOMBRES_MESES[month]} de {year}'
+    except (ValueError,KeyError):
+        return 'Sin mes definido'
+
+
+def record_date(table, record):
+    return str(record.get('fecha') or record.get('fecha_compromiso') or '')[:10]
+
+
+def record_title(table, record):
+    """Nombre legible sin revelar claves internas ni IDs."""
+    if table=='rendimientos':
+        return str(record.get('rubro') or 'Actividad registrada') + ((' · ' + str(record.get('piso'))) if record.get('piso') else '')
+    if table=='incidencias':
+        return str(record.get('area') or 'Incidencia') + ' · ' + str(record.get('prioridad') or 'Media')
+    if table=='checklists':
+        return 'Jornada de inspección' + ((' · ' + str(record.get('hora_inicio'))) if record.get('hora_inicio') else '')
+    if table=='trabajadores':
+        return str(record.get('nombre') or 'Trabajador')
+    if table=='inspecciones':
+        return 'Libro de obra' + ((' · ' + str(record.get('residente'))) if record.get('residente') else '')
+    return 'Registro de obra'
+
+
+def record_note(table, record):
+    if table=='rendimientos':
+        value=rendimiento_values(record)
+        return f"{value['avance']:.2f} {record.get('unidad') or ''} · {record.get('estado') or 'Sin evaluación'}"
+    if table=='incidencias':
+        return f"{record.get('estado') or 'Abierta'} · {record.get('responsable') or 'Sin responsable'}"
+    if table=='trabajadores':
+        return str(record.get('cargo') or 'Cargo sin registrar')
+    return f"{record.get('usuario_email') or 'Responsable no indicado'}"
+
+
+def day_heading(day, count):
+    st.markdown(
+        '<div class="ab-day"><span class="ab-day-title">📅 ' + html_escape(display_date(day,True)) +
+        '</span><span class="ab-count">' + str(count) + (' registro' if count==1 else ' registros') + '</span></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def grouped_records(records,table):
+    """Únicamente selecciona registros del periodo; no consulta la base de datos."""
+    groups=defaultdict(list)
+    for record in records:
+        groups[record_date(table,record) or 'Sin fecha'].append(record)
+    return sorted(groups.items(),key=lambda pair:pair[0],reverse=True)
+
+
+def page_slice(records,key,size=12):
+    """Paginación accesible, sin selector numérico de páginas ni IDs."""
+    count=len(records)
+    if count<=size:return records
+    ranges=[(i,min(i+size,count)) for i in range(0,count,size)]
+    index=st.selectbox('Ver bloque de registros', list(range(len(ranges))),
+        format_func=lambda x:f'Registros {ranges[x][0]+1}–{ranges[x][1]} de {count}',key=key)
+    start,end=ranges[index]
+    return records[start:end]
+
+
+def legacy_worker_backup(repo):
+    """Lee sin alterar el respaldo histórico de la nómina anterior.
+
+    Los trabajadores sin edificio válido se conservan visibles como respaldo,
+    pero no pueden copiarse a la tabla sin asignación autorizada.
+    """
+    raw=get_config('user_trabajadores_'+repo.email)
+    entries=obj(raw,[])
+    if not isinstance(entries,list):return []
+    cleaned=[];seen=set()
+    for entry in entries:
+        if not isinstance(entry,dict):continue
+        owner=str(entry.get('usuario_email') or repo.email).strip().lower()
+        if owner!=repo.email:continue
+        name=str(entry.get('nombre') or '').strip().upper()
+        role=str(entry.get('cargo') or '').strip().upper()
+        building=str(entry.get('edificio') or '').strip()
+        if not name:continue
+        signature=(name,building.casefold())
+        if signature in seen:continue
+        seen.add(signature)
+        cleaned.append({'nombre':name,'cargo':role or 'SIN ESPECIALIDAD','edificio':building or 'Sin edificio asignado','_legacy':True})
+    return cleaned
+
+
+def combined_workers(repo, building=None):
+    """Trabajadores vigentes más respaldos legados, solo lectura y sin duplicados."""
+    current = repo.own('trabajadores')
+    seen={(str(w.get('nombre') or '').strip().upper(),str(w.get('edificio') or '').strip().casefold()) for w in current}
+    for legacy in legacy_worker_backup(repo):
+        ident=(legacy['nombre'],legacy['edificio'].casefold())
+        if ident not in seen:
+            current.append(legacy)
+            seen.add(ident)
+    if building is not None:
+        return [w for w in current if str(w.get('edificio') or '').casefold()==str(building).casefold()]
+    return current
 
 
 def now_ec():
@@ -852,7 +1059,7 @@ def editor_picker(module, user, default_factory, allow_new=True):
         begin_editor(module, user, default_factory()); rerun_selected_module()
     drafts = cached_rows("alpha_drafts", (("usuario_email", user["correo"]), ("modulo", module)), columns="slot,revision,updated_at", order="updated_at")
     if drafts:
-        choices = {f"{r['updated_at'][:16]} · {r['slot']}": r for r in drafts}
+        choices = {f"Borrador {i+1} · {r['updated_at'][:16]}": r for i,r in enumerate(reversed(drafts))}
         choice = st.selectbox("Continuar un borrador", list(choices), key=f"draft_choice_{module}")
         if st.button("Recuperar borrador", key=f"restore_{module}"):
             row = choices[choice]
@@ -1062,7 +1269,7 @@ def render_official(editor,repo):
     editor.field("selectbox","proyecto","Proyecto","",options=[""]+project_options(repo.user,d.get("proyecto")))
     matching=[r for r in repo.own("checklists") if str(r.get("fecha"))[:10]==str(d["fecha"])[:10] and r.get("edificio")==d["proyecto"]]
     if matching:
-        chosen=st.selectbox("Checklist del mismo edificio y fecha",matching,format_func=lambda r:f"{r['fecha']} · {r.get('hora_inicio')} · ID {r['id']}",key=editor.prefix+"checklist")
+        chosen=st.selectbox("Checklist del mismo edificio y fecha",matching,format_func=lambda r:f"{display_date(r['fecha'])} · {r.get('hora_inicio') or 'Sin hora'}",key=editor.prefix+"checklist")
         if st.button("Importar actividades y horario del checklist",key=editor.prefix+"importchk"):
             raw=obj(chosen.get("datos"),{})
             items=raw.get("Supervision_Trabajos",[]) if isinstance(raw,dict) else []
@@ -1084,7 +1291,7 @@ def render_official(editor,repo):
     with a:editor.field("text_input","hora_inicio","Entrada","07:00")
     with b:editor.field("text_input","hora_fin","Salida","16:00")
     st.subheader("Personal nómina y subcontratos")
-    workers=[r for r in repo.own("trabajadores") if r.get("edificio")==d.get("proyecto")]
+    workers=combined_workers(repo,d.get("proyecto"))
     if st.button("Actualizar conteo desde mi nómina del edificio",key=editor.prefix+"nomina"):
         counts,unclassified=workforce_counts(workers);d["datos"]["Nomina_Conteo"]=counts
         for key in list(st.session_state):
@@ -1147,7 +1354,7 @@ def render_maestro(editor, repo):
         editor.field("selectbox", "proyecto", "Proyecto / Edificio asignado:*", "", options=[""] + project_options(repo.user, d.get("proyecto")))
     with c:
         st.text_input("Maestro responsable:", value=full_name(repo.user), disabled=True, key=editor.prefix + "maestro_visible")
-    workers = [f"{r['nombre']} ({r['cargo']})" for r in repo.own("trabajadores") if r.get("edificio") == d.get("proyecto")]
+    workers = [f"{r['nombre']} ({r['cargo']})" for r in combined_workers(repo,d.get("proyecto"))]
     st.markdown(f"#### 🔨 Actividades realizadas, personal y metrajes ({len(d['actividades']) or 1} registro/s)")
     default = {"Actividad": "", "Cantidad": "", "Personal_A_Cargo": [], "Piso": "", "Departamento": "", "Observaciones": "", "Personal_Manual": ""}
     for index, (rid, item) in enumerate(list(editor.rows("actividades", default).items()), 1):
@@ -1336,7 +1543,7 @@ def text_value(value):
 def sections_for(table,record):
     """Modelo único compartido por PDF, Excel y vista de detalle."""
     data=obj(record.get("datos"),{})
-    meta=[("Edificio",record_building(table,record)),("Fecha",record.get("fecha",record.get("fecha_compromiso",""))),("Registrado por",record.get("usuario_email", "")),("ID",record.get("id", ""))]
+    meta=[("Edificio",record_building(table,record)),("Fecha",record.get("fecha",record.get("fecha_compromiso",""))),("Registrado por",record.get("usuario_email", ""))]
     sections=[];photos=[]
     if table=="checklists":
         verifs=data if isinstance(data,list) else data.get("Verificaciones",[])
@@ -1457,7 +1664,7 @@ def export_excel(table,records):
         header(ws,1,["ALPHA BUILDERS",table.upper(),building]);row=3
         for record in sorted(items,key=lambda r:str(r.get("fecha",r.get("fecha_compromiso",""))),reverse=True):
             meta,sections,photos=sections_for(table,record)
-            header(ws,row,["Registro",str(record.get("id",""))]);row+=1
+            header(ws,row,["Registro",display_date(record_date(table, record))]);row+=1
             for label,value in meta:
                 excel_cell(ws.cell(row,1),label);ws.cell(row,1).font=Font(bold=True)
                 ws.merge_cells(start_row=row,start_column=2,end_row=row,end_column=7);excel_cell(ws.cell(row,2),value)
@@ -1509,7 +1716,7 @@ def export_pdf(table,records):
         story += [para("Resumen por edificio, rubro y unidad",section),tab(["Edificio","Rubro","Unidad","Registros","Avance","HH verificadas","Históricos"],summary_rend(records)),para("Las HH históricas no verificadas se excluyen del total. Los avances se agrupan por rubro y unidad.")]
     for record in sorted(records,key=lambda r:(record_building(table,r),str(r.get("fecha",r.get("fecha_compromiso",""))))):
         meta,sections,photos=sections_for(table,record)
-        story += [para(record_building(table,record)+" · Registro "+str(record.get("id","")),section),tab(["Campo","Valor"],meta,[width*.28,width*.72])]
+        story += [para(record_building(table,record)+" · "+display_date(record_date(table,record)),section),tab(["Campo","Valor"],meta,[width*.28,width*.72])]
         for label,headers,rows in sections:
             if rows:story += [para(label,section),tab(headers,rows)]
         for label,photo in photos:
@@ -1559,48 +1766,74 @@ def show_record(table,record):
         if stream:st.image(stream,caption=title,width=320)
 
 
-def history(table,records,repo,key,editable=True):
-    st.subheader("Historial por edificio y fecha")
-    if not records:st.info("No hay registros disponibles.");return
-    buildings=sorted({record_building(table,r) for r in records})
-    selected=st.selectbox("Edificio / proyecto",["Todos los edificios"]+buildings,key="building_"+key)
-    filtered=[r for r in records if selected=="Todos los edificios" or record_building(table,r)==selected]
-    if table=="incidencias":
-        state=st.selectbox("Estado",["Todos","Abierta","Cerrada"],key="state_"+key)
-        filtered=[r for r in filtered if state=="Todos" or r.get("estado")==state]
-    month_values=sorted({str(r.get("fecha",r.get("fecha_compromiso","")))[:7] for r in filtered},reverse=True)
-    month=st.selectbox("Mes",["Todos los meses"]+month_values,key="month_"+key)
-    filtered=[r for r in filtered if month=="Todos los meses" or str(r.get("fecha",r.get("fecha_compromiso",""))).startswith(month)]
-    st.caption(f"{len(filtered)} registros. La exportación respeta los filtros.")
-    if not filtered:st.info("No hay registros para esta selección.");return
-    export_controls(table,filtered,key)
-    ordered=sorted(filtered,key=lambda r:(str(r.get("fecha",r.get("fecha_compromiso",""))),str(r.get("id"))),reverse=True)
-    pages=max(1,math.ceil(len(ordered)/15));page=st.number_input("Página",min_value=1,max_value=pages,value=1,step=1,key="page_"+key)
-    for record in ordered[(page-1)*15:page*15]:
-        identifier=key+":"+str(record["id"])
-        label=f"{record_building(table,record)} · {record.get('fecha',record.get('fecha_compromiso','Sin fecha'))} · {record.get('rubro',record.get('area',record.get('residente','Registro')))} · ID {record['id']}"
-        with st.expander(label):
-            # Solo el registro elegido decodifica sus fotos y construye el detalle.
-            if st.checkbox("Mostrar detalle y fotografías",key="detail_"+identifier):show_record(table,record)
-            a,b=st.columns(2)
-            if editable:
-                if a.button("Editar",key="edit_"+identifier):
-                    try:
-                        repo._access(table,record,write=True)
-                        if table=="checklists":module="Checklist";factory=checklist_data
-                        elif table=="rendimientos":module="Rendimientos";factory=rend_data
-                        elif table=="incidencias":module="Incidencias";factory=incident_data
-                        else:
-                            raw=obj(record.get("datos"),{});master=isinstance(raw,list) or raw.get("Tipo_Registro")=="Libro_Obra_Maestro" or "Actividades_Maestro" in raw
-                            module="Libro maestro" if master else "Libro oficial";factory=maestro_data if master else official_data
-                        begin_editor(module,repo.user,factory(record),record)
-                        st.session_state["_next_route"]=module;st.rerun()
-                    except Exception as exc:notice_error(exc)
-                with b.popover("Eliminar"):
-                    st.caption("La eliminación es permanente. Confirme únicamente si corresponde.")
-                    if st.button("Confirmar eliminación",key="delete_"+identifier):
-                        try:repo.delete(table,record);st.session_state["_flash"]="Registro eliminado.";st.rerun()
-                        except Exception as exc:notice_error(exc)
+def history(table, records, repo, key, editable=True):
+    """Biblioteca: edificio → mes → día → detalle. Los IDs son únicamente claves internas."""
+    st.markdown('#### 📚 Archivo de registros')
+    if not records:
+        st.info('Todavía no hay registros de este tipo. Los nuevos aparecerán organizados por edificio y fecha.');return
+    counts=defaultdict(int)
+    for record in records:counts[record_building(table,record)]+=1
+    buildings=sorted(counts,key=lambda b:(b=='Sin Edificio Asignado',b.casefold()))
+    c1,c2=st.columns([1.4,1])
+    with c1:building=st.selectbox('🏢 Edificio', ['Todos los edificios']+buildings,
+        format_func=lambda b:b if b=='Todos los edificios' else f'{b} · {counts[b]}',key='hist_build_'+key)
+    filtered=[r for r in records if building=='Todos los edificios' or record_building(table,r)==building]
+    available_months=sorted({record_date(table,r)[:7] for r in filtered if len(record_date(table,r))>=7},reverse=True)
+    with c2:month=st.selectbox('🗓️ Periodo', ['Todos los periodos']+available_months,
+        format_func=lambda m:m if m=='Todos los periodos' else display_month(m),key='hist_month_'+key)
+    if month!='Todos los periodos':filtered=[r for r in filtered if record_date(table,r).startswith(month)]
+    if table=='incidencias':
+        status=st.segmented_control('Estado', ['Todas','Abierta','Cerrada'],default='Todas',key='hist_status_'+key)
+        if status not in ('Todas',None):filtered=[r for r in filtered if r.get('estado')==status]
+    search=st.text_input('Buscar en los registros',placeholder='Rubro, área, responsable o edificio…',key='hist_search_'+key)
+    if search.strip():
+        term=search.strip().casefold()
+        filtered=[r for r in filtered if term in ' '.join((record_building(table,r), record_title(table,r),record_note(table,r))).casefold()]
+    a,b=st.columns([2,1])
+    with a:st.caption(f'**{len(filtered)} registros** · Ordenados del más reciente al más antiguo')
+    with b:st.caption('📤 Exportación del filtro actual')
+    export_controls(table,filtered,'hist_export_'+key)
+    if not filtered:
+        st.info('No se encontraron registros con estos filtros.');return
+    ordered=sorted(filtered,key=lambda r:(record_date(table,r),str(r.get('id') or '')),reverse=True)
+    visible=page_slice(ordered,'hist_block_'+key,12)
+    by_building=defaultdict(list)
+    for record in visible:by_building[record_building(table,record)].append(record)
+    # Único edificio visible evita el encabezado redundante.
+    for building_name, items in sorted(by_building.items(),key=lambda p:p[0].casefold()):
+        if building=='Todos los edificios' or len(by_building)>1:
+            st.markdown('##### 🏢 '+html_escape(building_name))
+        for day,day_records in grouped_records(items,table):
+            day_heading(day,len(day_records))
+            for record in day_records:
+                identifier=key+':'+str(record['id'])
+                title=record_title(table,record)
+                note=record_note(table,record)
+                with st.expander(f'📄 {title}  ·  {note}',expanded=False):
+                    if st.checkbox('Ver información y fotografías',key='detail_'+identifier):
+                        show_record(table,record)
+                    if editable:
+                        ca,cb=st.columns([1,1])
+                        if ca.button('✏️ Editar registro',key='edit_'+identifier,use_container_width=True):
+                            try:
+                                repo._access(table,record,write=True)
+                                if table=='checklists':module='Checklist';factory=checklist_data
+                                elif table=='rendimientos':module='Rendimientos';factory=rend_data
+                                elif table=='incidencias':module='Incidencias';factory=incident_data
+                                else:
+                                    master=is_master_book(record)
+                                    module='Libro maestro' if master else 'Libro oficial'
+                                    factory=maestro_data if master else official_data
+                                begin_editor(module,repo.user,factory(record),record)
+                                st.session_state['_next_route']=module;st.rerun()
+                            except Exception as exc:notice_error(exc)
+                        with cb.popover('🗑️ Eliminar registro',use_container_width=True):
+                            st.warning('Esta acción no se puede deshacer.')
+                            if st.button('Confirmar eliminación',key='delete_'+identifier):
+                                try:repo.delete(table,record);st.session_state['_flash']='Registro eliminado.';st.rerun()
+                                except Exception as exc:notice_error(exc)
+
+
 
 
 def read_worker_file(upload,default_building,allowed_buildings):
@@ -1662,101 +1895,154 @@ def import_workers(repo,records,operation_id):
 
 
 def personal_module(repo):
-    st.header("Personal a cargo")
+    """Nómina segura: une solo para visualización SQL + respaldo histórico.
+
+    Nunca borra trabajadores al filtrar, importar, actualizar o mostrar respaldos.
+    """
+    page_heading('Gestión de personal','Nómina por edificio',
+        'Consulta tus cuadrillas, registra colaboradores y recupera trabajadores antiguos sin perder información.')
     projects=project_options(repo.user)
-    if not projects:st.info("Solicite al administrador su asignación a un edificio para registrar personal.")
-    else:
-        with st.expander("Registrar personal"):
-            with st.form("personal_new",clear_on_submit=True):
-                name=st.text_input("Nombre completo");role=st.text_input("Cargo / especialidad");building=st.selectbox("Edificio",projects)
-                submit=st.form_submit_button("Guardar trabajador")
-            if submit:
-                try:
-                    if not name.strip() or not role.strip():raise ValueError("Complete nombre y cargo.")
-                    operation=st.session_state.setdefault("_worker_operation",uuid.uuid4().hex)
-                    count=import_workers(repo,[{"nombre":name.strip().upper(),"cargo":role.strip().upper(),"edificio":building}],operation)
-                    st.session_state.pop("_worker_operation",None)
-                    st.session_state["_flash"] = "Trabajador guardado." if count else "El trabajador ya está registrado en ese edificio."
-                    st.rerun()
-                except Exception as exc:notice_error(exc)
-        with st.expander("Importación masiva de Excel / CSV"):
-            building=st.selectbox("Edificio predeterminado",projects,key="import_building")
-            upload=st.file_uploader("Archivo con columnas Nombre, Cargo y Edificio opcional",type=["csv","xlsx"],key="workers_upload")
+    current=sorted(repo.own('trabajadores'),key=lambda r:(str(r.get('edificio') or '').casefold(),str(r.get('nombre') or '').casefold()))
+    historic=legacy_worker_backup(repo)
+    signatures={(str(r.get('nombre') or '').strip().upper(),str(r.get('edificio') or '').strip().casefold()) for r in current}
+    pending=[w for w in historic if (w['nombre'],w['edificio'].casefold()) not in signatures]
+    shown=current+pending
+    c1,c2,c3=st.columns(3)
+    c1.metric('Personal registrado',len(current))
+    c2.metric('Edificios en nómina',len({w.get('edificio') for w in shown if w.get('edificio')}))
+    c3.metric('Pendientes de recuperar',len(pending))
+    area=st.segmented_control('Sección',['👥 Nómina','➕ Registrar','📥 Importar','✏️ Gestionar'],
+        default='👥 Nómina',key='v8_personal_section',label_visibility='collapsed') or '👥 Nómina'
+    if area=='👥 Nómina':
+        if pending:
+            st.info(f'Encontramos {len(pending)} trabajador(es) en el respaldo de la versión anterior que aún no aparecen en la tabla actual. Se muestran junto a los demás, sin modificar tu base de datos.')
+            canonical={p.casefold():p for p in projects}
+            eligible=[{**w,'edificio':canonical[w['edificio'].casefold()]} for w in pending if w['edificio'].casefold() in canonical and w['nombre'] and w['cargo']]
+            excluded=len(pending)-len(eligible)
+            with st.expander('🛟 Recuperar mi nómina anterior',expanded=False):
+                st.markdown('La copia histórica permanece intacta. **La recuperación solo añade trabajadores que no existan ya en la tabla actual.**')
+                if excluded:
+                    st.warning(f'{excluded} trabajador(es) conservan un edificio no asignado actualmente a tu cuenta. No se migrarán sin corregir su asignación.')
+                if st.button(f'Incorporar {len(eligible)} trabajador(es) válidos a mi nómina',
+                    key='v8_workers_recover',disabled=not eligible,type='primary'):
+                    try:
+                        count=import_workers(repo,[{k:w[k] for k in ('nombre','cargo','edificio')} for w in eligible],
+                            'legacy-restore-'+hashlib.sha256(json_text(eligible).encode()).hexdigest())
+                        st.session_state['_flash']=f'{count} trabajador(es) recuperados; no se eliminaron ni sobrescribieron los anteriores.'
+                        st.rerun()
+                    except Exception as exc:notice_error(exc)
+        if not shown:
+            st.info('Tu nómina está vacía. Empieza en Registrar o Importar.');return
+        building_counts=defaultdict(int)
+        for worker in shown:building_counts[worker.get('edificio') or 'Sin edificio asignado']+=1
+        buildings=sorted(building_counts,key=lambda b:b.casefold())
+        ca,cb=st.columns([1.3,2])
+        with ca:building=st.selectbox('🏢 Edificio',['Todos los edificios']+buildings,
+            format_func=lambda b:b if b=='Todos los edificios' else f'{b} · {building_counts[b]}',key='v8_personal_build')
+        with cb:query=st.text_input('🔎 Buscar trabajador o especialidad',placeholder='Nombre o cargo…',key='v8_personal_query')
+        visible=[w for w in shown if (building=='Todos los edificios' or (w.get('edificio') or 'Sin edificio asignado')==building) and
+             (not query.strip() or query.strip().casefold() in (str(w.get('nombre') or '')+' '+str(w.get('cargo') or '')).casefold())]
+        st.caption(f'{len(visible)} colaboradores encontrados · Los marcados como «Respaldo» aún no están sincronizados.')
+        if not visible:st.info('No encontramos coincidencias.');return
+        display=page_slice(visible,'v8_people_block',25)
+        groups=defaultdict(list)
+        for w in display:groups[w.get('edificio') or 'Sin edificio asignado'].append(w)
+        for name,items in sorted(groups.items(),key=lambda x:x[0].casefold()):
+            st.markdown('##### 🏢 '+html_escape(name))
+            parts=[]
+            for w in items:
+                badge='<span class="ab-chip ab-chip-legacy">Respaldo</span>' if w.get('_legacy') else ''
+                parts.append('<div class="ab-item"><div><div class="ab-item-title">👷 '+html_escape(str(w.get('nombre') or ''))+
+                    '</div><div class="ab-item-tags"><span class="ab-chip">'+html_escape(str(w.get('cargo') or ''))+
+                    '</span>'+badge+'</div></div><span class="ab-subtle">'+('Pendiente' if w.get('_legacy') else 'En nómina')+'</span></div>')
+            st.markdown('<div class="ab-list-wrap">'+''.join(parts)+'</div>',unsafe_allow_html=True)
+        with st.expander('📤 Descargar nómina actual',expanded=False):
+            # Los respaldos se pueden exportar sin fingir que están confirmados en SQL.
+            st.download_button('📄 Exportar lista visible (CSV)',
+                pd.DataFrame([{'Nombre':w.get('nombre'),'Cargo':w.get('cargo'),'Edificio':w.get('edificio'),
+                'Origen':'Respaldo histórico' if w.get('_legacy') else 'Nómina actual'} for w in visible]).to_csv(index=False,sep=';').encode('utf-8-sig'),
+                file_name='Nomina_Alpha_Builders.csv',mime='text/csv',key='v8_people_csv')
+            sql_visible=[w for w in visible if not w.get('_legacy')]
+        if sql_visible:export_controls('trabajadores',sql_visible,'personal_v8')
+        return
+    if area=='➕ Registrar':
+        if not projects:
+            st.info('Solicita al administrador tu asignación a un edificio para registrar personal.');return
+        st.markdown('#### Añadir un trabajador')
+        with st.form('personal_new',clear_on_submit=True):
+            name=st.text_input('Nombre completo',placeholder='Ej. Juan Carlos Pérez')
+            role=st.text_input('Cargo / especialidad',placeholder='Ej. Albañil, ayudante, eléctrico…')
+            building=st.selectbox('Edificio',projects)
+            submit=st.form_submit_button('💾 Guardar trabajador',type='primary')
+        if submit:
+            try:
+                if not name.strip() or not role.strip():raise ValueError('Completa el nombre y el cargo.')
+                operation=st.session_state.setdefault('_worker_operation',uuid.uuid4().hex)
+                count=import_workers(repo,[{'nombre':name.strip().upper(),'cargo':role.strip().upper(),'edificio':building}],operation)
+                st.session_state.pop('_worker_operation',None)
+                st.session_state['_flash']='Trabajador registrado.' if count else 'El trabajador ya existe en ese edificio.'
+                st.rerun()
+            except Exception as exc:notice_error(exc)
+        return
+    if area=='📥 Importar':
+        if not projects:st.info('Necesitas un edificio asignado antes de importar trabajadores.');return
+        st.markdown('#### Importar nómina Excel o CSV')
+        with st.container(border=True):
+            building=st.selectbox('Edificio predeterminado',projects,key='import_building')
+            st.caption('Columnas: Nombre, Cargo y opcionalmente Edificio. No reemplazamos ni borramos trabajadores registrados.')
+            upload=st.file_uploader('Selecciona el archivo de nómina',type=['csv','xlsx'],key='workers_upload')
             if upload:
                 try:
                     records=read_worker_file(upload,building,projects)
                     st.dataframe(pd.DataFrame(records),hide_index=True,use_container_width=True)
-                    st.caption("Los duplicados con el mismo nombre y edificio se omiten. Los registros existentes conservan su cargo hasta que los edite.")
-                    if st.button("Confirmar importación",key="import_confirm"):
+                    st.caption(f'{len(records)} filas válidas. Los duplicados con el mismo nombre y edificio se omitirán.')
+                    if st.button('Confirmar importación',type='primary',key='import_confirm'):
                         count=import_workers(repo,records,hashlib.sha256(upload.getvalue()+building.encode()).hexdigest())
-                        st.session_state["_flash"] = f"{count} trabajadores nuevos confirmados."
-                        st.rerun()
+                        st.session_state['_flash']=f'{count} trabajador(es) nuevos confirmados; se conservó la nómina existente.';st.rerun()
                 except Exception as exc:notice_error(exc)
-        with st.expander("Importar nómina de un compañero"):
-            # Un expander cerrado también ejecuta Python: exigir una acción explícita.
-            if st.checkbox("Consultar personal de compañeros", key="workers_load_colleagues"):
+        with st.expander('🤝 Importar trabajadores de un compañero',expanded=False):
+            if st.checkbox('Consultar nóminas compartidas',key='workers_load_colleagues'):
                 users=colleagues(repo)
                 if users:
-                    colleague=st.selectbox("Compañero",users,format_func=lambda u:full_name(u)+" · "+u["correo"],key="workers_colleague")
-                    records=[r for r in repo.shared("trabajadores",colleague["correo"]) if r.get("edificio") in repo.projects]
-                    st.caption(f"{len(records)} trabajadores en edificios compartidos.")
-                    if st.button("Importar a mi nómina",key="copy_workers"):
+                    colleague=st.selectbox('Compañero',users,format_func=lambda u:full_name(u)+' · '+u['correo'],key='workers_colleague')
+                    records=[r for r in repo.shared('trabajadores',colleague['correo']) if r.get('edificio') in repo.projects]
+                    st.caption(f'{len(records)} trabajadores en edificios compartidos.')
+                    if st.button('Añadir a mi nómina',key='copy_workers'):
                         try:
-                            count=import_workers(repo,[{k:r[k] for k in ["nombre","cargo","edificio"]} for r in records],"copy:"+colleague["correo"]+":"+hashlib.sha256(json_text(records).encode()).hexdigest())
-                            st.session_state["_flash"] = f"{count} trabajadores importados."
-                            st.rerun()
+                            count=import_workers(repo,[{k:r[k] for k in ('nombre','cargo','edificio')} for r in records],
+                                'copy:'+colleague['correo']+':'+hashlib.sha256(json_text(records).encode()).hexdigest())
+                            st.session_state['_flash']=f'{count} trabajador(es) importados, sin sobrescribir los anteriores.';st.rerun()
                         except Exception as exc:notice_error(exc)
-                else:st.info("No hay compañeros con edificios compartidos.")
-    records=sorted(repo.own("trabajadores"),key=lambda r:str(r.get("nombre") or "").casefold())
-    if not records:st.info("Todavía no tiene personal registrado.");return
-    selected=st.selectbox("Filtrar nómina por edificio",["Todos"]+sorted({r.get("edificio") or "Sin Edificio Asignado" for r in records}),key="personal_filter")
-    visible=[r for r in records if selected=="Todos" or (r.get("edificio") or "Sin Edificio Asignado")==selected]
-    # Tarjetas compactas y pestañas por edificio como en el portal original.
-    groups = defaultdict(list)
-    for worker in visible:
-        groups[worker.get("edificio") or "Sin Edificio Asignado"].append(worker)
-    buildings = sorted(groups, key=str.casefold)
-    if buildings:
-        panels, lazy = open_lazy_tabs([f"🏢 {ed} ({len(groups[ed])})" for ed in buildings], "alpha_personal_edificios")
-        for building, panel in zip(buildings, panels):
-            with panel:
-                if lazy and not panel.open:
-                    continue
-                st.markdown("#### 🏢 " + html_escape(building))
-                for worker in groups[building]:
-                    worker_name = html_escape(str(worker.get("nombre") or ""))
-                    worker_role = html_escape(str(worker.get("cargo") or ""))
-                    worker_building = html_escape(str(worker.get("edificio") or ""))
-                    st.markdown(
-                        '<div class="worker-card-row"><div class="worker-info-block">'
-                        f'<div class="worker-name-title">👷 {worker_name}</div>'
-                        '<div class="worker-meta-tags">'
-                        f'<span class="tag-cargo-chip">{worker_role}</span>'
-                        f'<span class="tag-edif-chip">{worker_building}</span>'
-                        '</div></div></div>', unsafe_allow_html=True
-                    )
-    with st.expander("📊 Lista general y exportaciones", expanded=False):
-        st.dataframe(pd.DataFrame([{k:r.get(k) for k in ("id","nombre","cargo","edificio")} for r in visible]),hide_index=True,use_container_width=True)
-        export_controls("trabajadores", visible, "personal")
-    if not visible:return
-    selected_record=st.selectbox("Editar trabajador",visible,format_func=lambda r:f"{r.get('nombre')} · {r.get('edificio')} · ID {r['id']}",key="worker_edit_choice")
-    key=str(selected_record["id"])+":"+str(selected_record["revision"])
-    with st.form("edit_worker_"+key):
-        name=st.text_input("Nombre",value=selected_record.get("nombre") or "")
-        role=st.text_input("Cargo",value=selected_record.get("cargo") or "")
-        options=project_options(repo.user,selected_record.get("edificio"))
-        building=st.selectbox("Edificio asignado",options,index=options.index(selected_record["edificio"]) if selected_record.get("edificio") in options else 0)
-        submit=st.form_submit_button("Actualizar trabajador")
-    if submit:
-        try:
-            if not name.strip() or not role.strip():raise ValueError("Nombre y cargo son obligatorios.")
-            repo.save("trabajadores",{"nombre":name.strip().upper(),"cargo":role.strip().upper(),"edificio":building},selected_record);st.session_state["_flash"]="Trabajador actualizado.";st.rerun()
-        except Exception as exc:notice_error(exc)
-    with st.popover("Eliminar trabajador seleccionado"):
-        st.caption("Los reportes históricos conservarán los nombres registrados en su momento.")
-        if st.button("Confirmar eliminación del trabajador"):
-            try:repo.delete("trabajadores",selected_record);st.rerun()
+                else:st.info('No hay compañeros con edificios compartidos.')
+        return
+    if area=='✏️ Gestionar':
+        if not current:st.info('Aún no hay trabajadores sincronizados. Consulta Nómina para recuperar tu respaldo anterior.');return
+        st.markdown('#### Editar un trabajador')
+        st.caption('Selecciona a una persona. Los cambios solo se aplican al guardar.')
+        selected=st.selectbox('Trabajador',current,
+            format_func=lambda r:f"{r.get('nombre') or 'Sin nombre'} · {r.get('cargo') or 'Sin cargo'} · {r.get('edificio') or 'Sin edificio'}",
+            key='v8_worker_edit')
+        # Solo claves internas; no se presentan en pantalla.
+        identity=f"{selected['id']}:{selected['revision']}"
+        with st.form('edit_worker_'+identity):
+            name=st.text_input('Nombre',value=selected.get('nombre') or '')
+            role=st.text_input('Cargo / especialidad',value=selected.get('cargo') or '')
+            options=project_options(repo.user,selected.get('edificio'))
+            building=st.selectbox('Edificio asignado',options,index=options.index(selected['edificio']) if selected.get('edificio') in options else 0)
+            submit=st.form_submit_button('💾 Actualizar trabajador',type='primary')
+        if submit:
+            try:
+                if not name.strip() or not role.strip():raise ValueError('Nombre y cargo son obligatorios.')
+                repo.save('trabajadores',{'nombre':name.strip().upper(),'cargo':role.strip().upper(),'edificio':building},selected)
+                st.session_state['_flash']='Trabajador actualizado.';st.rerun()
             except Exception as exc:notice_error(exc)
+        with st.popover('🗑️ Eliminar trabajador'):
+            st.warning('Eliminar es permanente. Los reportes históricos conservarán sus nombres.')
+            if st.button('Confirmar eliminación del trabajador',key='v8_worker_delete'):
+                try:repo.delete('trabajadores',selected);st.session_state['_flash']='Trabajador eliminado.';st.rerun()
+                except Exception as exc:notice_error(exc)
+
+
 
 
 def colleagues(repo):
@@ -1914,7 +2200,12 @@ def dashboard(repo):
     checks = cached_rows("checklists", own_filter, columns="fecha") if user.get("cargo") != "Maestro Mayor" else []
     books = cached_rows("inspecciones", own_filter, columns="fecha,tipo:datos->>Tipo_Registro")
     yield_rows = cached_rows("rendimientos", own_filter, columns="estado")
-    workers_count = len(cached_rows("trabajadores", own_filter, columns="id"))
+    sql_workers = cached_rows("trabajadores", own_filter, columns="nombre,edificio")
+    signatures = {(str(w.get("nombre") or "").strip().upper(), str(w.get("edificio") or "").strip().casefold()) for w in sql_workers}
+    workers_count = len(sql_workers) + sum(
+        (w["nombre"], w["edificio"].casefold()) not in signatures
+        for w in legacy_worker_backup(repo)
+    )
     master_role = user.get("cargo") == "Maestro Mayor"
     # Los libros antiguos sin marca de tipo se inspeccionan solo en la fecha de hoy.
     today_text = today.isoformat()
@@ -2051,52 +2342,54 @@ def open_lazy_tabs(labels, key):
 
 
 def history_rend_by_building(records, repo):
-    """Vista del primer código: agrupación por edificio/fecha, exportación total y local."""
-    st.markdown("### 📊 Registros de Rendimiento por Edificio")
+    """Resumen general, edificios y bloques cronológicos compactos."""
+    st.markdown('#### 📊 Rendimientos registrados')
     if not records:
-        st.info("Aún no existen registros de rendimiento en su cuenta.")
-        return
-    groups = defaultdict(list)
-    for record in records:
-        groups[record_building("rendimientos", record)].append(record)
-    buildings = sorted(groups, key=lambda x: (x == "Sin Edificio Asignado", x.casefold()))
-    a, b, c = st.columns(3)
-    a.metric("🏢 Edificios con registros", len(buildings))
-    b.metric("📊 Rendimientos registrados", len(records))
-    c.caption("Edificios: " + ", ".join(buildings))
-    with st.expander("📁 Exportación general — todos los edificios", expanded=False):
-        export_controls("rendimientos", records, "rend_general_original")
-    tabs, lazy = open_lazy_tabs([f"🏢 {b} ({len(groups[b])})" for b in buildings], "alpha_rend_edificios")
-    for building, tab in zip(buildings, tabs):
-        with tab:
-            if lazy and not tab.open:
-                continue
-            rows = sorted(groups[building], key=lambda r: (str(r.get("fecha") or ""), str(r.get("id"))), reverse=True)
-            st.markdown("#### 🏢 " + building)
-            st.caption(f"Este edificio contiene {len(rows)} registro(s).")
-            with st.expander("📄 Exportación de este edificio", expanded=False):
-                export_controls("rendimientos", rows, "rend_export_" + hashlib.md5(building.encode()).hexdigest()[:10])
-            months = sorted({str(r.get("fecha") or "")[:7] for r in rows}, reverse=True)
-            selected_month = st.selectbox("Filtrar mes", ["Todos los meses"] + months, key="rend_month_" + hashlib.md5(building.encode()).hexdigest()[:10])
-            rows = [r for r in rows if selected_month == "Todos los meses" or str(r.get("fecha") or "").startswith(selected_month)]
-            by_date = defaultdict(list)
-            for r in rows:
-                by_date[str(r.get("fecha") or "Sin fecha")[:10]].append(r)
-            days = sorted(by_date, reverse=True)
-            if len(days) > 31:
-                page = st.number_input("Página de fechas", 1, max(1, math.ceil(len(days) / 31)), 1, key="rend_day_page_" + hashlib.md5(building.encode()).hexdigest()[:10])
-                days = days[(page - 1) * 31:page * 31]
-            for day in days:
-                st.markdown("##### 📅 " + day)
-                for record in by_date[day]:
-                    result = rendimiento_values(record)
-                    with st.container(border=True):
-                        st.markdown("**" + html_escape(str(record.get("rubro") or "Rubro")) + "**  · " + html_escape(str(record.get("piso") or "Sin piso")))
-                        p1, p2, p3 = st.columns(3)
-                        p1.metric("Avance", f"{result['avance']:.2f} {record.get('unidad') or ''}")
-                        p2.metric("Horas-hombre", f"{result['hh']:.2f} HH" if result["hh"] is not None else "Histórico")
-                        p3.metric("Productividad", f"{result['productividad']:.3f} {record.get('unidad') or ''}/h" if result["productividad"] is not None else "—")
-                        record_actions("rendimientos", record, repo, "rend_view_" + str(record["id"]))
+        st.info('Todavía no hay rendimientos. Los registros se clasificarán automáticamente por edificio, mes y jornada.');return
+    by_build=defaultdict(list)
+    for record in records:by_build[record_building('rendimientos',record)].append(record)
+    buildings=sorted(by_build,key=lambda x:(x=='Sin Edificio Asignado',x.casefold()))
+    p1,p2,p3=st.columns(3)
+    p1.metric('Edificios',len(buildings));p2.metric('Registros',len(records))
+    p3.metric('Con cálculo HH',sum(rendimiento_values(r)['hh'] is not None for r in records))
+    a,b=st.columns([1.5,1])
+    with a:building=st.selectbox('🏢 Ver rendimientos', ['Todos los edificios']+buildings,
+        format_func=lambda x:x if x=='Todos los edificios' else f'{x} · {len(by_build[x])}',key='v8_rend_building')
+    filtered=records if building=='Todos los edificios' else by_build[building]
+    months=sorted({record_date('rendimientos',r)[:7] for r in filtered if len(record_date('rendimientos',r))>=7},reverse=True)
+    with b:month=st.selectbox('🗓️ Mes', ['Todos los meses']+months,
+        format_func=lambda x:display_month(x) if x!='Todos los meses' else x,key='v8_rend_month')
+    filtered=[r for r in filtered if month=='Todos los meses' or record_date('rendimientos',r).startswith(month)]
+    search=st.text_input('Buscar rubro, piso o trabajador',placeholder='Ej. enlucidos, piso 2…',key='v8_rend_search')
+    if search.strip():
+        text=search.strip().casefold()
+        filtered=[r for r in filtered if text in ' '.join((record_title('rendimientos',r),record_building('rendimientos',r),str(r.get('trabajador') or ''))).casefold()]
+    st.caption(f'**{len(filtered)} rendimientos** · Selecciona un registro para ver fotografías, editarlo o eliminarlo.')
+    export_controls('rendimientos',filtered,'rend_general_v8')
+    if not filtered:
+        st.info('No hay rendimientos con estos filtros.');return
+    ordered=sorted(filtered,key=lambda r:(record_date('rendimientos',r),str(r.get('id') or '')),reverse=True)
+    visible=page_slice(ordered,'rend_v8_block',12)
+    groups=defaultdict(list)
+    for item in visible:groups[record_building('rendimientos',item)].append(item)
+    for building_name,items in sorted(groups.items(),key=lambda x:x[0].casefold()):
+        st.markdown('##### 🏢 '+html_escape(building_name))
+        if building!='Todos los edificios':
+            export_controls('rendimientos',by_build[building_name],'rend_build_v8_'+hashlib.md5(building_name.encode()).hexdigest()[:9])
+        for day,day_records in grouped_records(items,'rendimientos'):
+            day_heading(day,len(day_records))
+            for record in day_records:
+                result=rendimiento_values(record)
+                with st.container(border=True):
+                    st.markdown('**'+html_escape(record_title('rendimientos',record))+'**')
+                    c1,c2,c3=st.columns(3)
+                    unit=str(record.get('unidad') or '')
+                    c1.metric('Avance',f"{result['avance']:.2f} {unit}")
+                    c2.metric('Horas-hombre',f"{result['hh']:.2f} HH" if result['hh'] is not None else 'No verificadas')
+                    c3.metric('Productividad',f"{result['productividad']:.3f} {unit}/h" if result['productividad'] is not None else '—')
+                    record_actions('rendimientos',record,repo,'rend_view_'+str(record['id']))
+
+
 
 
 def record_actions(table, record, repo, key, editable=True):
@@ -2165,12 +2458,11 @@ def incidencias_original_matrix(records, repo):
         '</tr></thead><tbody>' + "".join(content) + '</tbody></table></div>', unsafe_allow_html=True
     )
     # Exportación con el mismo filtro de la matriz: ambas librerías generan fotos si existen.
-    with st.expander("📄 Exportar matriz filtrada (Excel, PDF, CSV)", expanded=False):
-        export_controls("incidencias", visible, "inc_matrix")
+    export_controls("incidencias", visible, "inc_matrix")
     with st.expander("⚙️ Cambiar estado de una incidencia", expanded=False):
         editable = [r for r in visible if r.get("usuario_email") == repo.email or repo.admin or r.get("proyecto") in repo.projects]
         if editable:
-            record = st.selectbox("Incidencia", editable, format_func=lambda r: str(r.get("area") or "") + " · " + str(r.get("proyecto") or "") + " · ID " + str(r["id"]), key="inc_matrix_edit")
+            record = st.selectbox("Incidencia", editable, format_func=lambda r: str(r.get("area") or "") + " · " + str(r.get("proyecto") or "") + " · " + display_date(r.get("fecha_compromiso")), key="inc_matrix_edit")
             new_status = "Cerrada" if record.get("estado") == "Abierta" else "Abierta"
             if st.button("Cambiar estado a: " + new_status, key="inc_matrix_toggle"):
                 try:
@@ -2193,8 +2485,7 @@ def module_original(label, repo):
         "Control de Rendimiento": ("rendimientos", "Rendimientos", rend_data, render_rend, "### Control de Rendimiento por Personal", "Registro de trabajadores, edificios, rubros y horas, con cálculo automático y fotografías.", "➕ Registrar Rendimiento"),
     }
     table, module, factory, renderer, header, caption, button = spec[label]
-    st.markdown(header)
-    st.caption(caption)
+    page_heading("Control de obra",re.sub(r"^#+\s*", "", header),caption)
     editor = st.session_state.get("_editors", {}).get(module)
     if editor:
         selected = editor_picker(module, repo.user, factory)
@@ -2207,7 +2498,7 @@ def module_original(label, repo):
         drafts = cached_rows("alpha_drafts", (("usuario_email", repo.email), ("modulo", module)), columns="slot,revision,updated_at", order="updated_at")
         if drafts:
             with st.expander(f"📁 Recuperar mis borradores ({len(drafts)})", expanded=False):
-                choices = {f"{r['updated_at'][:16]} · {r['slot']}": r for r in drafts}
+                choices = {f"Borrador {i+1} · {r['updated_at'][:16]}": r for i,r in enumerate(reversed(drafts))}
                 selected_name = st.selectbox("Seleccione un borrador", list(choices), key="restore_choice_" + module)
                 if st.button("Continuar borrador", key="restore_button_" + module):
                     draft = choices[selected_name]
@@ -2234,8 +2525,7 @@ def module_original(label, repo):
         history_rend_by_building(records, repo)
     elif table == "incidencias":
         incidencias_original_matrix(records, repo)
-        with st.expander("📂 Consultar, editar o eliminar un registro", expanded=False):
-            history(table, records, repo, "original_" + module)
+        history(table, records, repo, "original_" + module)
     else:
         history(table, records, repo, "original_" + module)
 
@@ -2271,6 +2561,30 @@ def main():
                 del st.session_state[key]
     st.set_page_config(page_title="Alpha Builders | Portal Ejecutivo", page_icon="🏗️", layout="wide", initial_sidebar_state="expanded")
     st.markdown(APP_CSS, unsafe_allow_html=True)
+    st.markdown(APP_CSS_V8, unsafe_allow_html=True)
+    # Streamlit puede usar tema oscuro manual aunque Windows esté en modo claro.
+    # La preferencia del usuario prevalece sobre prefers-color-scheme.
+    try:
+        actual_theme = st.context.theme.type
+    except (AttributeError, RuntimeError, KeyError):
+        actual_theme = None
+    if actual_theme in ("dark", "light"):
+        tokens = (
+            "--bg-app:#0f172a;--text-app:#f8fafc;--card-bg:#1e293b;"
+            "--card-border:#334155;--header-bg:#020617;--subtext:#94a3b8;"
+            "--hover-bg:#334155;--table-row-even:#1e293b;"
+            "--ab-surface:#1e293b;--ab-surface-soft:#162237;--ab-ink:#f2f6ff;"
+            "--ab-muted:#bbc7de;--ab-outline:#40516b;--ab-chip:#243b63;"
+            "--ab-chip-text:#c6d8ff;--ab-primary:#80a7ff"
+        ) if actual_theme == "dark" else (
+            "--bg-app:#f8fafc;--text-app:#0f172a;--card-bg:#ffffff;"
+            "--card-border:#cbd5e1;--header-bg:#0f172a;--subtext:#64748b;"
+            "--hover-bg:#f1f5f9;--table-row-even:#f8fafc;"
+            "--ab-surface:#ffffff;--ab-surface-soft:#f5f8ff;--ab-ink:#17233b;"
+            "--ab-muted:#586781;--ab-outline:#dbe4f1;--ab-chip:#eaf1ff;"
+            "--ab-chip-text:#234a94;--ab-primary:#2459dc"
+        )
+        st.markdown('<style>:root{' + tokens + '}</style>', unsafe_allow_html=True)
     try:
         if get_config("alpha_schema_version") != "5":
             st.error("El esquema depurado v5 no está activado. No se intentará usar el sistema anterior.")
