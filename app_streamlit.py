@@ -47,7 +47,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.10-v13-libro-formato"
+APP_VERSION = "2026.10.10-v14-colaboracion"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -545,6 +545,44 @@ html { scroll-behavior:smooth; }
 </style>
 """
 
+
+
+APP_CSS_V14 = """
+<style>
+/* Checklist y formularios: máxima legibilidad en ambos temas. */
+.stApp [data-testid="stMainBlockContainer"] .banner-item-header,
+.stApp [data-testid="stMainBlockContainer"] .banner-item-header * {
+ color:#ffffff!important; opacity:1!important; text-shadow:none!important;
+}
+.stApp [data-testid="stMainBlockContainer"] .banner-item-header {
+ background:linear-gradient(110deg,#132344,#284c87)!important;
+ border:1px solid #345786!important; border-radius:12px 12px 0 0!important;
+ padding:11px 16px!important; margin-top:14px!important;
+}
+.stApp [data-testid="stMainBlockContainer"] .banner-item-header span {
+ font-size:.85rem!important; letter-spacing:.01em; font-weight:800!important;
+}
+.stApp [data-testid="stMainBlockContainer"] div[data-testid="stRadio"] label,
+.stApp [data-testid="stMainBlockContainer"] div[data-testid="stCheckbox"] label,
+.stApp [data-testid="stMainBlockContainer"] div[data-testid="stTextArea"] label,
+.stApp [data-testid="stMainBlockContainer"] div[data-testid="stTextInput"] label {
+ color:var(--ab-strong,var(--text-app))!important; opacity:1!important;
+}
+/* Tarjetas de colaboración y navegación con contraste real. */
+.ab-link-card{border:1px solid var(--ab-outline);border-radius:14px;
+ background:linear-gradient(130deg,var(--ab-surface),var(--ab-surface-soft));
+ padding:15px 18px;margin:12px 0;box-shadow:var(--ab-shadow);}
+.ab-link-title{font-size:1rem;font-weight:850;color:var(--ab-ink)!important;}
+.ab-link-meta{font-size:.79rem;font-weight:600;color:var(--ab-muted)!important;}
+.ab-request-priority{display:inline-flex;border-radius:20px;padding:4px 10px;
+ font-size:.7rem;font-weight:850;background:var(--ab-chip);color:var(--ab-chip-text)!important;}
+.stApp [data-testid="stMainBlockContainer"] .ab-link-card p,
+.stApp [data-testid="stMainBlockContainer"] .ab-link-card span,
+.stApp [data-testid="stMainBlockContainer"] .ab-link-card strong{
+ color:var(--ab-ink)!important;}
+@media(max-width:768px){.ab-link-card{padding:11px 13px;}}
+</style>
+"""
 
 
 def page_heading(eyebrow, title, subtitle):
@@ -1585,11 +1623,39 @@ def full_name(user):
 
 
 def official_data(record=None):
-    record=record or {}; payload=obj(record.get("datos"),{})
-    if not isinstance(payload,dict): payload={"_legacy_items":payload}
-    return {"fecha":str(record.get("fecha") or now_ec().date()),"proyecto":record.get("proyecto") or "", "residente":record.get("residente") or "", "hora_inicio":str(record.get("hora_inicio") or "07:00")[:5],"hora_fin":str(record.get("hora_fin") or "16:00")[:5],
-            "datos":{**{"Superintendente":"","Fiscalizador":"","Ubicacion":record.get("frente") or "","Barrio":"","Ciudad":"Quito","Hoja":"","Nomina_Conteo":{},"Rotativo_Conteo":{},"Clima_Condicion":record.get("clima") or "SOL","Clima_Obs":"","Maquinaria_Conteo":{},"Seguridad_Check":{},"Novedades":""},**payload},
-            "actividades":{row_id():copy.deepcopy(v) for v in payload.get("Actividades_Ejecutadas",[]) if isinstance(v,dict)}}
+    """Valores iniciales editables: no se presuponen nombres reales ni trabajos realizados."""
+    record=record or {}
+    payload=obj(record.get("datos"),{})
+    if not isinstance(payload,dict):
+        payload={"_legacy_items":payload}
+    # Los valores propuestos son puntos de partida, NO certificaciones.
+    suggested={
+        "Superintendente":"POR CONFIRMAR", "Fiscalizador":"POR CONFIRMAR",
+        "Ubicacion":record.get("frente") or "POR CONFIRMAR",
+        "Barrio":"POR CONFIRMAR", "Ciudad":"Quito", "Hoja":"1",
+        "Nomina_Conteo":{label:0 for label in OFICIOS_NOMINA_FORMATO},
+        "Rotativo_Conteo":{label:0 for label in RUROS_ROTATIVOS_FORMATO},
+        "Clima_Condicion":record.get("clima") or "SOL",
+        "Clima_Obs":"", "Maquinaria_Conteo":{label:0 for label in MAQUINARIAS_FORMATO},
+        "Seguridad_Check":{label:False for label in (
+            "Casco","Chalecos","Guantes","Gafas","Mascarilla","Auditivo",
+            "Conos","Cintas","Rótulos","Vallas","Extintor","Botiquin",
+            "Polvo","Ruido","Liquidos","Cerramiento","Limpieza")},
+        "Novedades":"",
+    }
+    values={**suggested,**payload}
+    for block in ("Nomina_Conteo","Rotativo_Conteo","Maquinaria_Conteo","Seguridad_Check"):
+        if not isinstance(values.get(block),dict): values[block]={}
+        values[block]={**suggested[block],**values[block]}
+    return {
+        "fecha":str(record.get("fecha") or now_ec().date()),
+        "proyecto":record.get("proyecto") or "",
+        "residente":record.get("residente") or "", # Nunca autocompletar.
+        "hora_inicio":str(record.get("hora_inicio") or "07:00")[:5],
+        "hora_fin":str(record.get("hora_fin") or "16:00")[:5],
+        "datos":values,
+        "actividades":{row_id():copy.deepcopy(v) for v in payload.get("Actividades_Ejecutadas",[]) if isinstance(v,dict)},
+    }
 
 
 OFICIO_ALIASES={"ALBAÑILES":["ALBAÑIL","ALBANIL"],"AYUDANTE":["AYUDANTE","PEON","PEÓN"],"SOLDADOR":["SOLDADOR"],"OPERADOR":["OPERADOR","MAQUINISTA"],"FIERRERO":["FIERRERO","HIERRERO"],"PINTORES":["PINTOR","PINTORES"],"MAESTRO SUPERVISOR":["MAESTRO","SUPERVISOR","CAPATAZ"],"CARPINTERO":["CARPINTERO"],"GUACHIMAN":["GUACHIMAN","GUARDIA"],"GYPSEROS":["GYPS","TABLAYESO"],"ELECTRICOS":["ELECTRIC","ELÉCTRIC"],"PLOMEROS":["PLOMER","HIDROSANITARI","FONTANER"],"ALUMINIO Y VIDRIO":["ALUMIN","VIDRI"]}
@@ -1625,15 +1691,32 @@ def render_official(editor,repo):
             editor.persist();rerun_selected_module()
     else: st.caption("No hay checklist del mismo edificio y fecha para importar.")
     st.subheader("Datos generales")
+    st.caption("📝 Valores sugeridos: verifica ubicación, responsables y cantidades antes de guardar. "
+               "Los campos Residente y Actividades están vacíos deliberadamente.")
     for key,label in [("Ubicacion","Ubicación"),("Barrio","Barrio"),("Ciudad","Ciudad"),("Superintendente","Superintendente"),("Fiscalizador","Fiscalizador"),("Hoja","Hoja N°")]:
         editor.field("text_input",("datos",key),label,"")
-    if not d.get("residente"):d["residente"]=full_name(repo.user)
-    editor.field("text_input","residente","Residente de obra",full_name(repo.user))
+    editor.field("text_input","residente","Residente de obra (ingresa el nombre)","")
     a,b=st.columns(2)
     with a:editor.field("text_input","hora_inicio","Entrada","07:00")
     with b:editor.field("text_input","hora_fin","Salida","16:00")
     st.subheader("Personal nómina y subcontratos")
-    workers=combined_workers(repo,d.get("proyecto"))
+    workers=combined_workers(repo,d.get("proyecto")) if d.get("proyecto") else []
+    # Preseleccionar cantidades reales solo una vez en cada nuevo edificio,
+    # sin tocar libros históricos ni sobrescribir cantidades modificadas.
+    if not original and d.get("proyecto") and d.get("_nomina_sugerida_proyecto")!=d["proyecto"]:
+        previous=d.get("_nomina_sugerida_conteos")
+        current=d["datos"]["Nomina_Conteo"]
+        # Evitar sobreescribir ajustes manuales al cambiar de edificio.
+        if previous is None or current==previous:
+            counts,unclassified=workforce_counts(workers)
+            d["datos"]["Nomina_Conteo"].update(counts)
+            d["_nomina_sugerida_conteos"]=dict(counts)
+            d["_unclassified"]=unclassified
+            for key in list(st.session_state):
+                if key.startswith(editor.prefix+"datos:Nomina_Conteo:"):
+                    del st.session_state[key]
+        d["_nomina_sugerida_proyecto"]=d["proyecto"]
+        editor.persist()
     if st.button("Actualizar conteo desde mi nómina del edificio",key=editor.prefix+"nomina"):
         counts,unclassified=workforce_counts(workers);d["datos"]["Nomina_Conteo"]=counts
         for key in list(st.session_state):
@@ -1666,6 +1749,8 @@ def render_official(editor,repo):
         try:
             time_calculation(d["hora_inicio"],d["hora_fin"])
             activities=[v for v in d["actividades"].values() if str(v.get("Descripcion","")).strip()]
+            if not str(d.get("residente") or "").strip():
+                raise ValueError("Ingrese el nombre del Residente de obra antes de guardar.")
             if not activities:raise ValueError("Ingrese al menos una actividad.")
             payload=copy.deepcopy(d["datos"]);payload["Actividades_Ejecutadas"]=activities;payload["Tipo_Registro"]="Libro_Obra_Oficial"
             day=dt.date.fromisoformat(d["fecha"])
@@ -1684,7 +1769,12 @@ def maestro_data(record=None):
             value[upper]=item.get(upper,item.get(lower,[] if upper=="Personal_A_Cargo" else ""))
         if not isinstance(value["Personal_A_Cargo"],list):value["Personal_A_Cargo"]=[str(value["Personal_A_Cargo"])]
         normalized[row_id()]=value
-    return {"fecha":str(record.get("fecha") or now_ec().date()),"proyecto":record.get("proyecto") or "","actividades":normalized,"_extra":payload if isinstance(payload,dict) else {}}
+    extras=payload if isinstance(payload,dict) else {}
+    required=extras.get("Requerimientos",[])
+    if not isinstance(required,list):required=[]
+    return {"fecha":str(record.get("fecha") or now_ec().date()),"proyecto":record.get("proyecto") or "",
+            "actividades":normalized,"requerimientos":{row_id():copy.deepcopy(x) for x in required if isinstance(x,dict)},
+            "_extra":extras}
 
 
 def render_maestro(editor, repo):
@@ -1722,6 +1812,22 @@ def render_maestro(editor, repo):
             with st.expander("Observaciones de la actividad", expanded=False):
                 editor.field("text_area", ("actividades", rid, "Observaciones"), "Observaciones", "")
     editor.add("actividades", default, "Agregar otra actividad")
+    st.markdown("#### 📦 Requerimientos para la obra")
+    st.caption("Registra materiales, herramientas o apoyo necesario. Los supervisores vinculados podrán consultarlos.")
+    req_default={"Descripcion":"", "Tipo":"Materiales", "Prioridad":"Normal", "Cantidad":"", "Fecha_Necesaria":"", "Observaciones":""}
+    # No crear requerimientos ficticios; el maestro decide cuándo añadir uno.
+    for index,(rid,_) in enumerate(list(d.get("requerimientos",{}).items()),1):
+        with st.container(border=True):
+            st.markdown(f"**Requerimiento {index}**")
+            editor.field("text_input",("requerimientos",rid,"Descripcion"),"¿Qué se necesita?","")
+            a,b,c=st.columns(3)
+            with a:editor.field("selectbox",("requerimientos",rid,"Tipo"),"Categoría","Materiales",options=["Materiales","Herramientas","Maquinaria","Personal","Otro"])
+            with b:editor.field("selectbox",("requerimientos",rid,"Prioridad"),"Prioridad","Normal",options=["Normal","Alta","Urgente"])
+            with c:editor.field("text_input",("requerimientos",rid,"Cantidad"),"Cantidad y unidad","")
+            editor.field("text_input",("requerimientos",rid,"Fecha_Necesaria"),"Fecha necesaria (AAAA-MM-DD)","")
+            editor.field("text_area",("requerimientos",rid,"Observaciones"),"Observaciones","")
+            editor.remove("requerimientos",rid)
+    editor.add("requerimientos",req_default,"Agregar requerimiento")
     if st.button("💾 Guardar Reporte de Maestro Mayor", type="primary", key=editor.prefix + "save"):
         try:
             if not d.get("proyecto"):
@@ -1736,7 +1842,17 @@ def render_maestro(editor, repo):
             if not acts:
                 raise ValueError("Ingrese al menos una actividad.")
             payload = copy.deepcopy(d.get("_extra", {}))
-            payload.update({"Tipo_Registro": "Libro_Obra_Maestro", "Actividades_Maestro": acts, "Edificio": d["proyecto"], "Maestro": full_name(repo.user), "Fecha": d["fecha"]})
+            pending=[]
+            for item in d.get("requerimientos",{}).values():
+                if not str(item.get("Descripcion","")).strip():continue
+                due=str(item.get("Fecha_Necesaria") or "").strip()
+                if due and not date_valid(due):
+                    raise ValueError("La fecha necesaria del requerimiento debe usar AAAA-MM-DD.")
+                pending.append({k:str(item.get(k) or "").strip() for k in
+                    ("Descripcion","Tipo","Prioridad","Cantidad","Fecha_Necesaria","Observaciones")})
+            payload.update({"Tipo_Registro": "Libro_Obra_Maestro", "Actividades_Maestro": acts,
+                            "Requerimientos":pending,"Edificio":d["proyecto"],
+                            "Maestro": full_name(repo.user), "Fecha": d["fecha"]})
             day = dt.date.fromisoformat(d["fecha"])
             save_editor(editor, repo, "inspecciones", {
                 "fecha": d["fecha"], "dia": ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][day.weekday()],
@@ -3498,19 +3614,208 @@ def personal_module(repo):
 
 
 
+MAESTRO_LINKS_CONFIG = "alpha_maestro_links_v14"
+
+
+def maestro_links():
+    """Asociaciones privadas, sin alterar las tablas de registros existentes."""
+    raw=obj(get_config(MAESTRO_LINKS_CONFIG),[])
+    if not isinstance(raw,list):return []
+    links=[];seen=set()
+    for item in raw:
+        if not isinstance(item,dict):continue
+        try:
+            master=norm_email(item.get('maestro'))
+            staff=norm_email(item.get('supervisor'))
+        except ValueError:
+            continue
+        project=str(item.get('edificio') or '').strip()
+        identity=(master,staff,project.casefold())
+        if not project or master==staff or identity in seen:continue
+        links.append({'maestro':master,'supervisor':staff,'edificio':project})
+        seen.add(identity)
+    return links
+
+
+def user_for_link(email):
+    """Verificar cargo, estado y edificios ACTUALES; un vínculo antiguo no concede acceso."""
+    return fetch_user(email)
+
+
+def validated_maestro_links(repo):
+    if repo.user.get('cargo') not in {'Residente','Asistente'}:
+        return []
+    results=[]
+    for link in maestro_links():
+        if link['supervisor']!=repo.email or link['edificio'] not in repo.projects:
+            continue
+        master=user_for_link(link['maestro'])
+        if not master or not active_user(master) or master.get('cargo')!='Maestro Mayor':continue
+        if link['edificio'] not in master.get('edificios',[]):continue
+        results.append({**link,'nombre':full_name(master)})
+    return results
+
+
+def save_maestro_link(repo,link,unlink=False):
+    repo._verify_write_session()
+    if not repo.admin:raise PermissionError('Solo el administrador puede modificar vínculos de obra.')
+    master_email=norm_email(link['maestro'])
+    staff_email=norm_email(link['supervisor'])
+    project=str(link['edificio'])
+    if unlink:
+        current=maestro_links()
+        updated=[x for x in current if (x['maestro'],x['supervisor'],x['edificio'])!=(master_email,staff_email,project)]
+        set_config(MAESTRO_LINKS_CONFIG,json_text(updated))
+        get_config.clear()
+        return False
+    master=user_for_link(master_email)
+    staff=user_for_link(staff_email)
+    if not master or not staff or not active_user(master) or not active_user(staff):
+        raise ValueError('Las dos cuentas deben estar activas.')
+    if master.get('cargo')!='Maestro Mayor' or staff.get('cargo') not in ('Residente','Asistente'):
+        raise ValueError('Vincule un Maestro Mayor con un Residente o Asistente.')
+    if project not in set(master.get('edificios',[])).intersection(staff.get('edificios',[])):
+        raise ValueError('Ambos usuarios deben tener asignado el mismo edificio.')
+    current=maestro_links()
+    target=(master['correo'],staff['correo'],project.casefold())
+    filtered=[x for x in current if (x['maestro'],x['supervisor'],x['edificio'].casefold())!=target]
+    if not unlink:filtered.append({'maestro':master['correo'],'supervisor':staff['correo'],'edificio':project})
+    set_config(MAESTRO_LINKS_CONFIG,json_text(filtered))
+    get_config.clear()
+    return not unlink
+
+
+def admin_maestro_links(repo):
+    st.markdown('### 👷 Vincular Maestro Mayor a Residente o Asistente')
+    st.caption('El vínculo solo permite consultar libros y requerimientos del edificio en común. '
+               'No concede edición ni abre otros proyectos.')
+    users=all_rows('usuarios',columns='correo,nombres,apellidos,cargo,edificios,estado',order='correo')
+    masters=[u for u in users if active_user(u) and u.get('cargo')=='Maestro Mayor']
+    supervisors=[u for u in users if active_user(u) and u.get('cargo') in {'Residente','Asistente'}]
+    if not masters or not supervisors:
+        st.info('Para crear vínculos se necesita al menos un Maestro Mayor y un Residente o Asistente activos.')
+    if masters and supervisors:
+        with st.container(border=True):
+            a,b=st.columns(2)
+            with a:
+                master=st.selectbox('Maestro Mayor',masters,format_func=lambda u:full_name(u)+' · '+u['correo'],key='maestro_link_master')
+            with b:
+                staff=st.selectbox('Residente o Asistente',supervisors,format_func=lambda u:full_name(u)+' · '+u['cargo'],key='maestro_link_staff')
+            shared=sorted(set(obj(master.get('edificios'),[])).intersection(obj(staff.get('edificios'),[])))
+            if not shared:
+                st.warning('Las cuentas seleccionadas no comparten ningún edificio.')
+            else:
+                building=st.selectbox('Edificio del vínculo',shared,key='maestro_link_build')
+                if st.button('🔗 Vincular en este edificio',type='primary',key='maestro_link_save'):
+                    try:
+                        save_maestro_link(repo,{'maestro':master['correo'],'supervisor':staff['correo'],'edificio':building})
+                        st.session_state['_flash']='Vínculo creado. El supervisor ya puede consultar al Maestro Mayor.'
+                        st.rerun()
+                    except Exception as exc:notice_error(exc)
+    links=maestro_links()
+    st.markdown(f'#### Vínculos actuales ({len(links)})')
+    if not links:st.info('Aún no has vinculado ningún Maestro Mayor.');return
+    names={u['correo']:full_name(u) for u in users}
+    for index,link in enumerate(links):
+        with st.container(border=True):
+            c1,c2=st.columns([5,1],vertical_alignment='center')
+            with c1:
+                st.markdown('**🏗️ '+html_escape(link['edificio'])+'**')
+                st.caption('Maestro: '+names.get(link['maestro'],link['maestro'])+'  ·  Supervisión: '+names.get(link['supervisor'],link['supervisor']))
+            with c2:
+                if st.button('Desvincular',key='maestro_unlink_'+str(index)):
+                    try:
+                        save_maestro_link(repo,link,unlink=True)
+                        st.session_state['_flash']='Vínculo retirado.';st.rerun()
+                    except Exception as exc:notice_error(exc)
+
+
 def colleagues(repo):
-    users=cached_rows("usuarios",columns="correo,nombres,apellidos,cargo,edificios,estado",order="correo")
-    return [u for u in users if u.get("correo")!=repo.email and active_user(u) and set(obj(u.get("edificios"),[])).intersection(repo.projects)]
+    users=cached_rows('usuarios',columns='correo,nombres,apellidos,cargo,edificios,estado',order='correo')
+    return [u for u in users if u.get('correo')!=repo.email and active_user(u)
+            and set(obj(u.get('edificios'),[])).intersection(repo.projects)
+            # El acceso al Maestro Mayor se gestiona exclusivamente por vínculo.
+            and not (repo.user.get('cargo') in {'Residente','Asistente'}
+                     and u.get('cargo')=='Maestro Mayor')]
+
+
+def maestro_collaboration(repo):
+    links=validated_maestro_links(repo)
+    if not links:
+        st.info('No tienes un Maestro Mayor vinculado. Pide al administrador que cree un vínculo en Admin → Vínculos Maestro Mayor.')
+        return
+    options=[None]+sorted({x['maestro'] for x in links})
+    names={x['maestro']:x['nombre'] for x in links}
+    chosen=st.selectbox('Selecciona un Maestro Mayor',options,
+        format_func=lambda v:'Selecciona a quién consultar' if v is None else names.get(v,v),key='maestro_collab_select')
+    if chosen is None:
+        st.info('Elige un Maestro Mayor para ver sus libros y requerimientos.');return
+    authorized=sorted({x['edificio'] for x in links if x['maestro']==chosen})
+    building=st.selectbox('Edificio autorizado',authorized,key='maestro_collab_build')
+    # Volver a validar vínculo y permisos antes de consultar, nunca ejecutar all() aquí.
+    if not any(x['maestro']==chosen and x['edificio']==building for x in validated_maestro_links(repo)):
+        raise PermissionError('Ya no tienes permiso para consultar este Maestro Mayor.')
+    tab=st.segmented_control('Información',['📦 Requerimientos','📚 Libros de obra'],
+        default='📦 Requerimientos',key='maestro_collab_view') or '📦 Requerimientos'
+    # repo.shared restringe a edificios autorizados; el filtro siguiente reduce al vínculo.
+    records=[r for r in cached_rows('inspecciones',(('usuario_email',chosen),('proyecto',building)))
+             if is_master_book(r)]
+    if tab=='📚 Libros de obra':
+        history('inspecciones',records,repo,'maestro_libros_'+chosen+'_'+building,editable=False)
+        return
+    if not records:
+        st.info('El maestro todavía no ha subido libros en este edificio.');return
+    items=[]
+    for rec in sorted(records,key=lambda r:str(r.get('fecha') or ''),reverse=True):
+        raw=obj(rec.get('datos'),{})
+        if not isinstance(raw,dict):continue
+        for req in raw.get('Requerimientos',[]) if isinstance(raw.get('Requerimientos'),list) else []:
+            if isinstance(req,dict) and str(req.get('Descripcion') or '').strip():
+                items.append({'Fecha':display_date(rec.get('fecha')),
+                    'Requerimiento':req.get('Descripcion') or '',
+                    'Tipo':req.get('Tipo') or '',
+                    'Prioridad':req.get('Prioridad') or '',
+                    'Cantidad':req.get('Cantidad') or '',
+                    'Necesario para':req.get('Fecha_Necesaria') or 'Sin fecha',
+                    'Observaciones':req.get('Observaciones') or ''})
+    st.caption(f'📦 {len(items)} requerimiento(s) · Edificio {building}')
+    if not items:
+        st.info('Los libros existentes no contienen requerimientos registrados. '
+                'El Maestro Mayor puede añadirlos en su próximo libro de obra.')
+        return
+    st.dataframe(pd.DataFrame(items),hide_index=True,use_container_width=True)
 
 
 def collaborative_module(repo):
-    st.header("Espacio colaborativo")
+    page_heading('Trabajo en equipo','Espacio colaborativo',
+        'Elige expresamente a un compañero para consultar sus registros en proyectos compartidos.')
+    sections=['👥 Compañeros']
+    if repo.user.get('cargo') in ('Residente','Asistente'):
+        sections.append('👷 Maestro Mayor')
+    view=st.segmented_control('Sección de colaboración',sections,
+        default='👥 Compañeros',key='collab_section_v14') or sections[0]
+    if view=='👷 Maestro Mayor':
+        maestro_collaboration(repo);return
     users=colleagues(repo)
-    if not users:st.info("No hay compañeros activos en sus edificios asignados.");return
-    user=st.selectbox("Compañero",users,format_func=lambda u:full_name(u)+" · "+u["correo"])
-    st.caption("Solo se muestran registros de edificios compartidos: "+", ".join(sorted(set(obj(user.get("edificios"),[])).intersection(repo.projects))))
-    table=st.selectbox("Registros",["checklists","inspecciones","incidencias","rendimientos","trabajadores"],format_func=lambda x:{"checklists":"Checklists","inspecciones":"Libros de obra","incidencias":"Incidencias","rendimientos":"Rendimientos","trabajadores":"Personal"}[x],key="colab_table")
-    history(table,repo.shared(table,user["correo"]),repo,"colab_"+table+user["correo"],editable=False)
+    if not users:
+        st.info('No hay compañeros activos que compartan edificios contigo.');return
+    user=st.selectbox('¿Con quién quieres colaborar?', [None]+users,
+        format_func=lambda u:'Selecciona un compañero' if u is None else full_name(u)+' · '+u.get('cargo',''),
+        key='collab_person_v14')
+    if user is None:
+        st.info('Selecciona un compañero para ver sus registros. No se consulta ningún historial antes de elegirlo.')
+        return
+    shared=sorted(set(obj(user.get('edificios'),[])).intersection(repo.projects))
+    st.caption('Edificios compartidos: '+', '.join(shared))
+    types=['checklists','inspecciones','incidencias','rendimientos','trabajadores']
+    titles={'checklists':'Checklist','inspecciones':'Libros de obra','incidencias':'Incidencias',
+            'rendimientos':'Rendimientos','trabajadores':'Personal'}
+    table=st.selectbox('Qué deseas consultar',[None]+types,
+        format_func=lambda t:'Selecciona el tipo de registros' if t is None else titles[t],key='collab_records_v14')
+    if table is None:return
+    records=[r for r in repo.shared(table,user['correo'])
+             if record_building(table,r) in shared]
+    history(table,records,repo,'colab_'+table+user['correo'],editable=False)
 
 
 def logout(cookie):
@@ -3614,9 +3919,9 @@ def password_change(repo,cookie):
 def admin_module(repo):
     if not repo.admin:raise PermissionError("Acceso reservado al administrador.")
     st.header("Panel administrador")
-    section=st.selectbox("Administrar",["Resumen","Registros","Usuarios y permisos","Solicitudes","PIN de acceso","Revisión de migración"],key="admin_section")
-    if section=="Resumen":
-        st.info("Selecciona un apartado del administrador para consultar únicamente esa información.")
+    section=st.selectbox("Administrar",["Vínculos Maestro Mayor","Registros","Usuarios y permisos","Solicitudes","PIN de acceso","Revisión de migración"],key="admin_section")
+    if section=="Vínculos Maestro Mayor":
+        admin_maestro_links(repo)
         return
     if section=="Registros":
         table=st.selectbox("Tipo",["checklists","inspecciones","incidencias","rendimientos","trabajadores"],key="admin_table")
@@ -3999,7 +4304,7 @@ def set_module_view(key, value):
     st.session_state[key] = value
 
 def module_original(label, repo):
-    """Un módulo = una vista. Resumen, registro e historial nunca se dibujan juntos."""
+    """Un módulo = una vista. Registrar y consultar sin pantalla de resumen redundante."""
     spec = {
         'Checklist':('checklists','Checklist',checklist_data,render_checklist,'Checklist de obra','Verificaciones y supervisión diaria','Nueva jornada'),
         'Libro de Obra':('inspecciones','Libro oficial',official_data,render_official,'Libro de obra oficial','Registro técnico de la jornada','Nuevo libro de obra'),
@@ -4009,26 +4314,13 @@ def module_original(label, repo):
     }
     table,module,factory,renderer,title,subtitle,button=spec[label]
     page_heading('Control de obra',title,subtitle)
-    selection_key='v11_mode_'+module.replace(' ','_')
+    selection_key='v14_mode_'+module.replace(' ','_')
     editor_active=bool(st.session_state.get('_editors',{}).get(module))
-    options=['📌 Resumen','➕ Registrar','📚 Consultar']
-    if editor_active:
-        # La edición activa tiene prioridad sobre las consultas.
-        if st.session_state.get(selection_key)!='➕ Registrar':
-            st.session_state[selection_key]='➕ Registrar'
-    choice=st.segmented_control('Vista de este módulo',options,default='📌 Resumen',key=selection_key,
-                                 label_visibility='collapsed') or '📌 Resumen'
-    if choice=='📌 Resumen':
-        st.markdown('<div class="ab-welcome"><h3>¿Qué deseas hacer?</h3>'
-                    '<p>Elige una acción. Los formularios y los registros solo se cargarán cuando los abras.</p></div>',
-                    unsafe_allow_html=True)
-        a,b=st.columns(2)
-        a.button('➕ '+button,key='v11_quick_new_'+module,use_container_width=True,
-                 type='primary',on_click=set_module_view,args=(selection_key,'➕ Registrar'))
-        b.button('📚 Consultar historial',key='v11_quick_history_'+module,
-                 use_container_width=True,on_click=set_module_view,args=(selection_key,'📚 Consultar'))
-        st.caption('Los registros existentes y los borradores no se modifican al cambiar de vista.')
-        return
+    options=['➕ Registrar','📚 Consultar']
+    if editor_active and st.session_state.get(selection_key)!='➕ Registrar':
+        st.session_state[selection_key]='➕ Registrar'
+    choice=st.segmented_control('Vista de este módulo',options,default='➕ Registrar',key=selection_key,
+                                 label_visibility='collapsed') or '➕ Registrar'
     if choice=='➕ Registrar':
         editor=st.session_state.get('_editors',{}).get(module)
         if editor:
@@ -4623,6 +4915,7 @@ def main():
     st.set_page_config(page_title='Alpha Builders | Portal Ejecutivo',page_icon='🏗️',layout='wide',initial_sidebar_state='expanded')
     st.markdown(APP_CSS,unsafe_allow_html=True)
     st.markdown(APP_CSS_V10,unsafe_allow_html=True)
+    st.markdown(APP_CSS_V14,unsafe_allow_html=True)
     try:
         actual_theme=st.context.theme.type
     except (AttributeError,RuntimeError,KeyError):
