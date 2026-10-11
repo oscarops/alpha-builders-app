@@ -47,7 +47,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.10-v14-colaboracion"
+APP_VERSION = "2026.10.10-v16-nomina"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -669,6 +669,17 @@ def page_slice(records,key,size=12):
     return records[start:end]
 
 
+def replaced_worker_buildings(repo):
+    """Edificios cuyo respaldo histórico NO debe mezclarse tras una sustitución.
+
+    No elimina el archivo histórico; conserva una marca por propietario y edificio.
+    """
+    raw = obj(get_config('alpha_nomina_reemplazos_' + repo.email), [])
+    if not isinstance(raw, list):
+        return set()
+    return {str(building).strip().casefold() for building in raw if str(building).strip()}
+
+
 def legacy_worker_backup(repo):
     """Lee sin alterar el respaldo histórico de la nómina anterior.
 
@@ -679,6 +690,7 @@ def legacy_worker_backup(repo):
     entries=obj(raw,[])
     if not isinstance(entries,list):return []
     cleaned=[];seen=set()
+    excluded_buildings = replaced_worker_buildings(repo)
     for entry in entries:
         if not isinstance(entry,dict):continue
         owner=str(entry.get('usuario_email') or repo.email).strip().lower()
@@ -686,6 +698,7 @@ def legacy_worker_backup(repo):
         name=str(entry.get('nombre') or '').strip().upper()
         role=str(entry.get('cargo') or '').strip().upper()
         building=str(entry.get('edificio') or '').strip()
+        if building.casefold() in excluded_buildings:continue
         if not name:continue
         signature=(name,building.casefold())
         if signature in seen:continue
@@ -1770,11 +1783,8 @@ def maestro_data(record=None):
         if not isinstance(value["Personal_A_Cargo"],list):value["Personal_A_Cargo"]=[str(value["Personal_A_Cargo"])]
         normalized[row_id()]=value
     extras=payload if isinstance(payload,dict) else {}
-    required=extras.get("Requerimientos",[])
-    if not isinstance(required,list):required=[]
     return {"fecha":str(record.get("fecha") or now_ec().date()),"proyecto":record.get("proyecto") or "",
-            "actividades":normalized,"requerimientos":{row_id():copy.deepcopy(x) for x in required if isinstance(x,dict)},
-            "_extra":extras}
+            "actividades":normalized,"_extra":extras}
 
 
 def render_maestro(editor, repo):
@@ -1812,22 +1822,6 @@ def render_maestro(editor, repo):
             with st.expander("Observaciones de la actividad", expanded=False):
                 editor.field("text_area", ("actividades", rid, "Observaciones"), "Observaciones", "")
     editor.add("actividades", default, "Agregar otra actividad")
-    st.markdown("#### 📦 Requerimientos para la obra")
-    st.caption("Registra materiales, herramientas o apoyo necesario. Los supervisores vinculados podrán consultarlos.")
-    req_default={"Descripcion":"", "Tipo":"Materiales", "Prioridad":"Normal", "Cantidad":"", "Fecha_Necesaria":"", "Observaciones":""}
-    # No crear requerimientos ficticios; el maestro decide cuándo añadir uno.
-    for index,(rid,_) in enumerate(list(d.get("requerimientos",{}).items()),1):
-        with st.container(border=True):
-            st.markdown(f"**Requerimiento {index}**")
-            editor.field("text_input",("requerimientos",rid,"Descripcion"),"¿Qué se necesita?","")
-            a,b,c=st.columns(3)
-            with a:editor.field("selectbox",("requerimientos",rid,"Tipo"),"Categoría","Materiales",options=["Materiales","Herramientas","Maquinaria","Personal","Otro"])
-            with b:editor.field("selectbox",("requerimientos",rid,"Prioridad"),"Prioridad","Normal",options=["Normal","Alta","Urgente"])
-            with c:editor.field("text_input",("requerimientos",rid,"Cantidad"),"Cantidad y unidad","")
-            editor.field("text_input",("requerimientos",rid,"Fecha_Necesaria"),"Fecha necesaria (AAAA-MM-DD)","")
-            editor.field("text_area",("requerimientos",rid,"Observaciones"),"Observaciones","")
-            editor.remove("requerimientos",rid)
-    editor.add("requerimientos",req_default,"Agregar requerimiento")
     if st.button("💾 Guardar Reporte de Maestro Mayor", type="primary", key=editor.prefix + "save"):
         try:
             if not d.get("proyecto"):
@@ -1842,17 +1836,11 @@ def render_maestro(editor, repo):
             if not acts:
                 raise ValueError("Ingrese al menos una actividad.")
             payload = copy.deepcopy(d.get("_extra", {}))
-            pending=[]
-            for item in d.get("requerimientos",{}).values():
-                if not str(item.get("Descripcion","")).strip():continue
-                due=str(item.get("Fecha_Necesaria") or "").strip()
-                if due and not date_valid(due):
-                    raise ValueError("La fecha necesaria del requerimiento debe usar AAAA-MM-DD.")
-                pending.append({k:str(item.get(k) or "").strip() for k in
-                    ("Descripcion","Tipo","Prioridad","Cantidad","Fecha_Necesaria","Observaciones")})
+            # Los requerimientos NO se crean ni actualizan desde los libros de obra.
+            # Los registros antiguos permanecen intactos dentro de _extra en ediciones.
             payload.update({"Tipo_Registro": "Libro_Obra_Maestro", "Actividades_Maestro": acts,
-                            "Requerimientos":pending,"Edificio":d["proyecto"],
-                            "Maestro": full_name(repo.user), "Fecha": d["fecha"]})
+                            "Edificio":d["proyecto"],
+                            "Maestro":full_name(repo.user), "Fecha":d["fecha"]})
             day = dt.date.fromisoformat(d["fecha"])
             save_editor(editor, repo, "inspecciones", {
                 "fecha": d["fecha"], "dia": ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][day.weekday()],
@@ -3468,11 +3456,109 @@ def import_workers(repo,records,operation_id):
 
 
 
-def personal_module(repo):
-    """Nómina segura: une solo para visualización SQL + respaldo histórico.
+def replacement_source_workers(repo, colleague_email, building):
+    """Leer fuentes ACTUALES y comprobar autorización y pertenencia al edificio."""
+    colleague_email = norm_email(colleague_email)
+    if colleague_email == repo.email:
+        raise ValueError('Selecciona una cuenta diferente de la tuya.')
+    user = fetch_user(colleague_email)
+    if not user or not active_user(user):
+        raise PermissionError('La cuenta de origen no está activa.')
+    if building not in repo.projects or building not in (user.get('edificios') or []):
+        raise PermissionError('El edificio debe estar asignado a ambas cuentas.')
+    rows = all_rows('trabajadores', filters={'usuario_email': colleague_email, 'edificio': building},
+                    columns='nombre,cargo,edificio', order='id')
+    cleaned=[];seen=set()
+    for row in rows:
+        name = str(row.get('nombre') or '').strip().upper()
+        cargo = str(row.get('cargo') or '').strip().upper()
+        if not name or not cargo:
+            raise ValueError('La nómina del compañero contiene nombres o cargos vacíos. Deben corregirse antes de reemplazar.')
+        if (name, building) in seen:
+            continue
+        seen.add((name, building))
+        cleaned.append({'nombre': name, 'cargo': cargo, 'edificio': building})
+    if len(cleaned)>1000:
+        raise ValueError('No se permiten más de 1.000 trabajadores por reemplazo.')
+    return cleaned
 
-    Nunca borra trabajadores al filtrar, importar, actualizar o mostrar respaldos.
+
+def worker_snapshot(records):
+    """Huella estable para impedir copiar un listado distinto del previsualizado."""
+    return hashlib.sha256(json_text(records).encode('utf-8')).hexdigest()
+
+
+def replace_collaborative_workers(repo, colleague_email, building, expected_snapshot):
+    """Reemplazar nómina *propia* del edificio por la de un compañero.
+
+    Protección de datos: se crea antes un respaldo en app_config, se insertan
+    los nuevos en un único lote y SOLAMENTE después se eliminan los anteriores.
+    Sin migración SQL no existe transacción atómica multi-petición: cualquier
+    fallo posterior al INSERT conserva la copia previa y no borra la fuente.
     """
+    repo._verify_write_session()
+    if building not in repo.projects:
+        raise PermissionError('El edificio ya no está asignado a tu cuenta.')
+    source = replacement_source_workers(repo, colleague_email, building)
+    if not source:
+        raise ValueError('La nómina del compañero está vacía en este edificio; no se reemplazará tu personal.')
+    if worker_snapshot(source)!=expected_snapshot:
+        raise ConflictError('La nómina del compañero cambió desde la vista previa. Revísala y vuelve a confirmar.')
+
+    prior_visible_count = len(combined_workers(repo,building))
+    old_rows = all_rows('trabajadores', filters={'usuario_email':repo.email,'edificio':building},
+                        columns='*', order='id')
+    old_legacy = [w for w in legacy_worker_backup(repo) if w.get('edificio','').casefold()==building.casefold()]
+    op_id=uuid.uuid4().hex
+    stamp=now_ec().strftime('%Y%m%d_%H%M%S')
+    # Guardar el archivo original sin modificar, asociado al propietario; 
+    # no escribir emails ni identificadores en logs o interfaz pública.
+    backup_key='alpha_nomina_archivo_'+hashlib.sha256(repo.email.encode()).hexdigest()[:16]+'_'+stamp+'_'+op_id[:8]
+    set_config(backup_key,json_text({
+        'version':16,'propietario':repo.email,'origen':norm_email(colleague_email),
+        'edificio':building,'fecha':now_ec().isoformat(),
+        'trabajadores_sql':old_rows,'trabajadores_respaldo':old_legacy,
+    }))
+
+    payload=[]
+    for index,w in enumerate(source):
+        item={**w,'usuario_email':repo.email,
+              'client_request_id':str(uuid.uuid5(uuid.NAMESPACE_URL,repo.email+':reemplazo:'+op_id+':'+str(index)))}
+        payload.append(item)
+    # Nunca borrar antes de confirmar que todos los nuevos fueron insertados.
+    inserted=database().table('trabajadores').insert(payload).execute()
+    staged=list(inserted.data or [])
+    if len(staged)!=len(payload) or any('id' not in row for row in staged):
+        raise RuntimeError('No se confirmó el lote completo; se detuvo el borrado. El respaldo está guardado.')
+
+    old_ids=[r['id'] for r in old_rows]
+    try:
+        for pos in range(0,len(old_ids),100):
+            block=old_ids[pos:pos+100]
+            result=(database().table('trabajadores').delete()
+                .eq('usuario_email',repo.email).eq('edificio',building)
+                .in_('id',block).execute())
+            if len(result.data or [])!=len(block):
+                raise ConflictError('No todos los registros anteriores pudieron eliminarse.')
+    except Exception as exc:
+        invalidate()
+        raise ConflictError('El reemplazo no terminó por completo. La copia anterior está respaldada; verifica la nómina antes de reintentar.') from exc
+
+    # El respaldo histórico anterior sigue intacto, pero deja de mostrarse
+    # en ese edificio después de sustituir con éxito la nómina activa.
+    excluded=replaced_worker_buildings(repo)
+    excluded.add(building.casefold())
+    try:
+        set_config('alpha_nomina_reemplazos_'+repo.email,json_text(sorted(excluded)))
+    except Exception as exc:
+        invalidate()
+        raise ConflictError('Los trabajadores SQL ya se actualizaron, pero el respaldo anterior todavía puede aparecer en pantalla. Revisa la nómina y solicita ayuda antes de reintentar.') from exc
+    invalidate()
+    return prior_visible_count,len(source)
+
+
+def personal_module(repo):
+    """Gestión de nómina por edificio; copia explícita reemplaza solo el edificio aprobado."""
     page_heading('Gestión de personal','Nómina por edificio',
         'Consulta tus cuadrillas y gestiona el personal por edificio sin perder registros existentes.')
     projects=project_options(repo.user)
@@ -3481,24 +3567,12 @@ def personal_module(repo):
     signatures={(str(r.get('nombre') or '').strip().upper(),str(r.get('edificio') or '').strip().casefold()) for r in current}
     pending=[w for w in historic if (w['nombre'],w['edificio'].casefold()) not in signatures]
     shown=current+pending
-    c1,c2,c3=st.columns(3)
-    c1.metric('Personal en nómina',len(shown))
-    c2.metric('Edificios en nómina',len({w.get('edificio') for w in shown if w.get('edificio')}))
-    c3.metric('Especialidades',len({str(w.get('cargo') or '').upper() for w in shown if w.get('cargo')}))
-    area=st.segmented_control('Sección',['📌 Resumen','👥 Ver nómina','➕ Registrar','📥 Importar','✏️ Gestionar'],
-        default='📌 Resumen',key='v8_personal_section',label_visibility='collapsed') or '👥 Ver nómina'
-    if area=='📌 Resumen':
-        st.markdown('<div class="ab-welcome"><h3>Gestión de cuadrillas</h3>'
-                    '<p>Consulta el personal existente o elige una acción sin cargar toda la lista.</p></div>',
-                    unsafe_allow_html=True)
-        a,b,c=st.columns(3)
-        for col,caption,target in [(a,'👥 Consultar nómina','👥 Ver nómina'),
-                                   (b,'➕ Registrar trabajador','➕ Registrar'),
-                                   (c,'📥 Importar nómina','📥 Importar')]:
-            col.button(caption,key='v11_personal_'+target,use_container_width=True,
-                       on_click=set_module_view,args=('v8_personal_section',target))
-        return
+    area=st.segmented_control('Sección de personal',
+        ['👥 Ver nómina','➕ Registrar','📥 Importar','✏️ Gestionar'],
+        default='👥 Ver nómina',key='v16_personal_section',label_visibility='collapsed') or '👥 Ver nómina'
     if area=='👥 Ver nómina':
+        st.caption(f"{len(shown)} trabajador(es) · {len({w.get('edificio') for w in shown if w.get('edificio')})} edificio(s) · "
+                   f"{len({str(w.get('cargo') or '').upper() for w in shown if w.get('cargo')})} especialidad(es)")
         # Respaldo histórico visible junto a los trabajadores actuales, sin botones de recuperación ni mutaciones automáticas.
         if not shown:
             st.info('Tu nómina está vacía. Empieza en Registrar o Importar.');return
@@ -3569,20 +3643,52 @@ def personal_module(repo):
                         count=import_workers(repo,records,hashlib.sha256(upload.getvalue()+building.encode()).hexdigest())
                         st.session_state['_flash']=f'{count} trabajador(es) nuevos confirmados; se conservó la nómina existente.';st.rerun()
                 except Exception as exc:notice_error(exc)
-        with st.expander('🤝 Importar trabajadores de un compañero',expanded=False):
-            if st.checkbox('Consultar nóminas compartidas',key='workers_load_colleagues'):
-                users=colleagues(repo)
-                if users:
-                    colleague=st.selectbox('Compañero',users,format_func=lambda u:full_name(u)+' · '+u['correo'],key='workers_colleague')
-                    records=[r for r in repo.shared('trabajadores',colleague['correo']) if r.get('edificio') in repo.projects]
-                    st.caption(f'{len(records)} trabajadores en edificios compartidos.')
-                    if st.button('Añadir a mi nómina',key='copy_workers'):
+        with st.expander('🤝 Reemplazar nómina con la de un compañero',expanded=False):
+            st.info('Se sustituirá únicamente TU nómina del edificio seleccionado. Los demás edificios y la nómina del compañero no se modifican.')
+            users=colleagues(repo)
+            if not users:
+                st.info('No hay compañeros activos con edificios compartidos.')
+            else:
+                colleague=st.selectbox('Selecciona a un compañero',[None]+users,
+                    format_func=lambda u:'Elige a un compañero…' if u is None else full_name(u)+' · '+str(u.get('cargo') or ''),
+                    key='v16_collab_worker_source')
+                if colleague is not None:
+                    common=sorted(set(projects).intersection(obj(colleague.get('edificios'),[])))
+                    if not common:
+                        st.warning('No tienes edificios compartidos con esta cuenta.')
+                    else:
+                        chosen_building=st.selectbox('Edificio que deseas actualizar',common,key='v16_collab_worker_building')
                         try:
-                            count=import_workers(repo,[{k:r[k] for k in ('nombre','cargo','edificio')} for r in records],
-                                'copy:'+colleague['correo']+':'+hashlib.sha256(json_text(records).encode()).hexdigest())
-                            st.session_state['_flash']=f'{count} trabajador(es) importados, sin sobrescribir los anteriores.';st.rerun()
-                        except Exception as exc:notice_error(exc)
-                else:st.info('No hay compañeros con edificios compartidos.')
+                            source=replacement_source_workers(repo,colleague['correo'],chosen_building)
+                            previous=[w for w in combined_workers(repo,chosen_building)]
+                            a,b=st.columns(2)
+                            a.metric('En tu nómina actual',len(previous))
+                            b.metric('En la nómina del compañero',len(source))
+                            if source:
+                                st.dataframe(pd.DataFrame(source).rename(columns={'nombre':'Nombre','cargo':'Cargo','edificio':'Edificio'}),
+                                    hide_index=True,use_container_width=True)
+                                if previous:
+                                    backup_csv=pd.DataFrame([{'Nombre':w.get('nombre'),'Cargo':w.get('cargo'),
+                                        'Edificio':w.get('edificio')} for w in previous]).to_csv(index=False,sep=';').encode('utf-8-sig')
+                                    st.download_button('📥 Descargar copia de mi nómina actual',backup_csv,
+                                        file_name='Respaldo_nomina_'+re.sub(r'[^a-zA-Z0-9_-]+','_',chosen_building)+'.csv',
+                                        mime='text/csv',key='v16_backup_workers')
+                                st.warning(f'Esta operación reemplazará los {len(previous)} trabajadores que aparecen en tu nómina de {chosen_building} por {len(source)} del compañero. Confirma únicamente si deseas realizar el cambio.')
+                                confirm=st.checkbox('Confirmo que deseo sustituir mi nómina de este edificio',
+                                    value=False,key='v16_worker_replace_approval')
+                                if st.button('🔄 Reemplazar nómina de '+chosen_building,
+                                    key='v16_collab_replace_confirm',type='primary',disabled=not confirm):
+                                    try:
+                                        removed,added=replace_collaborative_workers(repo,colleague['correo'],chosen_building,worker_snapshot(source))
+                                        st.session_state['_flash']=(f'Nómina actualizada en {chosen_building}: '
+                                            f'{removed} trabajador(es) anteriores sustituidos por {added} del compañero.')
+                                        st.rerun()
+                                    except Exception as exc:
+                                        notice_error(exc)
+                            else:
+                                st.info('Este compañero no tiene trabajadores guardados en este edificio. No se permite reemplazar una nómina por una lista vacía.')
+                        except Exception as exc:
+                            notice_error(exc)
         return
     if area=='✏️ Gestionar':
         if not current:st.info('No hay colaboradores sincronizados para editar. Tu lista completa sigue visible en Nómina.');return
@@ -3687,7 +3793,7 @@ def save_maestro_link(repo,link,unlink=False):
 
 def admin_maestro_links(repo):
     st.markdown('### 👷 Vincular Maestro Mayor a Residente o Asistente')
-    st.caption('El vínculo solo permite consultar libros y requerimientos del edificio en común. '
+    st.caption('El vínculo permite consultar libros y gestionar solicitudes independientes de materiales o planos del edificio en común. '
                'No concede edición ni abre otros proyectos.')
     users=all_rows('usuarios',columns='correo,nombres,apellidos,cargo,edificios,estado',order='correo')
     masters=[u for u in users if active_user(u) and u.get('cargo')=='Maestro Mayor']
@@ -3739,6 +3845,269 @@ def colleagues(repo):
                      and u.get('cargo')=='Maestro Mayor')]
 
 
+# ==============================================================================
+# V15 — REQUERIMIENTOS DEL MAESTRO, INDEPENDIENTES DEL LIBRO DE OBRA
+# Cada petición es un registro distinto en app_config, evitando sobrescribir las
+# solicitudes de otros usuarios. No se necesita modificar tablas ni migraciones.
+# ==============================================================================
+WORK_REQ_VERSION = "alpha_req_v15_"
+WORK_REQ_KINDS = ("Material", "Plano")
+WORK_REQ_PRIORITIES = ("Normal", "Alta", "Urgente")
+WORK_REQ_STATUSES = ("Pendiente", "En gestión", "Atendido", "No disponible", "Cancelado")
+
+
+def work_req_prefix(master_email, building):
+    master = norm_email(master_email)
+    building = str(building or '').strip()
+    if not building:
+        raise ValueError('Debe seleccionar un edificio válido.')
+    # El hash evita publicar correos en las claves de configuración.
+    scope = hashlib.sha256((master+'|'+building.casefold()).encode('utf-8')).hexdigest()[:24]
+    return WORK_REQ_VERSION + scope + '_'
+
+
+@st.cache_data(ttl=25, show_spinner=False, max_entries=160)
+def cached_work_requests(prefix):
+    records=[]
+    offset=0
+    while True:
+        # Solo consultar el prefijo autorizado, no descargar todas las cuentas.
+        resp=(database().table('app_config').select('key,value')
+              .like('key',prefix+'%').order('key').range(offset,offset+199).execute())
+        rows=resp.data or []
+        for row in rows:
+            item=obj(row.get('value'),{})
+            if not isinstance(item,dict) or not row.get('key','').startswith(prefix):
+                continue
+            if item.get('tipo') in WORK_REQ_KINDS:
+                records.append({**item,'_config_key':row['key']})
+        if len(rows)<200:break
+        offset+=len(rows)
+    return sorted(records,key=lambda x:(str(x.get('creado_en') or ''),str(x.get('titulo') or '')),reverse=True)
+
+
+def work_requests_for(repo,master_email,building):
+    """La autorización se comprueba antes de leer cualquier requerimiento."""
+    master_email=norm_email(master_email)
+    if repo.user.get('cargo')=='Maestro Mayor' and repo.email==master_email:
+        if building not in repo.projects:
+            raise PermissionError('No tiene asignado ese edificio.')
+    elif repo.user.get('cargo') in ('Residente','Asistente'):
+        if not any(x['maestro']==master_email and x['edificio']==building
+                   for x in validated_maestro_links(repo)):
+            raise PermissionError('Este Maestro Mayor no está vinculado a su cuenta para ese edificio.')
+    else:
+        raise PermissionError('No está autorizado para consultar estos requerimientos.')
+    return cached_work_requests(work_req_prefix(master_email,building))
+
+
+def create_work_request(repo,building,kind,title,quantity,unit,plan_ref,priority,due,notes):
+    repo._verify_write_session()
+    if repo.user.get('cargo')!='Maestro Mayor':
+        raise PermissionError('Solo el Maestro Mayor puede crear requerimientos.')
+    if building not in repo.projects:
+        raise PermissionError('El edificio no está asignado al Maestro Mayor.')
+    if kind not in WORK_REQ_KINDS or priority not in WORK_REQ_PRIORITIES:
+        raise ValueError('Tipo o prioridad no válido.')
+    title=str(title or '').strip()
+    notes=str(notes or '').strip()
+    quantity=str(quantity or '').strip()
+    unit=str(unit or '').strip()
+    plan_ref=str(plan_ref or '').strip()
+    if not 3<=len(title)<=180:
+        raise ValueError('Describa el material o plano (de 3 a 180 caracteres).')
+    if len(notes)>3000 or len(plan_ref)>180 or len(unit)>35 or len(quantity)>60:
+        raise ValueError('Uno de los campos supera el límite de longitud.')
+    if kind=='Material' and not quantity:
+        raise ValueError('Indique la cantidad solicitada de material.')
+    if due and not date_valid(str(due)):
+        raise ValueError('Seleccione una fecha válida.')
+    stamp=now_ec().isoformat(timespec='seconds')
+    rid=uuid.uuid4().hex
+    payload={'id':rid,'maestro':repo.email,'edificio':building,'tipo':kind,
+       'titulo':title,'cantidad':quantity if kind=='Material' else '',
+       'unidad':unit if kind=='Material' else '',
+       'referencia_plano':plan_ref if kind=='Plano' else '',
+       'prioridad':priority,'necesario_para':str(due or ''),'observaciones':notes,
+       'estado':'Pendiente','respuesta':'','actualizado_por':'',
+       'creado_en':stamp,'actualizado_en':stamp}
+    key=work_req_prefix(repo.email,building)+rid
+    result=database().table('app_config').insert({'key':key,'value':json_text(payload)}).execute()
+    if not result.data:
+        raise RuntimeError('No se pudo confirmar el requerimiento. Puede volver a intentarlo.')
+    cached_work_requests.clear()
+    return payload
+
+
+def respond_work_request(repo,request,status,response):
+    repo._verify_write_session()
+    master_email=norm_email(request.get('maestro'))
+    building=str(request.get('edificio') or '')
+    key=str(request.get('_config_key') or '')
+    prefix=work_req_prefix(master_email,building)
+    if not key.startswith(prefix):
+        raise PermissionError('Identificador de requerimiento inválido.')
+    if repo.user.get('cargo') not in ('Residente','Asistente') or not any(
+        link['maestro']==master_email and link['edificio']==building
+        for link in validated_maestro_links(repo)):
+        raise PermissionError('No tiene autorización para responder a este requerimiento.')
+    if status not in ('Pendiente','En gestión','Atendido','No disponible'):
+        raise ValueError('Estado de atención inválido.')
+    response=str(response or '').strip()
+    if len(response)>2500:
+        raise ValueError('La respuesta no debe superar 2.500 caracteres.')
+    current=(database().table('app_config').select('key,value').eq('key',key).execute().data or [])
+    if len(current)!=1:
+        raise ConflictError('El requerimiento ya no existe. Actualice la consulta.')
+    original=current[0]['value']
+    entry=obj(original,{})
+    if (entry.get('maestro')!=master_email or entry.get('edificio')!=building
+            or str(entry.get('id'))!=key[len(prefix):]):
+        raise PermissionError('El contenido de esta solicitud no coincide con el edificio vinculado.')
+    if entry.get('estado')=='Cancelado':
+        raise ValueError('El Maestro Mayor canceló este requerimiento.')
+    entry.update({'estado':status,'respuesta':response,'actualizado_por':repo.email,
+                  'actualizado_en':now_ec().isoformat(timespec='seconds')})
+    result=(database().table('app_config').update({'value':json_text(entry)})
+            .eq('key',key).eq('value',original).execute())
+    if not result.data:
+        raise ConflictError('El requerimiento fue actualizado por otra persona. Consulte de nuevo.')
+    cached_work_requests.clear()
+    return entry
+
+
+def cancel_work_request(repo,request):
+    repo._verify_write_session()
+    if repo.user.get('cargo')!='Maestro Mayor' or repo.email!=request.get('maestro'):
+        raise PermissionError('Solo el Maestro Mayor autor puede cancelar su solicitud.')
+    building=str(request.get('edificio') or '')
+    if building not in repo.projects:
+        raise PermissionError('El edificio dejó de estar asignado.')
+    key=str(request.get('_config_key') or '')
+    prefix=work_req_prefix(repo.email,building)
+    if not key.startswith(prefix):raise PermissionError('Solicitud no válida.')
+    rows=database().table('app_config').select('value').eq('key',key).execute().data or []
+    if len(rows)!=1:raise ConflictError('Esta solicitud ya no existe.')
+    raw=rows[0]['value']; item=obj(raw,{})
+    if item.get('maestro')!=repo.email or item.get('edificio')!=building:
+        raise PermissionError('Solicitud no autorizada.')
+    if item.get('estado')=='Atendido':
+        raise ValueError('Una solicitud atendida no se puede cancelar.')
+    item.update({'estado':'Cancelado','actualizado_por':repo.email,
+                 'actualizado_en':now_ec().isoformat(timespec='seconds')})
+    result=(database().table('app_config').update({'value':json_text(item)})
+             .eq('key',key).eq('value',raw).execute())
+    if not result.data:raise ConflictError('La solicitud cambió; vuelva a consultar.')
+    cached_work_requests.clear()
+
+
+def display_work_requests(repo, requests, mode):
+    """Fichas compactas, cada solicitud se abre a voluntad."""
+    if not requests:
+        st.info('Todavía no hay requerimientos de materiales o planos registrados para este edificio.')
+        return
+    kinds=['Todos','Material','Plano']
+    statuses=['Todos']+list(WORK_REQ_STATUSES)
+    c1,c2=st.columns(2)
+    with c1:kind_filter=st.selectbox('Tipo de solicitud',kinds,key='work_kind_'+mode)
+    with c2:status_filter=st.selectbox('Estado',statuses,key='work_status_'+mode)
+    filtered=[r for r in requests
+              if (kind_filter=='Todos' or r.get('tipo')==kind_filter)
+              and (status_filter=='Todos' or r.get('estado')==status_filter)]
+    pending=sum(r.get('estado') in ('Pendiente','En gestión') for r in requests)
+    st.caption(f'📦 {len(filtered)} solicitudes visibles · {pending} pendientes o en gestión')
+    for idx,req in enumerate(filtered):
+        key=req.get('_config_key','')
+        icon='🧱' if req.get('tipo')=='Material' else '📐'
+        status=req.get('estado') or 'Pendiente'
+        label=f"{icon} {req.get('titulo') or 'Solicitud'} · {status}"
+        with st.expander(label,expanded=False):
+            c1,c2,c3=st.columns(3)
+            c1.markdown('**Tipo**');c1.write(req.get('tipo',''))
+            c2.markdown('**Prioridad**');c2.write(req.get('prioridad','Normal'))
+            c3.markdown('**Fecha necesaria**');c3.write(display_date(req.get('necesario_para')) if req.get('necesario_para') else 'Sin fecha')
+            if req.get('tipo')=='Material':
+                st.markdown('**Cantidad solicitada**: '+str(req.get('cantidad') or '—')+' '+str(req.get('unidad') or ''))
+            if req.get('tipo')=='Plano' and req.get('referencia_plano'):
+                st.markdown('**Plano o referencia**: '+str(req.get('referencia_plano')))
+            if req.get('observaciones'):
+                st.markdown('**Observaciones del Maestro Mayor**')
+                st.write(req['observaciones'])
+            st.caption('Creado: '+str(req.get('creado_en',''))[:16].replace('T',' '))
+            if req.get('respuesta'):
+                st.markdown('**Respuesta del residente/asistente**')
+                st.write(req['respuesta'])
+                st.caption('Actualizado: '+str(req.get('actualizado_en') or '')[:16].replace('T',' '))
+            if mode=='supervisor' and status!='Cancelado':
+                with st.form('work_req_response_'+key):
+                    options=['Pendiente','En gestión','Atendido','No disponible']
+                    initial=status if status in options else 'Pendiente'
+                    new_status=st.selectbox('Estado de atención',options,index=options.index(initial))
+                    answer=st.text_area('Respuesta o gestión realizada',value=req.get('respuesta') or '',max_chars=2500)
+                    submit=st.form_submit_button('💾 Guardar respuesta',type='primary')
+                if submit:
+                    try:
+                        respond_work_request(repo,req,new_status,answer)
+                        st.session_state['_flash']='Requerimiento actualizado.'
+                        st.rerun()
+                    except Exception as exc:notice_error(exc)
+            if mode=='master' and status not in ('Cancelado','Atendido'):
+                with st.popover('Cancelar requerimiento'):
+                    st.warning('La solicitud dejará de aparecer como pendiente. Los demás datos se conservarán.')
+                    if st.button('Confirmar cancelación',key='req_cancel_'+key):
+                        try:
+                            cancel_work_request(repo,req)
+                            st.session_state['_flash']='Solicitud cancelada.'
+                            st.rerun()
+                        except Exception as exc:notice_error(exc)
+
+
+def maestro_requests_module(repo):
+    """Módulo propio del Maestro Mayor, sin exigir libros diarios."""
+    if repo.user.get('cargo')!='Maestro Mayor':
+        raise PermissionError('Este módulo pertenece al Maestro Mayor.')
+    page_heading('Coordinación de obra','Requerimientos de materiales y planos',
+        'Solicita directamente materiales o planos que necesitas para tus edificios. '
+        'No forman parte del Libro de Obra.')
+    view=st.segmented_control('Requerimientos',['➕ Nueva solicitud','📋 Mis solicitudes'],
+                              default='➕ Nueva solicitud',key='req_master_view') or '➕ Nueva solicitud'
+    buildings=sorted(repo.projects)
+    if not buildings:
+        st.warning('Necesitas un edificio asignado para registrar solicitudes.')
+        return
+    building=st.selectbox('🏢 Edificio',buildings,key='req_master_building')
+    if view=='📋 Mis solicitudes':
+        display_work_requests(repo,work_requests_for(repo,repo.email,building),'master')
+        return
+    kind=st.segmented_control('¿Qué necesitas?',['🧱 Material','📐 Plano'],
+                              default='🧱 Material',key='req_master_kind') or '🧱 Material'
+    selected_kind='Material' if kind=='🧱 Material' else 'Plano'
+    with st.form('req_master_new_'+selected_kind,clear_on_submit=True):
+        title=st.text_input('Material solicitado' if selected_kind=='Material' else 'Nombre o descripción del plano',max_chars=180)
+        qty='';unit='';ref=''
+        if selected_kind=='Material':
+            c1,c2=st.columns([2,1])
+            with c1:qty=st.text_input('Cantidad',placeholder='Ej. 30',max_chars=60)
+            with c2:unit=st.selectbox('Unidad',['un','sacos','kg','m','m²','m³','litros','cajas','rollos','otro'])
+        else:
+            ref=st.text_input('Especialidad, código o referencia (opcional)',
+                              placeholder='Ej. Plano eléctrico E-04, última revisión',max_chars=180)
+        col_a,col_b=st.columns(2)
+        with col_a:priority=st.selectbox('Prioridad',list(WORK_REQ_PRIORITIES))
+        with col_b:
+            due=st.date_input('Fecha en que se necesita',value=None)
+        notes=st.text_area('Observaciones o justificación',max_chars=3000,
+                           placeholder='Ubicación, características, uso previsto, detalles de la solicitud…')
+        submit=st.form_submit_button('📨 Enviar requerimiento',type='primary',use_container_width=True)
+    if submit:
+        try:
+            create_work_request(repo,building,selected_kind,title,qty,unit,ref,priority,
+                                due.isoformat() if due else '',notes)
+            st.session_state['_flash']='Requerimiento registrado. Los residentes o asistentes vinculados pueden consultarlo.'
+            st.rerun()
+        except Exception as exc:notice_error(exc)
+
+
 def maestro_collaboration(repo):
     links=validated_maestro_links(repo)
     if not links:
@@ -3749,41 +4118,21 @@ def maestro_collaboration(repo):
     chosen=st.selectbox('Selecciona un Maestro Mayor',options,
         format_func=lambda v:'Selecciona a quién consultar' if v is None else names.get(v,v),key='maestro_collab_select')
     if chosen is None:
-        st.info('Elige un Maestro Mayor para ver sus libros y requerimientos.');return
+        st.info('Elige un Maestro Mayor para consultar sus solicitudes y sus libros de obra.');return
     authorized=sorted({x['edificio'] for x in links if x['maestro']==chosen})
     building=st.selectbox('Edificio autorizado',authorized,key='maestro_collab_build')
-    # Volver a validar vínculo y permisos antes de consultar, nunca ejecutar all() aquí.
     if not any(x['maestro']==chosen and x['edificio']==building for x in validated_maestro_links(repo)):
         raise PermissionError('Ya no tienes permiso para consultar este Maestro Mayor.')
     tab=st.segmented_control('Información',['📦 Requerimientos','📚 Libros de obra'],
         default='📦 Requerimientos',key='maestro_collab_view') or '📦 Requerimientos'
-    # repo.shared restringe a edificios autorizados; el filtro siguiente reduce al vínculo.
+    if tab=='📦 Requerimientos':
+        st.caption('Solicitudes independientes del Libro de Obra: materiales o planos que necesita el Maestro Mayor.')
+        display_work_requests(repo,work_requests_for(repo,chosen,building),'supervisor')
+        return
+    # Los libros solo se consultan al seleccionar específicamente su pestaña.
     records=[r for r in cached_rows('inspecciones',(('usuario_email',chosen),('proyecto',building)))
              if is_master_book(r)]
-    if tab=='📚 Libros de obra':
-        history('inspecciones',records,repo,'maestro_libros_'+chosen+'_'+building,editable=False)
-        return
-    if not records:
-        st.info('El maestro todavía no ha subido libros en este edificio.');return
-    items=[]
-    for rec in sorted(records,key=lambda r:str(r.get('fecha') or ''),reverse=True):
-        raw=obj(rec.get('datos'),{})
-        if not isinstance(raw,dict):continue
-        for req in raw.get('Requerimientos',[]) if isinstance(raw.get('Requerimientos'),list) else []:
-            if isinstance(req,dict) and str(req.get('Descripcion') or '').strip():
-                items.append({'Fecha':display_date(rec.get('fecha')),
-                    'Requerimiento':req.get('Descripcion') or '',
-                    'Tipo':req.get('Tipo') or '',
-                    'Prioridad':req.get('Prioridad') or '',
-                    'Cantidad':req.get('Cantidad') or '',
-                    'Necesario para':req.get('Fecha_Necesaria') or 'Sin fecha',
-                    'Observaciones':req.get('Observaciones') or ''})
-    st.caption(f'📦 {len(items)} requerimiento(s) · Edificio {building}')
-    if not items:
-        st.info('Los libros existentes no contienen requerimientos registrados. '
-                'El Maestro Mayor puede añadirlos en su próximo libro de obra.')
-        return
-    st.dataframe(pd.DataFrame(items),hide_index=True,use_container_width=True)
+    history('inspecciones',records,repo,'maestro_libros_'+chosen+'_'+building,editable=False)
 
 
 def collaborative_module(repo):
@@ -4373,13 +4722,15 @@ _FRAGMENT = getattr(st, "fragment", None)
 @(_FRAGMENT if _FRAGMENT is not None else (lambda fn: fn))
 def render_active_module(name, repo, cookie):
     role = repo.user.get("cargo")
-    if name == "Libro de Obra Maestro" and role != "Maestro Mayor":
-        raise PermissionError("El libro de obra maestro es exclusivo del Maestro Mayor.")
+    if name in {"Libro de Obra Maestro","Requerimientos"} and role != "Maestro Mayor":
+        raise PermissionError("Este módulo es exclusivo del Maestro Mayor.")
     if role == "Maestro Mayor" and name in {"Checklist", "Libro de Obra", "Levantamiento de Incidencias"}:
         raise PermissionError("El módulo no está habilitado para el cargo Maestro Mayor.")
     if name == "Panel Admin" and not repo.admin:
         raise PermissionError("La administración requiere permisos activos.")
-    if name == "Personal a Cargo":
+    if name == "Requerimientos":
+        maestro_requests_module(repo)
+    elif name == "Personal a Cargo":
         personal_module(repo)
     elif name == "Colaborativo":
         collaborative_module(repo)
@@ -4963,12 +5314,12 @@ def main():
             st.success(st.session_state.pop('_flash'))
         dashboard(repo)
         master=user.get('cargo')=='Maestro Mayor'
-        visible=(['Libro de Obra Maestro','Personal a Cargo','Control de Rendimiento','Colaborativo']
+        visible=(['Libro de Obra Maestro','Requerimientos','Personal a Cargo','Control de Rendimiento','Colaborativo']
                  if master else ['Checklist','Libro de Obra','Personal a Cargo','Levantamiento de Incidencias','Control de Rendimiento','Colaborativo'])
         visible=['Inicio']+visible+['Mi cuenta']
         if repo.admin:visible.append('Panel Admin')
         short={'Inicio':'🏠 Inicio','Checklist':'📋 Checklist','Libro de Obra':'🏗️ Libro de obra',
-               'Libro de Obra Maestro':'🏗️ Libro maestro','Personal a Cargo':'👷 Personal',
+               'Libro de Obra Maestro':'🏗️ Libro maestro','Requerimientos':'📦 Requerimientos','Personal a Cargo':'👷 Personal',
                'Levantamiento de Incidencias':'🚨 Incidencias','Control de Rendimiento':'📊 Rendimientos',
                'Colaborativo':'🤝 Colaborativo','Mi cuenta':'👤 Mi cuenta','Panel Admin':'⚙️ Admin'}
         labels=[short[v] for v in visible]
