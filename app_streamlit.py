@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.11-v18.8-planilla-maestro"
+APP_VERSION = "2026.10.11-v18.9-planilla-interactiva"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -768,6 +768,73 @@ APP_CSS_V19 = """
 .stApp [data-testid="stMainBlockContainer"] button[kind="primary"] :is(p,span,strong) {
   color:#fff!important;
   -webkit-text-fill-color:#fff!important;
+}
+</style>
+"""
+
+
+APP_CSS_V20 = """
+<style>
+/* 18.9 - Fichas de historial compactas, sin afectar botones de formularios. */
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-v17_hist_card_"] button {
+  min-height:2.25rem!important;
+  height:auto!important;
+  padding:.36rem .7rem!important;
+  font-size:.77rem!important;
+  line-height:1.28!important;
+  border-radius:10px!important;
+  text-align:left!important;
+  justify-content:flex-start!important;
+  box-shadow:none!important;
+  white-space:normal!important;
+}
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-v17_hist_card_"] button[kind="secondary"] {
+  background:var(--ab-surface)!important;
+  color:var(--ab-ink)!important;
+  -webkit-text-fill-color:var(--ab-ink)!important;
+  border:1px solid var(--ab-outline)!important;
+}
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-v17_hist_card_"] button[kind="secondary"] :is(p,span) {
+  color:var(--ab-ink)!important;
+  -webkit-text-fill-color:var(--ab-ink)!important;
+  font-weight:700!important;
+}
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-v17_hist_card_"] button[kind="primary"] {
+  background:#2459cc!important;
+  color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important;
+  border:1px solid #2459cc!important;
+}
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-v17_hist_card_"] button[kind="primary"] :is(p,span) {
+  color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important;
+  font-weight:800!important;
+}
+/* Planilla en pantalla: misma organización de 6 columnas del Word; evidencia mini opcional. */
+.ab-planilla-frame {border:1px solid var(--ab-outline);border-radius:13px;overflow:hidden;
+  box-shadow:var(--ab-shadow);margin:7px 0 13px;background:var(--ab-surface)}
+.ab-planilla-scroll {overflow-x:auto;max-width:100%;}
+.ab-planilla-table {border-collapse:collapse;width:100%;min-width:750px;table-layout:fixed;
+  font-size:.75rem;background:var(--ab-surface);color:var(--ab-ink)}
+.ab-planilla-table th,.ab-planilla-table td {border:1px solid var(--ab-outline-strong);padding:7px 9px;
+  vertical-align:middle;overflow-wrap:anywhere;color:var(--ab-ink)!important;}
+.ab-planilla-table thead tr.ab-planilla-meta th {background:#fff1c8!important;color:#132038!important;
+  -webkit-text-fill-color:#132038!important;text-align:center;font-size:.78rem;font-weight:850;}
+.ab-planilla-table thead tr.ab-planilla-head th {background:#f3dfaa!important;color:#132038!important;
+  -webkit-text-fill-color:#132038!important;text-align:left;font-weight:830;}
+.ab-planilla-table tbody tr:nth-child(even) {background:var(--ab-surface-soft);}
+.ab-planilla-table tbody tr:hover {background:var(--ab-surface-soft-2);}
+.ab-planilla-table td:nth-child(3) {font-weight:700;}
+.ab-photo-thumb {width:88px;height:62px;object-fit:cover;border:1px solid var(--ab-outline);
+  display:block;margin:auto;border-radius:7px;background:var(--ab-surface-soft);}
+.ab-planilla-empty{font-size:.75rem;color:var(--ab-muted)!important;font-weight:600;}
+.ab-compact-record-head {margin-top:.32rem;margin-bottom:.45rem;}
+@media(max-width:650px){
+ .stApp [data-testid="stMainBlockContainer"] [class*="st-key-v17_hist_card_"] button{min-height:2.2rem!important;
+  padding:.32rem .52rem!important;font-size:.71rem!important;}
+ .ab-planilla-table {min-width:700px;font-size:.71rem;}
+ .ab-planilla-table th,.ab-planilla-table td{padding:6px 7px;}
+ .ab-photo-thumb{width:70px;height:52px;}
 }
 </style>
 """
@@ -2640,7 +2707,7 @@ def render_official(editor,repo):
         return
 
     if phase==phases[3]:
-        left,right=st.columns([1.25,1],gap='medium')
+        left=st.container()
         with left:
             st.markdown('#### 🏗️ Actividades del Libro Oficial')
             st.caption('El capítulo ocupará la primera columna del Excel; la descripción estará al lado.')
@@ -2665,37 +2732,32 @@ def render_official(editor,repo):
                                  0.0,min_value=0.0,step=0.01)
                     editor.remove('actividades',rid)
             editor.add('actividades',default,'Agregar rubro')
-        with right:
-            st.markdown('#### 👷 Actividades del Maestro Mayor')
-            st.caption('Referencia del día y edificio seleccionados. No se mezcla automáticamente con el libro oficial.')
+        with st.container(border=True):
+            st.markdown('#### 👷 Planilla de avance del Maestro Mayor')
+            st.caption('Referencia del día y edificio seleccionados. Se muestran las seis columnas de la planilla, más una miniatura cuando hay evidencia. No se copia nada automáticamente.')
             if not d.get('proyecto') or not d.get('fecha'):
-                st.info('Selecciona primero el edificio y la fecha, arriba.')
+                st.info('Selecciona primero el edificio y la fecha de la jornada.')
             else:
                 try:
                     master_acts=v17_linked_master_activities(repo,d['proyecto'],d['fecha'])
                     if not master_acts:
-                        st.info('No hay un libro del Maestro Mayor vinculado para '+display_date(d['fecha'])+'.')
+                        st.info('No existe un Libro del Maestro Mayor vinculado para '+display_date(d['fecha'])+'.')
                     else:
-                        st.caption(f'{len(master_acts)} actividades registradas ese día.')
-                        choice=st.selectbox('Actividad del Maestro Mayor',[None]+list(range(len(master_acts))),
-                            format_func=lambda i:'Selecciona una actividad…' if i is None else
-                                f"{master_acts[i]['Actividad']} · {master_acts[i]['Avance']}",
-                            key=editor.prefix+'v17_master_activity')
-                        if choice is not None:
-                            item=master_acts[choice]
-                            with st.container(border=True):
-                                st.markdown('**'+html_escape(item['Actividad'])+'**')
-                                st.caption('Maestro: '+item['Maestro'])
-                                st.write('**Avance:**',item['Avance'] or 'No especificado')
-                                st.write('**Piso:**',item['Piso'] or '—')
-                                st.write('**Departamento:**',item['Departamento'] or '—')
-                                st.write('**Personal:**',item['Personal'] or '—')
-                                if item.get('Observaciones'):st.info(item['Observaciones'])
-                                if item.get('Foto_B64'):
-                                    photo=image_stream(item['Foto_B64'])
-                                    if photo:st.image(photo,width=300,caption='Evidencia de esta actividad')
-                            if st.button('➕ Copiar como rubro editable',key=editor.prefix+'v17_copy_master'):
-                                v17_import_master_activity(editor,item)
+                        st.caption(f'{len(master_acts)} actividades de esta jornada.')
+                        date_raw=str(d['fecha'])[:10]
+                        try:day_view=dt.date.fromisoformat(date_raw).strftime('%d/%m/%Y')
+                        except ValueError:day_view=date_raw
+                        master_planilla_preview(linked_master_planilla_rows(master_acts),d['proyecto'],day_view,show_thumbs=True)
+                        a,b=st.columns([2.4,1])
+                        with a:
+                            choice=st.selectbox('Actividad para copiar al libro oficial',[None]+list(range(len(master_acts))),
+                                format_func=lambda i:'Selecciona una actividad…' if i is None else
+                                    f"{master_acts[i]['Actividad']} · {master_acts[i]['Avance']}",
+                                key=editor.prefix+'v17_master_activity')
+                        with b:
+                            if st.button('➕ Copiar rubro',key=editor.prefix+'v17_copy_master',
+                                disabled=choice is None,use_container_width=True):
+                                v17_import_master_activity(editor,master_acts[choice])
                 except Exception as exc:notice_error(exc)
         return
 
@@ -4451,24 +4513,94 @@ def cached_master_planilla_pdf(serialized_record):
     return master_planilla_pdf(json.loads(serialized_record))
 
 
+
+@st.cache_data(ttl=900,show_spinner=False,max_entries=180)
+def master_photo_thumb_b64(photo_b64):
+    """Miniatura segura, de carga diferida: no inserta imágenes grandes en las tablas."""
+    if not isinstance(photo_b64,str) or not photo_b64:
+        return ''
+    try:
+        raw=image_stream(photo_b64)
+        if raw is None:return ''
+        with Image.open(raw) as im:
+            im=ImageOps.exif_transpose(im).convert('RGB')
+            im.thumbnail((180,124),Image.Resampling.LANCZOS)
+            stream=io.BytesIO()
+            im.save(stream,format='JPEG',quality=68,optimize=True)
+        return base64.b64encode(stream.getvalue()).decode('ascii')
+    except Exception:
+        return ''
+
+
+def master_planilla_preview(rows,project='',day='',show_thumbs=True):
+    """Planilla consultiva con las 6 columnas del Word y miniatura opcional.
+
+    Nunca mezcla fotos con los metrajes; la séptima columna es solo vista previa.
+    El PDF oficial conserva exactamente las seis columnas originales.
+    """
+    if not rows:
+        st.info('No hay actividades registradas en esta jornada.')
+        return
+    any_photo=bool(show_thumbs and any(r.get('Fotos') or r.get('Foto_B64') for r in rows))
+    ncols=7 if any_photo else 6
+    header=['DEPTO.','ÁREA','ACTIVIDAD','UNIDAD','CANTIDAD','RESPONSABLE']
+    if any_photo:header.append('FOTO')
+    safe_project=html_escape(str(project or 'Sin edificio'))
+    safe_day=html_escape(str(day or 'Sin fecha'))
+    cols=[9,10,36,9,10,26]
+    if any_photo:cols=[8,8,34,7,9,21,13]
+    colgroup='<colgroup>'+''.join(f'<col style="width:{v}%">' for v in cols)+'</colgroup>'
+    meta=(f'<tr class="ab-planilla-meta"><th colspan="{ncols-1}">'
+          f'PLANILLA DE AVANCE - PROYECTO “{safe_project}”</th>'
+          f'<th>FECHA: {safe_day}</th></tr>')
+    cols_html=''.join('<th scope="col">'+html_escape(label)+'</th>' for label in header)
+    trs=[]
+    for row in rows:
+        values=[row.get(k,'') for k in ('Departamento','Area','Actividad','Unidad','Cantidad','Responsable')]
+        tds=''.join('<td>'+html_escape(str(x if x is not None else ''))+'</td>' for x in values)
+        if any_photo:
+            photos=row.get('Fotos') or ([row.get('Foto_B64')] if row.get('Foto_B64') else [])
+            thumb=master_photo_thumb_b64(photos[0]) if photos else ''
+            thumb_html=(f'<img class="ab-photo-thumb" loading="lazy" alt="Fotografía de actividad" '
+                f'src="data:image/jpeg;base64,{thumb}">' if thumb else '<span class="ab-planilla-empty">Sin foto</span>')
+            tds+='<td>'+thumb_html+'</td>'
+        trs.append('<tr>'+tds+'</tr>')
+    html=('<div class="ab-planilla-frame"><div class="ab-planilla-scroll"><table class="ab-planilla-table">'
+          +colgroup+'<thead>'+meta+'<tr class="ab-planilla-head">'+cols_html+'</tr></thead><tbody>'
+          +''.join(trs)+'</tbody></table></div></div>')
+    st.markdown(html,unsafe_allow_html=True)
+
+
+def linked_master_planilla_rows(activities):
+    """Las actividades compartidas se presentan con los mismos campos de la planilla."""
+    return [{
+        'Departamento':a.get('Departamento') or '',
+        'Area':a.get('Area') or a.get('Piso') or '',
+        'Actividad':a.get('Actividad') or '',
+        'Unidad':a.get('Unidad') or '',
+        'Cantidad':a.get('Avance') or '',
+        'Responsable':a.get('Personal') or a.get('Maestro') or '',
+        'Foto_B64':a.get('Foto_B64') or '',
+    } for a in activities]
+
 def show_master_planilla(record):
-    """En Maestro y Colaborativo: consulta tabular igual a la planilla de Word."""
+    """Fichas de Libro Maestro: planilla visible al seleccionar la jornada."""
     rows=master_planilla_activities(record)
-    st.markdown('#### 📋 Planilla de avance diario')
-    c1,c2=st.columns([2,1])
-    with c1:st.write('**PROYECTO:** '+str(record.get('proyecto') or 'Sin edificio'))
-    with c2:st.write('**FECHA:** '+display_date(record.get('fecha')))
+    st.markdown('**Planilla de avance diario**')
     if not rows:
         st.info('Este libro no contiene actividades registradas.')
         return
-    styled_detail_table(['DEPTO.','ÁREA','ACTIVIDAD','UNIDAD','CANTIDAD','RESPONSABLE'],
-        [[a[k] for k in ('Departamento','Area','Actividad','Unidad','Cantidad','Responsable')] for a in rows])
-    photos=[(a['Actividad'],pic) for a in rows for pic in a['Fotos']]
-    if photos:
-        with st.expander(f'📷 Evidencias de actividades ({len(photos)})',expanded=False):
-            for name,raw in photos:
-                stream=image_stream(raw)
-                if stream:st.image(stream,caption=name,width=370)
+    project=str(record.get('proyecto') or 'Sin edificio')
+    date_raw=str(record.get('fecha') or '')[:10]
+    try:date_display=dt.date.fromisoformat(date_raw).strftime('%d/%m/%Y')
+    except ValueError:date_display=date_raw
+    master_planilla_preview(rows,project,date_display,show_thumbs=True)
+    if any(r.get('Fotos') for r in rows):
+        with st.expander('📷 Ver fotografías a tamaño completo',expanded=False):
+            for r in rows:
+                for photo in r.get('Fotos',[]):
+                    stream=image_stream(photo)
+                    if stream:st.image(stream,caption=r.get('Actividad') or 'Evidencia',width=340)
 
 
 def show_record(table,record):
@@ -4545,65 +4677,64 @@ def history(table, records, repo, key, editable=True):
     visible=ordered[page*page_size:(page+1)*page_size]
     selected_key='v17_hist_selected_'+key
     selected_id=str(st.session_state.get(selected_key) or '')
-    st.markdown('**Selecciona una ficha**')
+    st.caption('Pulsa una fecha para desplegar su planilla justo debajo. Pulsa otra vez para cerrar.')
     for r in visible:
         identity=str(r.get('id'))
-        label=f"📅 {display_date(record_date(table,r))}  ·  🏢 {record_building(table,r)}  ·  {record_title(table,r)}"
+        label=f"{display_date(record_date(table,r))} · {record_building(table,r)} · {record_title(table,r)}"
         selected=selected_id==identity
-        st.button(('✓ ' if selected else '▸ ')+label,key='v17_hist_card_'+key+'_'+identity,
-            on_click=set_module_view,args=(selected_key,identity),use_container_width=True,
+        target='' if selected else identity
+        st.button(('▾ ' if selected else '▸ ')+label,key='v17_hist_card_'+key+'_'+identity,
+            on_click=set_module_view,args=(selected_key,target),use_container_width=True,
             type='primary' if selected else 'secondary')
-    selected=next((r for r in visible if str(r.get('id'))==selected_id),None)
-    if selected is None:
-        st.caption('Selecciona una de las fichas anteriores. Sus datos se abrirán aquí, sin desplegar las demás.');return
-    st.markdown('---')
-    with st.container(border=True):
-        st.markdown('#### '+html_escape(record_title(table,selected)))
-        st.caption(display_date(record_date(table,selected),True)+' · '+record_building(table,selected))
-        show_record(table,selected)
-        if table=='inspecciones' and is_master_book(selected):
-            try:
-                document=cached_master_planilla_pdf(json_text(selected))
-                safe_project=re.sub(r'[^A-Za-z0-9_-]+','_',str(selected.get('proyecto') or 'Edificio'))[:42]
-                st.download_button('⬇️ Descargar avance del Maestro — PDF (formato planilla)',
-                    data=document,
-                    file_name=f'Planilla_Avance_{safe_project}_{str(selected.get("fecha") or "")[:10]}.pdf',
-                    mime='application/pdf',
-                    key='v188_master_plan_pdf_'+key+'_'+str(selected.get('id')),
-                    on_click='ignore',use_container_width=True)
-            except Exception as exc:notice_error(exc)
-        if table=='inspecciones' and not is_master_book(selected):
-            friendly=re.sub(r'[^A-Za-z0-9_-]+','_',str(selected.get('proyecto') or 'Edificio'))
-            try:
-                file_data=v18_cached_official_excel(json_text(selected))
-                st.download_button('⬇️ Descargar Libro de Obra — Excel oficial',
-                    data=file_data,
-                    file_name=f"Libro_Obra_{friendly}_{str(selected.get('fecha'))[:10]}.xlsx",
-                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    key='v18_official_direct_'+key+'_'+str(selected.get('id')),
-                    on_click='ignore',use_container_width=True)
-            except Exception as exc:notice_error(exc)
-        if editable:
-            ca,cb=st.columns(2)
-            identity=key+':'+str(selected['id'])
-            if ca.button('✏️ Editar registro',key='edit_'+identity,use_container_width=True):
-                try:
-                    repo._access(table,selected,write=True)
-                    if table=='checklists':module='Checklist';factory=checklist_data
-                    elif table=='rendimientos':module='Rendimientos';factory=rend_data
-                    elif table=='incidencias':module='Incidencias';factory=incident_data
-                    else:
-                        master=is_master_book(selected)
-                        module='Libro maestro' if master else 'Libro oficial'
-                        factory=maestro_data if master else official_data
-                    begin_editor(module,repo.user,factory(selected),selected)
-                    st.session_state['_next_route']=module;st.rerun()
-                except Exception as exc:notice_error(exc)
-            with cb.popover('🗑️ Eliminar registro',use_container_width=True):
-                st.warning('Esta acción no se puede deshacer.')
-                if st.button('Confirmar eliminación',key='delete_'+identity):
-                    try:repo.delete(table,selected);st.session_state['_flash']='Registro eliminado.';st.rerun()
+        if selected:
+            selected_record=r
+            with st.container(border=True):
+                st.markdown('#### '+html_escape(record_title(table,selected_record)))
+                st.caption(display_date(record_date(table,selected_record),True)+' · '+record_building(table,selected_record))
+                show_record(table,selected_record)
+                if table=='inspecciones' and is_master_book(selected_record):
+                    try:
+                        document=cached_master_planilla_pdf(json_text(selected_record))
+                        safe_project=re.sub(r'[^A-Za-z0-9_-]+','_',str(selected_record.get('proyecto') or 'Edificio'))[:42]
+                        st.download_button('⬇️ Descargar avance del Maestro — PDF (formato planilla)',
+                            data=document,
+                            file_name=f'Planilla_Avance_{safe_project}_{str(selected_record.get("fecha") or "")[:10]}.pdf',
+                            mime='application/pdf',
+                            key='v188_master_plan_pdf_'+key+'_'+str(selected_record.get('id')),
+                            on_click='ignore',use_container_width=True)
                     except Exception as exc:notice_error(exc)
+                if table=='inspecciones' and not is_master_book(selected_record):
+                    friendly=re.sub(r'[^A-Za-z0-9_-]+','_',str(selected_record.get('proyecto') or 'Edificio'))
+                    try:
+                        file_data=v18_cached_official_excel(json_text(selected_record))
+                        st.download_button('⬇️ Descargar Libro de Obra — Excel oficial',
+                            data=file_data,
+                            file_name=f"Libro_Obra_{friendly}_{str(selected_record.get('fecha'))[:10]}.xlsx",
+                            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            key='v18_official_direct_'+key+'_'+str(selected_record.get('id')),
+                            on_click='ignore',use_container_width=True)
+                    except Exception as exc:notice_error(exc)
+                if editable:
+                    ca,cb=st.columns(2)
+                    identity=key+':'+str(selected_record['id'])
+                    if ca.button('✏️ Editar registro',key='edit_'+identity,use_container_width=True):
+                        try:
+                            repo._access(table,selected_record,write=True)
+                            if table=='checklists':module='Checklist';factory=checklist_data
+                            elif table=='rendimientos':module='Rendimientos';factory=rend_data
+                            elif table=='incidencias':module='Incidencias';factory=incident_data
+                            else:
+                                master=is_master_book(selected_record)
+                                module='Libro maestro' if master else 'Libro oficial'
+                                factory=maestro_data if master else official_data
+                            begin_editor(module,repo.user,factory(selected_record),selected_record)
+                            st.session_state['_next_route']=module;st.rerun()
+                        except Exception as exc:notice_error(exc)
+                    with cb.popover('🗑️ Eliminar registro',use_container_width=True):
+                        st.warning('Esta acción no se puede deshacer.')
+                        if st.button('Confirmar eliminación',key='delete_'+identity):
+                            try:repo.delete(table,selected_record);st.session_state['_flash']='Registro eliminado.';st.rerun()
+                            except Exception as exc:notice_error(exc)
 
 
 def read_worker_file(upload,default_building,allowed_buildings):
@@ -6637,6 +6768,7 @@ def main():
     st.markdown(APP_CSS_V17,unsafe_allow_html=True)
     st.markdown(APP_CSS_V18,unsafe_allow_html=True)
     st.markdown(APP_CSS_V19,unsafe_allow_html=True)
+    st.markdown(APP_CSS_V20,unsafe_allow_html=True)
     try:
         actual_theme=st.context.theme.type
     except (AttributeError,RuntimeError,KeyError):
