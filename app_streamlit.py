@@ -41,7 +41,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.10-v10-premium"
+APP_VERSION = "2026.10.10-v11-dashboard"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -418,6 +418,96 @@ html { scroll-behavior:smooth; }
 .stApp [class*="st-key-v10_open_yield_"] button p,
 .stApp [class*="st-key-v10_open_yield_"] button span {color:var(--ab-strong)!important;font-size:.83rem!important;font-weight:790!important;}
 
+
+/* V11: Especificidad alta: no heredar color oscuro dentro del hero */
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero,
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-hero-title,
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-hero-title span,
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-overview-value,
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-overview-card .ab-status-line span:first-child {
+ color:#ffffff!important;
+}
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-overview-label,
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-overview-label span,
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-overview-sub,
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-hero-desc {
+ color:#e0ebff!important;
+}
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-hero-kicker {color:#9fc5ff!important;}
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-status-pill.ab-status-ok {color:#a6ffd7!important;}
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-status-pill.ab-status-wait {color:#ffe5a8!important;}
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-hero-date,
+.stApp [data-testid="stMainBlockContainer"] section.ab-hero .ab-hero-tags span {color:#f2f6ff!important;}
+/* Menos margen superior y hero realmente compacto */
+.stApp .block-container {padding-top:1.35rem!important;padding-bottom:1rem!important;}
+.stApp [data-testid="stMainBlockContainer"] {padding-top:1.1rem!important;}
+.ab-hero {padding:15px 19px!important; margin:0 0 11px!important;border-radius:18px!important;}
+.ab-hero-title {font-size:1.15rem!important;}
+.ab-hero-tags {margin-top:7px!important;}
+.ab-overview-grid {gap:9px!important;margin:10px 0 0!important;}
+.ab-overview-card {padding:10px 12px!important;border-radius:13px!important;}
+.ab-overview-label {margin-bottom:5px!important;}
+.ab-overview-value {font-size:1.36rem!important;}
+.ab-hero-top {gap:7px!important;}
+/* Sidebar compacta, logo reducido, fotografía destacada */
+.stApp [data-testid="stSidebar"] .sidebar-logo-card {max-width:188px!important; margin:3px auto 8px!important;padding:5px!important;}
+.stApp [data-testid="stSidebar"] [data-testid="stImage"] img {
+ width:100%!important;height:196px!important;max-height:196px!important;
+ object-fit:cover!important;object-position:center top!important;
+ border:3px solid #94b7ff!important;border-radius:18px!important;
+}
+.stApp [data-testid="stSidebar"] .sidebar-profile-box {padding:9px 8px!important;margin:7px 0 8px!important;}
+.stApp [data-testid="stSidebar"] .stButton button[kind="secondary"] {
+ background:#172949!important;color:#fff!important;border:1px solid #486188!important;
+ box-shadow:none!important;
+}
+.stApp [data-testid="stSidebar"] .stButton button[kind="secondary"] p {color:white!important;}
+/* Navegación de app por módulos, sin radio buttons ni contenido duplicado */
+.stApp [data-testid="stSegmentedControl"] {margin:0 0 4px!important;}
+.stApp [data-testid="stSegmentedControl"] > div {max-width:100%!important;}
+.stApp [data-testid="stSegmentedControl"] label {
+ border-radius:11px!important;border-color:var(--ab-outline)!important;
+ font-size:.81rem!important;font-weight:760!important;cursor:pointer!important;
+}
+.stApp [data-testid="stSegmentedControl"] label:has(input:checked) {
+ background:var(--ab-chip)!important;border-color:var(--ab-primary)!important;
+}
+.ab-module-tabs{margin:6px 0 11px;padding:7px 11px;border:1px solid var(--ab-outline);
+ border-radius:15px;background:var(--ab-surface);box-shadow:var(--ab-shadow);}
+.ab-module-tabs-title{font-size:.67rem;color:var(--ab-muted)!important;text-transform:uppercase;font-weight:850;letter-spacing:.1em;}
+.ab-welcome{border:1px solid var(--ab-outline);background:linear-gradient(110deg,var(--ab-surface),var(--ab-surface-soft));
+ border-radius:16px;padding:15px 18px;margin:9px 0 15px;box-shadow:var(--ab-shadow);}
+.ab-welcome h3{margin:0 0 4px!important;color:var(--ab-strong)!important;font-size:1.18rem!important;}
+.ab-welcome p{color:var(--ab-muted)!important;margin:0;font-size:.8rem;}
+.ab-section-mini{margin:7px 0 12px;font-size:.75rem;font-weight:800;color:var(--ab-muted)!important;}
+.ab-record-table-wrap{overflow-x:auto;max-width:100%;border:1px solid var(--ab-outline);border-radius:14px;
+ background:var(--ab-surface);box-shadow:var(--ab-shadow);margin:8px 0 13px;}
+.ab-record-table{border-collapse:collapse;width:100%;font-size:.82rem;color:var(--ab-ink);table-layout:auto;}
+.ab-record-table th{background:var(--ab-surface-soft-2);color:var(--ab-strong)!important;
+ text-align:left;font-size:.71rem;letter-spacing:.025em;font-weight:850;padding:11px 12px;
+ border-bottom:2px solid var(--ab-outline);white-space:nowrap;}
+.ab-record-table td{padding:10px 12px;border-top:1px solid var(--ab-outline);
+ vertical-align:top;color:var(--ab-ink)!important;overflow-wrap:anywhere;min-width:80px;max-width:480px;white-space:pre-wrap;}
+.ab-record-table tr:nth-child(even) td{background:var(--ab-surface-soft)!important;}
+.ab-record-table tbody tr:hover td{background:var(--ab-surface-soft-2)!important;}
+.ab-record-table td.ab-table-primary{font-weight:770;color:var(--ab-strong)!important;}
+.ab-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:9px;margin:8px 0 13px;}
+.ab-detail-cell{background:var(--ab-surface);border:1px solid var(--ab-outline);border-radius:12px;padding:10px 12px;min-width:0;}
+.ab-detail-label{font-size:.66rem!important;color:var(--ab-muted)!important;font-weight:800;text-transform:uppercase;letter-spacing:.04em;}
+.ab-detail-value{font-size:.87rem!important;color:var(--ab-strong)!important;font-weight:750;margin-top:5px;overflow-wrap:anywhere;}
+.ab-screen-tile{margin:3px 0 9px!important;}
+.ab-screen-tile .stButton button{min-height:3.5rem!important;}
+.stApp [data-testid="stDataFrame"] {box-shadow:var(--ab-shadow)!important;}
+@media(max-width:650px){
+ .stApp .block-container{padding-top:.9rem!important;padding-left:.58rem!important;padding-right:.58rem!important;}
+ .ab-hero{padding:12px!important;border-radius:14px!important;}
+ .ab-hero-title{font-size:1.06rem!important;}
+ .ab-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;}
+ .ab-overview-card{padding:9px!important;}
+ .ab-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+ .ab-record-table th,.ab-record-table td{padding:8px 9px;}
+}
+
 </style>
 """
 
@@ -477,7 +567,7 @@ def record_note(table, record):
         return f"{record.get('estado') or 'Abierta'} · {record.get('responsable') or 'Sin responsable'}"
     if table=='trabajadores':
         return str(record.get('cargo') or 'Cargo sin registrar')
-    return f"{record.get('usuario_email') or 'Responsable no indicado'}"
+    return str(record.get("residente") or record.get("responsable") or "Abrir ficha para consultar")
 
 
 def day_heading(day, count):
@@ -1675,10 +1765,14 @@ def render_rend(editor,repo):
     with b:editor.field("checkbox","almuerzo","Almuerzo: descontar 1 hora",False)
     st.caption("La duración calculada es el tiempo efectivo de la cuadrilla. Las HH suman las horas de todos los trabajadores. Los avances de cada periodo son cantidades adicionales, no acumulados.")
     st.subheader("Avances y fotografías")
-    for period,label in [("manana","Mañana"),("mediodia","Mediodía"),("tarde","Tarde")]:
-        with st.expander(label,expanded=True):
-            editor.field("number_input","avance_"+period,"Avance de "+label.lower(),0.0,min_value=0.0,step=0.01,format="%.2f")
-            editor.photos(("fotos_"+period,),"Fotografías de "+label.lower())
+    selected_period=st.segmented_control('Periodo del avance', ['🌤️ Mañana','☀️ Mediodía','🌇 Tarde'],
+        default='🌤️ Mañana',key=editor.prefix+'period_view') or '🌤️ Mañana'
+    period,label={'🌤️ Mañana':('manana','Mañana'),'☀️ Mediodía':('mediodia','Mediodía'),
+                  '🌇 Tarde':('tarde','Tarde')}[selected_period]
+    with st.container(border=True):
+        editor.field('number_input','avance_'+period,'Avance de '+label.lower(),0.0,
+                     min_value=0.0,step=0.01,format='%.2f')
+        editor.photos(('fotos_'+period,),'Fotografías de '+label.lower())
     editor.field("text_area","comentarios","Comentarios","")
     error=None;hours=hh=advance=0.0
     workers=[copy.deepcopy(v) for v in d["trabajadores"].values() if v.get("nombre", "").strip()]
@@ -1972,92 +2066,122 @@ def export_controls(table,records,key):
             st.download_button("Descargar informe",artifact["content"],file_name=f"Alpha_{table}_{now_ec():%Y%m%d}.{artifact['ext']}",mime=artifact["mime"],key="download_"+key)
 
 
+def styled_detail_table(headers, rows):
+    """Tabla responsiva y escapada para lectura, con cabeceras y filas alternadas."""
+    if not rows:
+        st.caption('No hay filas disponibles en esta sección.')
+        return
+    if len(rows)>180:
+        st.dataframe(pd.DataFrame([[text_value(v) for v in r] for r in rows],columns=headers),
+                     hide_index=True,use_container_width=True)
+        return
+    head=''.join('<th scope="col">'+html_escape(str(h))+'</th>' for h in headers)
+    body=[]
+    for row in rows:
+        cells=[]
+        for index,value in enumerate(row):
+            value_text=text_value(value)
+            cells.append('<td'+(' class="ab-table-primary"' if index==0 else '')+'>'+html_escape(value_text)+'</td>')
+        body.append('<tr>'+''.join(cells)+'</tr>')
+    st.markdown('<div class="ab-record-table-wrap"><table class="ab-record-table">'
+                '<thead><tr>'+head+'</tr></thead><tbody>'+''.join(body)+'</tbody>'
+                '</table></div>',unsafe_allow_html=True)
+
+
 def show_record(table,record):
+    """Un solo bloque visible por ficha, evitando tablas/fotos interminables."""
     meta,sections,photos=sections_for(table,record)
-    st.dataframe(pd.DataFrame([[k,text_value(v)] for k,v in meta],columns=["Campo","Valor"]),hide_index=True,use_container_width=True)
-    for title,headers,rows in sections:
-        if rows:
-            st.markdown("**"+title+"**")
-            st.dataframe(pd.DataFrame([[text_value(v) for v in row] for row in rows],columns=headers),hide_index=True,use_container_width=True)
-    for title,photo in photos:
-        stream=image_stream(photo)
-        if stream:st.image(stream,caption=title,width=320)
+    sections=[(title,heads,rows) for title,heads,rows in sections if rows]
+    choices=['🧾 Información general']+[title for title,_,_ in sections]
+    if photos:
+        choices.append('📷 Fotografías')
+    unique='v11_record_section_'+table+'_'+str(record.get('id') or 'sin-id')
+    selected=st.selectbox('Contenido del registro',choices,key=unique)
+    if selected=='🧾 Información general':
+        cells=[]
+        for label,value in meta:
+            cells.append('<div class="ab-detail-cell"><div class="ab-detail-label">'+html_escape(str(label))+
+                         '</div><div class="ab-detail-value">'+html_escape(text_value(value))+'</div></div>')
+        st.markdown('<div class="ab-detail-grid">'+''.join(cells)+'</div>',unsafe_allow_html=True)
+    elif selected=='📷 Fotografías':
+        st.caption(str(len(photos))+' fotografías adjuntas')
+        for i,(title,photo) in enumerate(photos):
+            stream=image_stream(photo)
+            if stream:st.image(stream,caption=title,width=380)
+    else:
+        section=next(((title,headers,rows) for title,headers,rows in sections if title==selected),None)
+        if section:
+            _,headers,rows=section
+            styled_detail_table(headers,rows)
 
 
 def history(table, records, repo, key, editable=True):
-    """Archivo por edificio, mes y jornada. Sin IDs públicos ni clics redundantes."""
-    st.markdown('#### 📚 Historial de registros')
-    st.caption('Filtra por edificio y fecha. Abre una ficha para consultar sus datos y fotografías.')
+    """Navegación en tres pasos: filtros → seleccionar ficha → única sección visible."""
+    st.markdown('#### 📚 Consultar registros')
     if not records:
-        st.info('No hay registros todavía. Cuando se guarde el primer informe, aparecerá aquí.');return
+        st.info('Todavía no hay registros guardados en este módulo.');return
     counts=defaultdict(int)
-    for record in records:counts[record_building(table,record)]+=1
-    buildings=sorted(counts,key=lambda b:(b=='Sin Edificio Asignado',b.casefold()))
-    c1,c2=st.columns([1.5,1])
-    with c1:
-        building=st.selectbox('🏢 Edificio', ['Todos los edificios']+buildings,
-            format_func=lambda b:b if b=='Todos los edificios' else f'{b} · {counts[b]}', key='hist_build_'+key)
+    for rec in records:
+        counts[record_building(table,rec)]+=1
+    buildings=sorted(counts,key=lambda x:x.casefold())
+    a,b=st.columns([1.25,1])
+    with a:
+        building=st.selectbox('🏢 Edificio',['Todos los edificios']+buildings,
+           format_func=lambda x:x if x=='Todos los edificios' else f'{x} · {counts[x]}',key='hist_build_'+key)
     filtered=[r for r in records if building=='Todos los edificios' or record_building(table,r)==building]
     months=sorted({record_date(table,r)[:7] for r in filtered if len(record_date(table,r))>=7},reverse=True)
-    with c2:
-        month=st.selectbox('🗓️ Mes', ['Todos los meses']+months,
-            format_func=lambda m:display_month(m) if m!='Todos los meses' else m,key='hist_month_'+key)
-    if month!='Todos los meses':
-        filtered=[r for r in filtered if record_date(table,r).startswith(month)]
+    with b:
+        month=st.selectbox('🗓️ Mes',['Todos los meses']+months,
+            format_func=lambda x:display_month(x) if x!='Todos los meses' else x,key='hist_month_'+key)
+    if month!='Todos los meses':filtered=[r for r in filtered if record_date(table,r).startswith(month)]
     if table=='incidencias':
         status=st.segmented_control('Estado',['Todas','Abierta','Cerrada'],default='Todas',key='hist_status_'+key)
-        if status not in ('Todas',None):filtered=[r for r in filtered if r.get('estado')==status]
-    search=st.text_input('🔎 Buscar registros',placeholder='Rubro, responsable, actividad, edificio…',key='hist_search_'+key)
+        if status and status!='Todas':filtered=[r for r in filtered if r.get('estado')==status]
+    search=st.text_input('🔎 Buscar',placeholder='Actividad, responsable, rubro…',key='hist_search_'+key)
     if search.strip():
-        term=search.strip().casefold()
-        filtered=[r for r in filtered if term in ' '.join((record_building(table,r),record_title(table,r),record_note(table,r))).casefold()]
-    st.markdown('<p class="ab-record-eyebrow">'+str(len(filtered))+' registros encontrados · Más recientes primero</p>',unsafe_allow_html=True)
-    export_controls(table,filtered,'hist_export_'+key)
+        needle=search.strip().casefold()
+        filtered=[r for r in filtered if needle in ' '.join((record_building(table,r),record_title(table,r),record_note(table,r))).casefold()]
+    st.caption(f'{len(filtered)} registros encontrados. Selecciona uno para ver su ficha.')
+    with st.expander('📤 Exportar resultados filtrados',expanded=False):
+        export_controls(table,filtered,'hist_export_'+key)
     if not filtered:
-        st.info('No hay resultados para los filtros indicados.');return
+        st.info('No hay resultados con estos filtros.');return
     ordered=sorted(filtered,key=lambda r:(record_date(table,r),str(r.get('id') or '')),reverse=True)
-    visible=page_slice(ordered,'hist_block_'+key,10)
-    grouped=defaultdict(list)
-    for record in visible:grouped[record_building(table,record)].append(record)
-    for building_name, items in sorted(grouped.items(),key=lambda p:p[0].casefold()):
-        if building=='Todos los edificios' or len(grouped)>1:
-            st.markdown('##### 🏢 '+html_escape(building_name))
-        for day,day_records in grouped_records(items,table):
-            day_heading(day,len(day_records))
-            for record in day_records:
-                identifier=key+':'+str(record['id'])
-                title=record_title(table,record)
-                note=record_note(table,record)
-                open_key='_v10_hist_active_'+key
-                active=st.session_state.get(open_key)==identifier
-                if st.button(('▾  ' if active else '▸  ')+title+'  ·  '+note,
-                    key='v10_open_record_'+identifier,use_container_width=True):
-                    active=not active
-                    st.session_state[open_key]=identifier if active else None
-                if active:
-                    # El detalle pesado y las fotografías se generan SOLO al abrir una ficha.
-                    with st.container(border=True):
-                        show_record(table,record)
-                        if editable:
-                            ca,cb=st.columns([1,1])
-                            if ca.button('✏️ Editar',key='edit_'+identifier,use_container_width=True):
-                                try:
-                                    repo._access(table,record,write=True)
-                                    if table=='checklists':module='Checklist';factory=checklist_data
-                                    elif table=='rendimientos':module='Rendimientos';factory=rend_data
-                                    elif table=='incidencias':module='Incidencias';factory=incident_data
-                                    else:
-                                        master=is_master_book(record)
-                                        module='Libro maestro' if master else 'Libro oficial'
-                                        factory=maestro_data if master else official_data
-                                    begin_editor(module,repo.user,factory(record),record)
-                                    st.session_state['_next_route']=module;st.rerun()
-                                except Exception as exc:notice_error(exc)
-                            with cb.popover('🗑️ Eliminar registro',use_container_width=True):
-                                st.warning('Esta acción es permanente.')
-                                if st.button('Confirmar eliminación',key='delete_'+identifier):
-                                    try:repo.delete(table,record);st.session_state['_flash']='Registro eliminado.';st.rerun()
-                                    except Exception as exc:notice_error(exc)
+    records_per_page=15
+    visible=page_slice(ordered,'hist_block_'+key,records_per_page)
+    options=[None]+visible
+    selected=st.selectbox('Selecciona un registro',options,
+        format_func=lambda r:'Elige una ficha para ver su contenido' if r is None else
+          f"{display_date(record_date(table,r))} · {record_title(table,r)} · {record_building(table,r)}",
+        key='v11_selected_record_'+key)
+    if selected is None:
+        st.info('Elige un registro del selector para visualizar sus detalles y acciones.');return
+    with st.container(border=True):
+        st.markdown('#### '+html_escape(record_title(table,selected)))
+        st.caption(display_date(record_date(table,selected),True)+' · '+record_building(table,selected))
+        show_record(table,selected)
+        if editable:
+            ca,cb=st.columns(2)
+            identity=key+':'+str(selected['id'])
+            if ca.button('✏️ Editar esta ficha',key='edit_'+identity,use_container_width=True):
+                try:
+                    repo._access(table,selected,write=True)
+                    if table=='checklists':module='Checklist';factory=checklist_data
+                    elif table=='rendimientos':module='Rendimientos';factory=rend_data
+                    elif table=='incidencias':module='Incidencias';factory=incident_data
+                    else:
+                        master=is_master_book(selected)
+                        module='Libro maestro' if master else 'Libro oficial'
+                        factory=maestro_data if master else official_data
+                    begin_editor(module,repo.user,factory(selected),selected)
+                    st.session_state['_next_route']=module
+                    st.rerun()
+                except Exception as exc:notice_error(exc)
+            with cb.popover('🗑️ Eliminar ficha',use_container_width=True):
+                st.warning('Esta acción es irreversible.')
+                if st.button('Confirmar eliminación',key='delete_'+identity):
+                    try:repo.delete(table,selected);st.session_state['_flash']='Registro eliminado.';st.rerun()
+                    except Exception as exc:notice_error(exc)
 
 
 def read_worker_file(upload,default_building,allowed_buildings):
@@ -2154,8 +2278,19 @@ def personal_module(repo):
     c1.metric('Personal registrado',len(current))
     c2.metric('Edificios en nómina',len({w.get('edificio') for w in shown if w.get('edificio')}))
     c3.metric('Pendientes de recuperar',len(pending))
-    area=st.segmented_control('Sección',['👥 Ver nómina','➕ Registrar','📥 Importar','✏️ Gestionar'],
-        default='👥 Nómina',key='v8_personal_section',label_visibility='collapsed') or '👥 Ver nómina'
+    area=st.segmented_control('Sección',['📌 Resumen','👥 Ver nómina','➕ Registrar','📥 Importar','✏️ Gestionar'],
+        default='📌 Resumen',key='v8_personal_section',label_visibility='collapsed') or '👥 Ver nómina'
+    if area=='📌 Resumen':
+        st.markdown('<div class="ab-welcome"><h3>Gestión de cuadrillas</h3>'
+                    '<p>Consulta el personal existente o elige una acción sin cargar toda la lista.</p></div>',
+                    unsafe_allow_html=True)
+        a,b,c=st.columns(3)
+        for col,caption,target in [(a,'👥 Consultar nómina','👥 Ver nómina'),
+                                   (b,'➕ Registrar trabajador','➕ Registrar'),
+                                   (c,'📥 Importar nómina','📥 Importar')]:
+            if col.button(caption,key='v11_personal_'+target,use_container_width=True):
+                st.session_state['v8_personal_section']=target;st.rerun()
+        return
     if area=='👥 Ver nómina':
         if pending:
             st.info(f'Encontramos {len(pending)} trabajador(es) en el respaldo de la versión anterior que aún no aparecen en la tabla actual. Se muestran junto a los demás, sin modificar tu base de datos.')
@@ -2407,7 +2542,10 @@ def password_change(repo,cookie):
 def admin_module(repo):
     if not repo.admin:raise PermissionError("Acceso reservado al administrador.")
     st.header("Panel administrador")
-    section=st.selectbox("Administrar",["Registros","Usuarios y permisos","Solicitudes","PIN de acceso","Revisión de migración"],key="admin_section")
+    section=st.selectbox("Administrar",["Resumen","Registros","Usuarios y permisos","Solicitudes","PIN de acceso","Revisión de migración"],key="admin_section")
+    if section=="Resumen":
+        st.info("Selecciona un apartado del administrador para consultar únicamente esa información.")
+        return
     if section=="Registros":
         table=st.selectbox("Tipo",["checklists","inspecciones","incidencias","rendimientos","trabajadores"],key="admin_table")
         records=repo.all(table)
@@ -2566,12 +2704,12 @@ def sidebar_original(repo, cookie):
             st.markdown("### 🏗️ Alpha Builders")
         photo = image_stream(user.get("foto_b64"))
         if photo:
-            s_left,s_photo,s_right=st.columns([1,2,1])
+            s_left,s_photo,s_right=st.columns([1,5,1])
             with s_photo:st.image(photo, use_container_width=True)
         else:
             profile_file = next((name for name in ("perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png") if os.path.isfile(name)), None)
             if profile_file:
-                s_left,s_photo,s_right=st.columns([1,2,1])
+                s_left,s_photo,s_right=st.columns([1,5,1])
                 with s_photo:st.image(profile_file, use_container_width=True)
         badges = "".join('<span class="edificio-tag-badge" style="margin:2px;">' + html_escape(str(b)) + '</span>' for b in (user.get("edificios") or []))
         if not badges:
@@ -2585,12 +2723,6 @@ def sidebar_original(repo, cookie):
             </div>''', unsafe_allow_html=True)
         if repo.admin:
             st.markdown('<div style="text-align:center;background:#111827;border:1px solid #374151;border-radius:6px;padding:4px;font-size:.7rem;font-weight:800;color:white">ADMINISTRADOR GENERAL</div>', unsafe_allow_html=True)
-        if st.button("⚙️ Mi cuenta y seguridad", key="sidebar_account", use_container_width=True):
-            st.session_state["_next_route"] = "Mi cuenta"
-            st.rerun()
-        if st.button("🔄 Actualizar información", key="sidebar_refresh", use_container_width=True):
-            invalidate()
-            st.rerun()
         if st.button("Cerrar Sesión", key="sidebar_logout", use_container_width=True):
             logout(cookie)
         st.caption(APP_VERSION)
@@ -2630,58 +2762,69 @@ def open_lazy_tabs(labels, key):
 
 
 def history_rend_by_building(records, repo):
-    """Panel de rendimientos con KPIs y fichas abiertas en un único clic."""
+    """Resumen con una tabla ligera; abrir una única ficha bajo demanda."""
     st.markdown('#### 📊 Rendimientos por edificio')
-    st.caption('Resultados organizados por fecha. Cada ficha contiene cálculos, fotografías y acciones.')
     if not records:
-        st.info('Todavía no hay rendimientos. Se organizarán por edificio y fecha cuando registres el primero.');return
+        st.info('No hay rendimientos registrados todavía.');return
     by_build=defaultdict(list)
-    for record in records:by_build[record_building('rendimientos',record)].append(record)
-    buildings=sorted(by_build,key=lambda x:(x=='Sin Edificio Asignado',x.casefold()))
-    p1,p2,p3=st.columns(3)
-    p1.metric('Edificios',len(buildings));p2.metric('Registros',len(records))
-    p3.metric('Con horas-hombre',sum(rendimiento_values(r)['hh'] is not None for r in records))
+    for rec in records:by_build[record_building('rendimientos',rec)].append(rec)
+    buildings=sorted(by_build,key=lambda x:x.casefold())
     a,b=st.columns([1.5,1])
-    with a:building=st.selectbox('🏢 Edificio',['Todos los edificios']+buildings,
-        format_func=lambda x:x if x=='Todos los edificios' else f'{x} · {len(by_build[x])}',key='v8_rend_building')
+    with a:
+        building=st.selectbox('🏢 Edificio',['Todos los edificios']+buildings,
+            format_func=lambda x:x if x=='Todos los edificios' else f'{x} · {len(by_build[x])}',key='v8_rend_building')
     filtered=records if building=='Todos los edificios' else by_build[building]
     months=sorted({record_date('rendimientos',r)[:7] for r in filtered if len(record_date('rendimientos',r))>=7},reverse=True)
-    with b:month=st.selectbox('🗓️ Mes',['Todos los meses']+months,
-        format_func=lambda x:display_month(x) if x!='Todos los meses' else x,key='v8_rend_month')
+    with b:
+        month=st.selectbox('🗓️ Mes',['Todos los meses']+months,
+            format_func=lambda x:display_month(x) if x!='Todos los meses' else x,key='v8_rend_month')
     filtered=[r for r in filtered if month=='Todos los meses' or record_date('rendimientos',r).startswith(month)]
-    search=st.text_input('🔎 Buscar rubro o trabajador',placeholder='Enlucidos, piso 2, nombre…',key='v8_rend_search')
+    search=st.text_input('🔎 Buscar rubro o trabajador',placeholder='Rubro, piso, trabajador…',key='v8_rend_search')
     if search.strip():
         needle=search.strip().casefold()
-        filtered=[r for r in filtered if needle in ' '.join((record_title('rendimientos',r),
-            record_building('rendimientos',r),str(r.get('trabajador') or ''))).casefold()]
-    st.markdown('<p class="ab-record-eyebrow">'+str(len(filtered))+' registros · Pulsa en una tarjeta para ver su contenido</p>',unsafe_allow_html=True)
-    export_controls('rendimientos',filtered,'rend_general_v8')
+        filtered=[r for r in filtered if needle in ' '.join((record_title('rendimientos',r),record_building('rendimientos',r),str(r.get('trabajador') or ''))).casefold()]
+    st.caption(f'{len(filtered)} registros · Puedes consultar uno sin desplegar los demás')
+    with st.expander('📤 Exportar rendimientos',expanded=False):
+        export_controls('rendimientos',filtered,'rend_general_v8')
+        if building!='Todos los edificios':
+            export_controls('rendimientos',by_build[building],'rend_build_v11_'+hashlib.md5(building.encode()).hexdigest()[:9])
     if not filtered:
         st.info('No encontramos registros para esos filtros.');return
     ordered=sorted(filtered,key=lambda r:(record_date('rendimientos',r),str(r.get('id') or '')),reverse=True)
-    visible=page_slice(ordered,'rend_v8_block',10)
-    groups=defaultdict(list)
-    for item in visible:groups[record_building('rendimientos',item)].append(item)
-    for building_name,items in sorted(groups.items(),key=lambda x:x[0].casefold()):
-        st.markdown('##### 🏢 '+html_escape(building_name))
-        if building!='Todos los edificios':
-            export_controls('rendimientos',by_build[building_name],'rend_build_v8_'+hashlib.md5(building_name.encode()).hexdigest()[:9])
-        for day,day_records in grouped_records(items,'rendimientos'):
-            day_heading(day,len(day_records))
-            for record in day_records:
-                result=rendimiento_values(record)
-                unit=str(record.get('unidad') or '')
-                with st.container(border=True):
-                    title=record_title('rendimientos',record)
-                    st.markdown('<div class="ab-record-summary"><div class="ab-record-summary-title">📐 '+html_escape(title)+'</div>'
-                        '<div class="ab-record-summary-sub">'+html_escape(display_date(record_date('rendimientos',record),True))
-                        +' · '+html_escape(building_name)+'</div></div>',unsafe_allow_html=True)
-                    c1,c2,c3=st.columns(3)
-                    c1.metric('Avance',f"{result['avance']:.2f} {unit}")
-                    c2.metric('Horas-hombre',f"{result['hh']:.2f} HH" if result['hh'] is not None else 'No verificadas')
-                    c3.metric('Productividad',f"{result['productividad']:.3f} {unit}/h" if result['productividad'] is not None else '—')
-                    # Un solo clic despliega el registro completo (sin "Mostrar contenido").
-                    record_actions('rendimientos',record,repo,'rend_view_'+str(record['id']))
+    visible=page_slice(ordered,'rend_v8_block',12)
+    rows=[]
+    for record in visible:
+        value=rendimiento_values(record)
+        rows.append([display_date(record_date('rendimientos',record)),record_building('rendimientos',record),
+            record.get('rubro') or 'Actividad',f"{value['avance']:.2f} {record.get('unidad') or ''}",
+            f"{value['hh']:.2f} HH" if value['hh'] is not None else 'No verificado',str(record.get('estado') or 'Sin meta')])
+    styled_detail_table(['Fecha','Edificio','Rubro','Avance','Horas-hombre','Estado'],rows)
+    selected=st.selectbox('Abrir ficha de rendimiento',[None]+visible,
+        format_func=lambda r:'Selecciona el registro que deseas consultar' if r is None else
+            f"{display_date(record_date('rendimientos',r))} · {record_title('rendimientos',r)} · {record_building('rendimientos',r)}",
+        key='v11_selected_yield')
+    if selected is None:
+        return
+    data=rendimiento_values(selected)
+    with st.container(border=True):
+        st.markdown('#### '+html_escape(record_title('rendimientos',selected)))
+        c1,c2,c3=st.columns(3)
+        c1.metric('Avance',f"{data['avance']:.2f} {selected.get('unidad') or ''}")
+        c2.metric('Horas-hombre',f"{data['hh']:.2f} HH" if data['hh'] is not None else 'Sin verificar')
+        c3.metric('Productividad',f"{data['productividad']:.3f} {selected.get('unidad') or ''}/h" if data['productividad'] is not None else '—')
+        show_record('rendimientos',selected)
+        a,b=st.columns(2)
+        if a.button('✏️ Editar rendimiento',key='v11_edit_yield_'+str(selected['id']),use_container_width=True):
+            try:
+                repo._access('rendimientos',selected,write=True)
+                begin_editor('Rendimientos',repo.user,rend_data(selected),selected)
+                st.session_state['_next_route']='Rendimientos';st.rerun()
+            except Exception as exc:notice_error(exc)
+        with b.popover('🗑️ Eliminar rendimiento',use_container_width=True):
+            st.warning('Esta acción es irreversible.')
+            if st.button('Confirmar eliminación',key='v11_delete_yield_'+str(selected['id'])):
+                try:repo.delete('rendimientos',selected);st.session_state['_flash']='Registro eliminado.';st.rerun()
+                except Exception as exc:notice_error(exc)
 
 
 def record_actions(table, record, repo, key, editable=True):
@@ -2750,7 +2893,7 @@ def incidencias_original_matrix(records, repo):
             '<td style="color:' + status_color + ';font-weight:800">' + html_escape(status) + '</td></tr>'
         )
     st.markdown(
-        '<div style="overflow-x:auto"><table class="incidencias-table"><thead><tr>'
+        '<div class="ab-record-table-wrap"><table class="ab-record-table"><thead><tr>'
         '<th class="center">N°</th><th>Área / Edificio</th><th>Descripción</th><th>Responsable</th>'
         '<th>Prioridad</th><th class="center">Fecha Comp.</th><th>Estado</th>'
         '</tr></thead><tbody>' + "".join(content) + '</tbody></table></div>', unsafe_allow_html=True
@@ -2774,58 +2917,78 @@ def incidencias_original_matrix(records, repo):
 
 
 def module_original(label, repo):
-    """Restaura la distribución de los formularios originales, sin perder repositorio seguro."""
+    """Un módulo = una vista. Resumen, registro e historial nunca se dibujan juntos."""
     spec = {
-        "Checklist": ("checklists", "Checklist", checklist_data, render_checklist, "### Checklist – Control de Obra", "Supervisión técnica y control de ejecución diaria en obra.", "➕ Crear Nueva Jornada de Inspección"),
-        "Libro de Obra": ("inspecciones", "Libro oficial", official_data, render_official, "### Libro de Obra – Formato Oficial", "Estructura técnica de control diario y sincronización con Checklist.", "➕ Llenar Libro de Obra"),
-        "Libro de Obra Maestro": ("inspecciones", "Libro maestro", maestro_data, render_maestro, "### Libro de Obra – Maestro Mayor", "Registro diario de actividades, cuadrillas y metrajes ejecutados en obra.", "➕ Llenar Libro de Obra Maestro"),
-        "Levantamiento de Incidencias": ("incidencias", "Incidencias", incident_data, render_incident, "### Levantamiento de Incidencias", "Registro y seguimiento técnico de novedades en obra.", "➕ Registrar Incidencia"),
-        "Control de Rendimiento": ("rendimientos", "Rendimientos", rend_data, render_rend, "### Control de Rendimiento por Personal", "Registro de trabajadores, edificios, rubros y horas, con cálculo automático y fotografías.", "➕ Registrar Rendimiento"),
+        'Checklist':('checklists','Checklist',checklist_data,render_checklist,'Checklist de obra','Verificaciones y supervisión diaria','Nueva jornada'),
+        'Libro de Obra':('inspecciones','Libro oficial',official_data,render_official,'Libro de obra oficial','Registro técnico de la jornada','Nuevo libro de obra'),
+        'Libro de Obra Maestro':('inspecciones','Libro maestro',maestro_data,render_maestro,'Libro de obra maestro','Cuadrillas, actividades y avances ejecutados','Nuevo libro maestro'),
+        'Levantamiento de Incidencias':('incidencias','Incidencias',incident_data,render_incident,'Incidencias de obra','Registro y seguimiento de novedades','Nueva incidencia'),
+        'Control de Rendimiento':('rendimientos','Rendimientos',rend_data,render_rend,'Control de rendimientos','Avances y productividad del personal','Nuevo rendimiento'),
     }
-    table, module, factory, renderer, header, caption, button = spec[label]
-    page_heading("Control de obra",re.sub(r"^#+\s*", "", header),caption)
-    editor = st.session_state.get("_editors", {}).get(module)
-    if editor:
-        selected = editor_picker(module, repo.user, factory)
+    table,module,factory,renderer,title,subtitle,button=spec[label]
+    page_heading('Control de obra',title,subtitle)
+    selection_key='v11_mode_'+module.replace(' ','_')
+    editor_active=bool(st.session_state.get('_editors',{}).get(module))
+    options=['📌 Resumen','➕ Registrar','📚 Consultar']
+    if editor_active:
+        # La edición activa tiene prioridad sobre las consultas.
+        if st.session_state.get(selection_key)!='➕ Registrar':
+            st.session_state[selection_key]='➕ Registrar'
+    choice=st.segmented_control('Vista de este módulo',options,default='📌 Resumen',key=selection_key,
+                                 label_visibility='collapsed') or '📌 Resumen'
+    if choice=='📌 Resumen':
+        st.markdown('<div class="ab-welcome"><h3>¿Qué deseas hacer?</h3>'
+                    '<p>Elige una acción. Los formularios y los registros solo se cargarán cuando los abras.</p></div>',
+                    unsafe_allow_html=True)
+        a,b=st.columns(2)
+        if a.button('➕ '+button,key='v11_quick_new_'+module,use_container_width=True,type='primary'):
+            st.session_state[selection_key]='➕ Registrar';st.rerun()
+        if b.button('📚 Consultar historial',key='v11_quick_history_'+module,use_container_width=True):
+            st.session_state[selection_key]='📚 Consultar';st.rerun()
+        st.caption('Los registros existentes y los borradores no se modifican al cambiar de vista.')
+        return
+    if choice=='➕ Registrar':
+        editor=st.session_state.get('_editors',{}).get(module)
+        if editor:
+            selected=editor_picker(module,repo.user,factory)
+        else:
+            st.caption('Abre el formulario para comenzar. Se conserva un borrador si sales antes de guardar.')
+            if st.button('➕ '+button,type='primary',key='original_new_'+module):
+                begin_editor(module,repo.user,factory())
+                rerun_selected_module()
+            drafts=cached_rows('alpha_drafts',(('usuario_email',repo.email),('modulo',module)),
+                columns='slot,revision,updated_at',order='updated_at')
+            if drafts:
+                with st.expander(f'📁 Recuperar borradores ({len(drafts)})',expanded=False):
+                    choices={f"Borrador {i+1} · {r['updated_at'][:16]}":r for i,r in enumerate(reversed(drafts))}
+                    selected_name=st.selectbox('Selecciona borrador',list(choices),key='restore_choice_'+module)
+                    if st.button('Continuar borrador',key='restore_button_'+module):
+                        draft=choices[selected_name]
+                        recovered=all_rows('alpha_drafts',filters={'usuario_email':repo.email,'modulo':module,'slot':draft['slot']},
+                                           columns='slot,datos,revision')
+                        if recovered:
+                            row=recovered[0]
+                            st.session_state.setdefault('_editors',{})[module]={'slot':row['slot'],'data':row['datos'],'revision':row['revision']}
+                            rerun_selected_module()
+                        else:st.warning('El borrador ya no existe.')
+            selected=None
+        if selected:
+            st.markdown('#### ✏️ Editando un registro' if selected.data.get('_original') else '#### 📝 Nuevo registro')
+            renderer(selected,repo)
+        return
+    # Consulta diferida: las fotos, las secciones y la tabla se procesan solo bajo demanda.
+    records=repo.shared(table) if table=='incidencias' else repo.own(table)
+    if table=='inspecciones':
+        records=[r for r in records if is_master_book(r)==(module=='Libro maestro')]
+    if table=='rendimientos':
+        history_rend_by_building(records,repo)
+    elif table=='incidencias':
+        section=st.segmented_control('Presentación de incidencias',['📁 Fichas','📊 Matriz'],
+            default='📁 Fichas',key='v11_incidents_view') or '📁 Fichas'
+        if section=='📊 Matriz':incidencias_original_matrix(records,repo)
+        else:history(table,records,repo,'original_'+module)
     else:
-        st.caption("Presione el botón para abrir el formulario. Al guardar se cerrará automáticamente, y el borrador se conserva si sale sin terminar.")
-        # Conservar botones originales, incluyendo recuperación explícita de borradores.
-        if st.button(button, type="primary", key="original_new_" + module):
-            begin_editor(module, repo.user, factory())
-            rerun_selected_module()
-        drafts = cached_rows("alpha_drafts", (("usuario_email", repo.email), ("modulo", module)), columns="slot,revision,updated_at", order="updated_at")
-        if drafts:
-            with st.expander(f"📁 Recuperar mis borradores ({len(drafts)})", expanded=False):
-                choices = {f"Borrador {i+1} · {r['updated_at'][:16]}": r for i,r in enumerate(reversed(drafts))}
-                selected_name = st.selectbox("Seleccione un borrador", list(choices), key="restore_choice_" + module)
-                if st.button("Continuar borrador", key="restore_button_" + module):
-                    draft = choices[selected_name]
-                    recovered = all_rows("alpha_drafts", filters={"usuario_email": repo.email, "modulo": module, "slot": draft["slot"]}, columns="slot,datos,revision")
-                    if recovered:
-                        row = recovered[0]
-                        st.session_state.setdefault("_editors", {})[module] = {"slot": row["slot"], "data": row["datos"], "revision": row["revision"]}
-                        rerun_selected_module()
-                    else:
-                        st.warning("El borrador ya no existe. Actualice la página.")
-        selected = None
-    if selected:
-        st.divider()
-        st.markdown("**✏️ Edición de registro existente**" if selected.data.get("_original") else "**📝 Nuevo registro**")
-        renderer(selected, repo)
-        st.divider()
-    if table == "incidencias":
-        records = repo.shared(table)
-    else:
-        records = repo.own(table)
-    if table == "inspecciones":
-        records = [r for r in records if is_master_book(r) == (module == "Libro maestro")]
-    if table == "rendimientos":
-        history_rend_by_building(records, repo)
-    elif table == "incidencias":
-        incidencias_original_matrix(records, repo)
-        history(table, records, repo, "original_" + module)
-    else:
-        history(table, records, repo, "original_" + module)
+        history(table,records,repo,'original_'+module)
 
 
 # Los widgets dentro de este fragmento no reconstruyen el dashboard al cambiar.
@@ -2855,92 +3018,97 @@ def render_active_module(name, repo, cookie):
 
 
 def main():
-    for prefix in st.session_state.pop("_cleanup_prefixes", []):
+    for prefix in st.session_state.pop('_cleanup_prefixes',[]):
         for key in list(st.session_state):
-            if key.startswith(prefix):
-                del st.session_state[key]
-    st.set_page_config(page_title="Alpha Builders | Portal Ejecutivo", page_icon="🏗️", layout="wide", initial_sidebar_state="expanded")
-    st.markdown(APP_CSS, unsafe_allow_html=True)
-    st.markdown(APP_CSS_V10, unsafe_allow_html=True)
-    # Streamlit puede usar tema oscuro manual aunque Windows esté en modo claro.
-    # La preferencia del usuario prevalece sobre prefers-color-scheme.
+            if key.startswith(prefix):del st.session_state[key]
+    st.set_page_config(page_title='Alpha Builders | Portal Ejecutivo',page_icon='🏗️',layout='wide',initial_sidebar_state='expanded')
+    st.markdown(APP_CSS,unsafe_allow_html=True)
+    st.markdown(APP_CSS_V10,unsafe_allow_html=True)
     try:
-        actual_theme = st.context.theme.type
-    except (AttributeError, RuntimeError, KeyError):
-        actual_theme = None
-    if actual_theme in ("dark", "light"):
-        tokens = (
-            "--bg-app:#0f172a;--text-app:#f8fafc;--card-bg:#1e293b;"
-            "--card-border:#334155;--header-bg:#020617;--subtext:#94a3b8;"
-            "--hover-bg:#334155;--table-row-even:#1e293b;"
-            "--ab-surface:#1e293b;--ab-surface-soft:#162237;--ab-ink:#f2f6ff;"
-            "--ab-muted:#bbc7de;--ab-outline:#40516b;--ab-chip:#243b63;"
-            "--ab-chip-text:#c6d8ff;--ab-primary:#80a7ff;--ab-strong:#f8fbff;"
-            "--ab-outline-strong:#5b6f8c;--ab-surface-soft-2:#1b2d44;--ab-highlight:#9dbaff"
-        ) if actual_theme == "dark" else (
-            "--bg-app:#f8fafc;--text-app:#0f172a;--card-bg:#ffffff;"
-            "--card-border:#cbd5e1;--header-bg:#0f172a;--subtext:#64748b;"
-            "--hover-bg:#f1f5f9;--table-row-even:#f8fafc;"
-            "--ab-surface:#ffffff;--ab-surface-soft:#f5f8ff;--ab-ink:#17233b;"
-            "--ab-muted:#586781;--ab-outline:#dbe4f1;--ab-chip:#eaf1ff;"
-            "--ab-chip-text:#234a94;--ab-primary:#2459dc;--ab-strong:#0b1830;"
-            "--ab-outline-strong:#bbcbe3;--ab-surface-soft-2:#edf3fd;--ab-highlight:#3a6ce6"
+        actual_theme=st.context.theme.type
+    except (AttributeError,RuntimeError,KeyError):
+        actual_theme=None
+    if actual_theme in ('dark','light'):
+        tokens=(
+            '--bg-app:#0f172a;--text-app:#f8fafc;--card-bg:#1e293b;'
+            '--card-border:#334155;--header-bg:#020617;--subtext:#94a3b8;'
+            '--hover-bg:#334155;--table-row-even:#1e293b;'
+            '--ab-surface:#1e293b;--ab-surface-soft:#162237;--ab-ink:#f2f6ff;'
+            '--ab-muted:#bbc7de;--ab-outline:#40516b;--ab-chip:#243b63;'
+            '--ab-chip-text:#c6d8ff;--ab-primary:#80a7ff;--ab-strong:#f8fbff;'
+            '--ab-outline-strong:#5b6f8c;--ab-surface-soft-2:#1b2d44;--ab-highlight:#9dbaff'
+        ) if actual_theme=='dark' else (
+            '--bg-app:#f8fafc;--text-app:#0f172a;--card-bg:#ffffff;'
+            '--card-border:#cbd5e1;--header-bg:#0f172a;--subtext:#64748b;'
+            '--hover-bg:#e2e8f0;--table-row-even:#f8fafc;'
+            '--ab-surface:#ffffff;--ab-surface-soft:#f5f8ff;--ab-ink:#17233b;'
+            '--ab-muted:#586781;--ab-outline:#dbe4f1;--ab-chip:#eaf1ff;'
+            '--ab-chip-text:#234a94;--ab-primary:#2459dc;--ab-strong:#0b1830;'
+            '--ab-outline-strong:#bbcbe3;--ab-surface-soft-2:#edf3fd;--ab-highlight:#3a6ce6'
         )
-        st.markdown('<style>:root{' + tokens + '}</style>', unsafe_allow_html=True)
+        st.markdown('<style>:root{'+tokens+'}</style>',unsafe_allow_html=True)
     try:
-        if get_config("alpha_schema_version") != "5":
-            st.error("El esquema depurado v5 no está activado. No se intentará usar el sistema anterior.")
-            st.caption("Revise la migración y SUPABASE_SERVICE_ROLE_KEY / SESSION_SECRET en los secretos de Streamlit.")
+        if get_config('alpha_schema_version')!='5':
+            st.error('El esquema depurado v5 no está activado. No se intentará usar el sistema anterior.')
+            st.caption('Revise la migración y los secretos de Streamlit.')
             st.stop()
-        cookie = stx.CookieManager(key="alpha_cookie_" + str(st.session_state.get("_cookie_epoch", 0)))
-        user = auth_user(cookie)
+        cookie=stx.CookieManager(key='alpha_cookie_'+str(st.session_state.get('_cookie_epoch',0)))
+        user=auth_user(cookie)
         if user is None:
-            login_panel(cookie)
-            st.stop()
-        if st.session_state.get("_user_identity") != user["correo"]:
+            login_panel(cookie);st.stop()
+        if st.session_state.get('_user_identity')!=user['correo']:
             for key in list(st.session_state):
-                if key.startswith("edit:") or key.startswith("alpha_tabs_") or key.startswith("alpha_rend_edificios") or key.startswith("_v10_record_detail_") or key.startswith("_v10_hist_active_") or key in {"_editors", "_export_artifact", "_temporary_password", "_route"}:
+                if key.startswith(('edit:','alpha_tabs_','alpha_rend_edificios','_v10_record_detail_','_v10_hist_active_','v11_')) or key in {'_editors','_export_artifact','_temporary_password','_route'}:
                     del st.session_state[key]
-            st.session_state["_user_identity"] = user["correo"]
-        st.session_state.pop("_pending_cookie", None)
-        repo = Repository(user)
-        if user.get("must_change_password"):
-            st.warning("Debe cambiar su contraseña temporal antes de acceder al portal.")
-            password_change(repo, cookie)
-            st.stop()
-        sidebar_original(repo, cookie)
-        if st.session_state.get("_flash"):
-            st.success(st.session_state.pop("_flash"))
+            st.session_state['_user_identity']=user['correo']
+        st.session_state.pop('_pending_cookie',None)
+        repo=Repository(user)
+        if user.get('must_change_password'):
+            st.warning('Debe cambiar su contraseña temporal antes de acceder al portal.')
+            password_change(repo,cookie);st.stop()
+        sidebar_original(repo,cookie)
+        if st.session_state.get('_flash'):
+            st.success(st.session_state.pop('_flash'))
         dashboard(repo)
-        master = user.get("cargo") == "Maestro Mayor"
-        # El libro de obra maestro no aparece ni puede editarse desde cargo diferente.
-        visible = (["Libro de Obra Maestro", "Personal a Cargo", "Control de Rendimiento", "Colaborativo"]
-                   if master else ["Checklist", "Libro de Obra", "Personal a Cargo", "Levantamiento de Incidencias", "Control de Rendimiento", "Colaborativo"])
-        visible.append("Mi cuenta")
-        if repo.admin:
-            visible.append("Panel Admin")
-        labels = ["📋 " + x if x == "Checklist" else "🏗️ " + x if "Libro de Obra" in x else "👷 " + x if x == "Personal a Cargo" else "🚨 " + x if x == "Levantamiento de Incidencias" else "📊 " + x if x == "Control de Rendimiento" else "🤝 " + x if x == "Colaborativo" else "👤 " + x if x == "Mi cuenta" else "⚙️ " + x for x in visible]
-        role_key = "alpha_tabs_maestro" if master else "alpha_tabs_obra"
-        next_module = st.session_state.pop("_next_route", None)
-        next_map = {"Libro maestro": "Libro de Obra Maestro", "Libro oficial": "Libro de Obra", "Rendimientos": "Control de Rendimiento", "Incidencias": "Levantamiento de Incidencias", "Checklist": "Checklist"}
-        next_label = next_map.get(next_module, next_module)
+        master=user.get('cargo')=='Maestro Mayor'
+        visible=(['Libro de Obra Maestro','Personal a Cargo','Control de Rendimiento','Colaborativo']
+                 if master else ['Checklist','Libro de Obra','Personal a Cargo','Levantamiento de Incidencias','Control de Rendimiento','Colaborativo'])
+        visible=['Inicio']+visible+['Mi cuenta']
+        if repo.admin:visible.append('Panel Admin')
+        short={'Inicio':'🏠 Inicio','Checklist':'📋 Checklist','Libro de Obra':'🏗️ Libro de obra',
+               'Libro de Obra Maestro':'🏗️ Libro maestro','Personal a Cargo':'👷 Personal',
+               'Levantamiento de Incidencias':'🚨 Incidencias','Control de Rendimiento':'📊 Rendimientos',
+               'Colaborativo':'🤝 Colaborativo','Mi cuenta':'👤 Mi cuenta','Panel Admin':'⚙️ Admin'}
+        labels=[short[v] for v in visible]
+        route_key='v11_navigation_'+('master' if master else 'staff')+('_admin' if repo.admin else '')
+        next_module=st.session_state.pop('_next_route',None)
+        next_map={'Libro maestro':'Libro de Obra Maestro','Libro oficial':'Libro de Obra',
+                  'Rendimientos':'Control de Rendimiento','Incidencias':'Levantamiento de Incidencias','Checklist':'Checklist'}
+        next_label=next_map.get(next_module,next_module)
         if next_label in visible:
-            st.session_state[role_key] = labels[visible.index(next_label)]
-            st.session_state[role_key+"_legacy"] = labels[visible.index(next_label)]
-        tabs, lazy = open_lazy_tabs(labels, role_key)
-        for name, tab in zip(visible, tabs):
-            with tab:
-                if lazy and not tab.open:
-                    continue
-                render_active_module(name, repo, cookie)
+            st.session_state[route_key]=short[next_label]
+        st.markdown('<div class="ab-module-tabs-title">SELECCIONA UN MÓDULO</div>',unsafe_allow_html=True)
+        chosen=st.segmented_control('Navegación',labels,default=short['Inicio'],key=route_key,
+                                     label_visibility='collapsed') or short['Inicio']
+        active=visible[labels.index(chosen)]
+        if active=='Inicio':
+            st.markdown('<div class="ab-welcome"><h3>Centro de operaciones</h3>'
+                        '<p>Accede a un módulo sin cargar formularios, historiales ni fotografías innecesarias.</p></div>',
+                        unsafe_allow_html=True)
+            sections=[(m,short[m]) for m in visible if m not in ('Inicio','Mi cuenta','Panel Admin')]
+            for i in range(0,len(sections),3):
+                columns=st.columns(min(3,len(sections)-i))
+                for col,(module,label) in zip(columns,sections[i:i+3]):
+                    if col.button(label+'  →',key='v11_home_'+module,use_container_width=True):
+                        st.session_state[route_key]=short[module]
+                        st.rerun()
+            return
+        render_active_module(active,repo,cookie)
     except Exception as exc:
         notice_error(exc)
-        st.caption("No se interpretan errores de lectura como registros vacíos. Verifique conexión, configuración y permisos.")
-        if st.button("Reintentar conexión"):
-            invalidate()
-            st.rerun()
-
-
+        st.caption('No se interpretan errores de lectura como registros vacíos. Verifica conexión y permisos.')
+        if st.button('Reintentar conexión'):
+            invalidate();st.rerun()
 
 
 if __name__=="__main__":
