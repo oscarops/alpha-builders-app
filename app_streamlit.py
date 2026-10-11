@@ -41,7 +41,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.10-v8-interfaz"
+APP_VERSION = "2026.10.10-v10-premium"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -124,85 +124,303 @@ APP_CSS = '\n    <style>\n    @import url(\'https://fonts.googleapis.com/css2?fa
 
 # Estilos complementarios 2026.10: diseño adaptativo y contraste para ambos modos.
 # No modifica la lógica ni los componentes internos de Streamlit.
-APP_CSS_V8 = """
+APP_CSS_V10 = """
 <style>
 :root {
   --ab-primary:#2459dc; --ab-primary-deep:#153fa5; --ab-accent:#7c55ef;
-  --ab-surface:#ffffff; --ab-surface-soft:#f5f8ff;
-  --ab-ink:#17233b; --ab-muted:#586781;
-  --ab-outline:#dbe4f1; --ab-shadow:0 8px 28px rgba(31,54,101,.07);
-  --ab-chip:#eaf1ff; --ab-chip-text:#234a94;
+  --ab-surface:#ffffff; --ab-surface-soft:#f5f8ff; --ab-surface-soft-2:#eef4ff;
+  --ab-ink:#17233b; --ab-muted:#586781; --ab-strong:#0f172a;
+  --ab-outline:#dbe4f1; --ab-outline-strong:#c6d3e8; --ab-shadow:0 8px 28px rgba(31,54,101,.07);
+  --ab-chip:#eaf1ff; --ab-chip-text:#234a94; --ab-success:#0f9b6f; --ab-danger:#e84d6e;
 }
 @media (prefers-color-scheme:dark){
- :root { --ab-primary:#80a7ff; --ab-primary-deep:#568af3; --ab-accent:#baa3ff;
- --ab-surface:#1e293b; --ab-surface-soft:#162237; --ab-ink:#f2f6ff;
- --ab-muted:#bbc7de; --ab-outline:#40516b; --ab-shadow:0 8px 25px rgba(0,0,0,.18);
- --ab-chip:#243b63; --ab-chip-text:#c6d8ff; }
+ :root { --ab-primary:#8fb3ff; --ab-primary-deep:#6c99ff; --ab-accent:#c0b2ff;
+ --ab-surface:#182334; --ab-surface-soft:#142032; --ab-surface-soft-2:#1d2b40;
+ --ab-ink:#f5f8ff; --ab-muted:#c0cbe0; --ab-strong:#ffffff;
+ --ab-outline:#3f526d; --ab-outline-strong:#546a87; --ab-shadow:0 8px 25px rgba(0,0,0,.22);
+ --ab-chip:#243b63; --ab-chip-text:#d7e4ff; --ab-success:#39c48f; --ab-danger:#ff7b96; }
 }
-/* Una app que usa tema oscuro manual respeta las variables de Streamlit si están presentes. */
 .stApp { background:var(--bg-app)!important; }
-.stApp [data-testid="stMainBlockContainer"] { max-width:1500px!important; margin:auto; }
+.stApp [data-testid="stMainBlockContainer"] { max-width:1520px!important; margin:auto; }
 .stApp [data-testid="stMainBlockContainer"] p,
 .stApp [data-testid="stMainBlockContainer"] label,
-.stApp [data-testid="stMainBlockContainer"] span { line-height:1.4; }
+.stApp [data-testid="stMainBlockContainer"] span { line-height:1.45; }
+.stApp [data-testid="stMainBlockContainer"] label,
+.stApp [data-testid="stMainBlockContainer"] .stMarkdown,
+.stApp [data-testid="stMainBlockContainer"] p,
+.stApp [data-testid="stMainBlockContainer"] span:not([data-baseweb="tag"]) { color:var(--ab-ink)!important; }
 .stApp [data-testid="stMainBlockContainer"] h1,
 .stApp [data-testid="stMainBlockContainer"] h2,
-.stApp [data-testid="stMainBlockContainer"] h3 { color:var(--text-app)!important; }
+.stApp [data-testid="stMainBlockContainer"] h3,
+.stApp [data-testid="stMainBlockContainer"] h4 { color:var(--text-app)!important; }
+
+/* Superficies */
 .stApp [data-testid="stExpander"] {
- border:1px solid var(--ab-outline)!important; border-radius:13px!important;
- background:var(--ab-surface)!important; overflow:hidden!important;
- box-shadow:0 2px 7px rgba(0,0,0,.022);
+ border:1px solid var(--ab-outline)!important; border-radius:15px!important;
+ background:linear-gradient(180deg,var(--ab-surface),var(--ab-surface-soft))!important; overflow:hidden!important;
+ box-shadow:0 3px 10px rgba(0,0,0,.025);
 }
-.stApp [data-testid="stExpander"] summary { background:var(--ab-surface)!important; padding:0.65rem .8rem!important; }
+.stApp [data-testid="stExpander"] summary { background:transparent!important; padding:0.72rem .9rem!important; }
 .stApp [data-testid="stExpander"] summary:hover { background:var(--ab-surface-soft)!important; }
 .stApp [data-testid="stExpander"] summary p,
-.stApp [data-testid="stExpander"] summary span { color:var(--ab-ink)!important; font-weight:650!important; }
+.stApp [data-testid="stExpander"] summary span { color:var(--ab-strong)!important; font-weight:760!important; }
 .stApp [data-testid="stVerticalBlockBorderWrapper"] > div[data-testid="stVerticalBlock"] { border-radius:14px; }
 .stApp [data-testid="stMetric"] {
- border:1px solid var(--ab-outline); background:var(--ab-surface);
- border-radius:13px; padding:10px 13px; min-height:87px;
+ border:1px solid var(--ab-outline); background:linear-gradient(180deg,var(--ab-surface),var(--ab-surface-soft));
+ border-radius:15px; padding:12px 14px; min-height:92px; box-shadow:var(--ab-shadow);
 }
-.stApp [data-testid="stMetric"] label { color:var(--ab-muted)!important; font-size:.76rem; }
-.stApp [data-testid="stMetricValue"] { color:var(--ab-ink)!important; font-size:1.4rem; }
-.stApp [data-testid="stDataFrame"] { border-radius:12px; overflow:hidden; }
+.stApp [data-testid="stMetric"] label { color:var(--ab-muted)!important; font-size:.77rem; font-weight:700!important; }
+.stApp [data-testid="stMetricValue"] { color:var(--ab-ink)!important; font-size:1.45rem; }
+.stApp [data-testid="stDataFrame"] { border-radius:14px; overflow:hidden; }
 .stApp [data-testid="stTabs"] [data-baseweb="tab-list"] {
  background:var(--ab-surface-soft)!important; border-color:var(--ab-outline)!important;
  flex-wrap:wrap!important; row-gap:4px!important;
 }
 .stApp [data-testid="stTabs"] [data-baseweb="tab"] { border-color:var(--ab-outline)!important; }
 .stApp [data-testid="stTabs"] [data-baseweb="tab"] p { font-size:.79rem!important; }
-.stApp .stButton > button[kind="primary"] { background:#2758c9!important; color:white!important; border:0!important; }
-.stApp [data-testid="stTextInput"] input, .stApp [data-testid="stNumberInput"] input,
-.stApp [data-testid="stTextArea"] textarea { border-radius:9px; }
+
+/* Botones y formularios */
+.stApp .stButton > button,
+.stApp [data-testid="stFormSubmitButton"] > button {
+ background:linear-gradient(135deg,var(--ab-primary),var(--ab-primary-deep))!important;
+ color:#fff!important; border:0!important; border-radius:12px!important; font-weight:800!important;
+ min-height:2.65rem!important; box-shadow:0 8px 18px rgba(36,89,220,.18)!important;
+}
+.stApp .stButton > button:hover,
+.stApp [data-testid="stFormSubmitButton"] > button:hover { transform:translateY(-1px); filter:brightness(1.03); }
+.stApp .stButton > button p,.stApp .stButton > button span,
+.stApp [data-testid="stFormSubmitButton"] > button p,
+.stApp [data-testid="stFormSubmitButton"] > button span { color:#fff!important; font-weight:800!important; }
+.stApp .stButton > button:disabled,
+.stApp [data-testid="stFormSubmitButton"] > button:disabled {
+ background:linear-gradient(135deg,#94a3b8,#64748b)!important; color:#f8fafc!important; opacity:.85!important;
+}
+.stApp [data-testid="stTextInput"] input,
+.stApp [data-testid="stNumberInput"] input,
+.stApp [data-testid="stTextArea"] textarea,
+.stApp [data-testid="stSelectbox"] [data-baseweb="select"],
+.stApp [data-testid="stMultiSelect"] [data-baseweb="select"],
+.stApp [data-testid="stDateInput"] input,
+.stApp [data-testid="stTimeInput"] input {
+ border-radius:11px!important; border:1px solid var(--ab-outline-strong)!important;
+ background:var(--ab-surface)!important; color:var(--ab-ink)!important;
+}
+.stApp [data-testid="stCheckbox"] label,
+.stApp [data-testid="stRadio"] label,
+.stApp [data-testid="stSelectbox"] label,
+.stApp [data-testid="stTextInput"] label,
+.stApp [data-testid="stNumberInput"] label,
+.stApp [data-testid="stTextArea"] label,
+.stApp [data-testid="stDateInput"] label,
+.stApp [data-testid="stTimeInput"] label,
+.stApp [data-testid="stFileUploader"] label,
+.stApp [data-testid="stMultiSelect"] label {
+ color:var(--ab-strong)!important; font-weight:780!important; font-size:.84rem!important;
+}
+.stApp [data-testid="stFileUploaderDropzone"] {
+ border:1px dashed var(--ab-outline-strong)!important; border-radius:14px!important; background:var(--ab-surface-soft)!important;
+}
+.stApp [data-testid="stAlertContainer"] [role="alert"] { border-radius:14px!important; }
+.stApp [data-testid="stPopover"] button { border-radius:10px!important; }
+
 .ab-heading {
  background:linear-gradient(120deg,var(--ab-surface),var(--ab-surface-soft));
  border:1px solid var(--ab-outline); border-left:4px solid var(--ab-primary);
- border-radius:14px; padding:14px 17px; margin:12px 0 16px;
+ border-radius:16px; padding:16px 18px; margin:12px 0 16px; box-shadow:var(--ab-shadow);
 }
 .ab-heading .ab-eyebrow { color:var(--ab-primary)!important; font-size:.68rem; letter-spacing:.11em; font-weight:800; text-transform:uppercase; }
-.ab-heading h3 { font-size:1.35rem!important; color:var(--ab-ink)!important; margin:3px 0 4px!important; }
+.ab-heading h3 { font-size:1.38rem!important; color:var(--ab-ink)!important; margin:3px 0 4px!important; }
 .ab-heading p { font-size:.82rem!important; color:var(--ab-muted)!important; margin:0!important; }
 .ab-day {display:flex;align-items:center;gap:9px;margin:15px 0 7px; border-bottom:1px solid var(--ab-outline);padding-bottom:7px;}
-.ab-day-title {font-size:.86rem;font-weight:800;color:var(--ab-ink)!important;}
+.ab-day-title {font-size:.88rem;font-weight:800;color:var(--ab-ink)!important;}
 .ab-count {display:inline-flex;align-items:center;border-radius:100px; background:var(--ab-chip);color:var(--ab-chip-text)!important;font-weight:750;font-size:.67rem;padding:3px 9px;}
-.ab-list-wrap {border:1px solid var(--ab-outline);border-radius:13px; overflow:hidden;background:var(--ab-surface);}
-.ab-item {display:grid;grid-template-columns: minmax(0,1fr) auto;column-gap:16px;align-items:center;padding:12px 15px;border-bottom:1px solid var(--ab-outline);}
+.ab-list-wrap {border:1px solid var(--ab-outline);border-radius:15px; overflow:hidden;background:var(--ab-surface);box-shadow:var(--ab-shadow);}
+.ab-item {display:grid;grid-template-columns: minmax(0,1fr) auto;column-gap:16px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--ab-outline);}
 .ab-item:last-child{border-bottom:0;}
-.ab-item-title {color:var(--ab-ink)!important;font-size:.83rem;font-weight:800;overflow-wrap:anywhere;}
-.ab-item-sub {color:var(--ab-muted)!important;font-size:.72rem;margin-top:3px;}
-.ab-item-tags {display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;}
-.ab-chip {display:inline-block;border:1px solid var(--ab-outline);border-radius:8px;padding:3px 8px;background:var(--ab-chip);color:var(--ab-chip-text)!important;font-size:.69rem;font-weight:700;}
-.ab-chip-legacy {background:var(--ab-surface-soft);color:var(--ab-muted)!important;}
-.ab-subtle {color:var(--ab-muted)!important;font-size:.77rem;}
+.ab-item:hover{background:var(--ab-surface-soft);}
+.ab-item-title {color:var(--ab-ink)!important;font-size:.85rem;font-weight:800;overflow-wrap:anywhere;}
+.ab-item-sub {color:var(--ab-muted)!important;font-size:.73rem;margin-top:4px;}
+.ab-item-tags {display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.ab-chip {display:inline-block;border:1px solid var(--ab-outline);border-radius:999px;padding:4px 9px;background:var(--ab-chip);color:var(--ab-chip-text)!important;font-size:.69rem;font-weight:800;}
+.ab-chip-legacy {background:var(--ab-surface-soft-2);color:var(--ab-muted)!important;}
+.ab-subtle {color:var(--ab-muted)!important;font-size:.77rem;font-weight:700;}
 .ab-inline-filter {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:5px 0 10px;}
 .ab-separator {height:1px;background:var(--ab-outline);margin:14px 0;}
+.ab-section-card{border:1px solid var(--ab-outline);border-radius:16px;background:linear-gradient(180deg,var(--ab-surface),var(--ab-surface-soft));padding:14px 16px;box-shadow:var(--ab-shadow);}
+.ab-note{color:var(--ab-muted)!important;font-size:.76rem;}
+
 @media(max-width:768px){
  .ab-heading{padding:12px;margin:10px 0;} .ab-heading h3{font-size:1.12rem!important;}
  .ab-item{padding:10px 12px;grid-template-columns:1fr;gap:4px;}
  .stApp [data-testid="stMetric"]{min-height:74px;padding:8px 10px;}
+ .stApp .stButton > button,.stApp [data-testid="stFormSubmitButton"] > button{min-height:2.55rem!important; font-size:.84rem!important;}
 }
+
+/* ALPHA BUILDERS V10 | Accesibilidad, responsive y tema dual */
+:root {
+  --ab-highlight:#3a6ce6; --ab-glow:rgba(59,104,216,.13);
+  --ab-strong:#0b1830; --ab-outline-strong:#bbcbe3;
+  --ab-surface-soft-2:#edf3fd;
+  --ab-success:#087d61; --ab-danger:#b42341;
+}
+@media(prefers-color-scheme:dark){
+ :root { --ab-highlight:#9dbaff; --ab-glow:rgba(88,144,255,.17);
+ --ab-strong:#f8fbff; --ab-outline-strong:#5b6f8c;
+ --ab-surface-soft-2:#1b2d44; --ab-success:#5be0ab; --ab-danger:#ff99ae; }
+}
+html { scroll-behavior:smooth; }
+.stApp [data-testid="stMainBlockContainer"] { max-width:1480px!important; }
+.stApp [data-testid="stMainBlockContainer"] > div { min-width:0; }
+/* Main area inputs retain contrast even when the dark theme is manually selected. */
+.stApp [data-testid="stMainBlockContainer"] input,
+.stApp [data-testid="stMainBlockContainer"] textarea,
+.stApp [data-testid="stMainBlockContainer"] [data-baseweb="select"] input {
+ color:var(--ab-ink)!important; caret-color:var(--ab-primary)!important;
+}
+.stApp [data-testid="stMainBlockContainer"] input::placeholder,
+.stApp [data-testid="stMainBlockContainer"] textarea::placeholder { color:var(--ab-muted)!important; opacity:.88; }
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stMetric"] p,
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stMetric"] span { color:var(--ab-ink)!important; }
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stExpander"] summary,
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stExpander"] summary p,
+.stApp [data-testid="stMainBlockContainer"] [data-testid="stExpander"] summary span {color:var(--ab-ink)!important;}
+/* Secondary actions should never look like primary destructive actions. */
+.stApp .stButton button[kind="secondary"],
+.stApp [data-testid="stPopover"] button,
+.stApp [data-testid="stDownloadButton"] button {
+ background:var(--ab-surface)!important; color:var(--ab-ink)!important;
+ border:1px solid var(--ab-outline-strong)!important;
+ box-shadow:none!important; border-radius:11px!important;
+}
+.stApp .stButton button[kind="secondary"] p,
+.stApp .stButton button[kind="secondary"] span,
+.stApp [data-testid="stPopover"] button p,
+.stApp [data-testid="stDownloadButton"] button p { color:var(--ab-ink)!important; }
+.stApp .stButton button[kind="secondary"]:hover,
+.stApp [data-testid="stDownloadButton"] button:hover { background:var(--ab-surface-soft-2)!important; border-color:var(--ab-primary)!important; }
+.stApp .stButton button[kind="primary"],
+.stApp [data-testid="stFormSubmitButton"] button[kind="primary"] {
+ background:linear-gradient(105deg,#2553bd,#426de6)!important;
+ color:#fff!important; border:1px solid transparent!important;
+ box-shadow:0 8px 22px rgba(32,79,184,.15)!important;
+}
+.stApp .stButton button[kind="primary"] p,
+.stApp .stButton button[kind="primary"] span,
+.stApp [data-testid="stFormSubmitButton"] button[kind="primary"] p {color:#fff!important;}
+.stApp [data-testid="stSegmentedControl"] {max-width:100%;overflow-x:auto;}
+.stApp [data-testid="stSegmentedControl"] label {white-space:normal!important;}
+.stApp [data-testid="stFileUploaderDropzone"] {min-height:100px;}
+.stApp [data-testid="stSidebar"] {background:linear-gradient(180deg,#0a1328 0%,#101e3b 100%)!important;}
+.stApp [data-testid="stSidebar"] [data-testid="stImage"] img { object-fit:contain!important;max-height:155px; }
+.stApp [data-testid="stSidebar"] .sidebar-profile-box {border:1px solid #30415f!important;border-radius:14px;}
+.stApp [data-testid="stSidebar"] .sidebar-user-email {color:#aecaff!important;}
+.stApp [data-testid="stSidebar"] .stButton button {min-height:2.55rem!important;}
+.stApp [data-testid="stSidebar"] .stButton button p {font-weight:780!important;}
+.stApp [data-testid="stExpander"] {margin-top:3px;}
+/* Dashboard premium: dark cards stay legible in either app theme. */
+.ab-hero {
+ position:relative;overflow:hidden;margin:7px 0 18px;padding:21px 23px;
+ background:linear-gradient(120deg,#0b1530,#1a2e54 65%,#263a60);
+ border:1px solid rgba(181,204,255,.18);border-radius:20px;
+ color:#fff!important;box-shadow:0 12px 32px rgba(10,25,57,.19);
+}
+.ab-hero::after{content:"";position:absolute;right:-70px;top:-115px;width:330px;height:330px;
+ background:radial-gradient(circle,rgba(119,162,255,.19),transparent 70%);pointer-events:none;}
+.ab-hero-top{position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;}
+.ab-hero-title{font-family:'Montserrat',sans-serif;font-size:1.25rem;font-weight:800;letter-spacing:-.03em;line-height:1.2;color:#fff!important;}
+.ab-hero-kicker{font-size:.65rem;color:#9fc5ff!important;font-weight:800;letter-spacing:.17em;text-transform:uppercase;margin-bottom:4px;}
+.ab-hero-desc{font-size:.80rem;color:#e6edff!important;margin-top:7px;line-height:1.45;}
+.ab-hero-date{border-radius:100px;border:1px solid rgba(255,255,255,.17);background:rgba(255,255,255,.08);
+ padding:7px 12px;color:#f8fbff!important;font-size:.75rem;font-weight:750;}
+.ab-hero-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px;}
+.ab-hero-tags span{display:inline-block;border:1px solid rgba(176,206,255,.28);background:rgba(89,141,235,.16);
+ border-radius:100px;font-size:.67rem;font-weight:800;padding:4px 9px;color:#e4efff!important;}
+.ab-overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:14px 0 2px;}
+.ab-overview-card{background:rgba(255,255,255,.075);border:1px solid rgba(221,234,255,.14);border-radius:15px;
+ padding:12px 13px;min-width:0;backdrop-filter:blur(6px);}
+.ab-overview-label{display:flex;justify-content:space-between;gap:7px;align-items:center;
+ color:#c4d6f7!important;font-size:.69rem;font-weight:800;margin-bottom:9px;}
+.ab-overview-value{font-size:1.47rem;line-height:1.1;font-weight:850;color:#fff!important;letter-spacing:-.035em;}
+.ab-overview-sub{font-size:.66rem;color:#c8d5ea!important;margin-top:7px;line-height:1.4;}
+.ab-status-line{display:flex;align-items:center;justify-content:space-between;gap:5px;
+ padding:6px 0;border-top:1px solid rgba(255,255,255,.11);font-size:.68rem;color:#e8f0ff!important;}
+.ab-status-line:first-of-type{border-top:0;}
+.ab-status-pill{padding:3px 7px;border-radius:100px;font-size:.63rem;font-weight:850;white-space:nowrap;}
+.ab-status-ok{color:#9ff1cb!important;background:rgba(24,179,113,.18);}
+.ab-status-wait{color:#ffe5a8!important;background:rgba(245,166,35,.14);}
+.ab-mini-bar{height:7px;border-radius:100px;background:rgba(255,255,255,.13);overflow:hidden;margin-top:9px;}
+.ab-mini-bar>span{height:100%;display:block;border-radius:100px;background:linear-gradient(90deg,#4edeb7,#87bbff);}
+.stApp [data-testid="stMainBlockContainer"] .ab-hero :is(p,span,div,b,strong){color:inherit;}
+.stApp [data-testid="stMainBlockContainer"] .ab-hero .ab-hero-title,
+.stApp [data-testid="stMainBlockContainer"] .ab-hero .ab-overview-value{color:#fff!important;}
+.stApp [data-testid="stMainBlockContainer"] .ab-hero .ab-hero-kicker{color:#9fc5ff!important;}
+.stApp [data-testid="stMainBlockContainer"] .ab-hero .ab-hero-desc,
+.stApp [data-testid="stMainBlockContainer"] .ab-hero .ab-status-line{color:#e6edff!important;}
+.stApp [data-testid="stMainBlockContainer"] .ab-hero .ab-overview-sub,
+.stApp [data-testid="stMainBlockContainer"] .ab-hero .ab-overview-label{color:#cbdaf7!important;}
+.stApp [data-testid="stMainBlockContainer"] .ab-hero .ab-hero-tags span{color:#e4efff!important;}
+.stApp [data-testid="stMainBlockContainer"] .ab-hero .ab-status-pill.ab-status-ok{color:#a6ffd7!important;}
+.stApp [data-testid="stMainBlockContainer"] .ab-hero .ab-status-pill.ab-status-wait{color:#ffe5a8!important;}
+/* Improved history: unified readable expandable cards. */
+.ab-record-eyebrow {font-size:.69rem;color:var(--ab-muted)!important;font-weight:760;margin:9px 0;}
+.ab-record-summary {background:var(--ab-surface-soft)!important;border:1px solid var(--ab-outline)!important;border-radius:12px;
+ padding:9px 13px; margin:5px 0 10px;}
+.ab-record-summary-title{color:var(--ab-strong)!important;font-size:.88rem;font-weight:850;}
+.ab-record-summary-sub{color:var(--ab-muted)!important;font-size:.72rem;margin-top:3px;}
+.ab-field-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;}
+.ab-field{border:1px solid var(--ab-outline);border-radius:12px;background:var(--ab-surface);padding:9px 12px;}
+.ab-field-label{font-size:.64rem;font-weight:800;color:var(--ab-muted)!important;letter-spacing:.04em;text-transform:uppercase;}
+.ab-field-value{margin-top:3px;font-size:.89rem;font-weight:800;color:var(--ab-strong)!important;overflow-wrap:anywhere;}
+.ab-layout-label {font-weight:800;font-size:.80rem;color:var(--ab-strong)!important;margin:15px 0 8px;}
+.ab-tag-inline{border:1px solid var(--ab-outline);border-radius:100px;color:var(--ab-chip-text)!important;
+ background:var(--ab-chip);font-weight:800;padding:3px 9px;font-size:.71rem;}
+.ab-empty-hint{border:1px dashed var(--ab-outline-strong);background:var(--ab-surface-soft);border-radius:13px;
+ color:var(--ab-muted)!important;padding:15px;font-size:.8rem;}
+/* Contrast and scrollbars */
+.stApp [data-testid="stDataFrame"]{border:1px solid var(--ab-outline)!important;}
+.stApp [data-testid="stToast"]{border-radius:12px!important;}
+@media(max-width:1100px){
+ .ab-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media(max-width:640px){
+ .ab-hero{padding:15px 13px;border-radius:15px;margin-top:3px;}
+ .ab-hero-title{font-size:1.08rem;}
+ .ab-overview-grid{gap:7px;}
+ .ab-overview-card{padding:10px;}
+ .ab-overview-value{font-size:1.24rem;}
+ .ab-hero-date{font-size:.67rem;}
+ .ab-field-row{grid-template-columns:repeat(2,minmax(0,1fr));}
+ .ab-field{padding:9px 8px;}
+}
+@media(max-width:360px){
+ .ab-overview-grid,.ab-field-row{grid-template-columns:1fr;}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition-duration:0.01ms!important;animation-duration:0.01ms!important;}}
+
+
+/* Single-click record headers: full width clickable, no additional checkbox. */
+.stApp [class*="st-key-v10_open_record_"] button,
+.stApp [class*="st-key-v10_open_yield_"] button {
+ display:flex!important;justify-content:flex-start!important;text-align:left!important;
+ width:100%!important;height:auto!important;min-height:3.15rem!important;
+ white-space:normal!important;overflow-wrap:anywhere!important;
+ padding:11px 15px!important;margin:4px 0 5px!important;
+ background:var(--ab-surface)!important; color:var(--ab-strong)!important;
+ border:1px solid var(--ab-outline)!important; border-left:4px solid var(--ab-primary)!important;
+ border-radius:13px!important;box-shadow:var(--ab-shadow)!important;
+}
+.stApp [class*="st-key-v10_open_record_"] button:hover,
+.stApp [class*="st-key-v10_open_yield_"] button:hover {
+ background:var(--ab-surface-soft-2)!important;border-color:var(--ab-primary)!important;
+}
+.stApp [class*="st-key-v10_open_record_"] button p,
+.stApp [class*="st-key-v10_open_record_"] button span,
+.stApp [class*="st-key-v10_open_yield_"] button p,
+.stApp [class*="st-key-v10_open_yield_"] button span {color:var(--ab-strong)!important;font-size:.83rem!important;font-weight:790!important;}
+
 </style>
 """
+
 
 
 def page_heading(eyebrow, title, subtitle):
@@ -283,7 +501,7 @@ def page_slice(records,key,size=12):
     count=len(records)
     if count<=size:return records
     ranges=[(i,min(i+size,count)) for i in range(0,count,size)]
-    index=st.selectbox('Ver bloque de registros', list(range(len(ranges))),
+    index=st.selectbox('Bloque de registros', list(range(len(ranges))),
         format_func=lambda x:f'Registros {ranges[x][0]+1}–{ranges[x][1]} de {count}',key=key)
     start,end=ranges[index]
     return records[start:end]
@@ -1767,41 +1985,42 @@ def show_record(table,record):
 
 
 def history(table, records, repo, key, editable=True):
-    """Biblioteca: edificio → mes → día → detalle. Los IDs son únicamente claves internas."""
-    st.markdown('#### 📚 Archivo de registros')
+    """Archivo por edificio, mes y jornada. Sin IDs públicos ni clics redundantes."""
+    st.markdown('#### 📚 Historial de registros')
+    st.caption('Filtra por edificio y fecha. Abre una ficha para consultar sus datos y fotografías.')
     if not records:
-        st.info('Todavía no hay registros de este tipo. Los nuevos aparecerán organizados por edificio y fecha.');return
+        st.info('No hay registros todavía. Cuando se guarde el primer informe, aparecerá aquí.');return
     counts=defaultdict(int)
     for record in records:counts[record_building(table,record)]+=1
     buildings=sorted(counts,key=lambda b:(b=='Sin Edificio Asignado',b.casefold()))
-    c1,c2=st.columns([1.4,1])
-    with c1:building=st.selectbox('🏢 Edificio', ['Todos los edificios']+buildings,
-        format_func=lambda b:b if b=='Todos los edificios' else f'{b} · {counts[b]}',key='hist_build_'+key)
+    c1,c2=st.columns([1.5,1])
+    with c1:
+        building=st.selectbox('🏢 Edificio', ['Todos los edificios']+buildings,
+            format_func=lambda b:b if b=='Todos los edificios' else f'{b} · {counts[b]}', key='hist_build_'+key)
     filtered=[r for r in records if building=='Todos los edificios' or record_building(table,r)==building]
-    available_months=sorted({record_date(table,r)[:7] for r in filtered if len(record_date(table,r))>=7},reverse=True)
-    with c2:month=st.selectbox('🗓️ Periodo', ['Todos los periodos']+available_months,
-        format_func=lambda m:m if m=='Todos los periodos' else display_month(m),key='hist_month_'+key)
-    if month!='Todos los periodos':filtered=[r for r in filtered if record_date(table,r).startswith(month)]
+    months=sorted({record_date(table,r)[:7] for r in filtered if len(record_date(table,r))>=7},reverse=True)
+    with c2:
+        month=st.selectbox('🗓️ Mes', ['Todos los meses']+months,
+            format_func=lambda m:display_month(m) if m!='Todos los meses' else m,key='hist_month_'+key)
+    if month!='Todos los meses':
+        filtered=[r for r in filtered if record_date(table,r).startswith(month)]
     if table=='incidencias':
-        status=st.segmented_control('Estado', ['Todas','Abierta','Cerrada'],default='Todas',key='hist_status_'+key)
+        status=st.segmented_control('Estado',['Todas','Abierta','Cerrada'],default='Todas',key='hist_status_'+key)
         if status not in ('Todas',None):filtered=[r for r in filtered if r.get('estado')==status]
-    search=st.text_input('Buscar en los registros',placeholder='Rubro, área, responsable o edificio…',key='hist_search_'+key)
+    search=st.text_input('🔎 Buscar registros',placeholder='Rubro, responsable, actividad, edificio…',key='hist_search_'+key)
     if search.strip():
         term=search.strip().casefold()
-        filtered=[r for r in filtered if term in ' '.join((record_building(table,r), record_title(table,r),record_note(table,r))).casefold()]
-    a,b=st.columns([2,1])
-    with a:st.caption(f'**{len(filtered)} registros** · Ordenados del más reciente al más antiguo')
-    with b:st.caption('📤 Exportación del filtro actual')
+        filtered=[r for r in filtered if term in ' '.join((record_building(table,r),record_title(table,r),record_note(table,r))).casefold()]
+    st.markdown('<p class="ab-record-eyebrow">'+str(len(filtered))+' registros encontrados · Más recientes primero</p>',unsafe_allow_html=True)
     export_controls(table,filtered,'hist_export_'+key)
     if not filtered:
-        st.info('No se encontraron registros con estos filtros.');return
+        st.info('No hay resultados para los filtros indicados.');return
     ordered=sorted(filtered,key=lambda r:(record_date(table,r),str(r.get('id') or '')),reverse=True)
-    visible=page_slice(ordered,'hist_block_'+key,12)
-    by_building=defaultdict(list)
-    for record in visible:by_building[record_building(table,record)].append(record)
-    # Único edificio visible evita el encabezado redundante.
-    for building_name, items in sorted(by_building.items(),key=lambda p:p[0].casefold()):
-        if building=='Todos los edificios' or len(by_building)>1:
+    visible=page_slice(ordered,'hist_block_'+key,10)
+    grouped=defaultdict(list)
+    for record in visible:grouped[record_building(table,record)].append(record)
+    for building_name, items in sorted(grouped.items(),key=lambda p:p[0].casefold()):
+        if building=='Todos los edificios' or len(grouped)>1:
             st.markdown('##### 🏢 '+html_escape(building_name))
         for day,day_records in grouped_records(items,table):
             day_heading(day,len(day_records))
@@ -1809,31 +2028,36 @@ def history(table, records, repo, key, editable=True):
                 identifier=key+':'+str(record['id'])
                 title=record_title(table,record)
                 note=record_note(table,record)
-                with st.expander(f'📄 {title}  ·  {note}',expanded=False):
-                    if st.checkbox('Ver información y fotografías',key='detail_'+identifier):
+                open_key='_v10_hist_active_'+key
+                active=st.session_state.get(open_key)==identifier
+                if st.button(('▾  ' if active else '▸  ')+title+'  ·  '+note,
+                    key='v10_open_record_'+identifier,use_container_width=True):
+                    active=not active
+                    st.session_state[open_key]=identifier if active else None
+                if active:
+                    # El detalle pesado y las fotografías se generan SOLO al abrir una ficha.
+                    with st.container(border=True):
                         show_record(table,record)
-                    if editable:
-                        ca,cb=st.columns([1,1])
-                        if ca.button('✏️ Editar registro',key='edit_'+identifier,use_container_width=True):
-                            try:
-                                repo._access(table,record,write=True)
-                                if table=='checklists':module='Checklist';factory=checklist_data
-                                elif table=='rendimientos':module='Rendimientos';factory=rend_data
-                                elif table=='incidencias':module='Incidencias';factory=incident_data
-                                else:
-                                    master=is_master_book(record)
-                                    module='Libro maestro' if master else 'Libro oficial'
-                                    factory=maestro_data if master else official_data
-                                begin_editor(module,repo.user,factory(record),record)
-                                st.session_state['_next_route']=module;st.rerun()
-                            except Exception as exc:notice_error(exc)
-                        with cb.popover('🗑️ Eliminar registro',use_container_width=True):
-                            st.warning('Esta acción no se puede deshacer.')
-                            if st.button('Confirmar eliminación',key='delete_'+identifier):
-                                try:repo.delete(table,record);st.session_state['_flash']='Registro eliminado.';st.rerun()
+                        if editable:
+                            ca,cb=st.columns([1,1])
+                            if ca.button('✏️ Editar',key='edit_'+identifier,use_container_width=True):
+                                try:
+                                    repo._access(table,record,write=True)
+                                    if table=='checklists':module='Checklist';factory=checklist_data
+                                    elif table=='rendimientos':module='Rendimientos';factory=rend_data
+                                    elif table=='incidencias':module='Incidencias';factory=incident_data
+                                    else:
+                                        master=is_master_book(record)
+                                        module='Libro maestro' if master else 'Libro oficial'
+                                        factory=maestro_data if master else official_data
+                                    begin_editor(module,repo.user,factory(record),record)
+                                    st.session_state['_next_route']=module;st.rerun()
                                 except Exception as exc:notice_error(exc)
-
-
+                            with cb.popover('🗑️ Eliminar registro',use_container_width=True):
+                                st.warning('Esta acción es permanente.')
+                                if st.button('Confirmar eliminación',key='delete_'+identifier):
+                                    try:repo.delete(table,record);st.session_state['_flash']='Registro eliminado.';st.rerun()
+                                    except Exception as exc:notice_error(exc)
 
 
 def read_worker_file(upload,default_building,allowed_buildings):
@@ -1879,19 +2103,38 @@ def _read_worker_file_cached(raw, file_name, default_building, allowed_buildings
 
 def import_workers(repo,records,operation_id):
     repo._verify_write_session()
-    existing={(str(r.get("nombre") or "").strip().upper(),r.get("edificio")) for r in repo.own("trabajadores")}
+    existing={(str(r.get("nombre") or "").strip().upper(),str(r.get("edificio") or "").strip()) for r in repo.own("trabajadores")}
     payload=[]
     for index,record in enumerate(records):
-        if record["edificio"] not in repo.projects and not repo.admin:raise PermissionError("Edificio no autorizado.")
+        if record["edificio"] not in repo.projects and not repo.admin:
+            raise PermissionError("Edificio no autorizado.")
         identity=(record["nombre"].strip().upper(),record["edificio"])
-        if identity in existing:continue
+        if identity in existing:
+            continue
         existing.add(identity)
-        payload.append({**record,"usuario_email":repo.email,"client_request_id":str(uuid.uuid5(uuid.NAMESPACE_URL,repo.email+":"+operation_id+":"+str(index)))})
-    if not payload:return 0
-    # Un único INSERT de un lote: Postgres lo confirma o lo rechaza completo.
-    result=database().table("trabajadores").upsert(payload,on_conflict="client_request_id",ignore_duplicates=True).execute()
-    if result.data is None:raise RuntimeError("No se confirmó la importación.")
-    invalidate();return len(result.data)
+        payload.append({**record,"usuario_email":repo.email,
+            "client_request_id":str(uuid.uuid5(uuid.NAMESPACE_URL,repo.email+":"+operation_id+":"+str(index)))})
+    if not payload:
+        return 0
+    try:
+        result=database().table("trabajadores").upsert(payload,on_conflict="client_request_id",ignore_duplicates=True).execute()
+        if result.data is None:
+            raise RuntimeError("No se confirmó la importación.")
+        invalidate();return len(result.data)
+    except Exception:
+        inserted=0
+        for item in payload:
+            single={k:v for k,v in item.items() if k!="client_request_id"}
+            try:
+                result=database().table("trabajadores").insert(single).execute()
+                if result.data:
+                    inserted+=1
+            except Exception:
+                continue
+        if inserted<=0:
+            raise
+        invalidate();return inserted
+
 
 
 def personal_module(repo):
@@ -1911,9 +2154,9 @@ def personal_module(repo):
     c1.metric('Personal registrado',len(current))
     c2.metric('Edificios en nómina',len({w.get('edificio') for w in shown if w.get('edificio')}))
     c3.metric('Pendientes de recuperar',len(pending))
-    area=st.segmented_control('Sección',['👥 Nómina','➕ Registrar','📥 Importar','✏️ Gestionar'],
-        default='👥 Nómina',key='v8_personal_section',label_visibility='collapsed') or '👥 Nómina'
-    if area=='👥 Nómina':
+    area=st.segmented_control('Sección',['👥 Ver nómina','➕ Registrar','📥 Importar','✏️ Gestionar'],
+        default='👥 Nómina',key='v8_personal_section',label_visibility='collapsed') or '👥 Ver nómina'
+    if area=='👥 Ver nómina':
         if pending:
             st.info(f'Encontramos {len(pending)} trabajador(es) en el respaldo de la versión anterior que aún no aparecen en la tabla actual. Se muestran junto a los demás, sin modificar tu base de datos.')
             canonical={p.casefold():p for p in projects}
@@ -1921,6 +2164,9 @@ def personal_module(repo):
             excluded=len(pending)-len(eligible)
             with st.expander('🛟 Recuperar mi nómina anterior',expanded=False):
                 st.markdown('La copia histórica permanece intacta. **La recuperación solo añade trabajadores que no existan ya en la tabla actual.**')
+                st.download_button('⬇️ Descargar respaldo de nómina (CSV)',
+                    data=pd.DataFrame([{'Nombre':w['nombre'],'Cargo':w['cargo'],'Edificio':w['edificio']} for w in pending]).to_csv(index=False,sep=';').encode('utf-8-sig'),
+                    file_name='Respaldo_Nomina_Alpha_Builders.csv',mime='text/csv',key='v10_worker_backup_csv')
                 if excluded:
                     st.warning(f'{excluded} trabajador(es) conservan un edificio no asignado actualmente a tu cuenta. No se migrarán sin corregir su asignación.')
                 if st.button(f'Incorporar {len(eligible)} trabajador(es) válidos a mi nómina',
@@ -2070,32 +2316,73 @@ def logout(cookie):
 
 
 def account_module(repo,cookie):
-    st.header("Configuración de cuenta")
+    page_heading('Cuenta','Configuración de cuenta',
+        'Gestiona tu perfil, solicitudes de acceso y seguridad de inicio de sesión desde un panel más claro y ordenado.')
     user=repo.user
-    with st.form("profile"):
-        names=st.text_input("Nombres",value=user.get("nombres") or "");surname=st.text_input("Apellidos",value=user.get("apellidos") or "")
-        photo=st.file_uploader("Foto de perfil",type=["png","jpg","jpeg","webp"])
-        submit=st.form_submit_button("Guardar perfil")
-    if submit:
-        try:
-            if not names.strip() or not surname.strip():raise ValueError("Complete nombres y apellidos.")
-            payload={"nombres":names.strip(),"apellidos":surname.strip()}
-            if photo:payload["foto_b64"]=image_b64(photo)
-            result=database().table("usuarios").update(payload).eq("correo",repo.email).eq("revision",user["revision"]).execute()
-            if not result.data:raise ConflictError("El perfil cambió en otra sesión. Recargue la página.")
-            invalidate();st.session_state["_flash"]="Perfil actualizado.";st.rerun()
-        except Exception as exc:notice_error(exc)
-    with st.form("account_access_request"):
-        role=st.selectbox("Solicitar cargo",CARGOS_DISPONIBLES,index=CARGOS_DISPONIBLES.index(user["cargo"]) if user.get("cargo") in CARGOS_DISPONIBLES else 0)
-        buildings=st.multiselect("Solicitar edificios",EDIFICIOS_ALPHA,default=[x for x in user.get("edificios",[]) if x in EDIFICIOS_ALPHA])
-        submit=st.form_submit_button("Enviar solicitud al administrador")
-    if submit:
-        try:
-            result=database().table("alpha_access_requests").upsert({"correo":repo.email,"cargo":role,"edificios":buildings,"estado":"Pendiente"},on_conflict="correo").execute()
-            if not result.data:raise RuntimeError("Solicitud no confirmada")
-            st.success("Solicitud registrada en el panel administrador.")
-        except Exception as exc:notice_error(exc)
-    password_change(repo,cookie)
+    section=st.segmented_control('Sección de cuenta',['👤 Perfil','🪪 Accesos','🔐 Seguridad'],
+        default='👤 Perfil',key='v9_account_section',label_visibility='collapsed') or '👤 Perfil'
+
+    if section=='👤 Perfil':
+        c1,c2=st.columns([1.15,1.85])
+        with c1:
+            with st.container(border=True):
+                st.markdown('#### Vista actual')
+                photo=image_stream(user.get('foto_b64'))
+                if photo:
+                    st.image(photo,width=180)
+                else:
+                    st.info('Aún no has cargado una foto de perfil.')
+                st.markdown(f"**{html_escape(full_name(user))}**")
+                st.caption(user.get('correo') or '')
+                st.caption('Cargo: '+str(user.get('cargo') or 'Sin cargo'))
+                st.caption('Edificios: '+(', '.join(user.get('edificios') or []) or 'Sin edificios asignados'))
+        with c2:
+            with st.container(border=True):
+                st.markdown('#### Actualizar datos personales')
+                with st.form('profile'):
+                    names=st.text_input('Nombres',value=user.get('nombres') or '')
+                    surname=st.text_input('Apellidos',value=user.get('apellidos') or '')
+                    photo=st.file_uploader('Foto de perfil',type=['png','jpg','jpeg','webp'])
+                    submit=st.form_submit_button('Guardar perfil',type='primary',use_container_width=True)
+                if submit:
+                    try:
+                        if not names.strip() or not surname.strip():
+                            raise ValueError('Complete nombres y apellidos.')
+                        payload={'nombres':names.strip(),'apellidos':surname.strip()}
+                        if photo:
+                            payload['foto_b64']=image_b64(photo)
+                        result=database().table('usuarios').update(payload).eq('correo',repo.email).eq('revision',user['revision']).execute()
+                        if not result.data:
+                            raise ConflictError('El perfil cambió en otra sesión. Recargue la página.')
+                        invalidate();st.session_state['_flash']='Perfil actualizado.';st.rerun()
+                    except Exception as exc:
+                        notice_error(exc)
+        return
+
+    if section=='🪪 Accesos':
+        with st.container(border=True):
+            st.markdown('#### Solicitar cambios de acceso')
+            st.caption('Envía una solicitud al administrador para ajustar tu cargo o los edificios asignados.')
+            with st.form('account_access_request'):
+                role=st.selectbox('Solicitar cargo',CARGOS_DISPONIBLES,index=CARGOS_DISPONIBLES.index(user['cargo']) if user.get('cargo') in CARGOS_DISPONIBLES else 0)
+                buildings=st.multiselect('Solicitar edificios',EDIFICIOS_ALPHA,default=[x for x in user.get('edificios',[]) if x in EDIFICIOS_ALPHA])
+                submit=st.form_submit_button('Enviar solicitud al administrador',use_container_width=True)
+            if submit:
+                try:
+                    result=database().table('alpha_access_requests').upsert({'correo':repo.email,'cargo':role,'edificios':buildings,'estado':'Pendiente'},on_conflict='correo').execute()
+                    if not result.data:
+                        raise RuntimeError('Solicitud no confirmada')
+                    st.success('Solicitud registrada en el panel administrador.')
+                except Exception as exc:
+                    notice_error(exc)
+        return
+
+    if section=='🔐 Seguridad':
+        with st.container(border=True):
+            st.markdown('#### Cambiar contraseña')
+            st.caption('Por seguridad, al cambiarla se cerrarán las demás sesiones activas.')
+            password_change(repo,cookie)
+
 
 
 def password_change(repo,cookie):
@@ -2103,7 +2390,7 @@ def password_change(repo,cookie):
         old=st.text_input("Contraseña actual",type="password")
         new=st.text_input("Nueva contraseña (mínimo 10 caracteres)",type="password")
         repeat=st.text_input("Repetir nueva contraseña",type="password")
-        submit=st.form_submit_button("Cambiar contraseña y cerrar sesiones")
+        submit=st.form_submit_button("Cambiar contraseña y cerrar sesiones",use_container_width=True)
     if submit:
         try:
             validate_password(new,repeat)
@@ -2114,6 +2401,7 @@ def password_change(repo,cookie):
             if response.data is not True:raise RuntimeError("Cambio de contraseña no confirmado.")
             logout(cookie)
         except Exception as exc:notice_error(exc)
+
 
 
 def admin_module(repo):
@@ -2190,72 +2478,69 @@ def admin_module(repo):
 
 
 def dashboard(repo):
+    """Panel ejecutivo: datos reales, consultas ligeras e interfaz responsiva."""
     user = repo.user
     today = now_ec().date()
     date_label = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")[today.weekday()]
     date_label += f", {today.day} de {NOMBRES_MESES[today.month]} de {today.year}"
     email = user["correo"]
-    # Vista ligera: nunca descargar fotos/JSON completos para mostrar 4 indicadores.
     own_filter = (("usuario_email", email),)
-    checks = cached_rows("checklists", own_filter, columns="fecha") if user.get("cargo") != "Maestro Mayor" else []
+    master_role = user.get("cargo") == "Maestro Mayor"
+    checks = cached_rows("checklists", own_filter, columns="fecha") if not master_role else []
     books = cached_rows("inspecciones", own_filter, columns="fecha,tipo:datos->>Tipo_Registro")
     yield_rows = cached_rows("rendimientos", own_filter, columns="estado")
     sql_workers = cached_rows("trabajadores", own_filter, columns="nombre,edificio")
     signatures = {(str(w.get("nombre") or "").strip().upper(), str(w.get("edificio") or "").strip().casefold()) for w in sql_workers}
-    workers_count = len(sql_workers) + sum(
-        (w["nombre"], w["edificio"].casefold()) not in signatures
-        for w in legacy_worker_backup(repo)
+    worker_count = len(sql_workers) + sum(
+        (w["nombre"], w["edificio"].casefold()) not in signatures for w in legacy_worker_backup(repo)
     )
-    master_role = user.get("cargo") == "Maestro Mayor"
-    # Los libros antiguos sin marca de tipo se inspeccionan solo en la fecha de hoy.
     today_text = today.isoformat()
-    role_books_today = [r for r in books if str(r.get("fecha"))[:10] == today_text and
-                        (str(r.get("tipo") or "") == "Libro_Obra_Maestro") == master_role and bool(r.get("tipo"))]
-    if not role_books_today and any(str(r.get("fecha"))[:10] == today_text and not r.get("tipo") for r in books):
-        legacy_today = cached_rows("inspecciones", (("usuario_email",email),("fecha",today_text)), columns="fecha,datos")
-        role_books_today = [r for r in legacy_today if is_master_book(r) == master_role]
-    books_for_role = role_books_today
-    valid_yields = [r for r in yield_rows if r.get("estado") in {"CUMPLE META", "BAJO RENDIMIENTO"}]
-    efficiency = round(100 * sum(r.get("estado") == "CUMPLE META" for r in valid_yields) / len(valid_yields)) if valid_yields else None
-    efficiency_label = f"{efficiency}%" if efficiency is not None else "—"
-    circle_value = efficiency if efficiency is not None else 0
-    efficiency_detail = "Registros con meta verificada" if efficiency is not None else "Sin meta verificable"
-    color = "#10b981" if efficiency is not None and efficiency >= 75 else "#f59e0b" if efficiency is not None and efficiency >= 50 else "#ef4444" if efficiency is not None else "#94a3b8"
+    books_today = [r for r in books if str(r.get("fecha"))[:10] == today_text and
+                   bool(r.get("tipo")) and (str(r.get("tipo")) == "Libro_Obra_Maestro") == master_role]
+    if not books_today and any(str(r.get("fecha"))[:10] == today_text and not r.get("tipo") for r in books):
+        legacy = cached_rows("inspecciones", (("usuario_email", email), ("fecha", today_text)), columns="fecha,datos")
+        books_today = [r for r in legacy if is_master_book(r) == master_role]
+    check_ok = any(str(r.get("fecha"))[:10] == today_text for r in checks)
+    book_ok = bool(books_today)
+    goals = [(("Libro maestro" if master_role else "Checklist"), book_ok if master_role else check_ok)]
+    if not master_role:
+        goals.append(("Libro de obra", book_ok))
+    valid = [r for r in yield_rows if r.get("estado") in {"CUMPLE META", "BAJO RENDIMIENTO"}]
+    efficiency = (round(100 * sum(r.get("estado") == "CUMPLE META" for r in valid) / len(valid)) if valid else None)
     incidence_projects = tuple(sorted(repo.projects))
     open_incidents = sum(r.get("estado") == "Abierta" for r in
         (cached_rows("incidencias", (), (("proyecto", incidence_projects),), columns="estado") if incidence_projects else []))
-    tags = "".join('<span class="edificio-tag-badge">' + html_escape(str(x)) + "</span>" for x in user.get("edificios") or [])
-    def milestone(label, checked):
-        badge = '<span class="milestone-status-done">✓ Registrado</span>' if checked else '<span class="milestone-status-pending">⏳ Pendiente</span>'
-        return '<div class="milestone-item"><span class="milestone-name">' + html_escape(label) + '</span>' + badge + '</div>'
-    milestones = milestone("Libro de Obra Maestro" if user.get("cargo") == "Maestro Mayor" else "Checklist", bool(books_for_role and any(str(r.get("fecha"))[:10] == today_text for r in books_for_role)) if user.get("cargo") == "Maestro Mayor" else any(str(r.get("fecha"))[:10] == today_text for r in checks))
-    if user.get("cargo") != "Maestro Mayor":
-        milestones += milestone("Libro de Obra", any(str(r.get("fecha"))[:10] == today_text for r in books_for_role))
-    output = (
-        '<div class="smart-dashboard-container"><div class="smart-header-bar"><div>'
-        '<div class="smart-title">Alpha Builders | Portal de Obra</div>'
-        '<div class="smart-user-sub">' + html_escape(full_name(user)) + ' &bull; <b>' + html_escape(str(user.get("cargo") or "")) + '</b> ' + tags + '</div>'
-        '</div><div class="smart-pill">📅 ' + html_escape(date_label) + '</div></div>'
-        '<div class="widgets-grid">'
-        '<div class="widget-glass-card"><div class="w-card-title"><span>🎯 Hitos Diarios</span><span>Hoy</span></div>' + milestones + '</div>'
-        '<div class="widget-glass-card"><div class="w-card-title"><span>⚡ Rendimiento</span><span>Meta</span></div>'
-        '<div class="donut-container"><svg class="donut-chart-svg" viewBox="0 0 36 36">'
-        '<circle class="donut-bg" cx="18" cy="18" r="15.9155" />'
-        '<circle class="donut-progress" cx="18" cy="18" r="15.9155" stroke="' + color + '" stroke-dasharray="' + str(circle_value) + ', 100" />'
-        '</svg><div><div class="donut-info-val" style="color:' + color + '!important">' + efficiency_label + '</div>'
-        '<div class="donut-info-lbl">' + efficiency_detail + '</div></div></div></div>'
-        '<div class="widget-glass-card"><div class="w-card-title"><span>🚨 Incidencias</span><span>Abiertas</span></div>'
-        '<div class="stat-hero-number" style="color:#f87171!important">' + str(open_incidents) + '</div>'
-        '<div style="font-size:.65rem;color:#94a3b8!important">En proyectos asignados</div></div>'
-        '<div class="widget-glass-card"><div class="w-card-title"><span>👷 Personal</span><span>Registrados</span></div>'
-        '<div class="stat-hero-number" style="color:#60a5fa!important">' + str(workers_count) + '</div>'
-        '<div style="font-size:.65rem;color:#94a3b8!important">Personal a tu cargo</div></div>'
-        '</div></div>'
+    tags = ''.join('<span>'+html_escape(str(x))+'</span>' for x in (user.get('edificios') or []))
+    if not tags:
+        tags = '<span>Sin edificio asignado</span>'
+    def metric_card(icon, title, value, sub, extra=''):
+        return ('<div class="ab-overview-card">'
+                '<div class="ab-overview-label"><span>'+html_escape(title)+'</span><span>'+icon+'</span></div>'
+                '<div class="ab-overview-value">'+html_escape(str(value))+'</div>'
+                '<div class="ab-overview-sub">'+html_escape(sub)+'</div>'+extra+'</div>')
+    goals_content = ''.join(
+        '<div class="ab-status-line"><span>'+html_escape(title)+'</span><span class="ab-status-pill '
+        +('ab-status-ok' if done else 'ab-status-wait')+'">'+('✓ Listo' if done else 'Pendiente')+'</span></div>'
+        for title,done in goals
     )
-    st.markdown(output, unsafe_allow_html=True)
-    st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
-
-
+    card_goals = ('<div class="ab-overview-card"><div class="ab-overview-label"><span>HITOS DE HOY</span><span>🎯</span></div>'
+                  +goals_content+'</div>')
+    label = (f'{efficiency}%' if efficiency is not None else '—')
+    bar = '<div class="ab-mini-bar"><span style="width:'+str(efficiency or 0)+'%"></span></div>'
+    card_performance = metric_card('⚡','META CUMPLIDA',label,
+        'Rendimientos evaluados' if efficiency is not None else 'Aún no hay metas verificables',bar)
+    card_incidents = metric_card('🚨','INCIDENCIAS ABIERTAS',open_incidents,'En tus edificios asignados')
+    card_workers = metric_card('👷','PERSONAL EN NÓMINA',worker_count,'Incluye el respaldo histórico sin duplicar')
+    markup = ('<section class="ab-hero" aria-label="Resumen de tu obra">'
+              '<div class="ab-hero-top"><div>'
+              '<div class="ab-hero-kicker">PANEL EJECUTIVO DE OBRA</div>'
+              '<div class="ab-hero-title">Alpha Builders <span style="opacity:.8">/ Portal de obra</span></div>'
+              '<div class="ab-hero-desc">'+html_escape(full_name(user))+' · '+html_escape(str(user.get('cargo') or ''))+'</div>'
+              '<div class="ab-hero-tags">'+tags+'</div></div>'
+              '<div class="ab-hero-date">📅 '+html_escape(date_label)+'</div></div>'
+              '<div class="ab-overview-grid">'+card_goals+card_performance+card_incidents+card_workers+'</div>'
+              '</section>')
+    st.markdown(markup,unsafe_allow_html=True)
 
 
 @st.cache_data(show_spinner=False)
@@ -2281,11 +2566,13 @@ def sidebar_original(repo, cookie):
             st.markdown("### 🏗️ Alpha Builders")
         photo = image_stream(user.get("foto_b64"))
         if photo:
-            st.image(photo, use_container_width=True)
+            s_left,s_photo,s_right=st.columns([1,2,1])
+            with s_photo:st.image(photo, use_container_width=True)
         else:
             profile_file = next((name for name in ("perfil.jpg", "perfil.png", "perfil.jpeg", "avatar.png") if os.path.isfile(name)), None)
             if profile_file:
-                st.image(profile_file, use_container_width=True)
+                s_left,s_photo,s_right=st.columns([1,2,1])
+                with s_photo:st.image(profile_file, use_container_width=True)
         badges = "".join('<span class="edificio-tag-badge" style="margin:2px;">' + html_escape(str(b)) + '</span>' for b in (user.get("edificios") or []))
         if not badges:
             badges = '<span style="font-size: .7rem; color: #94a3b8;">Sin proyectos asignados</span>'
@@ -2298,8 +2585,9 @@ def sidebar_original(repo, cookie):
             </div>''', unsafe_allow_html=True)
         if repo.admin:
             st.markdown('<div style="text-align:center;background:#111827;border:1px solid #374151;border-radius:6px;padding:4px;font-size:.7rem;font-weight:800;color:white">ADMINISTRADOR GENERAL</div>', unsafe_allow_html=True)
-        with st.expander("⚙️ Configuración de Cuenta", expanded=False):
-            account_module(repo, cookie)
+        if st.button("⚙️ Mi cuenta y seguridad", key="sidebar_account", use_container_width=True):
+            st.session_state["_next_route"] = "Mi cuenta"
+            st.rerun()
         if st.button("🔄 Actualizar información", key="sidebar_refresh", use_container_width=True):
             invalidate()
             st.rerun()
@@ -2342,34 +2630,36 @@ def open_lazy_tabs(labels, key):
 
 
 def history_rend_by_building(records, repo):
-    """Resumen general, edificios y bloques cronológicos compactos."""
-    st.markdown('#### 📊 Rendimientos registrados')
+    """Panel de rendimientos con KPIs y fichas abiertas en un único clic."""
+    st.markdown('#### 📊 Rendimientos por edificio')
+    st.caption('Resultados organizados por fecha. Cada ficha contiene cálculos, fotografías y acciones.')
     if not records:
-        st.info('Todavía no hay rendimientos. Los registros se clasificarán automáticamente por edificio, mes y jornada.');return
+        st.info('Todavía no hay rendimientos. Se organizarán por edificio y fecha cuando registres el primero.');return
     by_build=defaultdict(list)
     for record in records:by_build[record_building('rendimientos',record)].append(record)
     buildings=sorted(by_build,key=lambda x:(x=='Sin Edificio Asignado',x.casefold()))
     p1,p2,p3=st.columns(3)
     p1.metric('Edificios',len(buildings));p2.metric('Registros',len(records))
-    p3.metric('Con cálculo HH',sum(rendimiento_values(r)['hh'] is not None for r in records))
+    p3.metric('Con horas-hombre',sum(rendimiento_values(r)['hh'] is not None for r in records))
     a,b=st.columns([1.5,1])
-    with a:building=st.selectbox('🏢 Ver rendimientos', ['Todos los edificios']+buildings,
+    with a:building=st.selectbox('🏢 Edificio',['Todos los edificios']+buildings,
         format_func=lambda x:x if x=='Todos los edificios' else f'{x} · {len(by_build[x])}',key='v8_rend_building')
     filtered=records if building=='Todos los edificios' else by_build[building]
     months=sorted({record_date('rendimientos',r)[:7] for r in filtered if len(record_date('rendimientos',r))>=7},reverse=True)
-    with b:month=st.selectbox('🗓️ Mes', ['Todos los meses']+months,
+    with b:month=st.selectbox('🗓️ Mes',['Todos los meses']+months,
         format_func=lambda x:display_month(x) if x!='Todos los meses' else x,key='v8_rend_month')
     filtered=[r for r in filtered if month=='Todos los meses' or record_date('rendimientos',r).startswith(month)]
-    search=st.text_input('Buscar rubro, piso o trabajador',placeholder='Ej. enlucidos, piso 2…',key='v8_rend_search')
+    search=st.text_input('🔎 Buscar rubro o trabajador',placeholder='Enlucidos, piso 2, nombre…',key='v8_rend_search')
     if search.strip():
-        text=search.strip().casefold()
-        filtered=[r for r in filtered if text in ' '.join((record_title('rendimientos',r),record_building('rendimientos',r),str(r.get('trabajador') or ''))).casefold()]
-    st.caption(f'**{len(filtered)} rendimientos** · Selecciona un registro para ver fotografías, editarlo o eliminarlo.')
+        needle=search.strip().casefold()
+        filtered=[r for r in filtered if needle in ' '.join((record_title('rendimientos',r),
+            record_building('rendimientos',r),str(r.get('trabajador') or ''))).casefold()]
+    st.markdown('<p class="ab-record-eyebrow">'+str(len(filtered))+' registros · Pulsa en una tarjeta para ver su contenido</p>',unsafe_allow_html=True)
     export_controls('rendimientos',filtered,'rend_general_v8')
     if not filtered:
-        st.info('No hay rendimientos con estos filtros.');return
+        st.info('No encontramos registros para esos filtros.');return
     ordered=sorted(filtered,key=lambda r:(record_date('rendimientos',r),str(r.get('id') or '')),reverse=True)
-    visible=page_slice(ordered,'rend_v8_block',12)
+    visible=page_slice(ordered,'rend_v8_block',10)
     groups=defaultdict(list)
     for item in visible:groups[record_building('rendimientos',item)].append(item)
     for building_name,items in sorted(groups.items(),key=lambda x:x[0].casefold()):
@@ -2380,44 +2670,52 @@ def history_rend_by_building(records, repo):
             day_heading(day,len(day_records))
             for record in day_records:
                 result=rendimiento_values(record)
+                unit=str(record.get('unidad') or '')
                 with st.container(border=True):
-                    st.markdown('**'+html_escape(record_title('rendimientos',record))+'**')
+                    title=record_title('rendimientos',record)
+                    st.markdown('<div class="ab-record-summary"><div class="ab-record-summary-title">📐 '+html_escape(title)+'</div>'
+                        '<div class="ab-record-summary-sub">'+html_escape(display_date(record_date('rendimientos',record),True))
+                        +' · '+html_escape(building_name)+'</div></div>',unsafe_allow_html=True)
                     c1,c2,c3=st.columns(3)
-                    unit=str(record.get('unidad') or '')
                     c1.metric('Avance',f"{result['avance']:.2f} {unit}")
                     c2.metric('Horas-hombre',f"{result['hh']:.2f} HH" if result['hh'] is not None else 'No verificadas')
                     c3.metric('Productividad',f"{result['productividad']:.3f} {unit}/h" if result['productividad'] is not None else '—')
+                    # Un solo clic despliega el registro completo (sin "Mostrar contenido").
                     record_actions('rendimientos',record,repo,'rend_view_'+str(record['id']))
 
 
-
-
 def record_actions(table, record, repo, key, editable=True):
-    """Detalles bajo demanda; conserva editar/eliminar con protección de versión."""
-    with st.expander("Ver detalle, fotografías y acciones", expanded=False):
-        if st.checkbox("Mostrar contenido y evidencias", key=key + "_detail"):
-            show_record(table, record)
-        if editable:
-            a, b = st.columns(2)
-            if a.button("✏️ Editar", key=key + "_edit"):
-                try:
-                    repo._access(table, record, write=True)
-                    factories = {"checklists": ("Checklist", checklist_data), "rendimientos": ("Rendimientos", rend_data), "incidencias": ("Incidencias", incident_data)}
-                    module, factory = factories[table]
-                    begin_editor(module, repo.user, factory(record), record)
-                    st.session_state["_next_route"] = module
-                    st.rerun()
-                except Exception as exc:
-                    notice_error(exc)
-            with b.popover("🗑️ Eliminar"):
-                st.caption("La eliminación es permanente.")
-                if st.button("Confirmar eliminación", key=key + "_delete"):
+    """Mostrar u ocultar la ficha en un clic; evita leer fotos de otros registros."""
+    open_key='_v10_record_detail_'+table+':'+repo.email
+    active=st.session_state.get(open_key)==key
+    if st.button('▴  Ocultar detalle' if active else '▸  Ver detalle, fotografías y acciones',
+                 key='v10_open_yield_'+key,use_container_width=True):
+        active=not active
+        st.session_state[open_key]=key if active else None
+    if active:
+        with st.container(border=True):
+            show_record(table,record)
+            if editable:
+                a,b=st.columns(2)
+                if a.button('✏️ Editar registro',key=key+'_edit',use_container_width=True):
                     try:
-                        repo.delete(table, record)
-                        st.session_state["_flash"] = "Registro eliminado."
+                        repo._access(table,record,write=True)
+                        factories={'checklists':('Checklist',checklist_data),
+                                   'rendimientos':('Rendimientos',rend_data),
+                                   'incidencias':('Incidencias',incident_data)}
+                        module,factory=factories[table]
+                        begin_editor(module,repo.user,factory(record),record)
+                        st.session_state['_next_route']=module
                         st.rerun()
-                    except Exception as exc:
-                        notice_error(exc)
+                    except Exception as exc:notice_error(exc)
+                with b.popover('🗑️ Eliminar registro',use_container_width=True):
+                    st.warning('La eliminación es permanente.')
+                    if st.button('Confirmar eliminación',key=key+'_delete'):
+                        try:
+                            repo.delete(table,record)
+                            st.session_state['_flash']='Registro eliminado.'
+                            st.rerun()
+                        except Exception as exc:notice_error(exc)
 
 
 def incidencias_original_matrix(records, repo):
@@ -2536,7 +2834,7 @@ _FRAGMENT = getattr(st, "fragment", None)
 
 
 @(_FRAGMENT if _FRAGMENT is not None else (lambda fn: fn))
-def render_active_module(name, repo):
+def render_active_module(name, repo, cookie):
     role = repo.user.get("cargo")
     if name == "Libro de Obra Maestro" and role != "Maestro Mayor":
         raise PermissionError("El libro de obra maestro es exclusivo del Maestro Mayor.")
@@ -2548,6 +2846,8 @@ def render_active_module(name, repo):
         personal_module(repo)
     elif name == "Colaborativo":
         collaborative_module(repo)
+    elif name == "Mi cuenta":
+        account_module(repo,cookie)
     elif name == "Panel Admin":
         admin_module(repo)
     else:
@@ -2561,7 +2861,7 @@ def main():
                 del st.session_state[key]
     st.set_page_config(page_title="Alpha Builders | Portal Ejecutivo", page_icon="🏗️", layout="wide", initial_sidebar_state="expanded")
     st.markdown(APP_CSS, unsafe_allow_html=True)
-    st.markdown(APP_CSS_V8, unsafe_allow_html=True)
+    st.markdown(APP_CSS_V10, unsafe_allow_html=True)
     # Streamlit puede usar tema oscuro manual aunque Windows esté en modo claro.
     # La preferencia del usuario prevalece sobre prefers-color-scheme.
     try:
@@ -2575,14 +2875,16 @@ def main():
             "--hover-bg:#334155;--table-row-even:#1e293b;"
             "--ab-surface:#1e293b;--ab-surface-soft:#162237;--ab-ink:#f2f6ff;"
             "--ab-muted:#bbc7de;--ab-outline:#40516b;--ab-chip:#243b63;"
-            "--ab-chip-text:#c6d8ff;--ab-primary:#80a7ff"
+            "--ab-chip-text:#c6d8ff;--ab-primary:#80a7ff;--ab-strong:#f8fbff;"
+            "--ab-outline-strong:#5b6f8c;--ab-surface-soft-2:#1b2d44;--ab-highlight:#9dbaff"
         ) if actual_theme == "dark" else (
             "--bg-app:#f8fafc;--text-app:#0f172a;--card-bg:#ffffff;"
             "--card-border:#cbd5e1;--header-bg:#0f172a;--subtext:#64748b;"
             "--hover-bg:#f1f5f9;--table-row-even:#f8fafc;"
             "--ab-surface:#ffffff;--ab-surface-soft:#f5f8ff;--ab-ink:#17233b;"
             "--ab-muted:#586781;--ab-outline:#dbe4f1;--ab-chip:#eaf1ff;"
-            "--ab-chip-text:#234a94;--ab-primary:#2459dc"
+            "--ab-chip-text:#234a94;--ab-primary:#2459dc;--ab-strong:#0b1830;"
+            "--ab-outline-strong:#bbcbe3;--ab-surface-soft-2:#edf3fd;--ab-highlight:#3a6ce6"
         )
         st.markdown('<style>:root{' + tokens + '}</style>', unsafe_allow_html=True)
     try:
@@ -2597,7 +2899,7 @@ def main():
             st.stop()
         if st.session_state.get("_user_identity") != user["correo"]:
             for key in list(st.session_state):
-                if key.startswith("edit:") or key.startswith("alpha_tabs_") or key.startswith("alpha_rend_edificios") or key in {"_editors", "_export_artifact", "_temporary_password", "_route"}:
+                if key.startswith("edit:") or key.startswith("alpha_tabs_") or key.startswith("alpha_rend_edificios") or key.startswith("_v10_record_detail_") or key.startswith("_v10_hist_active_") or key in {"_editors", "_export_artifact", "_temporary_password", "_route"}:
                     del st.session_state[key]
             st.session_state["_user_identity"] = user["correo"]
         st.session_state.pop("_pending_cookie", None)
@@ -2614,21 +2916,23 @@ def main():
         # El libro de obra maestro no aparece ni puede editarse desde cargo diferente.
         visible = (["Libro de Obra Maestro", "Personal a Cargo", "Control de Rendimiento", "Colaborativo"]
                    if master else ["Checklist", "Libro de Obra", "Personal a Cargo", "Levantamiento de Incidencias", "Control de Rendimiento", "Colaborativo"])
+        visible.append("Mi cuenta")
         if repo.admin:
             visible.append("Panel Admin")
-        labels = ["📋 " + x if x == "Checklist" else "🏗️ " + x if "Libro de Obra" in x else "👷 " + x if x == "Personal a Cargo" else "🚨 " + x if x == "Levantamiento de Incidencias" else "📊 " + x if x == "Control de Rendimiento" else "🤝 " + x if x == "Colaborativo" else "⚙️ " + x for x in visible]
+        labels = ["📋 " + x if x == "Checklist" else "🏗️ " + x if "Libro de Obra" in x else "👷 " + x if x == "Personal a Cargo" else "🚨 " + x if x == "Levantamiento de Incidencias" else "📊 " + x if x == "Control de Rendimiento" else "🤝 " + x if x == "Colaborativo" else "👤 " + x if x == "Mi cuenta" else "⚙️ " + x for x in visible]
         role_key = "alpha_tabs_maestro" if master else "alpha_tabs_obra"
         next_module = st.session_state.pop("_next_route", None)
         next_map = {"Libro maestro": "Libro de Obra Maestro", "Libro oficial": "Libro de Obra", "Rendimientos": "Control de Rendimiento", "Incidencias": "Levantamiento de Incidencias", "Checklist": "Checklist"}
         next_label = next_map.get(next_module, next_module)
         if next_label in visible:
             st.session_state[role_key] = labels[visible.index(next_label)]
+            st.session_state[role_key+"_legacy"] = labels[visible.index(next_label)]
         tabs, lazy = open_lazy_tabs(labels, role_key)
         for name, tab in zip(visible, tabs):
             with tab:
                 if lazy and not tab.open:
                     continue
-                render_active_module(name, repo)
+                render_active_module(name, repo, cookie)
     except Exception as exc:
         notice_error(exc)
         st.caption("No se interpretan errores de lectura como registros vacíos. Verifique conexión, configuración y permisos.")
