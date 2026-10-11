@@ -42,13 +42,13 @@ from PIL import Image, ImageOps
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.drawing.image import Image as XLImage
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.pagesizes import A4, letter, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as PDFImage, KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as PDFImage, KeepTogether, PageBreak
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.11-v18.7-tema-contraste"
+APP_VERSION = "2026.10.11-v18.8-planilla-maestro"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -2472,6 +2472,10 @@ def v17_linked_master_activities(repo, project, date_iso):
                     'Departamento':str(item.get('Departamento') or item.get('departamento') or ''),
                     'Personal':', '.join(map(str,people)),
                     'Observaciones':str(item.get('Observaciones') or ''),
+                    'Unidad':str(item.get('Unidad') or ''),
+                    'Capitulo':str(item.get('Capitulo') or ''),
+                    'Codigo_Rubro':str(item.get('Codigo_Rubro') or ''),
+                    'Area':str(item.get('Area') or ''),
                     'Foto_B64':next(iter(list_photos(item)),''),
                 })
     return result
@@ -2486,7 +2490,9 @@ def v17_import_master_activity(editor, activity):
     unit=m.group(2) if m else ''
     place=' · '.join(x for x in [activity.get('Piso'),activity.get('Departamento')] if x)
     d.setdefault('actividades',{})[row_id()]={
-        'Capitulo':'','Codigo_Rubro':'','Descripcion':activity.get('Actividad',''),'Area':place,'Unidad':unit,'Cantidad':numeric,
+        'Capitulo':activity.get('Capitulo',''),'Codigo_Rubro':activity.get('Codigo_Rubro',''),
+        'Descripcion':activity.get('Actividad',''),'Area':activity.get('Area') or place,
+        'Unidad':activity.get('Unidad') or unit,'Cantidad':numeric,
     }
     editor.persist()
     rerun_selected_module()
@@ -2725,6 +2731,49 @@ def render_official(editor,repo):
         except Exception as exc:notice_error(exc)
 
 
+def v18_8_catalog_picker_maestro(editor):
+    """Selector de rubros del mismo catálogo que utiliza el Libro de Obra oficial."""
+    with st.container(border=True):
+        st.markdown('#### 📚 Seleccionar rubro del catálogo')
+        st.caption('Selecciona por capítulo o busca el nombre/código. Se rellenan rubro, unidad y capítulo; el avance y los responsables los indicas tú.')
+        mode=st.radio('Buscar rubro',['Por capítulo','Por nombre o código'],horizontal=True,
+            key=editor.prefix+'v188_catalog_mode')
+        chapter=''
+        if mode=='Por capítulo':
+            chapters=sorted(catalogo_rubros_v18()['capitulos'],key=lambda ch:int(ch[0][4:]))
+            chapter=st.selectbox('Capítulo',[ch for ch,_ in chapters],
+                format_func=v18_chapter_label,key=editor.prefix+'v188_catalog_chapter')
+        search=st.text_input('Buscar código o descripción',placeholder='Ej.: enlucido, CAP-05-01',
+            key=editor.prefix+'v188_catalog_search')
+        if mode=='Por nombre o código' and len(search.strip())<2:
+            st.info('Escribe dos o más caracteres para buscar en todo el catálogo.')
+            return
+        found=v18_catalog_matches(chapter,search,limit=125)
+        if not found:
+            st.info('Sin coincidencias. Puedes escribir la actividad manualmente debajo.')
+            return
+        if len(found)>=125:
+            st.caption('Se muestran hasta 125 coincidencias; afina tu búsqueda para localizar el rubro.')
+        descriptions={code:(desc,unit) for code,desc,unit in found}
+        code=st.selectbox('Rubro del catálogo',[row[0] for row in found],index=None,
+            placeholder='Elige un rubro',key=editor.prefix+'v188_catalog_result',
+            format_func=lambda c:f'{c} · {descriptions[c][0]} ({descriptions[c][1]})')
+        if st.button('➕ Añadir este rubro al avance',disabled=not code,
+            key=editor.prefix+'v188_catalog_add',use_container_width=True):
+            rubric=v18_catalog_record(code)
+            if rubric:
+                item={
+                    'Actividad':rubric['Descripcion'],'Capitulo':rubric['Capitulo'],
+                    'Codigo_Rubro':rubric['Codigo_Rubro'],'Unidad':rubric['Unidad'],
+                    'Cantidad':'','Area':'','Piso':'','Departamento':'',
+                    'Personal_A_Cargo':[],'Personal_Manual':'','Fotos':[],
+                    'Observaciones':'',
+                }
+                editor.data.setdefault('actividades',{})[row_id()]=item
+                editor.persist()
+                rerun_selected_module()
+
+
 def maestro_data(record=None):
     record=record or {};payload=obj(record.get("datos"),{})
     acts=payload if isinstance(payload,list) else payload.get("Actividades_Maestro",[])
@@ -2758,23 +2807,31 @@ def render_maestro(editor, repo):
         st.text_input("Maestro responsable:", value=full_name(repo.user), disabled=True, key=editor.prefix + "maestro_visible")
     workers = [f"{r['nombre']} ({r['cargo']})" for r in combined_workers(repo,d.get("proyecto"))]
     st.markdown(f"#### 🔨 Actividades realizadas, personal y metrajes ({len(d['actividades']) or 1} registro/s)")
-    st.caption("Cada actividad nueva necesita una fotografía de evidencia. Se guardará con el libro y estará disponible al consultarlo.")
-    default = {"Actividad": "", "Cantidad": "", "Personal_A_Cargo": [], "Piso": "", "Departamento": "", "Observaciones": "", "Personal_Manual": "", "Fotos": []}
+    st.caption("Cada actividad nueva necesita una fotografía. La planilla de avance tendrá: departamento, área, actividad, unidad, cantidad y responsable.")
+    v18_8_catalog_picker_maestro(editor)
+    default = {"Actividad": "", "Cantidad": "", "Unidad":"", "Area":"", "Capitulo":"", "Codigo_Rubro":"", "Personal_A_Cargo": [], "Piso": "", "Departamento": "", "Observaciones": "", "Personal_Manual": "", "Fotos": []}
     for index, (rid, item) in enumerate(list(editor.rows("actividades", default).items()), 1):
         st.markdown(f'<div class="banner-item-header"><span>Actividad N° {index}</span></div>', unsafe_allow_html=True)
         with st.container(border=True):
-            c1, c2 = st.columns([2.6, 1.4])
+            if item.get('Codigo_Rubro'):
+                st.caption('📚 '+str(item.get('Capitulo') or '')+' · Código: '+str(item['Codigo_Rubro']))
+            c1, c2 = st.columns([2.7, 1.3])
             with c1:
-                editor.field("text_input", ("actividades", rid, "Actividad"), "Descripción de la actividad", "")
+                editor.field("text_input", ("actividades", rid, "Actividad"), "Actividad / rubro", "")
             with c2:
-                editor.field("text_input", ("actividades", rid, "Cantidad"), "Cantidad / avance y unidad", "")
-            c3, c4, c5 = st.columns([2.0, 1.0, 1.0])
+                editor.field("text_input", ("actividades", rid, "Unidad"), "Unidad", "")
+            c3, c4, c5 = st.columns([1.25, 1.4, 1.25])
             with c3:
-                editor.field("multiselect", ("actividades", rid, "Personal_A_Cargo"), "Personal a cargo", [], options=workers)
+                editor.field("text_input", ("actividades", rid, "Cantidad"), "Cantidad ejecutada", "")
             with c4:
-                editor.field("text_input", ("actividades", rid, "Piso"), "Piso", "")
+                editor.field("text_input", ("actividades", rid, "Area"), "Área de trabajo", "")
             with c5:
                 editor.field("text_input", ("actividades", rid, "Departamento"), "Departamento", "")
+            c6,c7=st.columns([2.0,1.0])
+            with c6:
+                editor.field("multiselect", ("actividades", rid, "Personal_A_Cargo"), "Personal responsable", [], options=workers)
+            with c7:
+                editor.field("text_input", ("actividades", rid, "Piso"), "Piso (opcional)", "")
             d1, d2 = st.columns([3, 1])
             with d1:
                 editor.field("text_input", ("actividades", rid, "Personal_Manual"), "Personal adicional (separado por comas)", "")
@@ -4272,8 +4329,153 @@ def styled_detail_table(headers, rows):
                 '</table></div>',unsafe_allow_html=True)
 
 
+def master_planilla_activities(record):
+    """Proyecta libros nuevos y antiguos al formato de seis columnas del Word."""
+    raw=obj(record.get('datos'),{})
+    if isinstance(raw,dict):
+        items=raw.get('Actividades_Maestro') or []
+        maestro=str(raw.get('Maestro') or record.get('residente') or '').strip()
+    elif isinstance(raw,list):
+        items=raw;maestro=str(record.get('residente') or '').strip()
+    else:
+        items=[];maestro=str(record.get('residente') or '').strip()
+    result=[]
+    for item in items:
+        if not isinstance(item,dict):continue
+        activity=str(item.get('Actividad') or item.get('actividad') or '').strip()
+        if not activity:continue
+        people=item.get('Personal_A_Cargo') or item.get('personal_a_cargo') or []
+        if isinstance(people,str):people=[people]
+        if not isinstance(people,list):people=[]
+        people=[str(p).strip() for p in people if str(p).strip()]
+        extra=str(item.get('Personal_Manual') or '').strip()
+        if extra:people.extend([part.strip() for part in extra.split(',') if part.strip()])
+        responsible=', '.join(dict.fromkeys(people)) or maestro
+        area=str(item.get('Area') or item.get('area') or item.get('Piso') or item.get('piso') or '').strip()
+        amount=str(item.get('Cantidad') or item.get('cantidad') or '').strip()
+        unit=str(item.get('Unidad') or item.get('unidad') or '').strip()
+        if not unit and amount:
+            matched=re.fullmatch(r'\s*([0-9]+(?:[.,][0-9]+)?)\s*(m2|m²|m3|m³|ml|m|u|und|unidades|kg|glb)\s*',amount,re.I)
+            if matched:amount=matched.group(1);unit=matched.group(2)
+        result.append({
+            'Departamento':str(item.get('Departamento') or item.get('departamento') or ''),
+            'Area':area,'Actividad':activity,'Unidad':unit,'Cantidad':amount,'Responsable':responsible,
+            'Capitulo':str(item.get('Capitulo') or ''),'Codigo_Rubro':str(item.get('Codigo_Rubro') or ''),
+            'Fotos':list_photos(item),'Observaciones':str(item.get('Observaciones') or ''),
+        })
+    return result
+
+
+def master_planilla_pdf(record):
+    """PDF en orientación horizontal que reproduce la tabla del Word proporcionado.
+
+    Las fotografías se agregan como anexo para no alterar las seis columnas del original.
+    """
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.platypus import PageBreak
+    regular='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+    heavy='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+    font='Helvetica';bold='Helvetica-Bold'
+    if os.path.exists(regular) and os.path.exists(heavy):
+        if 'AlphaPlanilla' not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont('AlphaPlanilla',regular))
+            pdfmetrics.registerFont(TTFont('AlphaPlanillaBold',heavy))
+        font='AlphaPlanilla';bold='AlphaPlanillaBold'
+    payload=obj(record.get('datos'),{})
+    project=str(record.get('proyecto') or (payload.get('Edificio') if isinstance(payload,dict) else '') or 'SIN EDIFICIO')
+    date_raw=str(record.get('fecha') or (payload.get('Fecha') if isinstance(payload,dict) else '') or '')[:10]
+    try:date_str=dt.date.fromisoformat(date_raw).strftime('%d/%m/%Y')
+    except ValueError:date_str=date_raw or '—'
+    activities=master_planilla_activities(record)
+    out=io.BytesIO()
+    doc=SimpleDocTemplate(out,pagesize=landscape(letter),leftMargin=45,rightMargin=45,topMargin=34,bottomMargin=36,
+        title='Planilla de avance - '+project,author='Alpha Builders')
+    width=doc.width
+    # Misma proporción que la tabla de Word, con columna ancha para ACTIVIDAD.
+    proportions=[.082,.082,.555,.071,.088,.122]
+    widths=[width*p for p in proportions]
+    body=ParagraphStyle('plan_body',fontName=font,fontSize=7,leading=9.5,wordWrap='CJK')
+    head=ParagraphStyle('plan_head',parent=body,fontName=bold,fontSize=8,leading=10.5)
+    title=ParagraphStyle('plan_title',parent=head,fontSize=10,leading=13,alignment=1)
+    caption=ParagraphStyle('plan_caption',parent=head,fontSize=10,leading=13,spaceAfter=10)
+    def p(v,style=body):
+        return Paragraph(html_escape(str(v if v is not None else '')).replace('\n','<br/>'),style)
+    header=[p('PLANILLA DE AVANCE - PROYECTO “'+project+'”',title),'','',p('FECHA: '+date_str,head),'','']
+    names=['DEPTO.','ÁREA','ACTIVIDAD','UNIDAD','CANTIDAD','RESPONSABLE']
+    rows=[header,[p(v,head) for v in names]]
+    for a in activities:
+        rows.append([p(a[k]) for k in ('Departamento','Area','Actividad','Unidad','Cantidad','Responsable')])
+    # La hoja original tiene 28 filas vacías bajo el encabezado; respetarlas en jornadas cortas.
+    rows.extend([['']*6 for _ in range(max(0,28-len(activities)))])
+    table=Table(rows,colWidths=widths,repeatRows=2,hAlign='CENTER',splitByRow=1,
+        rowHeights=[23,23]+[None]*max(len(rows)-2,0))
+    table.setStyle(TableStyle([
+        ('SPAN',(0,0),(2,0)),('SPAN',(3,0),(5,0)),
+        ('BACKGROUND',(0,0),(-1,1),colors.HexColor('#fff1c8')),
+        ('GRID',(0,0),(-1,-1),.6,colors.HexColor('#111827')),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('LEFTPADDING',(0,0),(-1,-1),3.3),('RIGHTPADDING',(0,0),(-1,-1),3.3),
+        ('TOPPADDING',(0,0),(-1,-1),1.8),('BOTTOMPADDING',(0,0),(-1,-1),1.8),
+    ]))
+    story=[table]
+    images=[(i,a,photo) for i,a in enumerate(activities,1) for photo in a['Fotos']]
+    if images:
+        story.append(PageBreak())
+        story.append(p('ANEXO FOTOGRÁFICO - '+project,caption))
+        story.append(p('Fecha: '+date_str))
+        story.append(Spacer(1,12))
+        for index,a,photo in images:
+            raw=image_stream(photo)
+            if raw is None:continue
+            try:
+                img=PDFImage(raw)
+                ratio=min(300/img.imageWidth,180/img.imageHeight,1)
+                img.drawWidth=img.imageWidth*ratio;img.drawHeight=img.imageHeight*ratio
+                info=p('Actividad '+str(index)+': '+a['Actividad']+' - '+a['Area'],head)
+                story.append(KeepTogether([info,Spacer(1,5),img,Spacer(1,12)]))
+            except Exception:
+                continue
+    def foot(canvas,document):
+        canvas.saveState();canvas.setFont(font,7);canvas.setFillColor(colors.HexColor('#64748b'))
+        canvas.drawString(doc.leftMargin,18,'Alpha Builders | Planilla de avance diario')
+        canvas.drawRightString(landscape(letter)[0]-doc.rightMargin,18,'Página '+str(document.page))
+        canvas.restoreState()
+    doc.build(story,onFirstPage=foot,onLaterPages=foot)
+    return out.getvalue()
+
+
+@st.cache_data(ttl=900,show_spinner=False,max_entries=30)
+def cached_master_planilla_pdf(serialized_record):
+    return master_planilla_pdf(json.loads(serialized_record))
+
+
+def show_master_planilla(record):
+    """En Maestro y Colaborativo: consulta tabular igual a la planilla de Word."""
+    rows=master_planilla_activities(record)
+    st.markdown('#### 📋 Planilla de avance diario')
+    c1,c2=st.columns([2,1])
+    with c1:st.write('**PROYECTO:** '+str(record.get('proyecto') or 'Sin edificio'))
+    with c2:st.write('**FECHA:** '+display_date(record.get('fecha')))
+    if not rows:
+        st.info('Este libro no contiene actividades registradas.')
+        return
+    styled_detail_table(['DEPTO.','ÁREA','ACTIVIDAD','UNIDAD','CANTIDAD','RESPONSABLE'],
+        [[a[k] for k in ('Departamento','Area','Actividad','Unidad','Cantidad','Responsable')] for a in rows])
+    photos=[(a['Actividad'],pic) for a in rows for pic in a['Fotos']]
+    if photos:
+        with st.expander(f'📷 Evidencias de actividades ({len(photos)})',expanded=False):
+            for name,raw in photos:
+                stream=image_stream(raw)
+                if stream:st.image(stream,caption=name,width=370)
+
+
 def show_record(table,record):
     """Un solo bloque visible por ficha, evitando tablas/fotos interminables."""
+    if table=='inspecciones' and is_master_book(record):
+        show_master_planilla(record)
+        return
     meta,sections,photos=sections_for(table,record)
     sections=[(title,heads,rows) for title,heads,rows in sections if rows]
     choices=['🧾 Información general']+[title for title,_,_ in sections]
@@ -4359,6 +4561,17 @@ def history(table, records, repo, key, editable=True):
         st.markdown('#### '+html_escape(record_title(table,selected)))
         st.caption(display_date(record_date(table,selected),True)+' · '+record_building(table,selected))
         show_record(table,selected)
+        if table=='inspecciones' and is_master_book(selected):
+            try:
+                document=cached_master_planilla_pdf(json_text(selected))
+                safe_project=re.sub(r'[^A-Za-z0-9_-]+','_',str(selected.get('proyecto') or 'Edificio'))[:42]
+                st.download_button('⬇️ Descargar avance del Maestro — PDF (formato planilla)',
+                    data=document,
+                    file_name=f'Planilla_Avance_{safe_project}_{str(selected.get("fecha") or "")[:10]}.pdf',
+                    mime='application/pdf',
+                    key='v188_master_plan_pdf_'+key+'_'+str(selected.get('id')),
+                    on_click='ignore',use_container_width=True)
+            except Exception as exc:notice_error(exc)
         if table=='inspecciones' and not is_master_book(selected):
             friendly=re.sub(r'[^A-Za-z0-9_-]+','_',str(selected.get('proyecto') or 'Edificio'))
             try:
