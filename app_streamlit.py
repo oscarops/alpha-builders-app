@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "v20.12"
+APP_VERSION = "v20.13"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -2335,7 +2335,7 @@ def render_anexos_libro(editor, repo):
     d=editor.data
     datos=d['datos']
     st.markdown('#### 📷 Anexos y fotografías')
-    st.caption('Arrastra fotografías desde tu dispositivo. También puedes incorporar las evidencias del Maestro Mayor vinculado para este mismo día y edificio.')
+    st.caption('Las fotografías aparecen numeradas, en orden de carga, dentro de «ANEXOS OBSERVACIONES Y FOTOGRAFÍAS» en la misma hoja del Excel. También puedes incorporar fotos del Maestro Mayor vinculado.')
     editor.photos(('datos','Anexos_Fotos'), 'Fotografías del Libro de Obra', limit=MAX_PHOTOS)
     st.divider()
     st.markdown('#### 👷 Evidencias del Maestro Mayor')
@@ -3725,7 +3725,7 @@ def render_maestro(editor, repo):
     workers = [f"{r['nombre']} ({r['cargo']})" for r in combined_workers(repo,d.get("proyecto"))]
     st.markdown(f"#### 🔨 Actividades realizadas, personal y metrajes ({len(d['actividades']) or 1} registro/s)")
     st.caption("Cada actividad nueva necesita una fotografía. La planilla de avance tendrá: departamento, área, actividad, unidad, cantidad y responsable.")
-    default = {"Actividad": "", "Cantidad": "", "Unidad":"", "Area":"", "Capitulo":"", "Codigo_Rubro":"", "Personal_A_Cargo": [], "Piso": "", "Departamento": "", "Observaciones": "", "Personal_Manual": "", "Fotos": []}
+    default = {"Actividad": "", "Cantidad": "", "Unidad":"", "Area":"", "Capitulo":"", "Codigo_Rubro":"", "Personal_A_Cargo": [], "Departamento": "", "Observaciones": "", "Fotos": []}
     for index, (rid, item) in enumerate(list(editor.rows("actividades", default).items()), 1):
         st.markdown(f'<div class="banner-item-header"><span>Actividad N° {index}</span></div>', unsafe_allow_html=True)
         with st.container(border=True):
@@ -3737,15 +3737,15 @@ def render_maestro(editor, repo):
                 editor.field("text_input", ("actividades", rid, "Area"), "Área de trabajo", "")
             with c5:
                 editor.field("text_input", ("actividades", rid, "Departamento"), "Departamento", "")
-            c6,c7=st.columns([2.0,1.0])
-            with c6:
-                editor.field("multiselect", ("actividades", rid, "Personal_A_Cargo"), "Personal responsable", [], options=workers)
-            with c7:
-                editor.field("text_input", ("actividades", rid, "Piso"), "Piso (opcional)", "")
-            d1, d2 = st.columns([3, 1])
-            with d1:
-                editor.field("text_input", ("actividades", rid, "Personal_Manual"), "Personal adicional (separado por comas)", "")
-            with d2:
+            # El área de trabajo ya sustituye al antiguo campo Piso.
+            # Conservar personal histórico aun si ya no figura en la nómina actual.
+            historic_people = [str(name) for name in item.get('Personal_A_Cargo', []) if str(name).strip()]
+            available_people = list(dict.fromkeys(workers + historic_people))
+            left, right = st.columns([5, 1])
+            with left:
+                editor.field("multiselect", ("actividades", rid, "Personal_A_Cargo"),
+                             "Personal responsable", [], options=available_people)
+            with right:
                 editor.remove("actividades", rid)
             with st.expander("📷 Fotografía de esta actividad", expanded=not bool(item.get('Fotos'))):
                 editor.activity_photo(("actividades", rid, "Fotos"))
@@ -4031,10 +4031,10 @@ def sections_for(table,record):
             for item in acts:
                 if not isinstance(item,dict):continue
                 people=item.get("Personal_A_Cargo",item.get("personal_a_cargo",[]));people=", ".join(map(str,people)) if isinstance(people,list) else people
-                rows.append([item.get("Actividad",item.get("actividad","")),people,item.get("Cantidad",item.get("cantidad","")),item.get("Piso",item.get("piso","")),item.get("Departamento",item.get("departamento","")),item.get("Observaciones",item.get("observaciones",""))])
+                rows.append([item.get("Actividad",item.get("actividad","")),people,item.get("Cantidad",item.get("cantidad","")),item.get("Area") or item.get("area") or item.get("Piso") or item.get("piso") or "",item.get("Departamento",item.get("departamento","")),item.get("Observaciones",item.get("observaciones",""))])
                 photos.extend([(f"Actividad: {item.get('Actividad',item.get('actividad',''))} · Evidencia {j + 1}",photo)
                                for j,photo in enumerate(list_photos(item))])
-            sections.append(("Actividades del maestro mayor",["Actividad","Personal","Cantidad","Piso","Departamento","Observaciones"],rows))
+            sections.append(("Actividades del maestro mayor",["Actividad","Personal","Cantidad","Área","Departamento","Observaciones"],rows))
         else:
             meta += [("Ciudad",data.get("Ciudad","Quito")),("Hoja",data.get("Hoja","")),("Ubicación",data.get("Ubicacion",record.get("frente",""))),("Barrio",data.get("Barrio","")),("Superintendente",data.get("Superintendente","")),("Fiscalizador",data.get("Fiscalizador","")),("Clima mañana",clima_libro_periodos(data,record)[0]),("Clima tarde",clima_libro_periodos(data,record)[1]),("Observaciones del clima",data.get("Clima_Obs","")),("Novedades y recomendaciones",data.get("Novedades",""))]
             schedule=f"{record.get('hora_inicio','')} – {record.get('hora_fin','')}"
@@ -4980,98 +4980,138 @@ def official_template_activity_zone(activity):
     return 'albanileria'
 
 
-def v197_append_excel_annexes(original_xlsx, record):
-    """Agrega una hoja Anexos y fotos sin resalvar la plantilla ni perder dibujos.
+def v2013_insertar_fotos_en_anexos_excel(original_xlsx, record):
+    """Incluye las evidencias EN LA HOJA OFICIAL (A258:Y266), sin crear otra hoja.
 
-    Opera a nivel de OOXML: las partes originales se copian byte por byte.
+    La sección está combinada en Ejemplo2.xlsx. Armamos un mosaico en orden de
+    carga, aumentamos solamente su altura y lo anclamos a ese rango. Así el
+    contenido no invade la zona de firmas que comienza en la fila 267 y la
+    imagen original del logotipo permanece idéntica.
     """
-    data=obj(record.get('datos'),{})
-    photos=anexos_fotos_validas(data)
+    raw_data = obj(record.get('datos'), {})
+    photos = anexos_fotos_validas(raw_data)
     if not photos:
         return original_xlsx
-    ready=[]
-    for photo in photos:
-        stream=image_stream(photo)
-        if stream:
-            ready.append(stream.getvalue())
-    if not ready:
-        return original_xlsx
-    ns_main='http://schemas.openxmlformats.org/spreadsheetml/2006/main'
-    ns_rel='http://schemas.openxmlformats.org/officeDocument/2006/relationships'
-    pkg_rel='http://schemas.openxmlformats.org/package/2006/relationships'
-    pkg_ct='http://schemas.openxmlformats.org/package/2006/content-types'
-    ns_drawing='http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing'
-    ns_a='http://schemas.openxmlformats.org/drawingml/2006/main'
-    with zipfile.ZipFile(io.BytesIO(original_xlsx),'r') as source:
-        workbook=source.read('xl/workbook.xml').decode('utf-8')
-        relationships=source.read('xl/_rels/workbook.xml.rels').decode('utf-8')
-        types=source.read('[Content_Types].xml').decode('utf-8')
-        sheet_ids=[int(x) for x in re.findall(r'sheetId="(\d+)"',workbook)]
-        sheet_id=max(sheet_ids or [0])+1
-        relationship_ids=[int(x) for x in re.findall(r'Id="rId(\d+)"',relationships)]
-        rel_id='rId'+str(max(relationship_ids or [0])+1)
-        if '<sheet name="Anexos"' in workbook:
-            raise RuntimeError('El Excel ya contiene una hoja de Anexos; evite duplicarla.')
-        sheet_tag=(f'<sheet name="Anexos" sheetId="{sheet_id}" r:id="{rel_id}"/>')
-        if '</sheets>' not in workbook or '</Relationships>' not in relationships:
-            raise RuntimeError('La estructura OOXML de la plantilla ha cambiado.')
-        workbook=workbook.replace('</sheets>',sheet_tag+'</sheets>',1)
-        relationships=relationships.replace('</Relationships>',
-            '<Relationship Id="'+rel_id+'" Type="'+ns_rel+'/worksheet" Target="worksheets/sheet2.xml"/></Relationships>',1)
-        for part,contenttype in (
-            ('/xl/worksheets/sheet2.xml','application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml'),
-            ('/xl/drawings/drawing2.xml','application/vnd.openxmlformats-officedocument.drawing+xml')):
-            if 'PartName="'+part+'"' not in types:
-                types=types.replace('</Types>',f'<Override PartName="{part}" ContentType="{contenttype}"/></Types>',1)
-        if 'Extension="jpeg"' not in types:
-            types=types.replace('</Types>','<Default Extension="jpeg" ContentType="image/jpeg"/></Types>',1)
 
-        def cell(where,val):
-            escaped=xml_escape(str(val or ''))
-            return f'<c r="{where}" t="inlineStr"><is><t xml:space="preserve">{escaped}</t></is></c>'
-        building=str(record.get('proyecto') or '').upper()
-        day=str(record.get('fecha') or '')[:10]
-        rows=['<row r="1">'+cell('A1','ANEXOS FOTOGRÁFICOS · '+building)+'</row>',
-              '<row r="2">'+cell('A2','FECHA: '+day+'   HOJA: 00053')+'</row>']
-        anchors=[]
-        drawing_relationships=[]
-        for i,photo in enumerate(ready,1):
-            caption_row=4+(i-1)*13
-            image_row=caption_row+1
-            rows.append(f'<row r="{caption_row}">'+cell('A'+str(caption_row),'EVIDENCIA '+str(i))+'</row>')
-            rid=f'rId{i}'
-            drawing_relationships.append(f'<Relationship Id="{rid}" Type="{ns_rel}/image" Target="../media/annex_{i}.jpeg"/>')
-            anchors.append(f"""<xdr:twoCellAnchor editAs="oneCell">
-                <xdr:from><xdr:col>1</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{image_row-1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
-                <xdr:to><xdr:col>7</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{image_row+10}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
-                <xdr:pic><xdr:nvPicPr><xdr:cNvPr id="{i}" name="Anexo {i}"/><xdr:cNvPicPr/></xdr:nvPicPr>
-                <xdr:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
-                <xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/>
-                </xdr:twoCellAnchor>""")
-        sheet_xml=(f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="{ns_main}" xmlns:r="{ns_rel}">'
-            '<sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>'
-            '<cols><col min="1" max="8" width="14" customWidth="1"/></cols><sheetData>'+
-            ''.join(rows)+'</sheetData><drawing r:id="rId1"/></worksheet>')
-        drawings_xml=(f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            f'<xdr:wsDr xmlns:xdr="{ns_drawing}" xmlns:a="{ns_a}" xmlns:r="{ns_rel}">'+
-            ''.join(anchors)+'</xdr:wsDr>')
-        worksheet_relationships=(f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            f'<Relationships xmlns="{pkg_rel}"><Relationship Id="rId1" Type="{ns_rel}/drawing" Target="../drawings/drawing2.xml"/></Relationships>')
-        drawing_rels_xml=(f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            f'<Relationships xmlns="{pkg_rel}">'+''.join(drawing_relationships)+'</Relationships>')
-        changed={'xl/workbook.xml':workbook.encode(),'xl/_rels/workbook.xml.rels':relationships.encode(),
-                 '[Content_Types].xml':types.encode()}
-        result=io.BytesIO()
-        with zipfile.ZipFile(result,'w') as target:
-            for info in source.infolist():
-                target.writestr(info,changed.get(info.filename,source.read(info.filename)))
-            target.writestr('xl/worksheets/sheet2.xml',sheet_xml.encode())
-            target.writestr('xl/worksheets/_rels/sheet2.xml.rels',worksheet_relationships.encode())
-            target.writestr('xl/drawings/drawing2.xml',drawings_xml.encode())
-            target.writestr('xl/drawings/_rels/drawing2.xml.rels',drawing_rels_xml.encode())
-            for i,photo in enumerate(ready,1):
-                target.writestr(f'xl/media/annex_{i}.jpeg',photo)
-        return result.getvalue()
+    from PIL import ImageDraw, ImageFont
+    valid = []
+    for encoded in photos[:MAX_PHOTOS]:
+        try:
+            binary = base64.b64decode(encoded, validate=True)
+            with Image.open(io.BytesIO(binary)) as img:
+                if img.width * img.height > 40_000_000:
+                    continue
+                img = ImageOps.exif_transpose(img).convert('RGB')
+                img.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+                valid.append(img.copy())
+        except (ValueError, OSError, TypeError, base64.binascii.Error):
+            # Un archivo histórico dañado no debe impedir exportar el libro.
+            continue
+    if not valid:
+        return original_xlsx
+
+    width = 1650
+    columns = min(3, len(valid))
+    panel_width = 510 if columns == 3 else (760 if columns == 2 else 980)
+    card_height = 274
+    margin = 28
+    gap = 18
+    rows = (len(valid) + columns - 1) // columns
+    height = margin * 2 + rows * card_height + (rows - 1) * gap
+    collage = Image.new('RGB', (width, height), '#ffffff')
+    draw = ImageDraw.Draw(collage)
+    try:
+        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 22)
+    except (OSError, ValueError):
+        font = ImageFont.load_default()
+    board_width = columns * panel_width + (columns - 1) * gap
+    xorigin = (width - board_width) // 2
+    for i, pic in enumerate(valid):
+        column = i % columns
+        row = i // columns
+        x0 = xorigin + column * (panel_width + gap)
+        y0 = margin + row * (card_height + gap)
+        x1 = x0 + panel_width
+        y1 = y0 + card_height
+        draw.rounded_rectangle((x0, y0, x1, y1), radius=12,
+                               fill='#ffffff', outline='#9ca3af', width=2)
+        draw.text((x0 + 16, y0 + 12), f'FOTOGRAFÍA {i + 1:02d}',
+                  fill='#132b50', font=font)
+        # Ajuste proporcional: nunca estirar ni recortar la fotografía.
+        target_w, target_h = panel_width - 24, card_height - 60
+        image = pic.copy()
+        image.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+        collage.paste(image, (x0 + (panel_width - image.width) // 2,
+                              y0 + 47 + (target_h - image.height) // 2))
+    out = io.BytesIO()
+    collage.save(out, 'JPEG', quality=87, optimize=True)
+    photo_bytes = out.getvalue()
+
+    # Anclar a las columnas A:Y, filas 258:266. Excel usa puntos para altura de filas.
+    # Altura calculada proporcionalmente al ancho visible A:Y (~1900 px).
+    row_height_pt = round(max(20.0, (height * 1900 / width) * .75 / 9), 2)
+    if row_height_pt > 390:
+        raise ValueError('Hay demasiadas fotografías para el espacio de anexos.')
+    with zipfile.ZipFile(io.BytesIO(original_xlsx), 'r') as src:
+        sheet = src.read('xl/worksheets/sheet1.xml').decode('utf-8')
+        drawing = src.read('xl/drawings/drawing1.xml').decode('utf-8')
+        relations = src.read('xl/drawings/_rels/drawing1.xml.rels').decode('utf-8')
+        content_types = src.read('[Content_Types].xml').decode('utf-8')
+        if '</xdr:wsDr>' not in drawing or '</Relationships>' not in relations:
+            raise RuntimeError('La estructura de imágenes de Ejemplo2.xlsx ha cambiado.')
+
+        count = 0
+        def adjust_row(match):
+            nonlocal count
+            full = match.group(0)
+            row = int(match.group(1))
+            if not 258 <= row <= 266:
+                return full
+            count += 1
+            if re.search(r'\sht="[^"]*"', full):
+                full = re.sub(r'\sht="[^"]*"', f' ht="{row_height_pt}"', full, count=1)
+            else:
+                full = full[:-1] + f' ht="{row_height_pt}">'
+            if 'customHeight=' not in full:
+                full = full[:-1] + ' customHeight="1">'
+            return full
+        sheet = re.sub(r'<row\b[^>]*\br="(\d+)"[^>]*>', adjust_row, sheet)
+        if count != 9:
+            raise RuntimeError('No se localizaron las nueve filas del anexo original.')
+
+        rel_numbers = [int(x) for x in re.findall(r'Id="rId(\d+)"', relations)]
+        next_rel = max(rel_numbers or [0]) + 1
+        existing_ids = [int(x) for x in re.findall(r'<xdr:cNvPr\s+id="(\d+)"', drawing)]
+        pic_id = max(existing_ids or [0]) + 1
+        media_name = f'alpha_libro_anexos_{len(valid)}.jpg'
+        rel_tag = (f'<Relationship Id="rId{next_rel}" '
+                   'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
+                   f'Target="../media/{media_name}"/>')
+        relations = relations.replace('</Relationships>', rel_tag + '</Relationships>', 1)
+        if 'Extension="jpg"' not in content_types:
+            content_types = content_types.replace('</Types>',
+                  '<Default Extension="jpg" ContentType="image/jpeg"/></Types>', 1)
+        anchor = f"""<xdr:twoCellAnchor editAs="twoCell">
+            <xdr:from><xdr:col>0</xdr:col><xdr:colOff>35000</xdr:colOff><xdr:row>257</xdr:row><xdr:rowOff>35000</xdr:rowOff></xdr:from>
+            <xdr:to><xdr:col>25</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>266</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
+            <xdr:pic><xdr:nvPicPr><xdr:cNvPr id="{pic_id}" name="Anexos - Fotos ordenadas"/><xdr:cNvPicPr/></xdr:nvPicPr>
+            <xdr:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId{next_rel}"/>
+            <a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
+            <xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/>
+            </xdr:twoCellAnchor>"""
+        drawing = drawing.replace('</xdr:wsDr>', anchor + '</xdr:wsDr>', 1)
+        changes = {
+            'xl/worksheets/sheet1.xml':sheet.encode('utf-8'),
+            'xl/drawings/drawing1.xml':drawing.encode('utf-8'),
+            'xl/drawings/_rels/drawing1.xml.rels':relations.encode('utf-8'),
+            '[Content_Types].xml':content_types.encode('utf-8'),
+        }
+        result = io.BytesIO()
+        with zipfile.ZipFile(result, 'w') as dst:
+            for info in src.infolist():
+                dst.writestr(info, changes.get(info.filename, src.read(info.filename)))
+            dst.writestr(f'xl/media/{media_name}', photo_bytes)
+    return result.getvalue()
 
 
 def clima_libro_periodos(datos, record=None):
@@ -5285,7 +5325,7 @@ def official_book_excel_from_template(record):
                     raise RuntimeError('La plantilla cambió y faltan celdas: '+', '.join(sorted(missing)[:15]))
                 raw=xml.encode('utf-8')
             dest.writestr(info,raw)
-    full_book=v197_append_excel_annexes(output.getvalue(),record)
+    full_book=v2013_insertar_fotos_en_anexos_excel(output.getvalue(),record)
     # El diseño final Ejemplo2.xlsx contiene el logotipo aprobado y el TOTAL
     # inmediatamente después de TERRAMODA. No rehacer ni desplazar la imagen.
     return v204_format_official_quantities(full_book,visible_activity_rows)
@@ -5371,6 +5411,14 @@ def v196_official_excel_preview(serialized_record):
     se compactan para que la consulta no se vuelva interminable. No modifica el XLSX.
     """
     workbook_bytes=v207_cached_official_excel(serialized_record)
+    # La vista HTML no dibuja los objetos de Excel automáticamente: obtener el
+    # mosaico de la misma hoja para mostrarlo en la sección del anexo.
+    annex_data_uri=''
+    with zipfile.ZipFile(io.BytesIO(workbook_bytes),'r') as z:
+        annex_names=[name for name in z.namelist()
+                     if re.fullmatch(r'xl/media/alpha_libro_anexos_\d+\.jpg',name)]
+        if annex_names:
+            annex_data_uri='data:image/jpeg;base64,'+base64.b64encode(z.read(annex_names[0])).decode('ascii')
     book=openpyxl.load_workbook(io.BytesIO(workbook_bytes),data_only=True,read_only=False)
     sheet=book.active
     # Mantener cabecera, nómina, clima y anexos. En ACTIVIDADES no mostrar
@@ -5450,7 +5498,13 @@ def v196_official_excel_preview(serialized_record):
             elif isinstance(value,float) and value.is_integer():label=str(int(value))
             else:label=str(value)
             attrs.append('style="'+';'.join(style)+'"')
-            row_cells.append('<td '+ ' '.join(attrs)+'>'+html_escape(label).replace('\n','<br>')+'</td>')
+            if rid==258 and col==1 and annex_data_uri:
+                # A258:Y266 es una celda combinada, reservada para fotografías.
+                content='<img alt="Fotografías de anexos en orden" src="'+annex_data_uri+'" '+\
+                        'style="display:block;width:100%;height:auto;object-fit:contain">'
+            else:
+                content=html_escape(label).replace('\n','<br>')
+            row_cells.append('<td '+ ' '.join(attrs)+'>'+content+'</td>')
         height=sheet.row_dimensions[rid].height or 15
         body.append('<tr style="height:'+str(max(20,min(45,int(height*1.28))))+'px">'+''.join(row_cells)+'</tr>')
     logo=''
