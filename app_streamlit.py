@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.12-v20.2-libros-personalizados"
+APP_VERSION = "2026.10.12-v20.3-generales-nomina-clima"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -1753,6 +1753,12 @@ class Editor:
         if kind in {"text_input", "text_area"}:
             return getattr(st, kind)(label, value=str(value or ""), **callback, **kwargs)
         if kind == "number_input":
+            # Permitir conteos sin rellenar hasta que el usuario los registre.
+            # 0 sigue siendo un valor válido distinto de «sin registrar».
+            allow_empty=bool(kwargs.pop('allow_empty',False))
+            if allow_empty and value in (None, ''):
+                return st.number_input(label, value=None,
+                    placeholder='Sin registrar', **callback, **kwargs)
             if isinstance(default, int):
                 value = int(number(value, default))
             else:
@@ -2174,8 +2180,8 @@ def autocompletar_datos_obra(datos, edificio, proyecto_anterior=None):
     Streamlit antes de dibujar Datos generales.
     """
     changed=[]
-    # v20.2: no imponer nombres, barrio o ciudad genéricos a una cuenta nueva.
-    # Solo la dirección de obra se deriva del edificio seleccionado (campo fijo).
+    # La dirección sigue derivándose únicamente del edificio. Los valores
+    # administrativos predefinidos son editables y no dependen del proyecto.
 
     edificio_actual=str(edificio or '').strip().casefold()
     anterior=str(proyecto_anterior or '').strip().casefold()
@@ -2285,18 +2291,24 @@ def official_data(record=None):
     Fecha, residente y actividades se ingresan expresamente. Los datos
     permanentes se recuperan únicamente de un libro previo del MISMO edificio.
     """
+    nuevo=not bool(record)
     record=record or {}
     payload=obj(record.get('datos'),{})
     if not isinstance(payload,dict):payload={'_legacy_items':payload}
+    # Los datos generales cuentan con una sugerencia inicial editable.
+    # Los demás pasos NO reciben cantidades ni clima ficticios.
+    sugerencia_general=VALORES_PREDETERMINADOS_LIBRO if nuevo else {}
     suggested={
-        'Superintendente':'', 'Fiscalizador':'',
+        'Superintendente':sugerencia_general.get('Superintendente',''),
+        'Fiscalizador':sugerencia_general.get('Fiscalizador',''),
         'Ubicacion':record.get('frente') or direccion_sugerida_edificio(record.get('proyecto')),
-        'Barrio':'', 'Ciudad':'', 'Hoja':'00053',
+        'Barrio':sugerencia_general.get('Barrio',''),
+        'Ciudad':sugerencia_general.get('Ciudad',''), 'Hoja':'00053',
         'Disciplina_Principal':'', 'Anexos_Fotos':[],
-        'Nomina_Conteo':{label:0 for label in OFICIOS_NOMINA_FORMATO},
-        'Rotativo_Conteo':{label:0 for label in RUROS_ROTATIVOS_FORMATO},
+        'Nomina_Conteo':{label:None for label in OFICIOS_NOMINA_FORMATO},
+        'Rotativo_Conteo':{label:None for label in RUROS_ROTATIVOS_FORMATO},
         'Clima_Condicion':record.get('clima') or '',
-        'Clima_Obs':'', 'Maquinaria_Conteo':{label:0 for label in MAQUINARIAS_FORMATO},
+        'Clima_Obs':'', 'Maquinaria_Conteo':{label:None for label in MAQUINARIAS_FORMATO},
         'Seguridad_Check':{label:False for label in (
             'Casco','Chalecos','Guantes','Gafas','Mascarilla','Auditivo',
             'Conos','Cintas','Rótulos','Vallas','Extintor','Botiquin',
@@ -2305,8 +2317,9 @@ def official_data(record=None):
     }
     values={**suggested,**payload}
     values['Hoja']='00053'
-    # Los valores administrativos se aprenden del histórico propio del edificio.
-    # No utilizar nombres o localidades fijos como datos inventados de un libro nuevo.
+    # Si ya existe un libro guardado, respetar sus valores aunque sean vacíos.
+    # En libros nuevos, el último libro propio del edificio puede reemplazar
+    # los valores predeterminados si el usuario los había cambiado.
     if str(values.get('Ubicacion') or '').strip().upper() in ('', 'POR CONFIRMAR'):
         values['Ubicacion']=direccion_sugerida_edificio(record.get('proyecto'))
     for block in ('Nomina_Conteo','Rotativo_Conteo','Maquinaria_Conteo','Seguridad_Check'):
@@ -2316,8 +2329,8 @@ def official_data(record=None):
         'fecha':str(record.get('fecha') or ''),
         'proyecto':record.get('proyecto') or '',
         'residente':record.get('residente') or '',
-        'hora_inicio':str(record.get('hora_inicio') or '')[:5],
-        'hora_fin':str(record.get('hora_fin') or '')[:5],
+        'hora_inicio':str(record.get('hora_inicio') or ('07:00' if nuevo else ''))[:5],
+        'hora_fin':str(record.get('hora_fin') or ('16:00' if nuevo else ''))[:5],
         'datos':values,
         'actividades':{row_id():copy.deepcopy(v) for v in payload.get('Actividades_Ejecutadas',[]) if isinstance(v,dict)},
     }
@@ -3207,6 +3220,24 @@ def render_official(editor,repo):
     d=editor.data
     original=d.get('_original')
     d['datos']['Hoja']='00053'
+    # Recuperación no destructiva de borradores creados en versiones anteriores:
+    # sugerir los datos generales una única vez cuando aún estén vacíos.
+    # No modificar libros guardados ni tocar valores que ya escribió el usuario.
+    if not original and not d.get('_v203_general_initialized'):
+        modified=False
+        for key, default in VALORES_PREDETERMINADOS_LIBRO.items():
+            if str(d['datos'].get(key) or '').strip() in ('', 'POR CONFIRMAR'):
+                d['datos'][key]=default
+                st.session_state.pop(editor.prefix+'datos:'+key,None)
+                modified=True
+        for key, default in (('hora_inicio','07:00'),('hora_fin','16:00')):
+            if not str(d.get(key) or '').strip():
+                d[key]=default
+                st.session_state.pop(editor.prefix+key,None)
+                modified=True
+        d['_v203_general_initialized']=True
+        if modified:
+            editor.persist()
     st.markdown('#### 🗓️ Libro de obra — datos de la jornada')
     top1,top2=st.columns([1.35,1])
     with top1:
@@ -3339,7 +3370,8 @@ def render_official(editor,repo):
             with col:
                 st.markdown('**Personal de nómina**' if field=='Nomina_Conteo' else '**Subcontratos y personal rotativo**')
                 for label in labels:
-                    editor.field('number_input',('datos',field,label),label,0,min_value=0,step=1)
+                    editor.field('number_input',('datos',field,label),label,None,
+                                 min_value=0,step=1,allow_empty=True)
         return
 
     if phase==phases[2]:
@@ -3352,7 +3384,8 @@ def render_official(editor,repo):
             a,b=st.columns(2)
             for i,label in enumerate(MAQUINARIAS_FORMATO):
                 with (a if i%2==0 else b):
-                    editor.field('number_input',('datos','Maquinaria_Conteo',label),label,0,min_value=0,step=1)
+                    editor.field('number_input',('datos','Maquinaria_Conteo',label),label,None,
+                                 min_value=0,step=1,allow_empty=True)
         with st.expander('🦺 Seguridad, señalización y mitigación',expanded=False):
             labels=['Casco','Chalecos','Guantes','Gafas','Mascarilla','Auditivo','Conos','Cintas',
                 'Rótulos','Vallas','Extintor','Botiquin','Polvo','Ruido','Liquidos','Cerramiento','Limpieza']
@@ -5098,9 +5131,10 @@ def official_book_excel_from_template(record):
     normalized_counts={normalize_template_key(k):v for k,v in counts.items()}
     for index,role in enumerate(OFICIOS_NOMINA_FORMATO):
         r=11+index
-        qty=max(0,int(number(normalized_counts.get(normalize_template_key(role),0))))
+        raw_qty=normalized_counts.get(normalize_template_key(role))
+        qty=max(0,int(number(raw_qty))) if raw_qty is not None else None
         replacements[f'A{r}']=role
-        replacements[f'J{r}']=qty
+        replacements[f'J{r}']=qty if qty is not None else ''
         replacements[f'L{r}']=as_clock(start) if qty else ''
         replacements[f'N{r}']=as_clock(end) if qty else ''
     # El formulario no tiene apartado 'otros proyectos': se deja en blanco.
@@ -5115,8 +5149,9 @@ def official_book_excel_from_template(record):
         r=11+i
         name=RUROS_ROTATIVOS_FORMATO[i] if i<len(RUROS_ROTATIVOS_FORMATO) else ''
         replacements[f'Q{r}']=name
-        qty=max(0,int(number(rotations.get(name,0)))) if name else 0
-        replacements[f'V{r}']=qty
+        raw_qty=rotations.get(name) if name else None
+        qty=max(0,int(number(raw_qty))) if raw_qty is not None else None
+        replacements[f'V{r}']=qty if qty is not None else ''
         replacements[f'X{r}']=as_clock(start) if qty else ''
         replacements[f'Y{r}']=as_clock(end) if qty else ''
     machines=data.get('Maquinaria_Conteo') or {}
@@ -5124,9 +5159,10 @@ def official_book_excel_from_template(record):
     for i in range(8):
         r=40+i
         name=MAQUINARIAS_FORMATO[i]
-        qty=max(0,int(number(machines.get(name,0))))
+        raw_qty=machines.get(name)
+        qty=max(0,int(number(raw_qty))) if raw_qty is not None else None
         replacements[f'Q{r}']=name
-        replacements[f'V{r}']=qty
+        replacements[f'V{r}']=qty if qty is not None else ''
         replacements[f'X{r}']=as_clock(start) if qty else ''
         replacements[f'Y{r}']=as_clock(end) if qty else ''
     # Clima: mañana/tarde. Se marca solamente la condición elegida.
