@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.12-v20-rubros-alineados"
+APP_VERSION = "2026.10.12-v20.2-libros-personalizados"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -2174,14 +2174,8 @@ def autocompletar_datos_obra(datos, edificio, proyecto_anterior=None):
     Streamlit antes de dibujar Datos generales.
     """
     changed=[]
-    for key, default in VALORES_PREDETERMINADOS_LIBRO.items():
-        current=str(datos.get(key) or '').strip()
-        if not current or current.upper()=='POR CONFIRMAR':
-            datos[key]=default
-            changed.append(key)
-        elif key in ('Barrio','Ciudad') and current.casefold()==default.casefold() and current!=default:
-            datos[key]=default
-            changed.append(key)
+    # v20.2: no imponer nombres, barrio o ciudad genéricos a una cuenta nueva.
+    # Solo la dirección de obra se deriva del edificio seleccionado (campo fijo).
 
     edificio_actual=str(edificio or '').strip().casefold()
     anterior=str(proyecto_anterior or '').strip().casefold()
@@ -2295,13 +2289,13 @@ def official_data(record=None):
     payload=obj(record.get('datos'),{})
     if not isinstance(payload,dict):payload={'_legacy_items':payload}
     suggested={
-        'Superintendente':'ING. PABLO ESPINOSA', 'Fiscalizador':'ING. DIEGO CHARVET',
+        'Superintendente':'', 'Fiscalizador':'',
         'Ubicacion':record.get('frente') or direccion_sugerida_edificio(record.get('proyecto')),
-        'Barrio':'BENALCAZAR', 'Ciudad':'QUITO', 'Hoja':'00053',
-        'Disciplina_Principal':DISCIPLINAS_LIBRO_OFICIAL[0], 'Anexos_Fotos':[],
+        'Barrio':'', 'Ciudad':'', 'Hoja':'00053',
+        'Disciplina_Principal':'', 'Anexos_Fotos':[],
         'Nomina_Conteo':{label:0 for label in OFICIOS_NOMINA_FORMATO},
         'Rotativo_Conteo':{label:0 for label in RUROS_ROTATIVOS_FORMATO},
-        'Clima_Condicion':record.get('clima') or 'SOL',
+        'Clima_Condicion':record.get('clima') or '',
         'Clima_Obs':'', 'Maquinaria_Conteo':{label:0 for label in MAQUINARIAS_FORMATO},
         'Seguridad_Check':{label:False for label in (
             'Casco','Chalecos','Guantes','Gafas','Mascarilla','Auditivo',
@@ -2311,9 +2305,8 @@ def official_data(record=None):
     }
     values={**suggested,**payload}
     values['Hoja']='00053'
-    for key, value in VALORES_PREDETERMINADOS_LIBRO.items():
-        if str(values.get(key) or '').strip().upper() in ('', 'POR CONFIRMAR'):
-            values[key]=value
+    # Los valores administrativos se aprenden del histórico propio del edificio.
+    # No utilizar nombres o localidades fijos como datos inventados de un libro nuevo.
     if str(values.get('Ubicacion') or '').strip().upper() in ('', 'POR CONFIRMAR'):
         values['Ubicacion']=direccion_sugerida_edificio(record.get('proyecto'))
     for block in ('Nomina_Conteo','Rotativo_Conteo','Maquinaria_Conteo','Seguridad_Check'):
@@ -2323,8 +2316,8 @@ def official_data(record=None):
         'fecha':str(record.get('fecha') or ''),
         'proyecto':record.get('proyecto') or '',
         'residente':record.get('residente') or '',
-        'hora_inicio':str(record.get('hora_inicio') or '07:00')[:5],
-        'hora_fin':str(record.get('hora_fin') or '16:00')[:5],
+        'hora_inicio':str(record.get('hora_inicio') or '')[:5],
+        'hora_fin':str(record.get('hora_fin') or '')[:5],
         'datos':values,
         'actividades':{row_id():copy.deepcopy(v) for v in payload.get('Actividades_Ejecutadas',[]) if isinstance(v,dict)},
     }
@@ -2887,27 +2880,27 @@ def _v20_on_choose_rubro(editor, rid, selection_key):
             editor.persist()
 
 
-def v19_catalogo_en_rubro(editor, rid, item):
-    """Selector equivalente al de Rendimientos: capítulo, modo y una sola lista.
+def formato_rubro_unificado(codigo, catalogo):
+    """Etiqueta buscable: código, descripción y unidad del rubro."""
+    descripcion,unidad=catalogo[codigo]
+    return f'{codigo} · {descripcion} ({unidad})'
 
-    Las dos opciones de búsqueda utilizan los MISMOS códigos del catálogo,
-    conservando capítulos, código, unidad y las actividades históricas.
+
+def v19_catalogo_en_rubro(editor, rid, item):
+    """Selección unificada por código o descripción en el Libro de Obra.
+
+    Cada entrada contiene ambos textos y su unidad. La búsqueda del selectbox
+    de Streamlit puede coincidir con cualquier fragmento del elemento visible.
+    Conserva el código como identidad interna para no modificar los borradores.
     """
     chapters=['']+[v18_chapter_label(ch) for ch,_ in sorted(
         catalogo_rubros_v18()['capitulos'],key=lambda pair:int(pair[0][4:]))]
-    # Compatibilidad con actividades guardadas antes de incorporar el capítulo.
     if item.get('Codigo_Rubro') and not item.get('Capitulo'):
         item['Capitulo']=v18_chapter_label(item['Codigo_Rubro'])
-    c1,c2=st.columns([1,1.1])
-    with c1:
-        chapter=editor.field('selectbox',('actividades',rid,'Capitulo'),
-            'Capítulo', '', options=chapters)
-    with c2:
-        mode=st.radio('Buscar rubro por',['Código','Descripción'],horizontal=True,
-            key=editor.prefix+'v20_rubro_mode:'+str(rid))
+    chapter=editor.field('selectbox',('actividades',rid,'Capitulo'),
+        'Capítulo', '', options=chapters)
 
     manual_key=editor.prefix+'v19_9_manual:'+str(rid)
-    # El usuario puede continuar editando una actividad antigua sin código.
     manual_default=bool(item.get('Descripcion') and not item.get('Codigo_Rubro'))
     manual=st.checkbox('Actividad manual fuera del catálogo', value=manual_default,
                        key=manual_key,
@@ -2925,30 +2918,26 @@ def v19_catalogo_en_rubro(editor, rid, item):
         return
 
     current_code=str(item.get('Codigo_Rubro') or '').strip()
-    # Al cambiar de capítulo, una selección anterior no puede quedar asignada
-    # a una disciplina distinta. Área y cantidad no se modifican.
     if current_code and v18_chapter_code(chapter)!=v18_chapter_code(current_code):
         for field in ('Codigo_Rubro','Descripcion','Unidad'):
             item[field]=''
         current_code=''
         editor.persist()
     if not chapter:
-        st.caption('Selecciona primero el capítulo para elegir un rubro.')
+        st.caption('Selecciona primero un capítulo.')
         return
 
     options=v18_catalog_matches(chapter,'',limit=None)
     codes=[code for code,_,_ in options]
     lookup={code:(description,unit) for code,description,unit in options}
-    # Incluir el capítulo en la clave evita conservar un valor de otro capítulo.
-    selection_key=(editor.prefix+'v20_rubro:'+str(rid)+':'+
-        (v18_chapter_code(chapter) or 'ninguno')+':'+
-        ('codigo' if mode=='Código' else 'descripcion'))
+    # Una clave por capítulo evita selecciones persistentes de otro capítulo.
+    selection_key=(editor.prefix+'v20_1_rubro_unificado:'+str(rid)+':'+
+                   (v18_chapter_code(chapter) or 'ninguno'))
     selected_code=current_code if current_code in lookup else ''
-    st.selectbox('Rubro (código)' if mode=='Código' else 'Descripción del rubro',
-        codes,index=codes.index(selected_code) if selected_code else None,
-        placeholder='Selecciona el código…' if mode=='Código' else 'Selecciona la descripción…',
-        format_func=(lambda code:code) if mode=='Código' else
-                    (lambda code:lookup[code][0]+' · '+code),
+    st.selectbox('Rubro (buscar por código o descripción)',codes,
+        index=codes.index(selected_code) if selected_code else None,
+        placeholder='Escribe el código o parte de la descripción…',
+        format_func=lambda code:formato_rubro_unificado(code,lookup),
         key=selection_key,on_change=_v20_on_choose_rubro,
         args=(editor,rid,selection_key))
 
@@ -2993,7 +2982,7 @@ def ultimo_libro_oficial_usuario(correo, edificio):
 LIBRO_CAMPOS_REPETIBLES = (
     'Ubicacion','Barrio','Ciudad','Superintendente','Fiscalizador',
     'Nomina_Conteo','Rotativo_Conteo','Maquinaria_Conteo','Seguridad_Check',
-    'Clima_Condicion','Clima_Obs',
+    'Clima_Condicion','Clima_Obs','Disciplina_Principal',
 )
 LIBRO_BLOQUES_REPETIBLES = (
     'Nomina_Conteo','Rotativo_Conteo','Maquinaria_Conteo','Seguridad_Check',
@@ -3305,8 +3294,8 @@ def render_official(editor,repo):
                     editor.field('text_input',('datos',k),label,'')
         editor.field('text_input','residente','Residente de obra (obligatorio y manual)','')
         a,b=st.columns(2)
-        with a:editor.field('text_input','hora_inicio','Entrada','07:00')
-        with b:editor.field('text_input','hora_fin','Salida','16:00')
+        with a:editor.field('text_input','hora_inicio','Entrada','',placeholder='Ej.: 07:00')
+        with b:editor.field('text_input','hora_fin','Salida','',placeholder='Ej.: 16:00')
         if d.get('fecha') and d.get('proyecto'):
             matching=[r for r in repo.own('checklists')
                 if str(r.get('fecha'))[:10]==str(d['fecha'])[:10] and r.get('edificio')==d['proyecto']]
@@ -3332,19 +3321,10 @@ def render_official(editor,repo):
     if phase==phases[1]:
         st.markdown('#### 👷 Nómina fija y contratistas')
         workers=combined_workers(repo,d.get('proyecto')) if d.get('proyecto') else []
-        if not original and d.get('proyecto') and d.get('_nomina_sugerida_proyecto')!=d['proyecto']:
-            previous=d.get('_nomina_sugerida_conteos')
-            current=d['datos']['Nomina_Conteo']
-            if previous is None or current==previous:
-                counts,unclassified=workforce_counts(workers)
-                d['datos']['Nomina_Conteo'].update(counts)
-                d['_nomina_sugerida_conteos']=dict(counts)
-                d['_unclassified']=unclassified
-                for name in list(st.session_state):
-                    if name.startswith(editor.prefix+'datos:Nomina_Conteo:'):
-                        del st.session_state[name]
-            d['_nomina_sugerida_proyecto']=d['proyecto']
-            editor.persist()
+        # Los conteos arrancan en cero cuando aún no hay libro previo.
+        # Una nómina existente solo se importa si el usuario lo solicita mediante
+        # el botón «Actualizar conteo desde mi nómina»; de otro modo podría
+        # sobrescribir una planilla que está editando manualmente.
         st.button('🔄 Actualizar conteo desde mi nómina',key=editor.prefix+'nomina',
                   on_click=actualizar_conteo_nomina_editor,args=(editor,repo))
         notice=editor.draft.get('nomina_notice')
@@ -3364,8 +3344,9 @@ def render_official(editor,repo):
 
     if phase==phases[2]:
         st.markdown('#### 🌤️ Clima y maquinaria (formato oficial)')
-        editor.field('selectbox',('datos','Clima_Condicion'),'Clima observado','SOL',
-            options=['SOL','NUBLADO','LLUVIA TENUE','LLUVIA INTENSA','GRANIZO'])
+        editor.field('selectbox',('datos','Clima_Condicion'),'Clima observado','',
+            options=['SOL','NUBLADO','LLUVIA TENUE','LLUVIA INTENSA','GRANIZO'],
+            empty_placeholder='Seleccionar clima')
         editor.field('text_input',('datos','Clima_Obs'),'Observaciones del clima','')
         with st.expander('🏗️ Equipos y maquinaria',expanded=False):
             a,b=st.columns(2)
@@ -3384,7 +3365,8 @@ def render_official(editor,repo):
         st.markdown('#### 🏷️ Disciplina del encabezado principal')
         editor.field('selectbox',('datos','Disciplina_Principal'),
             'Especialidad que aparecerá en la cabecera principal del Excel',
-            DISCIPLINAS_LIBRO_OFICIAL[0], options=DISCIPLINAS_LIBRO_OFICIAL)
+            '', options=DISCIPLINAS_LIBRO_OFICIAL,
+            empty_placeholder='Seleccionar disciplina')
         left=st.container()
         with left:
             st.markdown('#### 🏗️ Actividades y rubros')
@@ -3453,7 +3435,10 @@ def render_official(editor,repo):
             if not activities:raise ValueError('Registra al menos un rubro en Actividades y Maestro.')
             payload=copy.deepcopy(d['datos'])
             payload['Hoja']='00053'
-            payload['Disciplina_Principal']=str(payload.get('Disciplina_Principal') or DISCIPLINAS_LIBRO_OFICIAL[0]).upper().strip()
+            chosen_discipline=str(payload.get('Disciplina_Principal') or '').upper().strip()
+            if chosen_discipline not in DISCIPLINAS_LIBRO_OFICIAL:
+                raise ValueError('Selecciona una disciplina en Actividades y Maestro antes de guardar.')
+            payload['Disciplina_Principal']=chosen_discipline
             for field in ('Ubicacion','Barrio','Ciudad','Superintendente','Fiscalizador'):
                 payload[field]=str(payload.get(field) or '').strip().upper()
             # Esta marca es solamente una sugerencia de la interfaz, no un campo del Excel.
@@ -3654,23 +3639,21 @@ def rend_data(record=None):
 
 
 def _rend_select_catalog(editor):
-    """Elegir por código o descripción, compartiendo un único campo guardado."""
+    """Un solo buscador por código o descripción, con filtro opcional por capítulo."""
     d=editor.data
-    all_catalog=catalogo_rubros_v18()['rubros']
-    chapter_options=['Todos los capítulos']+[code for code,_ in sorted(catalogo_rubros_v18()['capitulos'],key=lambda p:int(p[0][4:]))]
-    c1,c2=st.columns([1,1.1])
-    with c1:
-        chapter=st.selectbox('Capítulo (filtro)',chapter_options,
-            format_func=lambda ch:ch if ch=='Todos los capítulos' else v18_chapter_label(ch),
-            key=editor.prefix+'rend_chapter')
-    with c2:
-        mode=st.radio('Buscar rubro por',['Código','Descripción'],horizontal=True,
-            key=editor.prefix+'rend_search_mode')
+    chapter_options=['Todos los capítulos']+[code for code,_ in sorted(
+        catalogo_rubros_v18()['capitulos'],key=lambda p:int(p[0][4:]))]
+    chapter=st.selectbox('Capítulo (filtro)',chapter_options,
+        format_func=lambda ch:ch if ch=='Todos los capítulos' else v18_chapter_label(ch),
+        key=editor.prefix+'rend_chapter')
     chosen_code=str(d.get('codigo_rubro') or '')
-    candidates=v18_catalog_matches('' if chapter=='Todos los capítulos' else chapter,'',limit=None)
-    # Si el usuario cambia el filtro, no se borra el rubro guardado hasta elegir otro.
-    selected_key=editor.prefix+'rend_select:'+('code' if mode=='Código' else 'description')+':'+chapter
+    candidates=v18_catalog_matches('' if chapter=='Todos los capítulos' else chapter,
+                                    '',limit=None)
     choices=[code for code,_,_ in candidates]
+    lookup={code:(description,unit) for code,description,unit in candidates}
+    # Conservar el rubro persistido al cambiar de filtro: no sustituirlo hasta
+    # que la persona seleccione expresamente otro elemento.
+    selected_key=editor.prefix+'rend_unified:'+chapter
     def _apply():
         code=st.session_state.get(selected_key)
         if not code:return
@@ -3681,16 +3664,10 @@ def _rend_select_catalog(editor):
             d['unidad']=row['Unidad']
             editor.persist()
     initial=choices.index(chosen_code) if chosen_code in choices else None
-    if mode=='Código':
-        selected=st.selectbox('Rubro (código)',choices,index=initial,
-            placeholder='Seleccionar código del catálogo',
-            format_func=lambda code:code,
-            key=selected_key,on_change=_apply)
-    else:
-        selected=st.selectbox('Descripción del rubro',choices,index=initial,
-            placeholder='Buscar por descripción en el catálogo',
-            format_func=lambda code:v18_catalog_record(code)['Descripcion']+' · '+code,
-            key=selected_key,on_change=_apply)
+    st.selectbox('Rubro (buscar por código o descripción)',choices,index=initial,
+        placeholder='Escribe el código o parte de la descripción…',
+        format_func=lambda code:formato_rubro_unificado(code,lookup),
+        key=selected_key,on_change=_apply)
     row=v18_catalog_record(chosen_code) if chosen_code else None
     a,b,c=st.columns([1,2,0.8])
     with a:st.text_input('Rubro',value=chosen_code or 'Sin seleccionar',disabled=True)
@@ -5238,12 +5215,26 @@ def official_book_excel_from_template(record):
                         payload='<is><t xml:space="preserve">'+safe+'</t></is>'
                     return start_tag+payload+'</c>'
                 xml=pattern.sub(replace,xml)
-                # Encabezado: A1:Y1 estaba centrado sobre toda la hoja, pero el
-                # edificio A2:V2 se centra sin el espacio reservado a HOJA.
-                # Igualar la combinación al rango A:V alinea ambos títulos.
-                if 'ref="A1:Y1"' not in xml:
-                    raise RuntimeError('No se encontró el título combinado de la plantilla oficial.')
-                xml=xml.replace('ref="A1:Y1"','ref="A1:V1"',1)
+                # Alinear los TRES títulos con el eje del edificio F3:V3.
+                # Los rangos A1:Y1 y A2:V2 tienen centros diferentes. Reanclar
+                # sus textos en F1 y F2 y unir F:V permite centrar exactamente
+                # encima de EDIFICIO <NOMBRE>, reservando A:E para el logotipo.
+                for row_num, merged_original, target_merge in (
+                    (1,'A1:Y1','F1:V1'), (2,'A2:V2','F2:V2')):
+                    source_cell=f'A{row_num}'
+                    target_cell=f'F{row_num}'
+                    source_match=re.search(r'<c\b[^>]*\br="'+source_cell+r'"[^>]*>.*?</c>',xml)
+                    target_match=re.search(r'<c\b[^>]*\br="'+target_cell+r'"[^>]*/>',xml)
+                    if not source_match or not target_match or f'ref="{merged_original}"' not in xml:
+                        raise RuntimeError('La estructura del encabezado oficial ha cambiado.')
+                    source_markup=source_match.group(0)
+                    # Mantener el estilo original del título, incluida su alineación.
+                    heading_markup=source_markup.replace('r="'+source_cell+'"','r="'+target_cell+'"',1)
+                    source_style=re.search(r'\bs="(\d+)"',source_markup)
+                    source_replacement=f'<c r="{source_cell}" s="2"/>'
+                    xml=xml.replace(source_markup,source_replacement,1)
+                    xml=xml.replace(target_match.group(0),heading_markup,1)
+                    xml=xml.replace(f'ref="{merged_original}"',f'ref="{target_merge}"',1)
                 # Algunas filas de actividades del Excel original están ocultas.
                 # Revelar SOLO las que contienen rubros para que se vean al abrir.
                 if visible_activity_rows:
@@ -5281,12 +5272,29 @@ def v196_official_excel_preview(serialized_record):
     workbook_bytes=v18_cached_official_excel(serialized_record)
     book=openpyxl.load_workbook(io.BytesIO(workbook_bytes),data_only=True,read_only=False)
     sheet=book.active
-    # Cabecera, resumen de personal y seguridad, actividades con texto y firmas.
+    # Mantener cabecera, nómina, clima y anexos. En ACTIVIDADES no mostrar
+    # los encabezados de las seis disciplinas que NO eligió el usuario.
+    # El archivo descargable permanece intacto y conserva el formato completo.
+    discipline=str(obj(json.loads(serialized_record).get('datos'),{}).get('Disciplina_Principal') or '').strip().upper()
+    activity_sections={
+        DISCIPLINAS_LIBRO_OFICIAL[0]: (55,80),
+        DISCIPLINAS_LIBRO_OFICIAL[1]: (81,110),
+        DISCIPLINAS_LIBRO_OFICIAL[2]: (111,146),
+        DISCIPLINAS_LIBRO_OFICIAL[3]: (147,158),
+        DISCIPLINAS_LIBRO_OFICIAL[4]: (159,202),
+        DISCIPLINAS_LIBRO_OFICIAL[5]: (203,231),
+        DISCIPLINAS_LIBRO_OFICIAL[6]: (232,248),
+    }
     visible=set(range(1,55)) | set(range(249,271))
-    for rid in range(55,249):
-        row=sheet[rid]
-        if any(cell.value is not None and str(cell.value).strip() for cell in row):
-            visible.add(rid)
+    section=activity_sections.get(discipline)
+    if section:
+        # Incluye el rótulo elegido y solo las filas que contienen un rubro.
+        visible.add(section[0])
+        for rid in range(section[0]+1,section[1]+1):
+            row=sheet[rid]
+            if any(str(sheet[f'{column}{rid}'].value or '').strip()
+                   for column in ('A','B','V','X','Y')):
+                visible.add(rid)
     visible_rows=sorted(visible)
     merged_owner={}
     merges={}
@@ -5362,7 +5370,7 @@ def v196_official_excel_preview(serialized_record):
     cols=''.join('<col style="width:'+('135' if i==1 else '47' if i<=15 else '70')+'px">' for i in range(1,26))
     return ('<!doctype html><html lang="es"><head><meta charset="utf-8"><style>'+css+
         '</style></head><body><div class="book-hint">Vista del Excel oficial: desplázate horizontalmente y hacia abajo. '
-        'Las filas vacías de actividades están condensadas; descarga el Excel para ver todas las filas originales.</div>'
+        'En actividades se muestra solo la disciplina seleccionada; el Excel descargado conserva la plantilla completa.</div>'
         '<div class="book-scroller"><div class="book-sheet">'+logo+'<table><colgroup>'+cols+
         '</colgroup><tbody>'+''.join(body)+'</tbody></table></div></div></body></html>')
 
@@ -5370,7 +5378,7 @@ def v196_official_excel_preview(serialized_record):
 def v196_show_official_preview(record):
     import streamlit.components.v1 as components
     st.markdown('#### 📄 Vista previa del Libro de Obra oficial')
-    st.caption('Se genera desde el mismo Excel oficial, respetando sus títulos, celdas combinadas y secciones.')
+    st.caption('Se muestra la disciplina seleccionada, conservando el formato oficial.')
     html=v196_official_excel_preview(json_text(record))
     components.html(html,height=635,scrolling=False)
     images=anexos_fotos_validas(obj(record.get('datos'),{}))
