@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.12-v19.4-personal-horas-intuitivas"
+APP_VERSION = "2026.10.12-v19.6-filtros-vista-excel"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -876,7 +876,7 @@ APP_CSS_V19_3 = """
 <style>
 .ab-rend-table-wrap {overflow-x:auto;max-width:100%;border:1px solid var(--ab-outline);
  background:var(--ab-surface);border-radius:12px;margin:10px 0 14px;box-shadow:var(--ab-shadow)}
-.ab-rend-table {width:100%;min-width:1950px;table-layout:auto;border-collapse:collapse;
+.ab-rend-table {width:100%;min-width:2110px;table-layout:auto;border-collapse:collapse;
  color:var(--ab-ink);font-size:.75rem}
 .ab-rend-table th {padding:10px 9px;text-align:left;white-space:nowrap;
  background:#18345f!important;color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;
@@ -886,11 +886,12 @@ APP_CSS_V19_3 = """
  color:var(--ab-ink)!important;-webkit-text-fill-color:var(--ab-ink)!important}
 .ab-rend-table tbody tr:nth-child(even){background:var(--ab-surface-soft)}
 .ab-rend-table tbody tr:hover{background:var(--ab-surface-soft-2)}
-.ab-rend-table td:nth-child(3){font-weight:800}
-.ab-rend-table td:nth-child(4){min-width:210px}
-.ab-rend-table td:nth-child(5){min-width:180px;white-space:pre-line;line-height:1.55} 
-.ab-rend-table td:nth-child(6){min-width:130px;white-space:pre-line;line-height:1.55}
-.ab-rend-table td:nth-child(13){font-weight:800}
+.ab-rend-table td:nth-child(1){white-space:nowrap;font-weight:750}
+.ab-rend-table td:nth-child(4){font-weight:800}
+.ab-rend-table td:nth-child(5){min-width:210px}
+.ab-rend-table td:nth-child(6){min-width:180px;white-space:pre-line;line-height:1.55} 
+.ab-rend-table td:nth-child(7){min-width:130px;white-space:pre-line;line-height:1.55}
+.ab-rend-table td:nth-child(14){font-weight:800}
 .ab-rend-table .ab-photo-thumb{width:76px;height:55px;object-fit:cover;border-radius:7px}
 </style>
 """
@@ -3698,16 +3699,16 @@ def rendimiento_excel_v193(records):
     ws.append(REND_PLANILLA_HEADERS)
     fill=PatternFill('solid',fgColor='18345F')
     for cell in ws[1]:cell.fill=fill;cell.font=Font(color='FFFFFF',bold=True)
-    widths=[19,21,17,48,35,23,10,12,12,16,14,16,20,18,18,18]
+    widths=[23,19,21,17,48,35,23,10,12,12,16,14,16,20,18,18,18]
     for col,width in enumerate(widths,1):ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width=width
-    ws.freeze_panes='D2';ws.auto_filter.ref=f'A1:P{len(records)+1}'
+    ws.freeze_panes='E2';ws.auto_filter.ref=f'A1:Q{len(records)+1}'
     for n,rec in enumerate(records,2):
         row=_rend_planilla_data(rec)
-        for col,key in enumerate(('Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin',
+        for col,key in enumerate(('Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin',
                                   'Tiempo muerto','Lunch','Almuerzo','Rendimiento'),1):
             excel_cell(ws.cell(n,col),row[key])
         ws.row_dimensions[n].height=max(63,min(210,15*(1+max(row['Encargado'].count('\n'),row['Cargo'].count('\n')))))
-        for col,period in ((14,'Mañana'),(15,'Mediodía'),(16,'Tarde')):
+        for col,period in ((15,'Mañana'),(16,'Mediodía'),(17,'Tarde')):
             photos=row[period]
             if photos:
                 try:
@@ -3734,14 +3735,14 @@ def rendimiento_pdf_v193(records):
     body=ParagraphStyle('rb',parent=styles['Normal'],fontSize=6.5,leading=8.5)
     title=ParagraphStyle('rt',parent=styles['Heading1'],fontSize=15,leading=19)
     story=[Paragraph('ALPHA BUILDERS · PLANILLA DE RENDIMIENTOS',title),Spacer(1,10)]
-    heads=REND_PLANILLA_HEADERS[:13]
+    heads=REND_PLANILLA_HEADERS[:14]
     data=[[Paragraph(html_escape(h),head) for h in heads]]
     for rec in records:
         r=_rend_planilla_data(rec)
         data.append([Paragraph(html_escape(str(r[k])).replace('\n','<br/>'),body) for k in
-              ('Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento')])
+              ('Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento')])
     available=doc.width
-    factors=[.075,.085,.075,.17,.135,.10,.055,.06,.06,.07,.055,.06,.10]
+    factors=[.085,.075,.085,.075,.17,.135,.10,.055,.06,.06,.07,.055,.06,.10]
     scales=sum(factors)
     tbl=Table(data,colWidths=[available*x/scales for x in factors],repeatRows=1,hAlign='LEFT')
     tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#18345F')),
@@ -4909,6 +4910,111 @@ def v18_cached_official_excel(serialized_record):
     return official_book_excel_from_template(json.loads(serialized_record))
 
 
+
+@st.cache_data(ttl=900, show_spinner=False, max_entries=24)
+def v196_official_excel_preview(serialized_record):
+    """Vista HTML del XLSX oficial rellenado (incluye celdas combinadas y estilos).
+
+    Reutiliza los mismos bytes que la descarga; las filas en blanco de actividades
+    se compactan para que la consulta no se vuelva interminable. No modifica el XLSX.
+    """
+    workbook_bytes=v18_cached_official_excel(serialized_record)
+    book=openpyxl.load_workbook(io.BytesIO(workbook_bytes),data_only=True,read_only=False)
+    sheet=book.active
+    # Cabecera, resumen de personal y seguridad, actividades con texto y firmas.
+    visible=set(range(1,55)) | set(range(249,271))
+    for rid in range(55,249):
+        row=sheet[rid]
+        if any(cell.value is not None and str(cell.value).strip() for cell in row):
+            visible.add(rid)
+    visible_rows=sorted(visible)
+    merged_owner={}
+    merges={}
+    for rng in sheet.merged_cells.ranges:
+        first=(rng.min_row,rng.min_col)
+        included=sum(1 for r in visible_rows if rng.min_row<=r<=rng.max_row)
+        if not included:continue
+        merges[first]=(rng.max_col-rng.min_col+1,included)
+        # Solo asignar posiciones existentes en la vista, sin miles de claves extras.
+        for r in visible_rows:
+            if rng.min_row<=r<=rng.max_row:
+                for c in range(rng.min_col,rng.max_col+1):
+                    merged_owner[(r,c)]=first
+    def color_hex(color):
+        if color and color.type=='rgb' and color.rgb and isinstance(color.rgb,str):
+            return '#'+color.rgb[-6:]
+        return None
+    body=[]
+    for rid in visible_rows:
+        row_cells=[]
+        for col in range(1,26):
+            owner=merged_owner.get((rid,col))
+            if owner and owner!=(rid,col):continue
+            cell=sheet.cell(rid,col)
+            span,rows=merges.get((rid,col),(1,1))
+            attrs=[]
+            if span>1:attrs.append(f'colspan="{span}"')
+            if rows>1:attrs.append(f'rowspan="{rows}"')
+            style=[]
+            if cell.fill and cell.fill.patternType=='solid':
+                fill=color_hex(cell.fill.fgColor)
+                if fill:style.append('background:'+fill)
+            fc=color_hex(cell.font.color) if cell.font else None
+            if fc:style.append('color:'+fc)
+            if cell.font and cell.font.bold:style.append('font-weight:750')
+            if cell.font and cell.font.sz:
+                style.append('font-size:'+str(min(17,max(9,float(cell.font.sz)*0.92)))+'px')
+            if cell.alignment:
+                if cell.alignment.horizontal in ('center','right','left'):
+                    style.append('text-align:'+cell.alignment.horizontal)
+                if cell.alignment.vertical in ('center','top','bottom'):
+                    style.append('vertical-align:'+('middle' if cell.alignment.vertical=='center' else cell.alignment.vertical))
+            value=cell.value
+            if value is None:label=''
+            elif isinstance(value,(dt.datetime,dt.date)):label=value.strftime('%d/%m/%Y')
+            elif isinstance(value,float) and value.is_integer():label=str(int(value))
+            else:label=str(value)
+            attrs.append('style="'+';'.join(style)+'"')
+            row_cells.append('<td '+ ' '.join(attrs)+'>'+html_escape(label).replace('\n','<br>')+'</td>')
+        height=sheet.row_dimensions[rid].height or 15
+        body.append('<tr style="height:'+str(max(20,min(45,int(height*1.28))))+'px">'+''.join(row_cells)+'</tr>')
+    logo=''
+    if sheet._images:
+        try:
+            im_bytes=sheet._images[0]._data()
+            mime='image/png' if im_bytes.startswith(b'\x89PNG') else 'image/jpeg'
+            logo='<img class="book-logo" alt="Alpha Builders" src="data:'+mime+';base64,'+base64.b64encode(im_bytes).decode('ascii')+'">'
+        except Exception:
+            pass
+    book.close()
+    css="""
+    body{margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#111827}
+    .book-hint{padding:12px 14px;color:#334155;background:#eaf0fb;font-size:12px;border-bottom:1px solid #ccd5e5}
+    .book-scroller{height:565px;overflow:auto;background:#fff;border:1px solid #cbd5e1;position:relative}
+    .book-sheet{position:relative;min-width:1730px;background:white}
+    .book-logo{position:absolute;top:8px;left:12px;width:140px;max-height:75px;object-fit:contain;z-index:4;pointer-events:none}
+    table{table-layout:fixed;border-collapse:collapse;width:100%;color:#111827;font-family:Arial,sans-serif;font-size:11px}
+    td{border:1px solid #848484;padding:2px 4px;line-height:1.14;vertical-align:middle;
+       word-break:break-word;white-space:pre-wrap;min-height:18px;background-clip:padding-box}
+    tr{page-break-inside:avoid}
+    """
+    # Las columnas pequeñas mantienen la división original en secciones.
+    cols=''.join('<col style="width:'+('135' if i==1 else '47' if i<=15 else '70')+'px">' for i in range(1,26))
+    return ('<!doctype html><html lang="es"><head><meta charset="utf-8"><style>'+css+
+        '</style></head><body><div class="book-hint">Vista del Excel oficial: desplázate horizontalmente y hacia abajo. '
+        'Las filas vacías de actividades están condensadas; descarga el Excel para ver todas las filas originales.</div>'
+        '<div class="book-scroller"><div class="book-sheet">'+logo+'<table><colgroup>'+cols+
+        '</colgroup><tbody>'+''.join(body)+'</tbody></table></div></div></body></html>')
+
+
+def v196_show_official_preview(record):
+    import streamlit.components.v1 as components
+    st.markdown('#### 📄 Vista previa del Libro de Obra oficial')
+    st.caption('Se genera desde el mismo Excel oficial, respetando sus títulos, celdas combinadas y secciones.')
+    html=v196_official_excel_preview(json_text(record))
+    components.html(html,height=635,scrolling=False)
+
+
 def official_books_package(records):
     books=[r for r in records if not is_master_book(r)]
     if not books:
@@ -5284,7 +5390,20 @@ def history(table, records, repo, key, editable=True):
             with st.container(border=True):
                 st.markdown('#### '+html_escape(record_title(table,selected_record)))
                 st.caption(display_date(record_date(table,selected_record),True)+' · '+record_building(table,selected_record))
-                show_record(table,selected_record)
+                if table=='inspecciones' and not is_master_book(selected_record):
+                    view=st.segmented_control('Vista del libro',
+                        ['📄 Planilla Excel oficial','🧾 Datos y secciones'],
+                        default='📄 Planilla Excel oficial',
+                        key='v196_official_view_'+key+'_'+str(selected_record.get('id')),
+                        label_visibility='collapsed') or '📄 Planilla Excel oficial'
+                    if view=='📄 Planilla Excel oficial':
+                        try:v196_show_official_preview(selected_record)
+                        except Exception as exc:
+                            LOG.exception('Error generando vista previa del Libro de Obra')
+                            st.warning('No fue posible mostrar la vista previa. Puedes descargar el Excel oficial.')
+                    else:show_record(table,selected_record)
+                else:
+                    show_record(table,selected_record)
                 if table=='inspecciones' and is_master_book(selected_record):
                     try:
                         document=cached_master_planilla_pdf(json_text(selected_record))
@@ -6642,7 +6761,8 @@ def _rend_planilla_data(record):
     # Una línea por encargado mantiene el orden que tenía cada cargo en SQL.
     encargados='\n'.join(person['nombre'] or 'Sin nombre registrado' for person in people) if people else 'Sin registro'
     cargos='\n'.join(person['cargo'] or 'Sin cargo registrado' for person in people) if people else 'Sin registro'
-    return {'Edificio':value['edificio'],'Área':pay.get('area') or value['piso'],
+    return {'Fecha':display_date(record_date('rendimientos',record)),
+            'Edificio':value['edificio'],'Área':pay.get('area') or value['piso'],
             'Rubro':code or '—','Descripción':description,
             'Encargado':encargados,'Cargo':cargos,'Unidad':unit,
             'Inicio':pay.get('hora_inicio') or '—','Fin':pay.get('hora_fin') or '—',
@@ -6653,7 +6773,7 @@ def _rend_planilla_data(record):
             'Mañana':photos['manana'],'Mediodía':photos['mediodia'],'Tarde':photos['tarde']}
 
 
-REND_PLANILLA_HEADERS=['Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad',
+REND_PLANILLA_HEADERS=['Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad',
      'Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento',
      'Foto mañana','Foto mediodía','Foto tarde']
 
@@ -6673,7 +6793,7 @@ def rendimiento_planilla_preview(records):
     for rec in records:
         row=_rend_planilla_data(rec)
         cells=''.join('<td>'+html_escape(str(row[k] or '—'))+'</td>' for k in (
-            'Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin',
+            'Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin',
             'Tiempo muerto','Lunch','Almuerzo','Rendimiento'))
         cells+=''.join('<td>'+_rend_photo_cell(row[k])+'</td>' for k in ('Mañana','Mediodía','Tarde'))
         rows.append('<tr>'+cells+'</tr>')
@@ -6689,19 +6809,27 @@ def history_rend_by_building(records,repo):
     if not records:
         st.info('No hay rendimientos registrados todavía.');return
     buildings=sorted({record_building('rendimientos',r) for r in records},key=str.casefold)
-    a,b=st.columns([1.5,1])
+    a,b,c=st.columns([1.3,1.05,1.15])
     with a:building=st.selectbox('Edificio',['Todos los edificios']+buildings,key='v193_rend_building')
     months=sorted({record_date('rendimientos',r)[:7] for r in records
                     if (building=='Todos los edificios' or record_building('rendimientos',r)==building)
                     and len(record_date('rendimientos',r))>=7},reverse=True)
     with b:month=st.selectbox('Mes',['Todos los meses']+months,
         format_func=lambda m:display_month(m) if m!='Todos los meses' else m,key='v193_rend_month')
+    available_days=sorted({record_date('rendimientos',r) for r in records
+        if len(record_date('rendimientos',r))==10
+        and (building=='Todos los edificios' or record_building('rendimientos',r)==building)
+        and (month=='Todos los meses' or record_date('rendimientos',r).startswith(month))},reverse=True)
+    with c:day=st.selectbox('Día',['Todos los días']+available_days,
+        format_func=lambda value:display_date(value) if value!='Todos los días' else value,
+        key='v196_rend_day')
     search=st.text_input('Buscar por código, descripción, área o trabajador',
         placeholder='Ej.: CAP-05-09, enlucido, subsuelo…',key='v193_rend_query')
     filtered=[]
     for rec in records:
         if building!='Todos los edificios' and record_building('rendimientos',rec)!=building:continue
         if month!='Todos los meses' and not record_date('rendimientos',rec).startswith(month):continue
+        if day!='Todos los días' and record_date('rendimientos',rec)!=day:continue
         data=_rend_planilla_data(rec)
         search_parts=[data['Rubro'],data['Descripción'],data['Área'],data['Edificio'],data['Encargado'],data['Cargo']]
         if search.strip() and search.strip().casefold() not in ' '.join(str(p) for p in search_parts).casefold():continue
@@ -6752,6 +6880,10 @@ def history_rend_by_building(records,repo):
     page_size=10
     count=(len(ordered)+page_size-1)//page_size
     page_key='rend_v193_page'
+    page_filter=(building,month,day,search.strip().casefold())
+    if st.session_state.get('v196_rend_page_filter')!=page_filter:
+        st.session_state[page_key]=0
+        st.session_state['v196_rend_page_filter']=page_filter
     page=max(0,min(int(st.session_state.get(page_key,0)),count-1))
     a,b,c=st.columns([1,1,1])
     with a:st.button('← Anterior',key='rend_v193_prev',disabled=page==0,
