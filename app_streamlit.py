@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.12-v20.3-generales-nomina-clima"
+APP_VERSION = "2026.10.12-v20.4-generales-nomina-clima"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -1753,17 +1753,39 @@ class Editor:
         if kind in {"text_input", "text_area"}:
             return getattr(st, kind)(label, value=str(value or ""), **callback, **kwargs)
         if kind == "number_input":
-            # Permitir conteos sin rellenar hasta que el usuario los registre.
-            # 0 sigue siendo un valor válido distinto de «sin registrar».
+            # Streamlit exige que value/min_value/max_value/step tengan EL MISMO
+            # tipo numérico. En borradores antiguos el conteo puede ser 2.0,
+            # mientras el widget de personas utiliza step=1 y min_value=0.
+            # Normalizar ANTES de crear el widget evita MixedNumericTypesError.
             allow_empty=bool(kwargs.pop('allow_empty',False))
-            if allow_empty and value in (None, ''):
-                return st.number_input(label, value=None,
-                    placeholder='Sin registrar', **callback, **kwargs)
-            if isinstance(default, int):
-                value = int(number(value, default))
+            count_field=(len(path)>=3 and path[1] in
+                         {'Nomina_Conteo','Rotativo_Conteo','Maquinaria_Conteo'})
+            is_integer=count_field or (isinstance(kwargs.get('step'),int)
+                         and not isinstance(kwargs.get('step'),bool)
+                         and isinstance(kwargs.get('min_value',0),int)
+                         and not isinstance(kwargs.get('min_value',0),bool))
+            if is_integer:
+                kwargs['step']=int(kwargs.get('step',1))
+                for bound in ('min_value','max_value'):
+                    if kwargs.get(bound) is not None:
+                        kwargs[bound]=int(kwargs[bound])
+                normalized=None if allow_empty and value in (None,'') else int(number(value,0))
+                kwargs.setdefault('format','%d')
             else:
-                value = number(value, default or 0)
-            return st.number_input(label, value=value, **callback, **kwargs)
+                kwargs['step']=float(kwargs.get('step',1.0))
+                for bound in ('min_value','max_value'):
+                    if kwargs.get(bound) is not None:
+                        kwargs[bound]=float(kwargs[bound])
+                normalized=None if allow_empty and value in (None,'') else float(number(value,0.0))
+                kwargs.setdefault('format','%.2f')
+            # Un widget del borrador puede conservar en session_state una cifra
+            # con el tipo anterior. Sincronizarla antes de dibujarlo.
+            prior=st.session_state.get(key)
+            if prior is not None and (type(prior) is not type(normalized)):
+                st.session_state.pop(key,None)
+            if normalized is None:
+                kwargs.setdefault('placeholder','Sin registrar')
+            return st.number_input(label,value=normalized,**callback,**kwargs)
         if kind == "date_input":
             try:
                 value = dt.date.fromisoformat(str(value)[:10])
@@ -5288,7 +5310,73 @@ def official_book_excel_from_template(record):
                     raise RuntimeError('La plantilla cambió y faltan celdas: '+', '.join(sorted(missing)[:15]))
                 raw=xml.encode('utf-8')
             dest.writestr(info,raw)
-    return v197_append_excel_annexes(output.getvalue(),record)
+    full_book=v197_append_excel_annexes(output.getvalue(),record)
+    return v204_format_official_quantities(full_book,visible_activity_rows)
+
+
+def v204_format_official_quantities(workbook_bytes,activity_rows):
+    """Display executed amounts as 0.00 without converting Excel numbers to text.
+
+    Clones each affected cell style and changes ONLY its number format to
+    built-in numFmtId 2, preserving borders, colors, alignment and formulas.
+    The exact same formatted workbook feeds the HTML preview and downloads.
+    """
+    activity_rows=set(activity_rows)
+    if not activity_rows:
+        return workbook_bytes
+    with zipfile.ZipFile(io.BytesIO(workbook_bytes),'r') as src:
+        sheet_raw=src.read('xl/worksheets/sheet1.xml').decode('utf-8')
+        styles_raw=src.read('xl/styles.xml').decode('utf-8')
+        cell_style={int(row):int(style) for row,style in
+            re.findall(r'<c\b[^>]*\br="Y(\d+)"[^>]*\bs="(\d+)"',sheet_raw)}
+        original_styles={cell_style[r] for r in activity_rows if r in cell_style}
+        if not original_styles:
+            return workbook_bytes
+        match=re.search(r'<cellXfs\b[^>]*\bcount="(\d+)"[^>]*>',styles_raw)
+        if not match:
+            raise ValueError('La plantilla no contiene estilos de celdas válidos.')
+        end=styles_raw.find('</cellXfs>',match.end())
+        if end<0:
+            raise ValueError('La plantilla no contiene el cierre de estilos.')
+        entries=re.findall(r'<xf\b[^>]*?(?:/>|>.*?</xf>)',
+                           styles_raw[match.end():end],flags=re.DOTALL)
+        if len(entries)!=int(match.group(1)):
+            raise ValueError('La plantilla de estilos ha cambiado.')
+        clone_styles={}
+        appended=[]
+        for old_id in sorted(original_styles):
+            xf=entries[old_id]
+            fmt=re.search(r'numFmtId="(\d+)"',xf)
+            if fmt and fmt.group(1)=='2':
+                clone_styles[old_id]=old_id
+                continue
+            updated=re.sub(r'numFmtId="\d+"','numFmtId="2"',xf,count=1)
+            if 'applyNumberFormat=' in updated:
+                updated=re.sub(r'applyNumberFormat="[^"]+"','applyNumberFormat="1"',updated,count=1)
+            else:
+                updated=updated.replace('<xf ','<xf applyNumberFormat="1" ',1)
+            clone_styles[old_id]=len(entries)+len(appended)
+            appended.append(updated)
+        if appended:
+            amended_head=match.group(0).replace('count="'+str(len(entries))+'"',
+                                                'count="'+str(len(entries)+len(appended))+'"')
+            styles_raw=(styles_raw[:match.start()]+amended_head+
+                        styles_raw[match.end():end]+''.join(appended)+styles_raw[end:])
+        def replace_cell_style(m):
+            row=int(m.group(2));old_id=int(m.group(3))
+            if row not in activity_rows:
+                return m.group(0)
+            return m.group(1)+str(clone_styles.get(old_id,old_id))+m.group(4)
+        sheet_raw=re.sub(r'(<c\b[^>]*\br="Y(\d+)"[^>]*\bs=")(\d+)(")',
+                         replace_cell_style,sheet_raw)
+        out=io.BytesIO()
+        with zipfile.ZipFile(out,'w') as dst:
+            for info in src.infolist():
+                data=(styles_raw.encode('utf-8') if info.filename=='xl/styles.xml'
+                      else sheet_raw.encode('utf-8') if info.filename=='xl/worksheets/sheet1.xml'
+                      else src.read(info.filename))
+                dst.writestr(info,data)
+        return out.getvalue()
 
 
 @st.cache_data(ttl=900,show_spinner=False,max_entries=45)
@@ -5360,7 +5448,10 @@ def v196_official_excel_preview(serialized_record):
             if span>1:attrs.append(f'colspan="{span}"')
             if rows>1:attrs.append(f'rowspan="{rows}"')
             style=[]
-            if cell.fill and cell.fill.patternType=='solid':
+            # En la previsualización, todas las celdas sin contenido deben
+            # quedar BLANCAS, incluso las vacías que la plantilla colorea.
+            # Las cabeceras con texto conservan su presentación oficial.
+            if cell.value not in (None,'') and cell.fill and cell.fill.patternType=='solid':
                 fill=color_hex(cell.fill.fgColor)
                 if fill:style.append('background:'+fill)
             fc=color_hex(cell.font.color) if cell.font else None
@@ -5376,6 +5467,9 @@ def v196_official_excel_preview(serialized_record):
             value=cell.value
             if value is None:label=''
             elif isinstance(value,(dt.datetime,dt.date)):label=value.strftime('%d/%m/%Y')
+            elif (col==25 and any(a<=rid<=b for a,b in activity_sections.values())
+                  and isinstance(value,(int,float)) and not isinstance(value,bool)):
+                label=f'{value:.2f}'
             elif isinstance(value,float) and value.is_integer():label=str(int(value))
             else:label=str(value)
             attrs.append('style="'+';'.join(style)+'"')
