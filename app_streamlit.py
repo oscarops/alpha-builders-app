@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.11-v19-rubros-integrados"
+APP_VERSION = "2026.10.11-v19.2-direcciones"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -839,6 +839,38 @@ APP_CSS_V20 = """
 </style>
 """
 
+
+APP_CSS_V19_1 = """
+<style>
+/* Borradores: diferenciar continuar (amarillo) de descartar (rojo) sin herencia de tema. */
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-ab_draft_keep_action"] button,
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-ab_draft_keep_action"] button[kind="secondary"] {
+  background:#facc15!important; color:#422006!important;
+  -webkit-text-fill-color:#422006!important; border:1px solid #ca8a04!important;
+  border-radius:12px!important; box-shadow:0 2px 7px rgba(161,98,7,.13)!important;
+  font-weight:800!important;
+}
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-ab_draft_keep_action"] button :is(p,span,strong) {
+  color:#422006!important; -webkit-text-fill-color:#422006!important; font-weight:800!important;
+}
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-ab_draft_keep_action"] button:hover {
+  background:#fde047!important; border-color:#a16207!important;
+}
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-ab_draft_discard_action"] button {
+  background:#dc2626!important; color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important; border:1px solid #b91c1c!important;
+  border-radius:12px!important; box-shadow:0 2px 7px rgba(185,28,28,.13)!important;
+  font-weight:800!important;
+}
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-ab_draft_discard_action"] button :is(p,span,strong) {
+  color:#ffffff!important; -webkit-text-fill-color:#ffffff!important; font-weight:800!important;
+}
+.stApp [data-testid="stMainBlockContainer"] [class*="st-key-ab_draft_discard_action"] button:hover {
+  background:#b91c1c!important; border-color:#991b1b!important;
+}
+</style>
+"""
+
 def page_heading(eyebrow, title, subtitle):
     """Encabezado uniforme, evita mezclar títulos grandes y controles."""
     st.markdown(
@@ -1134,6 +1166,10 @@ def cached_rows(table, filter_items=(), in_items=(), columns="*", order="id"):
 
 def invalidate():
     cached_rows.clear()
+    try:
+        ultimo_libro_oficial_usuario.clear()
+    except NameError:
+        pass
     st.session_state.pop("_export_artifact", None)
 
 
@@ -1742,12 +1778,21 @@ def editor_picker(module, user, default_factory, allow_new=True):
         editor = Editor(module, user, draft)
         editor.status()
         a, b = st.columns(2)
-        if a.button("Cerrar y conservar borrador", key=f"keep_{module}"):
-            editor.persist(); editor.close(); rerun_selected_module()
-        with b.popover("Descartar borrador"):
-            st.caption("Esta acción elimina únicamente este borrador, no el registro original.")
-            if st.button("Confirmar descarte", key=f"discard_{module}"):
-                editor.close(delete=True); rerun_selected_module()
+        with a:
+            with st.container(key='ab_draft_keep_action'):
+                if st.button('🟡 Cerrar y conservar borrador', key=f'keep_{module}',
+                             use_container_width=True):
+                    editor.persist()
+                    if editor.draft.get('error'):
+                        st.error('No se confirmó el guardado: se conservará el borrador abierto.')
+                    else:
+                        editor.close(); rerun_selected_module()
+        with b:
+            with st.container(key='ab_draft_discard_action'):
+                with st.popover('🔴 Descartar borrador', use_container_width=True):
+                    st.warning('Se eliminará este borrador. Los libros ya guardados no se borrarán.')
+                    if st.button('Confirmar descarte',key=f'discard_{module}',type='primary'):
+                        editor.close(delete=True); rerun_selected_module()
         return editor
     if not allow_new:
         st.caption("Su cargo actual permite consultar y editar sus históricos de este libro. La creación corresponde al cargo asignado para este tipo de libro.")
@@ -1970,10 +2015,15 @@ def direccion_sugerida_edificio(edificio):
 
 
 def autocompletar_datos_obra(datos, edificio, proyecto_anterior=None):
-    """Actualiza únicamente valores sugeridos. Respeta ediciones manuales.
+    """Sincroniza calle con edificio y conserva ediciones hechas EN ese edificio.
 
-    También conserva la calle editada cuando el usuario cambia de edificio.
-    Devuelve las claves cambiadas para renovar únicamente esos widgets.
+    Al seleccionar un nuevo edificio, la calle anterior debe desaparecer aunque
+    hubiera sido escrita manualmente; de lo contrario se guardaría el libro de
+    un proyecto con la ubicación de otro. Sin cambiar de edificio, las entradas
+    manuales no se sobreescriben con los valores sugeridos.
+
+    Devuelve las rutas simples alteradas para eliminar widgets obsoletos de
+    Streamlit antes de dibujar Datos generales.
     """
     changed=[]
     for key, default in VALORES_PREDETERMINADOS_LIBRO.items():
@@ -1984,16 +2034,20 @@ def autocompletar_datos_obra(datos, edificio, proyecto_anterior=None):
         elif key in ('Barrio','Ciudad') and current.casefold()==default.casefold() and current!=default:
             datos[key]=default
             changed.append(key)
+
+    edificio_actual=str(edificio or '').strip().casefold()
+    anterior=str(proyecto_anterior or '').strip().casefold()
+    cambio_edificio=bool(edificio_actual) and edificio_actual != anterior
     target=direccion_sugerida_edificio(edificio)
-    old_auto=str(datos.get('_Ubicacion_Auto') or direccion_sugerida_edificio(proyecto_anterior) or '').strip()
     current=str(datos.get('Ubicacion') or '').strip()
-    known_streets={street.casefold() for street in DIRECCIONES_EDIFICIOS.values()}
-    if target and (not current or current.upper()=='POR CONFIRMAR' or
-                   (old_auto and current.casefold()==old_auto.casefold()) or
-                   (proyecto_anterior is not None and current.casefold() in known_streets)):
+    current_auto=str(datos.get('_Ubicacion_Auto') or '').strip()
+
+    if target and (cambio_edificio or not current or current.upper()=='POR CONFIRMAR' or
+                   (current_auto and current.casefold()==current_auto.casefold())):
         if current!=target:
             datos['Ubicacion']=target
             changed.append('Ubicacion')
+    # No modificar una dirección personalizada si el proyecto no ha cambiado.
     datos['_Ubicacion_Auto']=target
     return changed
 
@@ -2616,28 +2670,134 @@ def v19_aplicar_rubro_desde_estado(editor, rid, key):
         v19_aplicar_rubro_seleccionado(editor,rid,code)
 
 
-def v17_previous_book_values(repo, project):
-    """Sugiere campos persistentes del último libro oficial del edificio.
+@st.cache_data(ttl=60, show_spinner=False, max_entries=128)
+def ultimo_libro_oficial_usuario(correo, edificio):
+    """Último libro oficial guardado por ESTA cuenta y edificio.
 
-    No rellena fecha, residente ni actividades, que deben confirmarse diariamente.
+    El resumen es de solo lectura; las actividades de otras fechas jamás se copian.
+    El TTL reduce consultas de red mientras se editan campos del formulario.
     """
-    if not project or project not in repo.projects:return {}
-    # Solo registros del edificio autorizado, propios o de compañeros de obra.
-    rows=(database().table('inspecciones').select('fecha,datos')
-        .eq('proyecto',project)
-        .order('fecha',desc=True).limit(25).execute().data or [])
+    if not correo or not edificio:
+        return None
+    rows=(database().table('inspecciones')
+        .select('id,fecha,datos,hora_inicio,hora_fin')
+        .eq('usuario_email', correo).eq('proyecto', edificio)
+        .order('fecha', desc=True).limit(100).execute().data or [])
     for row in rows:
-        if is_master_book(row):continue
-        payload=obj(row.get('datos'),{})
-        if isinstance(payload,dict):
-            suggested={k:payload.get(k) for k in (
-                'Ubicacion','Barrio','Ciudad','Superintendente','Fiscalizador','Hoja')
-                if payload.get(k) and str(payload.get(k)).upper()!='POR CONFIRMAR'}
-            # El próximo número de hoja se sugiere, pero sigue editable.
-            if str(suggested.get('Hoja') or '').strip().isdigit():
-                suggested['Hoja']=str(int(str(suggested['Hoja']).strip())+1)
-            return suggested
-    return {}
+        if is_master_book(row):
+            continue
+        payload=obj(row.get('datos'), {})
+        if isinstance(payload, dict):
+            return {'datos':payload,
+                    'hora_inicio':row.get('hora_inicio') or '',
+                    'hora_fin':row.get('hora_fin') or '',
+                    'fecha':row.get('fecha') or ''}
+    return None
+
+
+LIBRO_CAMPOS_REPETIBLES = (
+    'Ubicacion','Barrio','Ciudad','Superintendente','Fiscalizador',
+    'Nomina_Conteo','Rotativo_Conteo','Maquinaria_Conteo','Seguridad_Check',
+    'Clima_Condicion','Clima_Obs',
+)
+LIBRO_BLOQUES_REPETIBLES = (
+    'Nomina_Conteo','Rotativo_Conteo','Maquinaria_Conteo','Seguridad_Check',
+)
+
+
+def precargar_ultimo_libro_oficial(datos, anterior, proyecto, auto_anterior=None):
+    """Aplicar recomendaciones una vez por proyecto, respetando ediciones manuales.
+
+    Actualiza únicamente valores que aún sean predeterminados, vacíos o que
+    sigan iguales a la recomendación aplicada anteriormente. Los valores
+    personales editados se conservan. Nunca copia fecha, residente, actividades,
+    novedades ni fotografías del día anterior.
+    """
+    prev=anterior or {}
+    if not prev:
+        return [], {}
+    current=datos.setdefault('datos', {})
+    values=prev.get('datos') or {}
+    if not isinstance(values, dict):
+        return [], {}
+    baseline=official_data().get('datos', {})
+    old_auto=auto_anterior if isinstance(auto_anterior, dict) else {}
+    changes=[]
+    applied={}
+    for field in LIBRO_CAMPOS_REPETIBLES:
+        if field not in values or values[field] is None:
+            continue
+        # La ubicación procede de la tabla de edificios. Un histórico puede
+        # tener una calle anterior o mal registrada: nunca reemplazar con ella
+        # la dirección sugerida del edificio recién seleccionado.
+        if field=='Ubicacion' and direccion_sugerida_edificio(proyecto):
+            continue
+        source=values[field]
+        if field in LIBRO_BLOQUES_REPETIBLES:
+            if not isinstance(source, dict):
+                continue
+            target=current.setdefault(field,{})
+            previous=old_auto.get(field,{}) if isinstance(old_auto.get(field),dict) else {}
+            new_auto={}
+            for label,value in source.items():
+                existing=target.get(label)
+                default=(baseline.get(field) or {}).get(label)
+                if existing in (None,'') or existing==default or existing==previous.get(label,object()):
+                    if existing!=value:
+                        target[label]=copy.deepcopy(value)
+                        changes.append(('datos',field,label))
+                    new_auto[label]=copy.deepcopy(value)
+            if new_auto:
+                applied[field]=new_auto
+            continue
+        existing=current.get(field)
+        default=baseline.get(field)
+        prior_applied=old_auto.get(field,object())
+        if existing in (None,'','POR CONFIRMAR') or existing==default or existing==prior_applied:
+            # Ubicación personalizada del usuario no se sustituye.
+            if field=='Ubicacion':
+                current_address=str(existing or '').strip().casefold()
+                known={x.casefold() for x in DIRECCIONES_EDIFICIOS.values()}
+                if existing and current_address not in known and existing!=prior_applied:
+                    continue
+            if existing!=source:
+                current[field]=copy.deepcopy(source)
+                changes.append(('datos',field))
+            applied[field]=copy.deepcopy(source)
+    for field in ('hora_inicio','hora_fin'):
+        source=str(prev.get(field) or '').strip()[:5]
+        if not source:
+            continue
+        existing=str(datos.get(field) or '').strip()
+        default='07:00' if field=='hora_inicio' else '16:00'
+        if not existing or existing==default or existing==old_auto.get(field,object()):
+            if existing!=source:
+                datos[field]=source
+                changes.append((field,))
+            applied[field]=source
+    # La hoja cambia para la siguiente jornada, pero siempre es editable.
+    value=str(values.get('Hoja') or '').strip()
+    if value.isdigit():
+        suggestion=str(int(value)+1)
+        existing=str(current.get('Hoja') or '').strip()
+        if existing in ('','1') or existing==str(old_auto.get('Hoja','')):
+            if existing!=suggestion:
+                current['Hoja']=suggestion
+                changes.append(('datos','Hoja'))
+            applied['Hoja']=suggestion
+    return changes, applied
+
+
+def v17_previous_book_values(repo, project):
+    """Retrocompatibilidad con consultas anteriores del mismo usuario."""
+    record=ultimo_libro_oficial_usuario(repo.email, project)
+    if not record:
+        return {}
+    payload=record['datos']
+    suggested={k:copy.deepcopy(payload[k]) for k in LIBRO_CAMPOS_REPETIBLES if k in payload}
+    if str(payload.get('Hoja') or '').strip().isdigit():
+        suggested['Hoja']=str(int(payload['Hoja'])+1)
+    return suggested
 
 
 def v17_linked_master_activities(repo, project, date_iso):
@@ -2716,7 +2876,8 @@ def render_official(editor,repo):
     top1,top2=st.columns([1.35,1])
     with top1:
         editor.field('selectbox','proyecto','Edificio de obra','',
-                     options=['']+project_options(repo.user,d.get('proyecto')))
+                     options=project_options(repo.user,d.get('proyecto')),
+                     empty_placeholder='Seleccionar edificio')
     with top2:
         # A diferencia de la versión anterior, la fecha NUEVA no se rellena
         # automáticamente. El usuario la selecciona y se guarda como borrador.
@@ -2734,27 +2895,38 @@ def render_official(editor,repo):
     # Valores fijos editables y ubicación sugerida por edificio. El cambio de
     # edificio conserva una dirección personalizada, no sobrescribe lo escrito.
     previous=d.get('_v19_last_project')
+    if original and str(d['datos'].get('Ubicacion') or '').strip() not in ('','POR CONFIRMAR') \
+            and previous is None:
+        # Primera apertura de un libro guardado: respetar la dirección histórica.
+        d['_v19_last_project']=d.get('proyecto')
+        previous=d.get('proyecto')
     changed=autocompletar_datos_obra(d['datos'],d.get('proyecto'),previous)
     for field in changed:
+        # Se borra antes de dibujar el campo de ubicación; de lo contrario
+        # Streamlit seguiría mostrando el valor anterior de session_state.
         st.session_state.pop(editor.prefix+'datos:'+field,None)
     project_changed=(previous!=d.get('proyecto'))
     if project_changed:
         d['_v19_last_project']=d.get('proyecto')
     if changed or project_changed:
         editor.persist()
-    if not original and d.get('proyecto') and d.get('_v17_suggested_project')!=d['proyecto']:
+    if not original and d.get('proyecto') and d.get('_v20_prefill_project')!=d['proyecto']:
         try:
-            prior=v17_previous_book_values(repo,d['proyecto'])
-            for key,value in prior.items():
-                if key in VALORES_PREDETERMINADOS_LIBRO or key=='Ubicacion':
-                    continue  # Respetar la dirección definida y los responsables sugeridos.
-                if not str(d['datos'].get(key) or '').strip() or str(d['datos'].get(key)).upper()=='POR CONFIRMAR':
-                    d['datos'][key]=value
-                    st.session_state.pop(editor.prefix+'datos:'+key,None)
-            d['_v17_suggested_project']=d['proyecto']
+            previous_book=ultimo_libro_oficial_usuario(repo.email,d['proyecto'])
+            updates,recommended=precargar_ultimo_libro_oficial(
+                d,previous_book,d['proyecto'],d.get('_v20_prefill_auto'))
+            for path in updates:
+                # Los widgets con estados antiguos no deben tapar las sugerencias nuevas.
+                st.session_state.pop(editor.prefix+':'.join(map(str,path)),None)
+            if previous_book and isinstance(previous_book.get('datos',{}).get('Nomina_Conteo'),dict):
+                # La nómina repetitiva del último libro no se sobreescribe al abrir el paso 2.
+                d['_nomina_sugerida_proyecto']=d['proyecto']
+                d['_nomina_sugerida_conteos']=copy.deepcopy(d['datos']['Nomina_Conteo'])
+            d['_v20_prefill_auto']=recommended
+            d['_v20_prefill_project']=d['proyecto']
             editor.persist()
         except Exception as exc:
-            LOG.warning('No se pudieron consultar las sugerencias del libro: %s',type(exc).__name__)
+            LOG.warning('No se pudieron recuperar los datos del último libro: %s',type(exc).__name__)
     phases=['📋 Datos generales','👷 Nómina y subcontratos','🌤️ Clima y seguridad',
             '🏗️ Actividades y Maestro','✅ Revisar y guardar']
     phase=st.segmented_control('Paso de llenado',phases,default=phases[0],
@@ -2763,8 +2935,6 @@ def render_official(editor,repo):
 
     if phase==phases[0]:
         st.markdown('#### 📋 Encabezado de Ejemplo.xlsx')
-        st.info('Edificio y fecha se toman de la parte superior. El residente se escribe manualmente. '
-                'La ubicación y los responsables se sugieren a partir del último libro de ESTE edificio, si existe.')
         fields=[('Ubicacion','Ubicación de la obra'),('Barrio','Barrio'),('Ciudad','Ciudad'),
                 ('Superintendente','Superintendente'),('Fiscalizador','Fiscalizador'),('Hoja','Número de hoja')]
         a,b=st.columns(2)
@@ -6914,6 +7084,7 @@ def main():
     st.markdown(APP_CSS_V18,unsafe_allow_html=True)
     st.markdown(APP_CSS_V19,unsafe_allow_html=True)
     st.markdown(APP_CSS_V20,unsafe_allow_html=True)
+    st.markdown(APP_CSS_V19_1,unsafe_allow_html=True)
     try:
         actual_theme=st.context.theme.type
     except (AttributeError,RuntimeError,KeyError):
