@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "v19.9"
+APP_VERSION = "2026.10.12-v20-rubros-alineados"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -2873,59 +2873,96 @@ def _v19_9_manual_mode(editor, rid, key_code, key_desc):
         editor.persist()
 
 
-def v19_catalogo_en_rubro(editor, rid, item):
-    """Capítulo, código, descripción y unidad en una misma ficha de actividad.
+def _v20_on_choose_rubro(editor, rid, selection_key):
+    """Un único selector sincroniza código, descripción y unidad del rubro."""
+    code=st.session_state.get(selection_key)
+    if code:
+        # No alterar los valores manuales de área ni cantidad ejecutada.
+        v19_aplicar_rubro_seleccionado(editor,rid,code)
+    else:
+        row=editor.data.setdefault('actividades',{}).get(rid,{})
+        if isinstance(row,dict):
+            for field in ('Codigo_Rubro','Descripcion','Unidad'):
+                row[field]=''
+            editor.persist()
 
-    Sin campos extra de búsqueda: cada selector permite buscar escribiendo dentro
-    de su lista. La unidad se deriva del código y nunca queda desincronizada.
+
+def v19_catalogo_en_rubro(editor, rid, item):
+    """Selector equivalente al de Rendimientos: capítulo, modo y una sola lista.
+
+    Las dos opciones de búsqueda utilizan los MISMOS códigos del catálogo,
+    conservando capítulos, código, unidad y las actividades históricas.
     """
     chapters=['']+[v18_chapter_label(ch) for ch,_ in sorted(
         catalogo_rubros_v18()['capitulos'],key=lambda pair:int(pair[0][4:]))]
-    chapter=editor.field('selectbox',('actividades',rid,'Capitulo'),
-                         'Capítulo', '', options=chapters)
-    key_code=editor.prefix+'v19_9_code:'+str(rid)
-    key_desc=editor.prefix+'v19_9_desc:'+str(rid)
+    # Compatibilidad con actividades guardadas antes de incorporar el capítulo.
+    if item.get('Codigo_Rubro') and not item.get('Capitulo'):
+        item['Capitulo']=v18_chapter_label(item['Codigo_Rubro'])
+    c1,c2=st.columns([1,1.1])
+    with c1:
+        chapter=editor.field('selectbox',('actividades',rid,'Capitulo'),
+            'Capítulo', '', options=chapters)
+    with c2:
+        mode=st.radio('Buscar rubro por',['Código','Descripción'],horizontal=True,
+            key=editor.prefix+'v20_rubro_mode:'+str(rid))
+
     manual_key=editor.prefix+'v19_9_manual:'+str(rid)
-    if item.get('Codigo_Rubro') and v18_chapter_code(chapter)!=v18_chapter_code(item['Codigo_Rubro']):
-        item['Codigo_Rubro']=''
-        item['Descripcion']=''
-        item['Unidad']=''
-        st.session_state.pop(key_code,None)
-        st.session_state.pop(key_desc,None)
-        editor.persist()
+    # El usuario puede continuar editando una actividad antigua sin código.
     manual_default=bool(item.get('Descripcion') and not item.get('Codigo_Rubro'))
-    manual=st.checkbox('Actividad manual fuera del listado',value=manual_default,
-                       key=manual_key,on_change=_v19_9_manual_mode,
-                       args=(editor,rid,key_code,key_desc))
+    manual=st.checkbox('Actividad manual fuera del catálogo', value=manual_default,
+                       key=manual_key,
+                       on_change=_v19_9_manual_mode,
+                       args=(editor,rid,
+                             editor.prefix+'v19_9_code:'+str(rid),
+                             editor.prefix+'v19_9_desc:'+str(rid)))
     if manual:
         a,b=st.columns([2,1])
-        with a:editor.field('text_input',('actividades',rid,'Descripcion'),'Descripción de la actividad','')
-        with b:editor.field('text_input',('actividades',rid,'Unidad'),'Unidad','')
+        with a:
+            editor.field('text_input',('actividades',rid,'Descripcion'),
+                'Descripción de la actividad','')
+        with b:
+            editor.field('text_input',('actividades',rid,'Unidad'),'Unidad','')
         return
+
+    current_code=str(item.get('Codigo_Rubro') or '').strip()
+    # Al cambiar de capítulo, una selección anterior no puede quedar asignada
+    # a una disciplina distinta. Área y cantidad no se modifican.
+    if current_code and v18_chapter_code(chapter)!=v18_chapter_code(current_code):
+        for field in ('Codigo_Rubro','Descripcion','Unidad'):
+            item[field]=''
+        current_code=''
+        editor.persist()
     if not chapter:
-        st.caption('Selecciona un capítulo para ver sus rubros y descripciones.')
+        st.caption('Selecciona primero el capítulo para elegir un rubro.')
         return
-    found=v18_catalog_matches(chapter,'',limit=None)
-    lookup={code:(desc,unit) for code,desc,unit in found}
-    codes=list(lookup)
-    selected=str(item.get('Codigo_Rubro') or '')
-    if selected not in lookup:selected=''
-    a,b=st.columns([0.7,2])
+
+    options=v18_catalog_matches(chapter,'',limit=None)
+    codes=[code for code,_,_ in options]
+    lookup={code:(description,unit) for code,description,unit in options}
+    # Incluir el capítulo en la clave evita conservar un valor de otro capítulo.
+    selection_key=(editor.prefix+'v20_rubro:'+str(rid)+':'+
+        (v18_chapter_code(chapter) or 'ninguno')+':'+
+        ('codigo' if mode=='Código' else 'descripcion'))
+    selected_code=current_code if current_code in lookup else ''
+    st.selectbox('Rubro (código)' if mode=='Código' else 'Descripción del rubro',
+        codes,index=codes.index(selected_code) if selected_code else None,
+        placeholder='Selecciona el código…' if mode=='Código' else 'Selecciona la descripción…',
+        format_func=(lambda code:code) if mode=='Código' else
+                    (lambda code:lookup[code][0]+' · '+code),
+        key=selection_key,on_change=_v20_on_choose_rubro,
+        args=(editor,rid,selection_key))
+
+    chosen=lookup.get(selected_code)
+    a,b,c=st.columns([1,2,0.7])
     with a:
-        st.selectbox('Rubro (código)',codes,index=codes.index(selected) if selected else None,
-            placeholder='Seleccionar código', key=key_code,
-            on_change=_v19_9_on_choose_rubro,args=(editor,rid,key_code,key_desc))
+        st.text_input('Rubro',value=selected_code or 'Sin seleccionar',
+            disabled=True,key=editor.prefix+'v20_read_code:'+str(rid)+':'+selected_code)
     with b:
-        st.selectbox('Descripción',codes,index=codes.index(selected) if selected else None,
-            placeholder='Seleccionar descripción',
-            format_func=lambda code:lookup[code][0],key=key_desc,
-            on_change=_v19_9_on_choose_rubro,args=(editor,rid,key_desc,key_code))
-    st.text_input('Unidad',value=lookup[selected][1] if selected else '',
-                  disabled=True,key=editor.prefix+'v19_9_unit_view:'+str(rid)+':'+selected)
-    # La unidad que se guarda en el borrador siempre procede del rubro elegido.
-    if selected:
-        item['Unidad']=lookup[selected][1]
-        item['Descripcion']=lookup[selected][0]
+        st.text_input('Descripción',value=chosen[0] if chosen else '',
+            disabled=True,key=editor.prefix+'v20_read_desc:'+str(rid)+':'+selected_code)
+    with c:
+        st.text_input('Unidad',value=chosen[1] if chosen else '',
+            disabled=True,key=editor.prefix+'v20_read_unit:'+str(rid)+':'+selected_code)
 
 
 @st.cache_data(ttl=60, show_spinner=False, max_entries=128)
@@ -5201,6 +5238,12 @@ def official_book_excel_from_template(record):
                         payload='<is><t xml:space="preserve">'+safe+'</t></is>'
                     return start_tag+payload+'</c>'
                 xml=pattern.sub(replace,xml)
+                # Encabezado: A1:Y1 estaba centrado sobre toda la hoja, pero el
+                # edificio A2:V2 se centra sin el espacio reservado a HOJA.
+                # Igualar la combinación al rango A:V alinea ambos títulos.
+                if 'ref="A1:Y1"' not in xml:
+                    raise RuntimeError('No se encontró el título combinado de la plantilla oficial.')
+                xml=xml.replace('ref="A1:Y1"','ref="A1:V1"',1)
                 # Algunas filas de actividades del Excel original están ocultas.
                 # Revelar SOLO las que contienen rubros para que se vean al abrir.
                 if visible_activity_rows:
