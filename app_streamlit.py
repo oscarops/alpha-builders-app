@@ -876,7 +876,7 @@ APP_CSS_V19_3 = """
 <style>
 .ab-rend-table-wrap {overflow-x:auto;max-width:100%;border:1px solid var(--ab-outline);
  background:var(--ab-surface);border-radius:12px;margin:10px 0 14px;box-shadow:var(--ab-shadow)}
-.ab-rend-table {width:100%;min-width:1720px;table-layout:auto;border-collapse:collapse;
+.ab-rend-table {width:100%;min-width:1950px;table-layout:auto;border-collapse:collapse;
  color:var(--ab-ink);font-size:.75rem}
 .ab-rend-table th {padding:10px 9px;text-align:left;white-space:nowrap;
  background:#18345f!important;color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;
@@ -888,7 +888,9 @@ APP_CSS_V19_3 = """
 .ab-rend-table tbody tr:hover{background:var(--ab-surface-soft-2)}
 .ab-rend-table td:nth-child(3){font-weight:800}
 .ab-rend-table td:nth-child(4){min-width:210px}
-.ab-rend-table td:nth-child(11){font-weight:800}
+.ab-rend-table td:nth-child(5){min-width:180px;white-space:pre-line;line-height:1.55} 
+.ab-rend-table td:nth-child(6){min-width:130px;white-space:pre-line;line-height:1.55}
+.ab-rend-table td:nth-child(13){font-weight:800}
 .ab-rend-table .ab-photo-thumb{width:76px;height:55px;object-fit:cover;border-radius:7px}
 </style>
 """
@@ -3696,16 +3698,16 @@ def rendimiento_excel_v193(records):
     ws.append(REND_PLANILLA_HEADERS)
     fill=PatternFill('solid',fgColor='18345F')
     for cell in ws[1]:cell.fill=fill;cell.font=Font(color='FFFFFF',bold=True)
-    widths=[19,21,17,48,10,12,12,16,14,16,20,18,18,18]
+    widths=[19,21,17,48,35,23,10,12,12,16,14,16,20,18,18,18]
     for col,width in enumerate(widths,1):ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width=width
-    ws.freeze_panes='D2';ws.auto_filter.ref=f'A1:N{len(records)+1}'
+    ws.freeze_panes='D2';ws.auto_filter.ref=f'A1:P{len(records)+1}'
     for n,rec in enumerate(records,2):
         row=_rend_planilla_data(rec)
-        for col,key in enumerate(('Edificio','Área','Rubro','Descripción','Unidad','Inicio','Fin',
+        for col,key in enumerate(('Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin',
                                   'Tiempo muerto','Lunch','Almuerzo','Rendimiento'),1):
             excel_cell(ws.cell(n,col),row[key])
-        ws.row_dimensions[n].height=63
-        for col,period in ((12,'Mañana'),(13,'Mediodía'),(14,'Tarde')):
+        ws.row_dimensions[n].height=max(63,min(210,15*(1+max(row['Encargado'].count('\n'),row['Cargo'].count('\n')))))
+        for col,period in ((14,'Mañana'),(15,'Mediodía'),(16,'Tarde')):
             photos=row[period]
             if photos:
                 try:
@@ -3732,14 +3734,14 @@ def rendimiento_pdf_v193(records):
     body=ParagraphStyle('rb',parent=styles['Normal'],fontSize=6.5,leading=8.5)
     title=ParagraphStyle('rt',parent=styles['Heading1'],fontSize=15,leading=19)
     story=[Paragraph('ALPHA BUILDERS · PLANILLA DE RENDIMIENTOS',title),Spacer(1,10)]
-    heads=REND_PLANILLA_HEADERS[:11]
+    heads=REND_PLANILLA_HEADERS[:13]
     data=[[Paragraph(html_escape(h),head) for h in heads]]
     for rec in records:
         r=_rend_planilla_data(rec)
-        data.append([Paragraph(html_escape(str(r[k])),body) for k in
-              ('Edificio','Área','Rubro','Descripción','Unidad','Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento')])
+        data.append([Paragraph(html_escape(str(r[k])).replace('\n','<br/>'),body) for k in
+              ('Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento')])
     available=doc.width
-    factors=[.09,.09,.09,.20,.06,.065,.065,.08,.06,.065,.13]
+    factors=[.075,.085,.075,.17,.135,.10,.055,.06,.06,.07,.055,.06,.10]
     scales=sum(factors)
     tbl=Table(data,colWidths=[available*x/scales for x in factors],repeatRows=1,hAlign='LEFT')
     tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#18345F')),
@@ -6577,16 +6579,72 @@ def open_lazy_tabs(labels, key):
     return [_LazyPanel(label == selected) for label in labels], True
 
 
+def rendimiento_personal_historico(record):
+    """Personal real de la fuente original, tanto nueva como histórica.
+
+    En v4/v5/v6 el listado se conserva en datos.trabajadores. Versiones anteriores
+    guardaban solamente las columnas trabajador / cargo_obrero de la tabla SQL.
+    No modifica ni rellena datos históricos en Supabase.
+    """
+    pay=rendimiento_payload(record)
+    candidates=pay.get('trabajadores')
+    if isinstance(candidates, dict):
+        candidates=list(candidates.values())
+    if not isinstance(candidates, list) or not candidates:
+        candidates=[]
+        for alt in ('personal_asignado','personal','cuadrilla'):
+            value=pay.get(alt)
+            if isinstance(value,dict):value=list(value.values())
+            if isinstance(value,list) and value:
+                candidates=value
+                break
+    people=[]
+    for person in candidates:
+        if isinstance(person,dict):
+            name=str(person.get('nombre') or person.get('Nombre') or
+                     person.get('trabajador') or person.get('Trabajador') or '').strip()
+            role=str(person.get('cargo') or person.get('Cargo') or
+                     person.get('cargo_obrero') or person.get('especialidad') or '').strip()
+        elif isinstance(person,str):
+            name=person.strip()
+            role=''
+        else:
+            continue
+        if name or role:
+            people.append({'nombre':name,'cargo':role})
+    # En datos v4-v6 puede no estar el personal o tener una lista parcial.
+    # Las columnas SQL originales se mantienen como respaldo; si el listado
+    # tiene un trabajador sin cargo, se puede completar cuando solo hay uno.
+    stored_name=str(record.get('trabajador') or '').strip()
+    stored_role=str(record.get('cargo_obrero') or '').strip()
+    if not people:
+        if stored_name or stored_role:
+            # Se conserva el texto original íntegro: no separar por comas,
+            # porque algunos nombres/cargos históricos pueden contenerlas.
+            people.append({'nombre':stored_name,'cargo':stored_role})
+    elif len(people)==1:
+        if not people[0]['nombre'] and stored_name:
+            people[0]['nombre']=stored_name
+        if not people[0]['cargo'] and stored_role:
+            people[0]['cargo']=stored_role
+    return people
+
+
 def _rend_planilla_data(record):
-    """Celdas consistentes, preservando lo desconocido como '—'."""
+    """Planilla de rendimiento: datos actuales e históricos, sin inventar personal."""
     pay=rendimiento_payload(record)
     value=rendimiento_values(record)
     code=pay.get('codigo_rubro') or (record.get('rubro') if v18_catalog_record(record.get('rubro')) else '')
     description=pay.get('descripcion_rubro') or (v18_catalog_record(code) or {}).get('Descripcion') or record.get('rubro') or ''
     unit=record.get('unidad') or ''
     photos={p:(pay.get('fotos_'+p) or ([pay['foto_'+p]] if pay.get('foto_'+p) else [])) for p in ('manana','mediodia','tarde')}
+    people=rendimiento_personal_historico(record)
+    # Una línea por encargado mantiene el orden que tenía cada cargo en SQL.
+    encargados='\n'.join(person['nombre'] or 'Sin nombre registrado' for person in people) if people else 'Sin registro'
+    cargos='\n'.join(person['cargo'] or 'Sin cargo registrado' for person in people) if people else 'Sin registro'
     return {'Edificio':value['edificio'],'Área':pay.get('area') or value['piso'],
-            'Rubro':code or '—','Descripción':description,'Unidad':unit,
+            'Rubro':code or '—','Descripción':description,
+            'Encargado':encargados,'Cargo':cargos,'Unidad':unit,
             'Inicio':pay.get('hora_inicio') or '—','Fin':pay.get('hora_fin') or '—',
             'Tiempo muerto':pay.get('hora_muerta') or ('00:00' if pay.get('_rend_v6') else '—'),
             'Lunch':'Sí (15 min)' if pay.get('lunch') else 'No',
@@ -6595,8 +6653,9 @@ def _rend_planilla_data(record):
             'Mañana':photos['manana'],'Mediodía':photos['mediodia'],'Tarde':photos['tarde']}
 
 
-REND_PLANILLA_HEADERS=['Edificio','Área','Rubro','Descripción','Unidad','Inicio','Fin',
-     'Tiempo muerto','Lunch','Almuerzo','Rendimiento','Foto mañana','Foto mediodía','Foto tarde']
+REND_PLANILLA_HEADERS=['Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad',
+     'Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento',
+     'Foto mañana','Foto mediodía','Foto tarde']
 
 
 def _rend_photo_cell(images):
@@ -6614,7 +6673,7 @@ def rendimiento_planilla_preview(records):
     for rec in records:
         row=_rend_planilla_data(rec)
         cells=''.join('<td>'+html_escape(str(row[k] or '—'))+'</td>' for k in (
-            'Edificio','Área','Rubro','Descripción','Unidad','Inicio','Fin',
+            'Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin',
             'Tiempo muerto','Lunch','Almuerzo','Rendimiento'))
         cells+=''.join('<td>'+_rend_photo_cell(row[k])+'</td>' for k in ('Mañana','Mediodía','Tarde'))
         rows.append('<tr>'+cells+'</tr>')
@@ -6644,7 +6703,7 @@ def history_rend_by_building(records,repo):
         if building!='Todos los edificios' and record_building('rendimientos',rec)!=building:continue
         if month!='Todos los meses' and not record_date('rendimientos',rec).startswith(month):continue
         data=_rend_planilla_data(rec)
-        search_parts=[data['Rubro'],data['Descripción'],data['Área'],data['Edificio'],rec.get('trabajador','')]
+        search_parts=[data['Rubro'],data['Descripción'],data['Área'],data['Edificio'],data['Encargado'],data['Cargo']]
         if search.strip() and search.strip().casefold() not in ' '.join(str(p) for p in search_parts).casefold():continue
         filtered.append(rec)
     if not filtered:
@@ -6663,6 +6722,10 @@ def history_rend_by_building(records,repo):
             st.caption(display_date(record_date('rendimientos',selected))+' · '+str(data['Edificio'])+' · '+str(data['Área']))
             a,b,c=st.columns(3)
             a.metric('Inicio',data['Inicio']);b.metric('Fin',data['Fin']);c.metric('Rendimiento',data['Rendimiento'])
+            st.markdown('**Personal responsable:**')
+            person_left,person_right=st.columns(2)
+            with person_left:st.caption('Encargado');st.text(data['Encargado'])
+            with person_right:st.caption('Cargo');st.text(data['Cargo'])
             for period,label in [('Mañana','🌅 Mañana'),('Mediodía','☀️ Mediodía'),('Tarde','🌇 Tarde')]:
                 photos=data[period]
                 if photos:
