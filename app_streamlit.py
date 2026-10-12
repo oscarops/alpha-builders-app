@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "v20.18"
+APP_VERSION = "v20.19"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -1217,22 +1217,54 @@ def database():
     return create_client(url, key)
 
 
+def _consulta_demasiado_pesada(exc):
+    """Identifica respuestas excesivas o con tiempo agotado, sin ocultar errores SQL/RLS."""
+    code = str(getattr(exc, 'code', '') or '').strip().upper()
+    if code in {'413', '429', '502', '503', '504', '57014', 'PGRST003'}:
+        return True
+    if code in {'42501', '42P01', '42703', 'PGRST301', 'PGRST204'}:
+        return False
+    detail = str(exc).lower()
+    return any(term in detail for term in (
+        'response too large', 'payload too large', 'request entity too large',
+        'statement timeout', 'query canceled', 'canceling statement',
+        'resource exhausted', 'response size', 'out of memory',
+        'execution timeout', 'upstream timeout', 'gateway timeout',
+        'connection reset', 'read timeout', 'timed out', 'max response size'))
+
+
 def all_rows(table, *, filters=None, in_filters=None, columns="*", order="id", client=None):
+    """Obtiene páginas completas; para fotos/JSON grandes reduce el lote cuando hace falta.
+
+    Una consulta fallida no se interpreta como ausencia de registros. La excepción
+    se propaga para mostrar un aviso y evitar historiales/exportaciones incompletos.
+    """
     client = client or database()
-    rows = []; offset = 0
+    rows = []
+    offset = 0
+    # Las fotos del rendimiento pueden ocupar varios megabytes dentro de datos JSONB.
+    # Consultarlas de 500 en 500 puede superar el límite de respuesta de PostgREST.
+    page_size = 20 if table == 'rendimientos' and columns == '*' else 250
     while True:
-        q = client.table(table).select(columns)
-        for key, value in (filters or {}).items():
-            q = q.eq(key, value)
-        for key, values in (in_filters or {}).items():
-            if not values:
-                return []
-            q = q.in_(key, list(values))
-        result = q.order(order).range(offset, offset + 499).execute()
-        batch = result.data or []
+        try:
+            q = client.table(table).select(columns)
+            for key, value in (filters or {}).items():
+                q = q.eq(key, value)
+            for key, values in (in_filters or {}).items():
+                if not values:
+                    return []
+                q = q.in_(key, list(values))
+            batch = q.order(order).range(offset, offset + page_size - 1).execute().data or []
+        except Exception as exc:
+            if table == 'rendimientos' and page_size > 1 and _consulta_demasiado_pesada(exc):
+                reduced = max(1, page_size // 2)
+                LOG.warning('Consulta de rendimientos pesada: lote %s a %s (offset %s)',
+                            page_size, reduced, offset)
+                page_size = reduced
+                continue
+            raise
         rows.extend(batch)
-        # Si llegaron menos de 500 filas, no ejecutar otra consulta vacía.
-        if len(batch) < 500:
+        if len(batch) < page_size:
             return rows
         offset += len(batch)
 
@@ -4182,16 +4214,16 @@ def rendimiento_excel_v193(records):
     ws.append(REND_PLANILLA_HEADERS)
     fill=PatternFill('solid',fgColor='18345F')
     for cell in ws[1]:cell.fill=fill;cell.font=Font(color='FFFFFF',bold=True)
-    widths=[23,19,21,17,48,35,23,10,12,12,16,14,16,20,18,18,18,48]
+    widths=[23,19,21,17,48,35,23,10,12,12,16,14,16,19,17,20,18,18,18,48]
     for col,width in enumerate(widths,1):ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width=width
-    ws.freeze_panes='E2';ws.auto_filter.ref=f'A1:R{len(records)+1}'
+    ws.freeze_panes='E2';ws.auto_filter.ref=f'A1:T{len(records)+1}'
     for n,rec in enumerate(records,2):
         row=_rend_planilla_data(rec)
         for col,key in enumerate(('Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin',
-                                  'Tiempo muerto','Lunch','Almuerzo','Rendimiento'),1):
+                                  'Tiempo muerto','Lunch','Almuerzo','Avance total','Tiempo real','Rendimiento'),1):
             excel_cell(ws.cell(n,col),row[key])
         ws.row_dimensions[n].height=max(63,min(210,15*(1+max(row['Encargado'].count('\n'),row['Cargo'].count('\n')))))
-        for col,period in ((15,'Mañana'),(16,'Mediodía'),(17,'Tarde')):
+        for col,period in ((17,'Mañana'),(18,'Mediodía'),(19,'Tarde')):
             photos=row[period]
             if photos:
                 try:
@@ -4202,7 +4234,7 @@ def rendimiento_excel_v193(records):
                     else:ws.cell(n,col,'No disponible')
                 except Exception:ws.cell(n,col,'No disponible')
             else:ws.cell(n,col,'Sin foto')
-        excel_cell(ws.cell(n,18),row['Observaciones'])
+        excel_cell(ws.cell(n,20),row['Observaciones'])
         if n%2==0:
             for cell in ws[n]:
                 if cell.fill.patternType!='solid':cell.fill=PatternFill('solid',fgColor='F1F5FB')
@@ -4219,14 +4251,14 @@ def rendimiento_pdf_v193(records):
     body=ParagraphStyle('rb',parent=styles['Normal'],fontSize=6.5,leading=8.5)
     title=ParagraphStyle('rt',parent=styles['Heading1'],fontSize=15,leading=19)
     story=[Paragraph('ALPHA BUILDERS · PLANILLA DE RENDIMIENTOS',title),Spacer(1,10)]
-    heads=REND_PLANILLA_HEADERS[:14]+['Observaciones']
+    heads=REND_PLANILLA_HEADERS[:16]+['Observaciones']
     data=[[Paragraph(html_escape(h),head) for h in heads]]
     for rec in records:
         r=_rend_planilla_data(rec)
         data.append([Paragraph(html_escape(str(r[k])).replace('\n','<br/>'),body) for k in
-              ('Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento','Observaciones')])
+              ('Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Avance total','Tiempo real','Rendimiento','Observaciones')])
     available=doc.width
-    factors=[.075,.06,.07,.075,.14,.115,.08,.04,.045,.045,.055,.04,.045,.075,.12]
+    factors=[.073,.055,.065,.07,.12,.105,.07,.035,.044,.044,.055,.039,.045,.068,.062,.070,.075]
     scales=sum(factors)
     tbl=Table(data,colWidths=[available*x/scales for x in factors],repeatRows=1,hAlign='LEFT')
     tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#18345F')),
@@ -7359,13 +7391,16 @@ def _rend_planilla_data(record):
             'Tiempo muerto':pay.get('hora_muerta') or ('00:00' if pay.get('_rend_v6') else '—'),
             'Lunch':'Sí (15 min)' if pay.get('lunch') else 'No',
             'Almuerzo':'Sí (60 min)' if pay.get('almuerzo') else 'No',
+            'Avance total':f"{value['avance']:.2f} {unit}".strip(),
+            'Tiempo real':(f"{value['horas_jornada']:.2f} h" if value['horas_jornada'] is not None
+                            and value['horas_jornada'] > 0 else 'Sin verificar'),
             'Rendimiento':f"{value['productividad']:.3f} {unit}/h" if value['productividad'] is not None else 'Sin verificar',
             'Mañana':photos['manana'],'Mediodía':photos['mediodia'],'Tarde':photos['tarde'],
             'Observaciones':str(pay.get('comentarios') or pay.get('observaciones') or record.get('comentarios') or '')}
 
 
 REND_PLANILLA_HEADERS=['Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad',
-     'Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento',
+     'Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Avance total','Tiempo real','Rendimiento',
      'Foto mañana','Foto mediodía','Foto tarde','Observaciones']
 
 
@@ -7378,14 +7413,14 @@ def _rend_photo_cell(images):
 
 
 def rendimiento_planilla_preview(records):
-    """Planilla horizontal con 14 columnas; miniaturas ligeras, scroll horizontal en móvil."""
+    """Planilla horizontal con avance total, tiempo real y fotos; scroll en móvil."""
     headers=''.join('<th scope="col">'+html_escape(h)+'</th>' for h in REND_PLANILLA_HEADERS)
     rows=[]
     for rec in records:
         row=_rend_planilla_data(rec)
         cells=''.join('<td>'+html_escape(str(row[k] or '—'))+'</td>' for k in (
             'Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin',
-            'Tiempo muerto','Lunch','Almuerzo','Rendimiento'))
+            'Tiempo muerto','Lunch','Almuerzo','Avance total','Tiempo real','Rendimiento'))
         cells+=''.join('<td>'+_rend_photo_cell(row[k])+'</td>' for k in ('Mañana','Mediodía','Tarde'))
         cells+='<td>'+html_escape(str(row['Observaciones'] or '—'))+'</td>'
         rows.append('<tr>'+cells+'</tr>')
@@ -7486,7 +7521,7 @@ def history_rend_by_building(records,repo):
             st.markdown('#### '+html_escape(str(data['Rubro']))+' · '+html_escape(str(data['Descripción'])))
             st.caption(display_date(record_date('rendimientos',selected))+' · '+str(data['Edificio'])+' · '+str(data['Área']))
             a,b,c=st.columns(3)
-            a.metric('Inicio',data['Inicio']);b.metric('Fin',data['Fin']);c.metric('Rendimiento',data['Rendimiento'])
+            a.metric('Avance total',data['Avance total']);b.metric('Tiempo real',data['Tiempo real']);c.metric('Rendimiento',data['Rendimiento'])
             st.markdown('**Personal responsable:**')
             person_left,person_right=st.columns(2)
             with person_left:st.caption('Encargado');st.text(data['Encargado'])
@@ -7682,7 +7717,20 @@ def module_original(label, repo):
             renderer(selected,repo)
         return
     # Consulta diferida: las fotos, las secciones y la tabla se procesan solo bajo demanda.
-    records=repo.shared(table) if table=='incidencias' else repo.own(table)
+    try:
+        records=repo.shared(table) if table=='incidencias' else repo.own(table)
+    except Exception as exc:
+        # Nunca presentar un historial parcial como si no hubiera registros.
+        ref=secrets.token_hex(4)
+        code=_database_error_code(exc)
+        LOG.error('Error consultando %s (ref %s, código %s)',table,ref,code or 'sin código',exc_info=True)
+        st.error('No se pudieron cargar los registros desde Supabase. '
+                 'Los datos guardados no se han modificado. '
+                 f'Código: {code or "sin código"} · Referencia: {ref}.')
+        if st.button('🔄 Reintentar consulta',key='reload_failed_'+table):
+            invalidate()
+            st.rerun()
+        return
     if table=='inspecciones':
         records=[r for r in records if is_master_book(r)==(module=='Libro maestro')]
     if table=='rendimientos':
