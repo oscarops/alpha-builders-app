@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.11-v19.2-direcciones"
+APP_VERSION = "2026.10.11-v19.3-planilla-rendimientos"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -871,6 +871,28 @@ APP_CSS_V19_1 = """
 </style>
 """
 
+
+APP_CSS_V19_3 = """
+<style>
+.ab-rend-table-wrap {overflow-x:auto;max-width:100%;border:1px solid var(--ab-outline);
+ background:var(--ab-surface);border-radius:12px;margin:10px 0 14px;box-shadow:var(--ab-shadow)}
+.ab-rend-table {width:100%;min-width:1720px;table-layout:auto;border-collapse:collapse;
+ color:var(--ab-ink);font-size:.75rem}
+.ab-rend-table th {padding:10px 9px;text-align:left;white-space:nowrap;
+ background:#18345f!important;color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;
+ border-right:1px solid #355482;position:sticky;top:0}
+.ab-rend-table td {padding:8px 9px;vertical-align:middle;overflow-wrap:anywhere;
+ border-right:1px solid var(--ab-outline);border-bottom:1px solid var(--ab-outline);
+ color:var(--ab-ink)!important;-webkit-text-fill-color:var(--ab-ink)!important}
+.ab-rend-table tbody tr:nth-child(even){background:var(--ab-surface-soft)}
+.ab-rend-table tbody tr:hover{background:var(--ab-surface-soft-2)}
+.ab-rend-table td:nth-child(3){font-weight:800}
+.ab-rend-table td:nth-child(4){min-width:210px}
+.ab-rend-table td:nth-child(11){font-weight:800}
+.ab-rend-table .ab-photo-thumb{width:76px;height:55px;object-fit:cover;border-radius:7px}
+</style>
+"""
+
 def page_heading(eyebrow, title, subtitle):
     """Encabezado uniforme, evita mezclar títulos grandes y controles."""
     st.markdown(
@@ -1491,10 +1513,10 @@ def time_calculation(start, end, dead="", lunch=False, meal=False, overnight=Fal
 
 def rendimiento_payload(record):
     data = obj(record.get("datos"), {})
-    if isinstance(data, dict) and (data.get("_rend_v4") or data.get("_rend_v5")):
+    if isinstance(data, dict) and (data.get("_rend_v4") or data.get("_rend_v5") or data.get("_rend_v6")):
         return data
     previous = obj(record.get("intervalo"), {})
-    if isinstance(previous, dict) and (previous.get("_rend_v4") or previous.get("_rend_v5")):
+    if isinstance(previous, dict) and (previous.get("_rend_v4") or previous.get("_rend_v5") or previous.get("_rend_v6")):
         return previous
     fallback={"_legacy": True, "avance_manana": number(record.get("avance")), "avance_mediodia": 0.0, "avance_tarde": 0.0,
               "edificio": record.get("edificio") or "Sin Edificio Asignado", "piso": record.get("piso") or "", "trabajadores": [], "comentarios": ""}
@@ -1506,7 +1528,11 @@ def rendimiento_values(record):
     data = rendimiento_payload(record)
     building = data.get("edificio") or record.get("edificio") or "Sin Edificio Asignado"
     advance = sum(number(data.get(k)) for k in ("avance_manana", "avance_mediodia", "avance_tarde"))
-    if data.get("_rend_v5"):
+    if data.get("_rend_v6"):
+        elapsed=number(data.get('horas_jornada'))
+        hh=consumption=None
+        productivity=advance/elapsed if elapsed>0 else None
+    elif data.get("_rend_v5"):
         elapsed = number(data.get("horas_jornada"))
         hh = number(record.get("horas_hh"))
         consumption = hh / advance if advance > 0 and hh > 0 else None
@@ -1518,7 +1544,7 @@ def rendimiento_values(record):
         productivity = advance / elapsed if elapsed and elapsed > 0 else None
     return {"edificio": str(building), "piso": data.get("piso") or record.get("piso") or "", "avance": advance,
             "horas_jornada": elapsed, "hh": hh, "consumo": consumption, "productividad": productivity, "payload": data,
-            "historico": not bool(data.get("_rend_v5"))}
+            "historico": not bool(data.get("_rend_v5") or data.get("_rend_v6"))}
 
 
 def rendimiento_status(advance, hh, theoretical):
@@ -2892,8 +2918,7 @@ def render_official(editor,repo):
             except ValueError:initial=None
         st.date_input('Fecha del libro (selecciona una)',value=initial,
             key=date_key,on_change=_date_changed,disabled=bool(original))
-    # Valores fijos editables y ubicación sugerida por edificio. El cambio de
-    # edificio conserva una dirección personalizada, no sobrescribe lo escrito.
+    # Ubicación obligatoria: derivada únicamente del edificio seleccionado.
     previous=d.get('_v19_last_project')
     if original and str(d['datos'].get('Ubicacion') or '').strip() not in ('','POR CONFIRMAR') \
             and previous is None:
@@ -2908,6 +2933,12 @@ def render_official(editor,repo):
     project_changed=(previous!=d.get('proyecto'))
     if project_changed:
         d['_v19_last_project']=d.get('proyecto')
+    # La ubicación NO se toma de datos obsoletos, formularios anteriores ni texto libre.
+    # Cuando cambia el edificio, el texto mostrado también cambia, sin edición posible.
+    expected_address=direccion_sugerida_edificio(d.get('proyecto'))
+    if d['datos'].get('Ubicacion')!=expected_address:
+        d['datos']['Ubicacion']=expected_address
+        changed.append('Ubicacion')
     if changed or project_changed:
         editor.persist()
     if not original and d.get('proyecto') and d.get('_v20_prefill_project')!=d['proyecto']:
@@ -2927,6 +2958,11 @@ def render_official(editor,repo):
             editor.persist()
         except Exception as exc:
             LOG.warning('No se pudieron recuperar los datos del último libro: %s',type(exc).__name__)
+    # El libro anterior NO puede sobrescribir una dirección de la tabla oficial.
+    expected_address=direccion_sugerida_edificio(d.get('proyecto'))
+    if d['datos'].get('Ubicacion')!=expected_address:
+        d['datos']['Ubicacion']=expected_address
+        editor.persist()
     phases=['📋 Datos generales','👷 Nómina y subcontratos','🌤️ Clima y seguridad',
             '🏗️ Actividades y Maestro','✅ Revisar y guardar']
     phase=st.segmented_control('Paso de llenado',phases,default=phases[0],
@@ -2940,7 +2976,12 @@ def render_official(editor,repo):
         a,b=st.columns(2)
         for i,(k,label) in enumerate(fields):
             with (a if i%2==0 else b):
-                editor.field('text_input',('datos',k),label,'')
+                if k=='Ubicacion':
+                    # Sin key de widget: siempre renderiza el valor actualizado y es solo lectura.
+                    st.text_input(label,value=expected_address or 'SELECCIONA UN EDIFICIO',
+                        disabled=True,help='Dirección fija según el edificio, no se puede editar.')
+                else:
+                    editor.field('text_input',('datos',k),label,'')
         editor.field('text_input','residente','Residente de obra (obligatorio y manual)','')
         a,b=st.columns(2)
         with a:editor.field('text_input','hora_inicio','Entrada','07:00')
@@ -3259,107 +3300,174 @@ def render_maestro(editor, repo):
 
 
 def rend_data(record=None):
-    record=record or {};payload=rendimiento_payload(record) if record else {}
-    workers=payload.get("trabajadores") or ([{"nombre":record.get("trabajador", ""),"cargo":record.get("cargo_obrero", "")} ] if record else [])
-    data={"fecha":str(record.get("fecha") or now_ec().date()),"edificio":payload.get("edificio") or record.get("edificio") or "","piso":payload.get("piso") or record.get("piso") or "","rubro":record.get("rubro") or "","unidad":record.get("unidad") or "",
-          "hora_inicio":payload.get("hora_inicio", ""),"hora_fin":payload.get("hora_fin", ""),"hora_muerta":payload.get("hora_muerta", ""),"lunch":bool(payload.get("lunch")),"almuerzo":bool(payload.get("almuerzo")),"overnight":bool(payload.get("overnight")),
-          "comentarios":payload.get("comentarios", ""),"teorico":number(record.get("rend_teorico")),"individuales":bool(payload.get("individuales")),"trabajadores":{row_id():{**v,"horas":number(v.get("horas"))} for v in workers if isinstance(v,dict)},"_extra":payload,
-          "recalcular":not record or bool(payload.get("_rend_v5"))}
-    for period in ("manana","mediodia","tarde"):
-        data["avance_"+period]=number(payload.get("avance_"+period))
-        data["fotos_"+period]=payload.get("fotos_"+period) or ([payload["foto_"+period]] if payload.get("foto_"+period) else [])
+    """Editor compacto v19.3, sin inferir horarios ni unidades de registros antiguos."""
+    record=record or {}
+    payload=rendimiento_payload(record) if record else {}
+    workers=payload.get('trabajadores') or ([{'nombre':record.get('trabajador',''),'cargo':record.get('cargo_obrero','')}] if record else [])
+    stored=str(payload.get('codigo_rubro') or record.get('rubro') or '')
+    code=stored if v18_catalog_record(stored) else ''
+    # Un nombre histórico solo se vincula a un código si hay coincidencia única.
+    old_description=str(payload.get('descripcion_rubro') or record.get('rubro') or '')
+    if not code and old_description:
+        candidates=[r[0] for r in catalogo_rubros_v18()['rubros'] if r[1].strip().casefold()==old_description.strip().casefold()]
+        if len(candidates)==1:code=candidates[0]
+    found=v18_catalog_record(code) if code else None
+    data={'fecha':str(record.get('fecha') or now_ec().date()),
+        'edificio':payload.get('edificio') or record.get('edificio') or '',
+        'piso':payload.get('piso') or record.get('piso') or '',
+        'area':payload.get('area') or payload.get('piso') or record.get('piso') or '',
+        'codigo_rubro':code,
+        'descripcion_rubro':payload.get('descripcion_rubro') or (found['Descripcion'] if found else old_description),
+        'unidad':record.get('unidad') or (found['Unidad'] if found else ''),
+        'hora_inicio':payload.get('hora_inicio',''),'hora_fin':payload.get('hora_fin',''),
+        'hora_muerta':payload.get('hora_muerta',''),
+        'lunch':bool(payload.get('lunch')),'almuerzo':bool(payload.get('almuerzo')),
+        'overnight':bool(payload.get('overnight')),'comentarios':payload.get('comentarios',''),
+        'trabajadores':{row_id():{'nombre':str(v.get('nombre') or ''),'cargo':str(v.get('cargo') or '')}
+                        for v in workers if isinstance(v,dict) and str(v.get('nombre') or '').strip()},
+        '_extra':payload,'_original':record if record else None}
+    for period in ('manana','mediodia','tarde'):
+        data['avance_'+period]=number(payload.get('avance_'+period))
+        data['fotos_'+period]=payload.get('fotos_'+period) or ([payload['foto_'+period]] if payload.get('foto_'+period) else [])
     return data
 
 
+def _rend_select_catalog(editor):
+    """Elegir por código o descripción, compartiendo un único campo guardado."""
+    d=editor.data
+    all_catalog=catalogo_rubros_v18()['rubros']
+    chapter_options=['Todos los capítulos']+[code for code,_ in sorted(catalogo_rubros_v18()['capitulos'],key=lambda p:int(p[0][4:]))]
+    c1,c2=st.columns([1,1.1])
+    with c1:
+        chapter=st.selectbox('Capítulo (filtro)',chapter_options,
+            format_func=lambda ch:ch if ch=='Todos los capítulos' else v18_chapter_label(ch),
+            key=editor.prefix+'rend_chapter')
+    with c2:
+        mode=st.radio('Buscar rubro por',['Código','Descripción'],horizontal=True,
+            key=editor.prefix+'rend_search_mode')
+    chosen_code=str(d.get('codigo_rubro') or '')
+    candidates=v18_catalog_matches('' if chapter=='Todos los capítulos' else chapter,'',limit=None)
+    # Si el usuario cambia el filtro, no se borra el rubro guardado hasta elegir otro.
+    selected_key=editor.prefix+'rend_select:'+('code' if mode=='Código' else 'description')+':'+chapter
+    choices=[code for code,_,_ in candidates]
+    def _apply():
+        code=st.session_state.get(selected_key)
+        if not code:return
+        row=v18_catalog_record(code)
+        if row:
+            d['codigo_rubro']=code
+            d['descripcion_rubro']=row['Descripcion']
+            d['unidad']=row['Unidad']
+            editor.persist()
+    initial=choices.index(chosen_code) if chosen_code in choices else None
+    if mode=='Código':
+        selected=st.selectbox('Rubro (código)',choices,index=initial,
+            placeholder='Seleccionar código del catálogo',
+            format_func=lambda code:code,
+            key=selected_key,on_change=_apply)
+    else:
+        selected=st.selectbox('Descripción del rubro',choices,index=initial,
+            placeholder='Buscar por descripción en el catálogo',
+            format_func=lambda code:v18_catalog_record(code)['Descripcion']+' · '+code,
+            key=selected_key,on_change=_apply)
+    row=v18_catalog_record(chosen_code) if chosen_code else None
+    a,b,c=st.columns([1,2,0.8])
+    with a:st.text_input('Rubro',value=chosen_code or 'Sin seleccionar',disabled=True)
+    with b:st.text_input('Descripción',value=(row['Descripcion'] if row else d.get('descripcion_rubro') or ''),disabled=True)
+    with c:st.text_input('Unidad',value=(row['Unidad'] if row else d.get('unidad') or ''),disabled=True)
+    if not chosen_code and d.get('_original'):
+        st.caption('Registro antiguo sin código confirmado. Selecciona un rubro del catálogo antes de modificarlo.')
+
+
 def render_rend(editor,repo):
-    d=editor.data;original=d.get("_original");old=bool(original and not rendimiento_payload(original).get("_rend_v5"))
-    if old:
-        st.warning("Registro histórico: el significado de sus horas y rendimiento no está confirmado. Puede conservar los cálculos originales o recalcularlos después de revisar horarios y trabajadores.")
-        editor.field("checkbox","recalcular","Recalcular con horas-hombre verificadas",False)
-    st.subheader("Trabajadores asignados")
-    editor.field("checkbox","individuales","Cada trabajador tiene una cantidad distinta de horas efectivas",False)
-    default={"nombre":"","cargo":"","horas":0.0}
-    for rid,item in list(editor.rows("trabajadores",default).items()):
-        a,b,c=st.columns([2,2,1])
-        with a:editor.field("text_input",("trabajadores",rid,"nombre"),"Nombre","")
-        with b:editor.field("text_input",("trabajadores",rid,"cargo"),"Cargo","")
-        with c:
-            if d["individuales"]:editor.field("number_input",("trabajadores",rid,"horas"),"Horas efectivas",0.0,min_value=0.0,max_value=24.0,step=0.25)
-        editor.remove("trabajadores",rid)
-    editor.add("trabajadores",default,"Agregar trabajador")
-    st.subheader("Ubicación y rubro")
+    """Formulario de rendimiento diario. Producción por hora efectiva; sin HH ni metas."""
+    d=editor.data
+    page_heading('Control de obra','Registro de rendimiento',
+        'Registra tiempos, descuentos, avance y evidencias de mañana, mediodía y tarde.')
+    a,b,c=st.columns([1.1,1.3,1])
+    with a:editor.field('selectbox','edificio','Edificio','',
+        options=['']+project_options(repo.user,d.get('edificio')),
+        empty_placeholder='Seleccionar edificio')
+    with b:editor.field('text_input','area','Área / ubicación','')
+    with c:editor.field('date_input','fecha','Fecha de trabajo',str(now_ec().date()))
+    st.markdown('#### 📚 Rubro del catálogo')
+    _rend_select_catalog(editor)
+    with st.expander('👷 Personal asignado (opcional)',expanded=False):
+        default={'nombre':'','cargo':''}
+        for rid,worker in list(editor.rows('trabajadores',default).items()):
+            a,b=st.columns(2)
+            with a:editor.field('text_input',('trabajadores',rid,'nombre'),'Trabajador','')
+            with b:editor.field('text_input',('trabajadores',rid,'cargo'),'Cargo','')
+            editor.remove('trabajadores',rid)
+        editor.add('trabajadores',default,'Añadir trabajador')
+    st.markdown('#### 🕒 Jornada')
     a,b,c=st.columns(3)
-    with a:editor.field("selectbox","edificio","Edificio","",options=[""]+project_options(repo.user,d.get("edificio")))
-    with b:editor.field("text_input","piso","Piso / nivel","")
-    with c:editor.field("date_input","fecha","Fecha del trabajo",str(now_ec().date()))
-    editor.field("text_input","rubro","Rubro","")
-    editor.field("text_input","unidad","Unidad","")
-    editor.field("number_input","teorico","Meta de consumo de mano de obra (HH/unidad; 0 = sin meta)",0.0,min_value=0.0,step=0.01)
-    known=next((v for k,v in RENDIMIENTOS_TEORICOS.items() if k.casefold()==d.get("rubro","").strip().casefold()),None)
-    if known:st.caption(f"Referencia del catálogo original: {known} HH/unidad. Verifique que la unidad y condiciones correspondan antes de usarla.")
-    st.subheader("Jornada y descuentos")
+    with a:editor.field('text_input','hora_inicio','Inicio (HH:MM)','')
+    with b:editor.field('text_input','hora_fin','Fin (HH:MM)','')
+    with c:editor.field('text_input','hora_muerta','Tiempo muerto (HH:MM)','')
     a,b,c=st.columns(3)
-    with a:editor.field("text_input","hora_inicio","Inicio (HH:MM)","")
-    with b:editor.field("text_input","hora_fin","Fin (HH:MM)","")
-    with c:editor.field("text_input","hora_muerta","Tiempo muerto (vacío = 0)","")
-    editor.field("checkbox","overnight","La jornada termina al día siguiente",False)
-    a,b=st.columns(2)
-    with a:editor.field("checkbox","lunch","Lunch: descontar 15 minutos",False)
-    with b:editor.field("checkbox","almuerzo","Almuerzo: descontar 1 hora",False)
-    st.caption("La duración calculada es el tiempo efectivo de la cuadrilla. Las HH suman las horas de todos los trabajadores. Los avances de cada periodo son cantidades adicionales, no acumulados.")
-    st.subheader("Avances y fotografías")
-    selected_period=st.segmented_control('Periodo del avance', ['🌤️ Mañana','☀️ Mediodía','🌇 Tarde'],
-        default='🌤️ Mañana',key=editor.prefix+'period_view') or '🌤️ Mañana'
-    period,label={'🌤️ Mañana':('manana','Mañana'),'☀️ Mediodía':('mediodia','Mediodía'),
-                  '🌇 Tarde':('tarde','Tarde')}[selected_period]
+    with a:editor.field('checkbox','lunch','Lunch (15 minutos)',False)
+    with b:editor.field('checkbox','almuerzo','Almuerzo (60 minutos)',False)
+    with c:editor.field('checkbox','overnight','Termina al día siguiente',False)
+    st.markdown('#### 📸 Avances y evidencias')
+    period=st.segmented_control('Periodo',['🌅 Mañana','☀️ Mediodía','🌇 Tarde'],
+        default='🌅 Mañana',key=editor.prefix+'rend_period') or '🌅 Mañana'
+    period_id,period_name={'🌅 Mañana':('manana','mañana'),'☀️ Mediodía':('mediodia','mediodía'),
+                           '🌇 Tarde':('tarde','tarde')}[period]
     with st.container(border=True):
-        editor.field('number_input','avance_'+period,'Avance de '+label.lower(),0.0,
-                     min_value=0.0,step=0.01,format='%.2f')
-        editor.photos(('fotos_'+period,),'Fotografías de '+label.lower())
-    editor.field("text_area","comentarios","Comentarios","")
-    error=None;hours=hh=advance=0.0
-    workers=[copy.deepcopy(v) for v in d["trabajadores"].values() if v.get("nombre", "").strip()]
+        editor.field('number_input','avance_'+period_id,'Cantidad ejecutada en '+period_name,
+                     0.0,min_value=0.0,step=.01,format='%.2f')
+        editor.photos(('fotos_'+period_id,),'Fotografía de '+period_name)
+    editor.field('text_area','comentarios','Observaciones (opcional)','')
+    error=None
     try:
-        hours=time_calculation(d["hora_inicio"],d["hora_fin"],d["hora_muerta"],d["lunch"],d["almuerzo"],d["overnight"])
-        workers=[copy.deepcopy(v) for v in d["trabajadores"].values() if v.get("nombre","").strip()]
-        hh=sum(number(v.get("horas")) for v in workers) if d["individuales"] else len(workers)*hours
-        advance=sum(number(d.get("avance_"+p)) for p in ("manana","mediodia","tarde"))
-        a,b,c=st.columns(3);a.metric("Duración efectiva",f"{hours:.2f} h");b.metric("Horas-hombre",f"{hh:.2f} HH");c.metric("Avance",f"{advance:.2f} {d.get('unidad','')}")
-        st.write(f"Productividad de cuadrilla: {advance/hours:.3f} {d.get('unidad','')}/h" if hours else "Productividad: sin tiempo de jornada")
-        st.write(f"Consumo de mano de obra: {hh/advance:.3f} HH/{d.get('unidad','')}" if advance>0 and hh>0 else "Consumo de mano de obra: no calculable")
+        hours=time_calculation(d['hora_inicio'],d['hora_fin'],d['hora_muerta'],
+                               d['lunch'],d['almuerzo'],d['overnight'])
+        progress=sum(number(d.get('avance_'+p)) for p in ('manana','mediodia','tarde'))
+        unit=d.get('unidad') or ''
+        a,b,c=st.columns(3)
+        a.metric('Tiempo efectivo',f'{hours:.2f} h')
+        b.metric('Avance total',f'{progress:.2f} {unit}')
+        c.metric('Rendimiento',f'{progress/hours:.3f} {unit}/h' if hours>0 else 'Sin calcular')
     except ValueError as exc:
-        error=exc;st.warning(str(exc))
-    if old and not d["recalcular"]:st.info("Al guardar se conservarán las cifras originales; la vista previa no sustituirá los cálculos históricos.")
-    if st.button("Guardar rendimiento",type="primary",key=editor.prefix+"save"):
+        error=exc
+        st.warning(str(exc))
+        hours=progress=0.0
+    if st.button('💾 Guardar rendimiento',type='primary',key=editor.prefix+'rend_save'):
         try:
-            preserve=old and not d["recalcular"]
-            if not preserve and (not d.get("rubro","").strip() or not d.get("unidad","").strip() or not workers):raise ValueError("Complete rubro, unidad y al menos un trabajador.")
-            if error and not preserve:raise error
-            payload=copy.deepcopy(d.get("_extra",{}))
-            payload.update({k:d[k] for k in ["edificio","piso","comentarios"]})
-            for period in ("manana","mediodia","tarde"):
-                payload["fotos_"+period]=d["fotos_"+period]
-                payload["foto_"+period]=d["fotos_"+period][0] if d["fotos_"+period] else ""
-            if preserve:
-                baseline=rend_data(original)
-                for key in ("hora_inicio","hora_fin","hora_muerta","lunch","almuerzo","overnight","individuales","teorico"):
-                    if d.get(key)!=baseline.get(key):raise ValueError("Para cambiar horarios, descuentos o meta de un histórico, confirme el recálculo.")
-                baseline_workers=[v for v in baseline["trabajadores"].values() if v.get("nombre", "").strip()]
-                if workers!=baseline_workers:raise ValueError("Para cambiar trabajadores u horas de un histórico, confirme el recálculo.")
-                for field in ("rubro","unidad"):
-                    if d[field] != (original.get(field) or ""):raise ValueError("Para cambiar rubro o unidad de un histórico, confirme el recálculo.")
-                for period in ("manana","mediodia","tarde"):
-                    if number(d.get("avance_"+period))!=number(payload.get("avance_"+period)):raise ValueError("Para cambiar avances de un histórico, confirme el recálculo.")
-                payload["trabajadores"]=workers
-                values={k:original.get(k) for k in ["horas_hh","avance","rend_real","rend_teorico","esperado","estado","intervalo"]}
-            else:
-                payload.update({k:d[k] for k in ["hora_inicio","hora_fin","hora_muerta","lunch","almuerzo","overnight","individuales","avance_manana","avance_mediodia","avance_tarde"]})
-                payload.update({"_rend_v5":True,"_rend_v4":False,"horas_jornada":hours,"trabajadores":[{**v,"horas":number(v.get("horas")) if d["individuales"] else hours} for v in workers],"unidad_consumo":"HH/unidad","unidad_productividad":"unidad/h"})
-                if old:payload["_historico_original"]={k:original.get(k) for k in ["horas_hh","avance","rend_real","rend_teorico","estado"]}
-                values={"horas_hh":hh,"avance":advance,"rend_real":hh/advance if advance>0 and hh>0 else None,"rend_teorico":d["teorico"],"esperado":hh/d["teorico"] if d["teorico"]>0 else None,"estado":rendimiento_status(advance,hh,d["teorico"]),"intervalo":"Jornada"}
-            values.update({"fecha":d["fecha"],"edificio":d["edificio"],"piso":d["piso"],"rubro":d["rubro"].strip(),"unidad":d["unidad"].strip(),"trabajador":", ".join(v["nombre"] for v in workers),"cargo_obrero":", ".join(v.get("cargo","") for v in workers),"datos":payload})
-            save_editor(editor,repo,"rendimientos",values)
-        except Exception as exc:notice_error(exc)
+            if not d.get('edificio'):raise ValueError('Selecciona un edificio.')
+            if not d.get('codigo_rubro') or not v18_catalog_record(d['codigo_rubro']):
+                raise ValueError('Selecciona un rubro válido del catálogo.')
+            if not d['hora_inicio'] or not d['hora_fin']:
+                raise ValueError('Debes ingresar hora de inicio y fin.')
+            if error:raise error
+            if hours<=0:raise ValueError('El tiempo efectivo debe ser mayor que cero.')
+            original=d.get('_original')
+            payload=copy.deepcopy(d.get('_extra') or {})
+            payload.update({'_rend_v6':True,'_rend_v5':False,'_rend_v4':False,
+                'codigo_rubro':d['codigo_rubro'],'descripcion_rubro':d['descripcion_rubro'],
+                'area':d['area'].strip(),'edificio':d['edificio'],'piso':d['area'].strip(),
+                'hora_inicio':d['hora_inicio'],'hora_fin':d['hora_fin'],'hora_muerta':d['hora_muerta'],
+                'lunch':d['lunch'],'almuerzo':d['almuerzo'],'overnight':d['overnight'],
+                'comentarios':d.get('comentarios',''),'horas_jornada':hours,
+                'trabajadores':[{'nombre':w['nombre'].strip(),'cargo':w.get('cargo','').strip()} for w in d['trabajadores'].values() if w.get('nombre','').strip()],
+                'avance_manana':d['avance_manana'],'avance_mediodia':d['avance_mediodia'],
+                'avance_tarde':d['avance_tarde'],'unidad_productividad':d['unidad']+'/h'})
+            for period in ('manana','mediodia','tarde'):
+                images=d['fotos_'+period]
+                payload['fotos_'+period]=images
+                payload['foto_'+period]=images[0] if images else ''
+            if original:
+                payload['_historico_original']={k:original.get(k) for k in ('horas_hh','rend_real','rend_teorico','esperado','estado')}
+            values={'fecha':d['fecha'],'edificio':d['edificio'],'piso':d['area'].strip(),
+                'rubro':d['codigo_rubro'],'unidad':d['unidad'],'trabajador':', '.join(w['nombre'] for w in payload['trabajadores']),
+                'cargo_obrero':', '.join(w['cargo'] for w in payload['trabajadores']),
+                'datos':payload,'avance':progress,'horas_hh':None,'rend_real':None,
+                'rend_teorico':None,'esperado':None,
+                'estado':'CON AVANCE' if progress>0 else 'SIN AVANCE','intervalo':'Jornada'}
+            save_editor(editor,repo,'rendimientos',values)
+        except Exception as exc:
+            notice_error(exc)
 
 
 def incident_data(record=None):
@@ -3444,17 +3552,31 @@ def sections_for(table,record):
             acts=data.get("Actividades_Ejecutadas") or []
             sections.append(("Actividades realizadas",["Descripción","Área","Unidad","Cantidad"],[[a.get("Descripcion",a.get("actividad","")),a.get("Area",""),a.get("Unidad",""),a.get("Cantidad",0)] for a in acts if isinstance(a,dict)]))
     elif table=="rendimientos":
-        values=rendimiento_values(record);pay=values["payload"]
-        meta += [("Piso",values["piso"]),("Rubro",record.get("rubro","")),("Unidad",record.get("unidad","")),("Avance total",values["avance"]),("Duración de jornada (h)",values["horas_jornada"]),("Horas-hombre (HH)",values["hh"]),("Productividad de cuadrilla (unidad/h)",values["productividad"]),("Consumo de mano de obra (HH/unidad)",values["consumo"]),("Meta (HH/unidad)",record.get("rend_teorico")),("Estado",record.get("estado","")),("Comentarios",pay.get("comentarios",""))]
-        if values["historico"]:
-            meta += [("Aviso histórico","HH y unidad del rendimiento original no verificadas; no se incluyen en totales de HH."),("Horas guardadas originalmente",record.get("horas_hh")),("Rendimiento guardado originalmente",record.get("rend_real"))]
-        workers=pay.get("trabajadores") or [{"nombre":record.get("trabajador",""),"cargo":record.get("cargo_obrero","")}]
-        sections.append(("Trabajadores",["Nombre","Cargo","Horas efectivas individuales"],[[w.get("nombre",""),w.get("cargo",""),w.get("horas")] for w in workers if isinstance(w,dict)]))
-        sections.append(("Jornada y descuentos",["Inicio","Fin","Tiempo muerto","Lunch","Almuerzo"],[[pay.get("hora_inicio",""),pay.get("hora_fin",""),pay.get("hora_muerta", ""),"15 min" if pay.get("lunch") else "0 min","60 min" if pay.get("almuerzo") else "0 min"]]))
-        sections.append(("Avances adicionales por periodo",["Mañana","Mediodía","Tarde"],[[pay.get("avance_manana",0),pay.get("avance_mediodia",0),pay.get("avance_tarde",0)]]))
-        for period,label in [("manana","Mañana"),("mediodia","Mediodía"),("tarde","Tarde")]:
-            values_p=pay.get("fotos_"+period) or ([pay["foto_"+period]] if pay.get("foto_"+period) else [])
-            photos.extend([(f"{label} · Foto {i+1}",p) for i,p in enumerate(values_p)])
+        values=rendimiento_values(record)
+        pay=values['payload']
+        code=pay.get('codigo_rubro') or (record.get('rubro') if v18_catalog_record(record.get('rubro')) else '')
+        description=pay.get('descripcion_rubro') or (v18_catalog_record(code) or {}).get('Descripcion') or record.get('rubro','')
+        unit=record.get('unidad') or ''
+        meta += [('Área',pay.get('area') or values['piso']),('Rubro',code),
+                 ('Descripción',description),('Unidad',unit),
+                 ('Inicio',pay.get('hora_inicio') or 'Sin registro'),
+                 ('Fin',pay.get('hora_fin') or 'Sin registro'),
+                 ('Tiempo muerto',pay.get('hora_muerta') or 'Sin registro'),
+                 ('Lunch','15 min' if pay.get('lunch') else 'No'),
+                 ('Almuerzo','60 min' if pay.get('almuerzo') else 'No'),
+                 ('Rendimiento',f"{values['productividad']:.3f} {unit}/h" if values['productividad'] is not None else 'Sin verificar'),
+                 ('Comentarios',pay.get('comentarios',''))]
+        workers=pay.get('trabajadores') or []
+        if workers:
+            sections.append(('Personal asignado',['Nombre','Cargo'],
+                [[w.get('nombre',''),w.get('cargo','')] for w in workers if isinstance(w,dict)]))
+        sections.append(('Avances por periodo',['Mañana','Mediodía','Tarde'],[[
+            f"{number(pay.get('avance_manana')):.2f} {unit}",
+            f"{number(pay.get('avance_mediodia')):.2f} {unit}",
+            f"{number(pay.get('avance_tarde')):.2f} {unit}"]]))
+        for period,label in [('manana','Mañana'),('mediodia','Mediodía'),('tarde','Tarde')]:
+            images=pay.get('fotos_'+period) or ([pay['foto_'+period]] if pay.get('foto_'+period) else [])
+            photos.extend([(f'{label} · Fotografía {i+1}',photo) for i,photo in enumerate(images)])
     elif table=="incidencias":
         meta += [("Área",record.get("area","")),("Descripción",record.get("descripcion","")),("Responsable",record.get("responsable","")),("Prioridad",record.get("prioridad","")),("Fecha compromiso",record.get("fecha_compromiso","")),("Estado",record.get("estado",""))]
     elif table=="trabajadores":
@@ -3496,7 +3618,89 @@ def summary_rend(records):
     return [[*key,g["count"],g["avance"],g["hh"],g["legacy"]] for key,g in sorted(groups.items())]
 
 
+def rendimiento_excel_v193(records):
+    """Libro Excel con las mismas columnas de la planilla y miniaturas de evidencias."""
+    from openpyxl.drawing.image import Image as WorksheetImage
+    wb=openpyxl.Workbook();ws=wb.active;ws.title='Rendimientos'
+    ws.append(REND_PLANILLA_HEADERS)
+    fill=PatternFill('solid',fgColor='18345F')
+    for cell in ws[1]:cell.fill=fill;cell.font=Font(color='FFFFFF',bold=True)
+    widths=[19,21,17,48,10,12,12,16,14,16,20,18,18,18]
+    for col,width in enumerate(widths,1):ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width=width
+    ws.freeze_panes='D2';ws.auto_filter.ref=f'A1:N{len(records)+1}'
+    for n,rec in enumerate(records,2):
+        row=_rend_planilla_data(rec)
+        for col,key in enumerate(('Edificio','Área','Rubro','Descripción','Unidad','Inicio','Fin',
+                                  'Tiempo muerto','Lunch','Almuerzo','Rendimiento'),1):
+            excel_cell(ws.cell(n,col),row[key])
+        ws.row_dimensions[n].height=63
+        for col,period in ((12,'Mañana'),(13,'Mediodía'),(14,'Tarde')):
+            photos=row[period]
+            if photos:
+                try:
+                    stream=image_stream(photos[0]);
+                    if stream:
+                        photo=WorksheetImage(stream);photo.width=76;photo.height=54
+                        ws.add_image(photo,f'{openpyxl.utils.get_column_letter(col)}{n}')
+                    else:ws.cell(n,col,'No disponible')
+                except Exception:ws.cell(n,col,'No disponible')
+            else:ws.cell(n,col,'Sin foto')
+        if n%2==0:
+            for cell in ws[n]:
+                if cell.fill.patternType!='solid':cell.fill=PatternFill('solid',fgColor='F1F5FB')
+    buffer=io.BytesIO();wb.save(buffer);return buffer.getvalue()
+
+
+def rendimiento_pdf_v193(records):
+    """Planilla horizontal A3 y anexo fotográfico por registro."""
+    from reportlab.lib.pagesizes import A3
+    buffer=io.BytesIO()
+    doc=SimpleDocTemplate(buffer,pagesize=landscape(A3),leftMargin=25,rightMargin=25,topMargin=28,bottomMargin=28)
+    styles=getSampleStyleSheet()
+    head=ParagraphStyle('rh',parent=styles['Normal'],fontSize=7,leading=9,textColor=colors.white,fontName='Helvetica-Bold')
+    body=ParagraphStyle('rb',parent=styles['Normal'],fontSize=6.5,leading=8.5)
+    title=ParagraphStyle('rt',parent=styles['Heading1'],fontSize=15,leading=19)
+    story=[Paragraph('ALPHA BUILDERS · PLANILLA DE RENDIMIENTOS',title),Spacer(1,10)]
+    heads=REND_PLANILLA_HEADERS[:11]
+    data=[[Paragraph(html_escape(h),head) for h in heads]]
+    for rec in records:
+        r=_rend_planilla_data(rec)
+        data.append([Paragraph(html_escape(str(r[k])),body) for k in
+              ('Edificio','Área','Rubro','Descripción','Unidad','Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento')])
+    available=doc.width
+    factors=[.09,.09,.09,.20,.06,.065,.065,.08,.06,.065,.13]
+    scales=sum(factors)
+    tbl=Table(data,colWidths=[available*x/scales for x in factors],repeatRows=1,hAlign='LEFT')
+    tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#18345F')),
+        ('VALIGN',(0,0),(-1,-1),'TOP'),('GRID',(0,0),(-1,-1),.4,colors.HexColor('#C5D4E8')),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#F1F5FB')]),
+        ('LEFTPADDING',(0,0),(-1,-1),5),('RIGHTPADDING',(0,0),(-1,-1),5)]))
+    story.append(tbl)
+    hasphotos=any(any(_rend_planilla_data(rec)[p] for p in ('Mañana','Mediodía','Tarde')) for rec in records)
+    if hasphotos:
+        story.append(PageBreak())
+        story.append(Paragraph('ANEXO · EVIDENCIAS FOTOGRÁFICAS',title))
+        for rec in records:
+            r=_rend_planilla_data(rec)
+            for period in ('Mañana','Mediodía','Tarde'):
+                for photo in r[period]:
+                    raw=image_stream(photo)
+                    if not raw:continue
+                    try:
+                        with Image.open(raw) as im:
+                            im=ImageOps.exif_transpose(im);w,h=im.size
+                        image=PDFImage(raw)
+                        k=min(320/max(1,w),210/max(1,h))
+                        image.drawWidth=w*k;image.drawHeight=h*k
+                        story.extend([Paragraph(html_escape(
+                            f"{r['Edificio']} · {r['Rubro']} · {period}"),styles['Heading3']),image,Spacer(1,10)])
+                    except Exception:continue
+    doc.build(story)
+    return buffer.getvalue()
+
+
 def export_excel(table,records):
+    if table=='rendimientos':return rendimiento_excel_v193(records)
     wb=openpyxl.Workbook();wb.remove(wb.active)
     dark="17365D";border=Border(left=Side(style="thin",color="CBD5E1"),right=Side(style="thin",color="CBD5E1"),top=Side(style="thin",color="CBD5E1"),bottom=Side(style="thin",color="CBD5E1"))
     def header(ws,row,values):
@@ -3547,6 +3751,7 @@ def export_excel(table,records):
 
 
 def export_pdf(table,records):
+    if table=='rendimientos':return rendimiento_pdf_v193(records)
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     font="Helvetica";bold="Helvetica-Bold"
@@ -5597,14 +5802,17 @@ def admin_maestro_links(repo):
         with st.container(border=True):
             a,b=st.columns(2)
             with a:
-                master=st.selectbox('Maestro Mayor',masters,format_func=lambda u:full_name(u)+' · '+u['correo'],key='maestro_link_master')
+                master=st.selectbox('Maestro Mayor',masters,index=None,placeholder='Seleccionar Maestro Mayor',format_func=lambda u:full_name(u)+' · '+u['correo'],key='v193_maestro_link_master')
             with b:
-                staff=st.selectbox('Residente o Asistente',supervisors,format_func=lambda u:full_name(u)+' · '+u['cargo'],key='maestro_link_staff')
-            shared=sorted(set(obj(master.get('edificios'),[])).intersection(obj(staff.get('edificios'),[])))
-            if not shared:
+                staff=st.selectbox('Residente o Asistente',supervisors,index=None,placeholder='Seleccionar Residente o Asistente',format_func=lambda u:full_name(u)+' · '+u['cargo'],key='v193_maestro_link_staff')
+            shared=(sorted(set(obj(master.get('edificios'),[])).intersection(obj(staff.get('edificios'),[])))
+                    if master is not None and staff is not None else [])
+            if master is None or staff is None:
+                st.caption('Selecciona primero las dos cuentas para ver los edificios en común.')
+            elif not shared:
                 st.warning('Las cuentas seleccionadas no comparten ningún edificio.')
             else:
-                building=st.selectbox('Edificio del vínculo',shared,key='maestro_link_build')
+                building=st.selectbox('Edificio del vínculo',shared,key='v193_maestro_link_build')
                 if st.button('🔗 Vincular en este edificio',type='primary',key='maestro_link_save'):
                     try:
                         save_maestro_link(repo,{'maestro':master['correo'],'supervisor':staff['correo'],'edificio':building})
@@ -6298,69 +6506,124 @@ def open_lazy_tabs(labels, key):
     return [_LazyPanel(label == selected) for label in labels], True
 
 
-def history_rend_by_building(records, repo):
-    """Resumen con una tabla ligera; abrir una única ficha bajo demanda."""
-    st.markdown('#### 📊 Rendimientos por edificio')
+def _rend_planilla_data(record):
+    """Celdas consistentes, preservando lo desconocido como '—'."""
+    pay=rendimiento_payload(record)
+    value=rendimiento_values(record)
+    code=pay.get('codigo_rubro') or (record.get('rubro') if v18_catalog_record(record.get('rubro')) else '')
+    description=pay.get('descripcion_rubro') or (v18_catalog_record(code) or {}).get('Descripcion') or record.get('rubro') or ''
+    unit=record.get('unidad') or ''
+    photos={p:(pay.get('fotos_'+p) or ([pay['foto_'+p]] if pay.get('foto_'+p) else [])) for p in ('manana','mediodia','tarde')}
+    return {'Edificio':value['edificio'],'Área':pay.get('area') or value['piso'],
+            'Rubro':code or '—','Descripción':description,'Unidad':unit,
+            'Inicio':pay.get('hora_inicio') or '—','Fin':pay.get('hora_fin') or '—',
+            'Tiempo muerto':pay.get('hora_muerta') or ('00:00' if pay.get('_rend_v6') else '—'),
+            'Lunch':'Sí (15 min)' if pay.get('lunch') else 'No',
+            'Almuerzo':'Sí (60 min)' if pay.get('almuerzo') else 'No',
+            'Rendimiento':f"{value['productividad']:.3f} {unit}/h" if value['productividad'] is not None else 'Sin verificar',
+            'Mañana':photos['manana'],'Mediodía':photos['mediodia'],'Tarde':photos['tarde']}
+
+
+REND_PLANILLA_HEADERS=['Edificio','Área','Rubro','Descripción','Unidad','Inicio','Fin',
+     'Tiempo muerto','Lunch','Almuerzo','Rendimiento','Foto mañana','Foto mediodía','Foto tarde']
+
+
+def _rend_photo_cell(images):
+    if not images:return '<span class="ab-planilla-empty">Sin foto</span>'
+    thumb=master_photo_thumb_b64(images[0])
+    if not thumb:return '<span class="ab-planilla-empty">No disponible</span>'
+    return (f'<img class="ab-photo-thumb" loading="lazy" alt="Evidencia fotográfica" '
+            f'src="data:image/jpeg;base64,{thumb}">')
+
+
+def rendimiento_planilla_preview(records):
+    """Planilla horizontal con 14 columnas; miniaturas ligeras, scroll horizontal en móvil."""
+    headers=''.join('<th scope="col">'+html_escape(h)+'</th>' for h in REND_PLANILLA_HEADERS)
+    rows=[]
+    for rec in records:
+        row=_rend_planilla_data(rec)
+        cells=''.join('<td>'+html_escape(str(row[k] or '—'))+'</td>' for k in (
+            'Edificio','Área','Rubro','Descripción','Unidad','Inicio','Fin',
+            'Tiempo muerto','Lunch','Almuerzo','Rendimiento'))
+        cells+=''.join('<td>'+_rend_photo_cell(row[k])+'</td>' for k in ('Mañana','Mediodía','Tarde'))
+        rows.append('<tr>'+cells+'</tr>')
+    st.markdown('<div class="ab-rend-table-wrap"><table class="ab-rend-table">'
+        '<thead><tr>'+headers+'</tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>',
+        unsafe_allow_html=True)
+
+
+def history_rend_by_building(records,repo):
+    """Buscar por edificio/mes/código, consultar planilla y ficha seleccionada."""
+    page_heading('Consulta de obra','Planilla de rendimientos',
+        'Filtra la jornada y revisa los tiempos, descuentos, productividad y fotografías en una sola tabla.')
     if not records:
         st.info('No hay rendimientos registrados todavía.');return
-    by_build=defaultdict(list)
-    for rec in records:by_build[record_building('rendimientos',rec)].append(rec)
-    buildings=sorted(by_build,key=lambda x:x.casefold())
+    buildings=sorted({record_building('rendimientos',r) for r in records},key=str.casefold)
     a,b=st.columns([1.5,1])
-    with a:
-        building=st.selectbox('🏢 Edificio',['Todos los edificios']+buildings,
-            format_func=lambda x:x if x=='Todos los edificios' else f'{x} · {len(by_build[x])}',key='v8_rend_building')
-    filtered=records if building=='Todos los edificios' else by_build[building]
-    months=sorted({record_date('rendimientos',r)[:7] for r in filtered if len(record_date('rendimientos',r))>=7},reverse=True)
-    with b:
-        month=st.selectbox('🗓️ Mes',['Todos los meses']+months,
-            format_func=lambda x:display_month(x) if x!='Todos los meses' else x,key='v8_rend_month')
-    filtered=[r for r in filtered if month=='Todos los meses' or record_date('rendimientos',r).startswith(month)]
-    search=st.text_input('🔎 Buscar rubro o trabajador',placeholder='Rubro, piso, trabajador…',key='v8_rend_search')
-    if search.strip():
-        needle=search.strip().casefold()
-        filtered=[r for r in filtered if needle in ' '.join((record_title('rendimientos',r),record_building('rendimientos',r),str(r.get('trabajador') or ''))).casefold()]
-    st.caption(f'{len(filtered)} registros · Puedes consultar uno sin desplegar los demás')
-    with st.expander('📤 Exportar rendimientos',expanded=False):
-        export_controls('rendimientos',filtered,'rend_general_v8')
-        if building!='Todos los edificios':
-            export_controls('rendimientos',by_build[building],'rend_build_v11_'+hashlib.md5(building.encode()).hexdigest()[:9])
+    with a:building=st.selectbox('Edificio',['Todos los edificios']+buildings,key='v193_rend_building')
+    months=sorted({record_date('rendimientos',r)[:7] for r in records
+                    if (building=='Todos los edificios' or record_building('rendimientos',r)==building)
+                    and len(record_date('rendimientos',r))>=7},reverse=True)
+    with b:month=st.selectbox('Mes',['Todos los meses']+months,
+        format_func=lambda m:display_month(m) if m!='Todos los meses' else m,key='v193_rend_month')
+    search=st.text_input('Buscar por código, descripción, área o trabajador',
+        placeholder='Ej.: CAP-05-09, enlucido, subsuelo…',key='v193_rend_query')
+    filtered=[]
+    for rec in records:
+        if building!='Todos los edificios' and record_building('rendimientos',rec)!=building:continue
+        if month!='Todos los meses' and not record_date('rendimientos',rec).startswith(month):continue
+        data=_rend_planilla_data(rec)
+        search_parts=[data['Rubro'],data['Descripción'],data['Área'],data['Edificio'],rec.get('trabajador','')]
+        if search.strip() and search.strip().casefold() not in ' '.join(str(p) for p in search_parts).casefold():continue
+        filtered.append(rec)
+    st.caption(f'{len(filtered)} registros · Desplaza la tabla horizontalmente en celular · Las miniaturas se cargan para la página visible')
+    with st.expander('⬇️ Exportar registros filtrados',expanded=False):
+        export_controls('rendimientos',filtered,'rend_v193_export')
     if not filtered:
-        st.info('No encontramos registros para esos filtros.');return
+        st.info('No hay registros para estos filtros.');return
     ordered=sorted(filtered,key=lambda r:(record_date('rendimientos',r),str(r.get('id') or '')),reverse=True)
-    visible=page_slice(ordered,'rend_v8_block',12)
-    rows=[]
-    for record in visible:
-        value=rendimiento_values(record)
-        rows.append([display_date(record_date('rendimientos',record)),record_building('rendimientos',record),
-            record.get('rubro') or 'Actividad',f"{value['avance']:.2f} {record.get('unidad') or ''}",
-            f"{value['hh']:.2f} HH" if value['hh'] is not None else 'No verificado',str(record.get('estado') or 'Sin meta')])
-    styled_detail_table(['Fecha','Edificio','Rubro','Avance','Horas-hombre','Estado'],rows)
-    selected=st.selectbox('Abrir ficha de rendimiento',[None]+visible,
-        format_func=lambda r:'Selecciona el registro que deseas consultar' if r is None else
-            f"{display_date(record_date('rendimientos',r))} · {record_title('rendimientos',r)} · {record_building('rendimientos',r)}",
-        key='v11_selected_yield')
-    if selected is None:
-        return
-    data=rendimiento_values(selected)
+    page_size=10
+    count=(len(ordered)+page_size-1)//page_size
+    page_key='rend_v193_page'
+    page=max(0,min(int(st.session_state.get(page_key,0)),count-1))
+    a,b,c=st.columns([1,1,1])
+    with a:st.button('← Anterior',key='rend_v193_prev',disabled=page==0,
+        on_click=set_module_view,args=(page_key,max(0,page-1)),use_container_width=True)
+    with b:st.caption(f'Página {page+1} de {count}')
+    with c:st.button('Siguiente →',key='rend_v193_next',disabled=page>=count-1,
+        on_click=set_module_view,args=(page_key,min(count-1,page+1)),use_container_width=True)
+    visible=ordered[page*page_size:(page+1)*page_size]
+    rendimiento_planilla_preview(visible)
+    selected=st.selectbox('Abrir registro para editar o consultar fotografías',
+        [None]+visible,index=0,
+        format_func=lambda r:'Seleccionar registro' if r is None else
+          f"{display_date(record_date('rendimientos',r))} · {_rend_planilla_data(r)['Rubro']} · {_rend_planilla_data(r)['Área']}",
+        key='rend_v193_selected')
+    if selected is None:return
+    data=_rend_planilla_data(selected)
     with st.container(border=True):
-        st.markdown('#### '+html_escape(record_title('rendimientos',selected)))
-        c1,c2,c3=st.columns(3)
-        c1.metric('Avance',f"{data['avance']:.2f} {selected.get('unidad') or ''}")
-        c2.metric('Horas-hombre',f"{data['hh']:.2f} HH" if data['hh'] is not None else 'Sin verificar')
-        c3.metric('Productividad',f"{data['productividad']:.3f} {selected.get('unidad') or ''}/h" if data['productividad'] is not None else '—')
-        show_record('rendimientos',selected)
+        st.markdown('#### '+html_escape(str(data['Rubro']))+' · '+html_escape(str(data['Descripción'])))
+        st.caption(display_date(record_date('rendimientos',selected))+' · '+str(data['Edificio'])+' · '+str(data['Área']))
+        a,b,c=st.columns(3)
+        a.metric('Inicio',data['Inicio']);b.metric('Fin',data['Fin']);c.metric('Rendimiento',data['Rendimiento'])
+        for period,label in [('Mañana','🌅 Mañana'),('Mediodía','☀️ Mediodía'),('Tarde','🌇 Tarde')]:
+            photos=data[period]
+            if photos:
+                with st.expander(label+' · Ver fotografías',expanded=False):
+                    for i,photo in enumerate(photos):
+                        image_bytes=image_stream(photo)
+                        if image_bytes:st.image(image_bytes,caption=f'{label} · Foto {i+1}',width=380)
         a,b=st.columns(2)
-        if a.button('✏️ Editar rendimiento',key='v11_edit_yield_'+str(selected['id']),use_container_width=True):
+        if a.button('✏️ Editar',key='rend_v193_edit_'+str(selected['id']),use_container_width=True):
             try:
                 repo._access('rendimientos',selected,write=True)
                 begin_editor('Rendimientos',repo.user,rend_data(selected),selected)
                 st.session_state['_next_route']='Rendimientos';st.rerun()
             except Exception as exc:notice_error(exc)
-        with b.popover('🗑️ Eliminar rendimiento',use_container_width=True):
-            st.warning('Esta acción es irreversible.')
-            if st.button('Confirmar eliminación',key='v11_delete_yield_'+str(selected['id'])):
-                try:repo.delete('rendimientos',selected);st.session_state['_flash']='Registro eliminado.';st.rerun()
+        with b.popover('🗑️ Eliminar registro',use_container_width=True):
+            st.warning('La eliminación es permanente.')
+            if st.button('Confirmar eliminación',key='rend_v193_delete_'+str(selected['id'])):
+                try:repo.delete('rendimientos',selected);st.session_state['_flash']='Rendimiento eliminado.';st.rerun()
                 except Exception as exc:notice_error(exc)
 
 
@@ -7085,6 +7348,7 @@ def main():
     st.markdown(APP_CSS_V19,unsafe_allow_html=True)
     st.markdown(APP_CSS_V20,unsafe_allow_html=True)
     st.markdown(APP_CSS_V19_1,unsafe_allow_html=True)
+    st.markdown(APP_CSS_V19_3,unsafe_allow_html=True)
     try:
         actual_theme=st.context.theme.type
     except (AttributeError,RuntimeError,KeyError):
