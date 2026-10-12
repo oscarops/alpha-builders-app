@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.11-v19.3-planilla-rendimientos"
+APP_VERSION = "2026.10.12-v19.4-personal-horas-intuitivas"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -1479,15 +1479,75 @@ def login_panel(cookie):
 
 
 def parse_minutes(value, *, duration=False, empty_zero=True):
-    text = str(value or "").strip()
-    if not text and empty_zero:
-        return 0
-    if not re.fullmatch(r"\d{2}:\d{2}", text):
-        raise ValueError("Escriba las horas como HH:MM; por ejemplo 07:00 o 00:30.")
-    hh, mm = map(int, text.split(":"))
-    if mm > 59 or hh > (99 if duration else 23):
-        raise ValueError("Hora fuera del intervalo permitido.")
-    return hh * 60 + mm
+    """Admite entradas intuitivas, pero convierte todo a minutos comprobables.
+
+    Inicio y fin: 7, 7:00, 07:00, 16:30, 4 pm o 7:30 am.
+    Tiempo muerto: 0:30, 30 min, 0.5, 1 o 1h 30min. Los números
+    sin unidad del tiempo muerto representan HORAS, no minutos.
+    """
+    raw = str(value if value is not None else '').strip().lower().replace(',', '.')
+    text = re.sub(r'\s+', ' ', raw)
+    if not text:
+        if empty_zero:
+            return 0
+        raise ValueError('Escribe la hora de inicio y de fin.')
+    if duration:
+        # Minutos expresos, por ejemplo 30 min o 45m.
+        match = re.fullmatch(r'(\d+(?:\.\d+)?)\s*(?:min|minutos?|m)', text)
+        if match:
+            minutes = float(match.group(1))
+            if not minutes.is_integer():
+                raise ValueError('Los minutos deben ser un número entero.')
+            result = int(minutes)
+        else:
+            # Horas y minutos expresos, por ejemplo 1h 30min.
+            match = re.fullmatch(r'(\d+)\s*(?:h|horas?)\s*(\d{1,2})\s*(?:min|minutos?|m)?', text)
+            if match:
+                hours, minute_part = map(int, match.groups())
+                if minute_part > 59:
+                    raise ValueError('Los minutos deben estar entre 0 y 59.')
+                result = 60 * hours + minute_part
+            else:
+                match = re.fullmatch(r'(\d{1,3}):(\d{1,2})', text)
+                if match:
+                    hours, minute_part = map(int, match.groups())
+                    if minute_part > 59:
+                        raise ValueError('Los minutos deben estar entre 0 y 59.')
+                    result = 60 * hours + minute_part
+                else:
+                    # 1, 1.5, 1 h, 0.25 horas (fracciones son decimales).
+                    match = re.fullmatch(r'(\d+(?:\.\d+)?)\s*(?:h|horas?)?', text)
+                    if not match:
+                        raise ValueError('Tiempo muerto: usa 0:30, 30 min, 0.5 o 1 hora.')
+                    minutes = float(match.group(1)) * 60
+                    if not math.isfinite(minutes):
+                        raise ValueError('Duración no válida.')
+                    result = round(minutes)
+        if result > 99 * 60 + 59:
+            raise ValueError('El tiempo muerto supera el límite permitido.')
+        return result
+
+    match = re.fullmatch(r'(\d{1,2})(?::(\d{1,2}))?\s*(am|pm|a\.m\.|p\.m\.)?', text)
+    if not match:
+        raise ValueError('Hora no reconocida. Ejemplos: 7, 7:00, 16:30, 4 pm.')
+    hours = int(match.group(1))
+    minute_part = int(match.group(2) or 0)
+    period = match.group(3)
+    if minute_part > 59:
+        raise ValueError('Los minutos deben estar entre 0 y 59.')
+    if period:
+        if not 1 <= hours <= 12:
+            raise ValueError('Con AM/PM usa horas de 1 a 12.')
+        hours = hours % 12 + (12 if period.startswith('p') else 0)
+    elif hours > 23:
+        raise ValueError('Las horas deben estar entre 0 y 23.')
+    return 60 * hours + minute_part
+
+
+def normalized_clock(value, *, duration=False):
+    """Devuelve el formato estable HH:MM después de validar la entrada."""
+    minutes = parse_minutes(value, duration=duration, empty_zero=duration)
+    return f'{minutes // 60:02d}:{minutes % 60:02d}'
 
 
 def time_calculation(start, end, dead="", lunch=False, meal=False, overnight=False):
@@ -3392,19 +3452,21 @@ def render_rend(editor,repo):
     with c:editor.field('date_input','fecha','Fecha de trabajo',str(now_ec().date()))
     st.markdown('#### 📚 Rubro del catálogo')
     _rend_select_catalog(editor)
-    with st.expander('👷 Personal asignado (opcional)',expanded=False):
-        default={'nombre':'','cargo':''}
-        for rid,worker in list(editor.rows('trabajadores',default).items()):
-            a,b=st.columns(2)
-            with a:editor.field('text_input',('trabajadores',rid,'nombre'),'Trabajador','')
-            with b:editor.field('text_input',('trabajadores',rid,'cargo'),'Cargo','')
-            editor.remove('trabajadores',rid)
-        editor.add('trabajadores',default,'Añadir trabajador')
+    st.markdown('#### 👷 Personal responsable')
+    st.caption('Registra al menos un encargado y su cargo. Ambos son obligatorios.')
+    default={'nombre':'','cargo':''}
+    for rid,worker in list(editor.rows('trabajadores',default).items()):
+        a,b=st.columns(2)
+        with a:editor.field('text_input',('trabajadores',rid,'nombre'),'Encargado *','')
+        with b:editor.field('text_input',('trabajadores',rid,'cargo'),'Cargo *','')
+        editor.remove('trabajadores',rid)
+    editor.add('trabajadores',default,'Añadir encargado')
     st.markdown('#### 🕒 Jornada')
     a,b,c=st.columns(3)
-    with a:editor.field('text_input','hora_inicio','Inicio (HH:MM)','')
-    with b:editor.field('text_input','hora_fin','Fin (HH:MM)','')
-    with c:editor.field('text_input','hora_muerta','Tiempo muerto (HH:MM)','')
+    with a:editor.field('text_input','hora_inicio','Inicio','',placeholder='Ej.: 7, 7:00 o 07:00')
+    with b:editor.field('text_input','hora_fin','Fin','',placeholder='Ej.: 16, 16:00 o 4 pm')
+    with c:editor.field('text_input','hora_muerta','Tiempo muerto','',placeholder='Ej.: 0:30, 30 min o 0.5')
+    st.caption('Horarios flexibles: también puedes escribir 7:30 o 4 pm. En tiempo muerto, 1 significa una hora y 0.5 media hora.')
     a,b,c=st.columns(3)
     with a:editor.field('checkbox','lunch','Lunch (15 minutos)',False)
     with b:editor.field('checkbox','almuerzo','Almuerzo (60 minutos)',False)
@@ -3440,14 +3502,23 @@ def render_rend(editor,repo):
                 raise ValueError('Selecciona un rubro válido del catálogo.')
             if not d['hora_inicio'] or not d['hora_fin']:
                 raise ValueError('Debes ingresar hora de inicio y fin.')
+            responsible=list(d.get('trabajadores',{}).values())
+            if not any(str(w.get('nombre') or '').strip() and str(w.get('cargo') or '').strip() for w in responsible):
+                raise ValueError('Agrega al menos un encargado con su cargo.')
+            if any(bool(str(w.get('nombre') or '').strip()) != bool(str(w.get('cargo') or '').strip()) for w in responsible):
+                raise ValueError('Cada encargado registrado debe tener nombre y cargo.')
             if error:raise error
             if hours<=0:raise ValueError('El tiempo efectivo debe ser mayor que cero.')
+            # El formulario acepta formatos libres, pero SQL guarda HH:MM consistente.
+            start_saved=normalized_clock(d['hora_inicio'])
+            end_saved=normalized_clock(d['hora_fin'])
+            dead_saved=normalized_clock(d['hora_muerta'],duration=True)
             original=d.get('_original')
             payload=copy.deepcopy(d.get('_extra') or {})
             payload.update({'_rend_v6':True,'_rend_v5':False,'_rend_v4':False,
                 'codigo_rubro':d['codigo_rubro'],'descripcion_rubro':d['descripcion_rubro'],
                 'area':d['area'].strip(),'edificio':d['edificio'],'piso':d['area'].strip(),
-                'hora_inicio':d['hora_inicio'],'hora_fin':d['hora_fin'],'hora_muerta':d['hora_muerta'],
+                'hora_inicio':start_saved,'hora_fin':end_saved,'hora_muerta':dead_saved,
                 'lunch':d['lunch'],'almuerzo':d['almuerzo'],'overnight':d['overnight'],
                 'comentarios':d.get('comentarios',''),'horas_jornada':hours,
                 'trabajadores':[{'nombre':w['nombre'].strip(),'cargo':w.get('cargo','').strip()} for w in d['trabajadores'].values() if w.get('nombre','').strip()],
@@ -6553,9 +6624,9 @@ def rendimiento_planilla_preview(records):
 
 
 def history_rend_by_building(records,repo):
-    """Buscar por edificio/mes/código, consultar planilla y ficha seleccionada."""
+    """Consulta directa: buscar, seleccionar ficha y revisar planilla."""
     page_heading('Consulta de obra','Planilla de rendimientos',
-        'Filtra la jornada y revisa los tiempos, descuentos, productividad y fotografías en una sola tabla.')
+        'Filtra por edificio, mes o rubro; abre una ficha antes de recorrer la tabla.')
     if not records:
         st.info('No hay rendimientos registrados todavía.');return
     buildings=sorted({record_building('rendimientos',r) for r in records},key=str.casefold)
@@ -6576,12 +6647,45 @@ def history_rend_by_building(records,repo):
         search_parts=[data['Rubro'],data['Descripción'],data['Área'],data['Edificio'],rec.get('trabajador','')]
         if search.strip() and search.strip().casefold() not in ' '.join(str(p) for p in search_parts).casefold():continue
         filtered.append(rec)
-    st.caption(f'{len(filtered)} registros · Desplaza la tabla horizontalmente en celular · Las miniaturas se cargan para la página visible')
-    with st.expander('⬇️ Exportar registros filtrados',expanded=False):
-        export_controls('rendimientos',filtered,'rend_v193_export')
     if not filtered:
         st.info('No hay registros para estos filtros.');return
     ordered=sorted(filtered,key=lambda r:(record_date('rendimientos',r),str(r.get('id') or '')),reverse=True)
+    # Selección inmediata debajo del buscador, sin tener que bajar al final de la tabla.
+    selected=st.selectbox('Abrir registro para editar o consultar fotografías',
+        [None]+ordered,index=0,
+        format_func=lambda r:'Seleccionar registro' if r is None else
+          f"{display_date(record_date('rendimientos',r))} · {_rend_planilla_data(r)['Rubro']} · {_rend_planilla_data(r)['Área']}",
+        key='rend_v194_selected')
+    if selected is not None:
+        data=_rend_planilla_data(selected)
+        with st.container(border=True):
+            st.markdown('#### '+html_escape(str(data['Rubro']))+' · '+html_escape(str(data['Descripción'])))
+            st.caption(display_date(record_date('rendimientos',selected))+' · '+str(data['Edificio'])+' · '+str(data['Área']))
+            a,b,c=st.columns(3)
+            a.metric('Inicio',data['Inicio']);b.metric('Fin',data['Fin']);c.metric('Rendimiento',data['Rendimiento'])
+            for period,label in [('Mañana','🌅 Mañana'),('Mediodía','☀️ Mediodía'),('Tarde','🌇 Tarde')]:
+                photos=data[period]
+                if photos:
+                    with st.expander(label+' · Ver fotografías',expanded=False):
+                        for i,photo in enumerate(photos):
+                            image_bytes=image_stream(photo)
+                            if image_bytes:st.image(image_bytes,caption=f'{label} · Foto {i+1}',width=380)
+            a,b=st.columns(2)
+            if a.button('✏️ Editar',key='rend_v193_edit_'+str(selected['id']),use_container_width=True):
+                try:
+                    repo._access('rendimientos',selected,write=True)
+                    begin_editor('Rendimientos',repo.user,rend_data(selected),selected)
+                    st.session_state['_next_route']='Rendimientos';st.rerun()
+                except Exception as exc:notice_error(exc)
+            with b.popover('🗑️ Eliminar registro',use_container_width=True):
+                st.warning('La eliminación es permanente.')
+                if st.button('Confirmar eliminación',key='rend_v193_delete_'+str(selected['id'])):
+                    try:repo.delete('rendimientos',selected);st.session_state['_flash']='Rendimiento eliminado.';st.rerun()
+                    except Exception as exc:notice_error(exc)
+
+    st.caption(f'{len(filtered)} registros · La tabla permite desplazamiento horizontal en celular.')
+    with st.expander('⬇️ Exportar registros filtrados',expanded=False):
+        export_controls('rendimientos',filtered,'rend_v193_export')
     page_size=10
     count=(len(ordered)+page_size-1)//page_size
     page_key='rend_v193_page'
@@ -6594,37 +6698,6 @@ def history_rend_by_building(records,repo):
         on_click=set_module_view,args=(page_key,min(count-1,page+1)),use_container_width=True)
     visible=ordered[page*page_size:(page+1)*page_size]
     rendimiento_planilla_preview(visible)
-    selected=st.selectbox('Abrir registro para editar o consultar fotografías',
-        [None]+visible,index=0,
-        format_func=lambda r:'Seleccionar registro' if r is None else
-          f"{display_date(record_date('rendimientos',r))} · {_rend_planilla_data(r)['Rubro']} · {_rend_planilla_data(r)['Área']}",
-        key='rend_v193_selected')
-    if selected is None:return
-    data=_rend_planilla_data(selected)
-    with st.container(border=True):
-        st.markdown('#### '+html_escape(str(data['Rubro']))+' · '+html_escape(str(data['Descripción'])))
-        st.caption(display_date(record_date('rendimientos',selected))+' · '+str(data['Edificio'])+' · '+str(data['Área']))
-        a,b,c=st.columns(3)
-        a.metric('Inicio',data['Inicio']);b.metric('Fin',data['Fin']);c.metric('Rendimiento',data['Rendimiento'])
-        for period,label in [('Mañana','🌅 Mañana'),('Mediodía','☀️ Mediodía'),('Tarde','🌇 Tarde')]:
-            photos=data[period]
-            if photos:
-                with st.expander(label+' · Ver fotografías',expanded=False):
-                    for i,photo in enumerate(photos):
-                        image_bytes=image_stream(photo)
-                        if image_bytes:st.image(image_bytes,caption=f'{label} · Foto {i+1}',width=380)
-        a,b=st.columns(2)
-        if a.button('✏️ Editar',key='rend_v193_edit_'+str(selected['id']),use_container_width=True):
-            try:
-                repo._access('rendimientos',selected,write=True)
-                begin_editor('Rendimientos',repo.user,rend_data(selected),selected)
-                st.session_state['_next_route']='Rendimientos';st.rerun()
-            except Exception as exc:notice_error(exc)
-        with b.popover('🗑️ Eliminar registro',use_container_width=True):
-            st.warning('La eliminación es permanente.')
-            if st.button('Confirmar eliminación',key='rend_v193_delete_'+str(selected['id'])):
-                try:repo.delete('rendimientos',selected);st.session_state['_flash']='Rendimiento eliminado.';st.rerun()
-                except Exception as exc:notice_error(exc)
 
 
 def record_actions(table, record, repo, key, editable=True):
