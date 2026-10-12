@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.12-v20.11-guardado-rendimientos"
+APP_VERSION = "v20.12"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -3595,47 +3595,100 @@ def render_official(editor,repo):
         except Exception as exc:notice_error(exc)
 
 
-def v18_8_catalog_picker_maestro(editor):
-    """Selector de rubros del mismo catálogo que utiliza el Libro de Obra oficial."""
-    with st.container(border=True):
-        st.markdown('#### 📚 Seleccionar rubro del catálogo')
-        st.caption('Selecciona por capítulo o busca el nombre/código. Se rellenan rubro, unidad y capítulo; el avance y los responsables los indicas tú.')
-        mode=st.radio('Buscar rubro',['Por capítulo','Por nombre o código'],horizontal=True,
-            key=editor.prefix+'v188_catalog_mode')
-        chapter=''
-        if mode=='Por capítulo':
-            chapters=sorted(catalogo_rubros_v18()['capitulos'],key=lambda ch:int(ch[0][4:]))
-            chapter=st.selectbox('Capítulo',[ch for ch,_ in chapters],
-                format_func=v18_chapter_label,key=editor.prefix+'v188_catalog_chapter')
-        search=st.text_input('Buscar código o descripción',placeholder='Ej.: enlucido, CAP-05-01',
-            key=editor.prefix+'v188_catalog_search')
-        if mode=='Por nombre o código' and len(search.strip())<2:
-            st.info('Escribe dos o más caracteres para buscar en todo el catálogo.')
-            return
-        found=v18_catalog_matches(chapter,search,limit=125)
-        if not found:
-            st.info('Sin coincidencias. Puedes escribir la actividad manualmente debajo.')
-            return
-        if len(found)>=125:
-            st.caption('Se muestran hasta 125 coincidencias; afina tu búsqueda para localizar el rubro.')
-        descriptions={code:(desc,unit) for code,desc,unit in found}
-        code=st.selectbox('Rubro del catálogo',[row[0] for row in found],index=None,
-            placeholder='Elige un rubro',key=editor.prefix+'v188_catalog_result',
-            format_func=lambda c:f'{c} · {descriptions[c][0]} ({descriptions[c][1]})')
-        if st.button('➕ Añadir este rubro al avance',disabled=not code,
-            key=editor.prefix+'v188_catalog_add',use_container_width=True):
-            rubric=v18_catalog_record(code)
-            if rubric:
-                item={
-                    'Actividad':rubric['Descripcion'],'Capitulo':rubric['Capitulo'],
-                    'Codigo_Rubro':rubric['Codigo_Rubro'],'Unidad':rubric['Unidad'],
-                    'Cantidad':'','Area':'','Piso':'','Departamento':'',
-                    'Personal_A_Cargo':[],'Personal_Manual':'','Fotos':[],
-                    'Observaciones':'',
-                }
-                editor.data.setdefault('actividades',{})[row_id()]=item
-                editor.persist()
-                rerun_selected_module()
+def _v20_12_elegir_rubro_maestro(editor, rid, selector_key):
+    """Completa la actividad desde el catálogo, sin perder personal, cantidad ni fotos."""
+    code=st.session_state.get(selector_key)
+    row=v18_catalog_record(code) if code else None
+    if not row:
+        return
+    item=editor.data.setdefault('actividades',{}).get(rid)
+    if not isinstance(item,dict):
+        return
+    item.update({
+        'Capitulo':row['Capitulo'],
+        'Codigo_Rubro':row['Codigo_Rubro'],
+        'Actividad':row['Descripcion'],
+        'Unidad':row['Unidad'],
+    })
+    # No reutilizar los inputs manuales de la ejecución anterior.
+    for field in ('Actividad','Unidad'):
+        st.session_state.pop(editor.prefix+'actividades:'+str(rid)+':'+field,None)
+    editor.persist()
+
+
+def _v20_12_modo_manual_maestro(editor, rid, checkbox_key):
+    """Permite actividades fuera del catálogo sin eliminar descripciones ni fotos."""
+    if not st.session_state.get(checkbox_key):
+        return
+    item=editor.data.setdefault('actividades',{}).get(rid)
+    if isinstance(item,dict):
+        item['Codigo_Rubro']=''
+        editor.persist()
+
+
+def v20_12_catalogo_en_actividad_maestro(editor, rid, item):
+    """Un único buscador por código o descripción, igual a Rendimientos y Libro oficial.
+
+    El capítulo es un filtro opcional. La selección rellena rubro, capítulo
+    y unidad del catálogo y preserva toda la información propia de la jornada.
+    Los registros históricos manuales se pueden editar sin asignarles códigos
+    supuestos.
+    """
+    prefix=editor.prefix+'maestro_catalogo:'+str(rid)+':'
+    original_code=str(item.get('Codigo_Rubro') or '').strip()
+    known=v18_catalog_record(original_code) if original_code else None
+    manual_key=prefix+'manual'
+    manual_default=bool(item.get('Actividad') and not known)
+    manual=st.checkbox('Actividad manual fuera del catálogo',value=manual_default,
+                       key=manual_key,on_change=_v20_12_modo_manual_maestro,
+                       args=(editor,rid,manual_key))
+    if manual:
+        a,b=st.columns([2.6,1])
+        with a:
+            editor.field('text_input',('actividades',rid,'Actividad'),
+                         'Actividad / descripción','')
+        with b:
+            editor.field('text_input',('actividades',rid,'Unidad'),
+                         'Unidad','')
+        return
+
+    chapters=['Todos los capítulos']+[code for code,_ in sorted(
+        catalogo_rubros_v18()['capitulos'],key=lambda part:int(part[0][4:]))]
+    initial_chapter=(original_code[:6] if known else '')
+    filter_key=prefix+'capitulo'
+    chapter=st.selectbox('Capítulo (filtro)',chapters,
+        index=chapters.index(initial_chapter) if initial_chapter in chapters else 0,
+        format_func=lambda ch:ch if ch=='Todos los capítulos' else v18_chapter_label(ch),
+        key=filter_key)
+    filtered=v18_catalog_matches('' if chapter=='Todos los capítulos' else chapter,
+                                 '',limit=None)
+    codes=[code for code,description,unit in filtered]
+    lookup={code:(description,unit) for code,description,unit in filtered}
+    chosen_key=prefix+'rubro:'+str(chapter)
+    selected=original_code if original_code in lookup else ''
+    st.selectbox('Rubro (buscar por código o descripción)',codes,
+        index=codes.index(selected) if selected else None,
+        placeholder='Escribe un código o una descripción…',
+        format_func=lambda code:formato_rubro_unificado(code,lookup),
+        key=chosen_key,on_change=_v20_12_elegir_rubro_maestro,
+        args=(editor,rid,chosen_key))
+
+    # Mostrar siempre la selección guardada en el libro, aunque cambie el filtro.
+    resolved=known
+    a,b,c=st.columns([1.1,2.5,0.8])
+    with a:
+        st.text_input('Código',value=original_code or '',disabled=True,
+                      key=prefix+'codigo_vista:'+original_code)
+    with b:
+        st.text_input('Descripción',value=(resolved['Descripcion'] if resolved
+                      else str(item.get('Actividad') or '')),disabled=True,
+                      key=prefix+'descripcion_vista:'+original_code)
+    with c:
+        st.text_input('Unidad automática',value=(resolved['Unidad'] if resolved
+                      else str(item.get('Unidad') or '')),disabled=True,
+                      key=prefix+'unidad_vista:'+original_code)
+    if original_code and original_code not in lookup:
+        st.caption('El rubro guardado se conserva. Selecciona otro código del filtro para sustituirlo.')
 
 
 def maestro_data(record=None):
@@ -3672,18 +3725,11 @@ def render_maestro(editor, repo):
     workers = [f"{r['nombre']} ({r['cargo']})" for r in combined_workers(repo,d.get("proyecto"))]
     st.markdown(f"#### 🔨 Actividades realizadas, personal y metrajes ({len(d['actividades']) or 1} registro/s)")
     st.caption("Cada actividad nueva necesita una fotografía. La planilla de avance tendrá: departamento, área, actividad, unidad, cantidad y responsable.")
-    v18_8_catalog_picker_maestro(editor)
     default = {"Actividad": "", "Cantidad": "", "Unidad":"", "Area":"", "Capitulo":"", "Codigo_Rubro":"", "Personal_A_Cargo": [], "Piso": "", "Departamento": "", "Observaciones": "", "Personal_Manual": "", "Fotos": []}
     for index, (rid, item) in enumerate(list(editor.rows("actividades", default).items()), 1):
         st.markdown(f'<div class="banner-item-header"><span>Actividad N° {index}</span></div>', unsafe_allow_html=True)
         with st.container(border=True):
-            if item.get('Codigo_Rubro'):
-                st.caption('📚 '+str(item.get('Capitulo') or '')+' · Código: '+str(item['Codigo_Rubro']))
-            c1, c2 = st.columns([2.7, 1.3])
-            with c1:
-                editor.field("text_input", ("actividades", rid, "Actividad"), "Actividad / rubro", "")
-            with c2:
-                editor.field("text_input", ("actividades", rid, "Unidad"), "Unidad", "")
+            v20_12_catalogo_en_actividad_maestro(editor,rid,item)
             c3, c4, c5 = st.columns([1.25, 1.4, 1.25])
             with c3:
                 editor.field("text_input", ("actividades", rid, "Cantidad"), "Cantidad ejecutada", "")
