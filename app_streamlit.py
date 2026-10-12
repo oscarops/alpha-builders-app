@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "v20.16"
+APP_VERSION = "v20.17"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -3934,6 +3934,23 @@ def _rend_select_catalog(editor):
         st.caption('Registro antiguo sin código confirmado. Selecciona un rubro del catálogo antes de modificarlo.')
 
 
+def rend_hora_sin_autocompletado(editor, campo, etiqueta, pista):
+    """Hora editable, sin sugerencias de nombres del autocompletado de Chrome.
+
+    Streamlit >=1.62 ofrece type='search': es texto libre sin historial de
+    autofill por defecto. Con versiones anteriores se utiliza text_input
+    tradicional con autocomplete='off', disponible en Streamlit desde hace años.
+    No se modifican las claves de borrador ni el tratamiento flexible de horas.
+    El navegador tiene la última palabra sobre sus propias extensiones.
+    """
+    args = {'placeholder': pista, 'autocomplete': 'off'}
+    version = re.match(r'^(\d+)\.(\d+)', str(getattr(st, '__version__', '')))
+    recent = bool(version and tuple(map(int, version.groups())) >= (1, 62))
+    if recent:
+        args.update(type='search', icon='')
+    return editor.field('text_input', campo, etiqueta, '', **args)
+
+
 def render_rend(editor,repo):
     """Formulario de rendimiento diario. Producción por hora efectiva; sin HH ni metas."""
     d=editor.data
@@ -3958,9 +3975,9 @@ def render_rend(editor,repo):
     editor.add('trabajadores',default,'Añadir encargado')
     st.markdown('#### 🕒 Jornada')
     a,b,c=st.columns(3)
-    with a:editor.field('text_input','hora_inicio','Inicio','',placeholder='Ej.: 7, 7:00 o 07:00')
-    with b:editor.field('text_input','hora_fin','Fin','',placeholder='Ej.: 16, 16:00 o 4 pm')
-    with c:editor.field('text_input','hora_muerta','Tiempo muerto','',placeholder='Ej.: 0:30, 30 min o 0.5')
+    with a:rend_hora_sin_autocompletado(editor,'hora_inicio','Inicio','Ej.: 7, 7:00 o 07:00')
+    with b:rend_hora_sin_autocompletado(editor,'hora_fin','Fin','Ej.: 16, 16:00 o 4 pm')
+    with c:rend_hora_sin_autocompletado(editor,'hora_muerta','Tiempo muerto','Ej.: 0:30, 30 min o 0.5')
     st.caption('Horarios flexibles: también puedes escribir 7:30 o 4 pm. En tiempo muerto, 1 significa una hora y 0.5 media hora.')
     a,b,c=st.columns(3)
     with a:editor.field('checkbox','lunch','Lunch (15 minutos)',False)
