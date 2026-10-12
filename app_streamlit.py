@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.12-v19.7-anexos-evidencias"
+APP_VERSION = "v19.9"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -908,6 +908,47 @@ APP_CSS_V19_7 = """
 </style>
 """
 
+# V19.8: CSS cargado sin generar elementos verticales vacíos en el cuerpo.
+# st.html envía los contenidos formados exclusivamente por <style> al contenedor
+# de eventos de Streamlit, sin consumir espacio en el layout.
+APP_CSS_V19_8 = """
+<style>
+/* Mantener despejada la barra Share/Deploy y empezar el dashboard justo debajo. */
+.stApp .block-container,
+.stApp [data-testid="stMain"] .block-container {
+  padding-top: 4.15rem !important;
+  padding-bottom: 1rem !important;
+}
+.stApp [data-testid="stMainBlockContainer"] {
+  padding-top: 0 !important;
+}
+@media (max-width: 768px) {
+  .stApp .block-container,
+  .stApp [data-testid="stMain"] .block-container {
+    padding-top: 3.8rem !important;
+  }
+}
+</style>
+"""
+
+
+def render_app_styles():
+    """Inyecta todos los estilos sin añadir 11 bloques vacíos arriba del dashboard.
+
+    Conserva el mismo orden de prioridades CSS y el comportamiento de ambos temas.
+    En versiones antiguas sin st.html usa un solo bloque de respaldo.
+    """
+    css = "".join((
+        APP_CSS, APP_CSS_V10, APP_CSS_V14, APP_CSS_V17, APP_CSS_V18,
+        APP_CSS_V19, APP_CSS_V20, APP_CSS_V19_1, APP_CSS_V19_3,
+        APP_CSS_V19_7, APP_CSS_V19_8,
+    ))
+    if hasattr(st, "html"):
+        st.html(css)
+    else:
+        st.markdown(css, unsafe_allow_html=True)
+
+
 def page_heading(eyebrow, title, subtitle):
     """Encabezado uniforme, evita mezclar títulos grandes y controles."""
     st.markdown(
@@ -1685,6 +1726,12 @@ class Editor:
             self.draft["error"] = str(exc) if isinstance(exc, ConflictError) else "No se pudo guardar el borrador en el servidor. Mantenga esta página abierta y vuelva a intentarlo."
 
     def changed(self, key, path, kind):
+        # En formularios dinámicos un control puede desaparecer cuando se cambia
+        # de capítulo, se recupera un borrador o se recarga la nómina. Streamlit
+        # aún puede emitir su callback anterior: no es un error de guardado.
+        if key not in st.session_state:
+            LOG.debug('Widget retirado antes de procesar el cambio: %s', key)
+            return
         value = st.session_state[key]
         if kind == "date_input":
             value = value.isoformat()
@@ -2809,54 +2856,76 @@ def v19_aplicar_rubro_seleccionado(editor, rid, codigo, session_key=None):
     editor.persist()
 
 
-def v19_catalogo_en_rubro(editor, rid, item):
-    """Catálogo y escritura manual unidos en UNA ficha; seleccionar actualiza sin botón."""
-    chapters=['']+[v18_chapter_label(ch) for ch,_ in sorted(
-        catalogo_rubros_v18()['capitulos'],key=lambda pair:int(pair[0][4:]))]
-    c1,c2=st.columns([1.05,1.75])
-    with c1:
-        chapter=editor.field('selectbox',('actividades',rid,'Capitulo'),
-            'Capítulo', '', options=chapters)
-    # Si el usuario modifica el capítulo de un rubro ya codificado, no mantener
-    # una referencia incompatible a otro capítulo.
-    if item.get('Codigo_Rubro') and v18_chapter_code(chapter)!=v18_chapter_code(item['Codigo_Rubro']):
-        item['Codigo_Rubro']=''
-        editor.persist()
-    with c2:
-        query=st.text_input('Buscar rubro (nombre o código)',
-            placeholder='Busca en el capítulo o escribe una descripción…',
-            key=editor.prefix+'v19_query:'+str(rid))
-    if not chapter and len(query.strip())<2:
-        st.caption('Selecciona un capítulo o escribe al menos dos caracteres. '
-                   'También puedes llenar manualmente la descripción y unidad.')
-        return
-    matches=v18_catalog_matches(chapter,query,limit=125)
-    code=str(item.get('Codigo_Rubro') or '')
-    if code and not any(code==r[0] for r in matches):
-        record=v18_catalog_record(code)
-        if record and (not chapter or v18_chapter_code(chapter)==v18_chapter_code(code)):
-            matches=[(code,record['Descripcion'],record['Unidad'])]+matches
-    if not matches:
-        st.caption('Sin coincidencias. Puedes escribir el rubro manualmente debajo.')
-        return
-    lookup={ident:(description,unit) for ident,description,unit in matches}
-    ids=list(lookup)
-    key=editor.prefix+'v19_choose:'+str(rid)
-    st.selectbox('Rubro del catálogo (opcional)',ids,
-        index=ids.index(code) if code in ids else None,
-        placeholder='Seleccionar rubro del catálogo…',
-        format_func=lambda ident:f'{ident} · {lookup[ident][0]} ({lookup[ident][1]})',
-        key=key,
-        on_change=v19_aplicar_rubro_desde_estado,
-        args=(editor,rid,key))
-    if len(matches)>=125:
-        st.caption('Primeros 125 resultados. Escribe más palabras para encontrar tu rubro.')
-
-
-def v19_aplicar_rubro_desde_estado(editor, rid, key):
+def _v19_9_on_choose_rubro(editor, rid, key, other_key):
+    """El código y la descripción son dos formas de elegir el MISMO rubro."""
     code=st.session_state.get(key)
     if code:
         v19_aplicar_rubro_seleccionado(editor,rid,code)
+        st.session_state.pop(other_key,None)
+
+
+def _v19_9_manual_mode(editor, rid, key_code, key_desc):
+    item=editor.data.setdefault('actividades',{}).get(rid,{})
+    if st.session_state.get(editor.prefix+'v19_9_manual:'+str(rid)):
+        item['Codigo_Rubro']=''
+        st.session_state.pop(key_code,None)
+        st.session_state.pop(key_desc,None)
+        editor.persist()
+
+
+def v19_catalogo_en_rubro(editor, rid, item):
+    """Capítulo, código, descripción y unidad en una misma ficha de actividad.
+
+    Sin campos extra de búsqueda: cada selector permite buscar escribiendo dentro
+    de su lista. La unidad se deriva del código y nunca queda desincronizada.
+    """
+    chapters=['']+[v18_chapter_label(ch) for ch,_ in sorted(
+        catalogo_rubros_v18()['capitulos'],key=lambda pair:int(pair[0][4:]))]
+    chapter=editor.field('selectbox',('actividades',rid,'Capitulo'),
+                         'Capítulo', '', options=chapters)
+    key_code=editor.prefix+'v19_9_code:'+str(rid)
+    key_desc=editor.prefix+'v19_9_desc:'+str(rid)
+    manual_key=editor.prefix+'v19_9_manual:'+str(rid)
+    if item.get('Codigo_Rubro') and v18_chapter_code(chapter)!=v18_chapter_code(item['Codigo_Rubro']):
+        item['Codigo_Rubro']=''
+        item['Descripcion']=''
+        item['Unidad']=''
+        st.session_state.pop(key_code,None)
+        st.session_state.pop(key_desc,None)
+        editor.persist()
+    manual_default=bool(item.get('Descripcion') and not item.get('Codigo_Rubro'))
+    manual=st.checkbox('Actividad manual fuera del listado',value=manual_default,
+                       key=manual_key,on_change=_v19_9_manual_mode,
+                       args=(editor,rid,key_code,key_desc))
+    if manual:
+        a,b=st.columns([2,1])
+        with a:editor.field('text_input',('actividades',rid,'Descripcion'),'Descripción de la actividad','')
+        with b:editor.field('text_input',('actividades',rid,'Unidad'),'Unidad','')
+        return
+    if not chapter:
+        st.caption('Selecciona un capítulo para ver sus rubros y descripciones.')
+        return
+    found=v18_catalog_matches(chapter,'',limit=None)
+    lookup={code:(desc,unit) for code,desc,unit in found}
+    codes=list(lookup)
+    selected=str(item.get('Codigo_Rubro') or '')
+    if selected not in lookup:selected=''
+    a,b=st.columns([0.7,2])
+    with a:
+        st.selectbox('Rubro (código)',codes,index=codes.index(selected) if selected else None,
+            placeholder='Seleccionar código', key=key_code,
+            on_change=_v19_9_on_choose_rubro,args=(editor,rid,key_code,key_desc))
+    with b:
+        st.selectbox('Descripción',codes,index=codes.index(selected) if selected else None,
+            placeholder='Seleccionar descripción',
+            format_func=lambda code:lookup[code][0],key=key_desc,
+            on_change=_v19_9_on_choose_rubro,args=(editor,rid,key_desc,key_code))
+    st.text_input('Unidad',value=lookup[selected][1] if selected else '',
+                  disabled=True,key=editor.prefix+'v19_9_unit_view:'+str(rid)+':'+selected)
+    # La unidad que se guarda en el borrador siempre procede del rubro elegido.
+    if selected:
+        item['Unidad']=lookup[selected][1]
+        item['Descripcion']=lookup[selected][0]
 
 
 @st.cache_data(ttl=60, show_spinner=False, max_entries=128)
@@ -3047,14 +3116,64 @@ def v17_import_master_activity(editor, activity):
 OFICIO_ALIASES={"ALBAÑILES":["ALBAÑIL","ALBANIL"],"AYUDANTE":["AYUDANTE","PEON","PEÓN"],"SOLDADOR":["SOLDADOR"],"OPERADOR":["OPERADOR","MAQUINISTA"],"FIERRERO":["FIERRERO","HIERRERO"],"PINTORES":["PINTOR","PINTORES"],"MAESTRO SUPERVISOR":["MAESTRO","SUPERVISOR","CAPATAZ"],"CARPINTERO":["CARPINTERO"],"GUACHIMAN":["GUACHIMAN","GUARDIA"],"GYPSEROS":["GYPS","TABLAYESO"],"ELECTRICOS":["ELECTRIC","ELÉCTRIC"],"PLOMEROS":["PLOMER","HIDROSANITARI","FONTANER"],"ALUMINIO Y VIDRIO":["ALUMIN","VIDRI"]}
 
 
+def normalizar_cargo_nomina(value):
+    import unicodedata
+    raw=unicodedata.normalize('NFKD', str(value or '').upper())
+    return ''.join(c for c in raw if not unicodedata.combining(c))
+
+
 def workforce_counts(workers):
-    counts={k:0 for k in OFICIOS_NOMINA_FORMATO}; unclassified=[]
+    """Recalcula TODAS las categorías, incluidas las que ahora valen cero.
+
+    En cargos compuestos se toma la primera especialidad reconocible y no se
+    duplica al trabajador en dos oficios diferentes. No se inventan categorías.
+    """
+    counts={k:0 for k in OFICIOS_NOMINA_FORMATO}
+    unclassified=[]
     for worker in workers:
-        role=str(worker.get("cargo") or "").upper()
-        matches=[k for k,aliases in OFICIO_ALIASES.items() if any(v in role for v in aliases)]
-        if len(matches)==1: counts[matches[0]]+=1
-        else: unclassified.append(worker.get("nombre") or "Sin nombre")
+        role=normalizar_cargo_nomina(worker.get('cargo'))
+        main_role=re.split(r'\s*[/|;,]\s*',role,maxsplit=1)[0]
+        matches=[name for name, aliases in OFICIO_ALIASES.items()
+                 if any(normalizar_cargo_nomina(alias) in main_role for alias in aliases)]
+        if not matches:
+            matches=[name for name, aliases in OFICIO_ALIASES.items()
+                     if any(normalizar_cargo_nomina(alias) in role for alias in aliases)]
+        if matches:
+            counts[matches[0]]+=1
+        else:
+            unclassified.append(worker.get('nombre') or 'Sin nombre')
     return counts,unclassified
+
+
+def actualizar_conteo_nomina_editor(editor, repo):
+    """Se llama como on_click ANTES de montar los number_input del formulario.
+
+    Reemplaza el bloque completo y sincroniza las claves antiguas de widgets,
+    evitando que st.session_state vuelva a mostrar datos anteriores.
+    """
+    edificio=editor.data.get('proyecto')
+    if not edificio:
+        editor.draft['nomina_notice']='Selecciona un edificio antes de actualizar su nómina.'
+        return
+    try:
+        cached_rows.clear()
+        workers=combined_workers(repo,edificio)
+        counts,unclassified=workforce_counts(workers)
+        editor.data['datos']['Nomina_Conteo']={key:counts.get(key,0) for key in OFICIOS_NOMINA_FORMATO}
+        editor.data['_unclassified']=unclassified
+        editor.data['_nomina_sugerida_proyecto']=edificio
+        editor.data['_nomina_sugerida_conteos']=copy.deepcopy(editor.data['datos']['Nomina_Conteo'])
+        for label in OFICIOS_NOMINA_FORMATO:
+            key=editor.prefix+'datos:Nomina_Conteo:'+label
+            # Callback previo al montaje: actualiza además el widget existente.
+            st.session_state[key]=int(counts.get(label,0))
+        editor.draft['nomina_notice']=(
+            f'Conteo actualizado: {len(workers)} trabajadores visibles en {edificio}. '
+            'Los oficios ausentes quedaron en cero.')
+        editor.persist()
+    except Exception as exc:
+        LOG.exception('Error recalculando la nómina para el Libro de Obra')
+        editor.draft['nomina_notice']='No se pudo actualizar. Conservamos los conteos anteriores. Comprueba la conexión.'
 
 
 def render_official(editor,repo):
@@ -3134,7 +3253,7 @@ def render_official(editor,repo):
     st.caption('Los campos se guardan como borrador. Solo aparece el paso que selecciones.')
 
     if phase==phases[0]:
-        st.markdown('#### 📋 Encabezado de Ejemplo.xlsx')
+        st.markdown('#### 📋 Datos generales del proyecto')
         fields=[('Ubicacion','Ubicación de la obra'),('Barrio','Barrio'),('Ciudad','Ciudad'),
                 ('Superintendente','Superintendente'),('Fiscalizador','Fiscalizador'),('Hoja','Número de hoja')]
         a,b=st.columns(2)
@@ -3189,13 +3308,12 @@ def render_official(editor,repo):
                         del st.session_state[name]
             d['_nomina_sugerida_proyecto']=d['proyecto']
             editor.persist()
-        if st.button('Actualizar conteo desde mi nómina',key=editor.prefix+'nomina'):
-            counts,unclassified=workforce_counts(workers)
-            d['datos']['Nomina_Conteo']=counts
-            d['_unclassified']=unclassified
-            for name in list(st.session_state):
-                if name.startswith(editor.prefix+'datos:Nomina_Conteo:'):del st.session_state[name]
-            editor.persist();rerun_selected_module()
+        st.button('🔄 Actualizar conteo desde mi nómina',key=editor.prefix+'nomina',
+                  on_click=actualizar_conteo_nomina_editor,args=(editor,repo))
+        notice=editor.draft.get('nomina_notice')
+        if notice:
+            if notice.startswith('Conteo actualizado:'):st.success(notice)
+            else:st.warning(notice)
         if d.get('_unclassified'):
             st.warning('Revisa manualmente los oficios de: '+', '.join(d['_unclassified']))
         a,b=st.columns(2)
@@ -3232,21 +3350,12 @@ def render_official(editor,repo):
             DISCIPLINAS_LIBRO_OFICIAL[0], options=DISCIPLINAS_LIBRO_OFICIAL)
         left=st.container()
         with left:
-            st.markdown('#### 🏗️ Rubros añadidos y actividades manuales')
-            st.caption('Cada rubro se selecciona aquí mismo desde el catálogo, o se escribe manualmente. '
-                       'Al elegirlo se completan capítulo, descripción, código y unidad sin otro botón de agregar.')
+            st.markdown('#### 🏗️ Actividades y rubros')
             default={'Capitulo':'','Codigo_Rubro':'','Descripcion':'','Area':'','Unidad':'','Cantidad':0.0}
             for idx,(rid,item) in enumerate(list(editor.rows('actividades',default).items()),1):
                 with st.container(border=True):
                     st.markdown(f'**Rubro {idx}**')
                     v19_catalogo_en_rubro(editor,rid,item)
-                    a,b=st.columns([1.7,1])
-                    with a:
-                        editor.field('text_input',('actividades',rid,'Descripcion'),'Descripción del rubro (editable)','')
-                    with b:
-                        editor.field('text_input',('actividades',rid,'Unidad'),'Unidad (editable)','')
-                    if item.get('Codigo_Rubro'):
-                        st.caption('Código seleccionado: '+str(item['Codigo_Rubro']))
                     a,b=st.columns([1.7,1])
                     with a:editor.field('text_input',('actividades',rid,'Area'),'Área o ubicación','')
                     with b:editor.field('number_input',('actividades',rid,'Cantidad'),'Cantidad ejecutada',
@@ -5258,7 +5367,7 @@ def export_controls(table,records,key):
         st.caption("Se generará únicamente el formato solicitado, con los registros del filtro actual.")
         choices=["Excel (.xlsx)","PDF (.pdf)","CSV (.csv)"]
         if table=="inspecciones" and any(not is_master_book(r) for r in records):
-            choices.insert(0,"Libro oficial — formato de Ejemplo.xlsx")
+            choices.insert(0,"Libro de Obra — Excel oficial")
         format_=st.selectbox("Formato",choices,key="format_"+key)
         signature=hashlib.sha256(json_text([
             (str(r.get("id")), str(r.get("revision")), str(r.get("updated_at")))
@@ -7089,8 +7198,6 @@ def history_rend_by_building(records,repo):
                     except Exception as exc:notice_error(exc)
 
     st.caption(f'{len(filtered)} registros · La tabla permite desplazamiento horizontal en celular.')
-    with st.expander('⬇️ Exportar registros filtrados',expanded=False):
-        export_controls('rendimientos',filtered,'rend_v193_export')
     page_size=10
     count=(len(ordered)+page_size-1)//page_size
     page_key='rend_v193_page'
@@ -7107,6 +7214,8 @@ def history_rend_by_building(records,repo):
         on_click=set_module_view,args=(page_key,min(count-1,page+1)),use_container_width=True)
     visible=ordered[page*page_size:(page+1)*page_size]
     rendimiento_planilla_preview(visible)
+    with st.expander('⬇️ Exportar registros filtrados',expanded=False):
+        export_controls('rendimientos',filtered,'rend_v193_export')
 
 
 def record_actions(table, record, repo, key, editable=True):
@@ -7822,16 +7931,7 @@ def main():
         for key in list(st.session_state):
             if key.startswith(prefix):del st.session_state[key]
     st.set_page_config(page_title='Alpha Builders | Portal Ejecutivo',page_icon='🏗️',layout='wide',initial_sidebar_state='expanded')
-    st.markdown(APP_CSS,unsafe_allow_html=True)
-    st.markdown(APP_CSS_V10,unsafe_allow_html=True)
-    st.markdown(APP_CSS_V14,unsafe_allow_html=True)
-    st.markdown(APP_CSS_V17,unsafe_allow_html=True)
-    st.markdown(APP_CSS_V18,unsafe_allow_html=True)
-    st.markdown(APP_CSS_V19,unsafe_allow_html=True)
-    st.markdown(APP_CSS_V20,unsafe_allow_html=True)
-    st.markdown(APP_CSS_V19_1,unsafe_allow_html=True)
-    st.markdown(APP_CSS_V19_3,unsafe_allow_html=True)
-    st.markdown(APP_CSS_V19_7,unsafe_allow_html=True)
+    render_app_styles()
     try:
         actual_theme=st.context.theme.type
     except (AttributeError,RuntimeError,KeyError):
@@ -7854,7 +7954,11 @@ def main():
             '--ab-chip-text:#234a94;--ab-primary:#2459dc;--ab-strong:#0b1830;'
             '--ab-outline-strong:#bbcbe3;--ab-surface-soft-2:#edf3fd;--ab-highlight:#3a6ce6'
         )
-        st.markdown('<style>:root{'+tokens+'}</style>',unsafe_allow_html=True)
+        theme_css = '<style>:root{'+tokens+'}</style>'
+        if hasattr(st, "html"):
+            st.html(theme_css)
+        else:
+            st.markdown(theme_css, unsafe_allow_html=True)
     try:
         if get_config('alpha_schema_version')!='5':
             st.error('El esquema depurado v5 no está activado. No se intentará usar el sistema anterior.')
