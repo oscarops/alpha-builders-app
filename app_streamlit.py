@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "v20.14"
+APP_VERSION = "v20.16"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -3724,7 +3724,7 @@ def render_maestro(editor, repo):
         st.text_input("Maestro responsable:", value=full_name(repo.user), disabled=True, key=editor.prefix + "maestro_visible")
     workers = [f"{r['nombre']} ({r['cargo']})" for r in combined_workers(repo,d.get("proyecto"))]
     st.markdown(f"#### 🔨 Actividades realizadas, personal y metrajes ({len(d['actividades']) or 1} registro/s)")
-    st.caption("Cada actividad nueva necesita una fotografía. La planilla de avance tendrá: departamento, área, actividad, unidad, cantidad y responsable.")
+    st.caption("Puedes guardar las actividades ahora y adjuntar sus fotografías después en Consultar → Añadir fotografías por rubro. La planilla incluye departamento, área, actividad, unidad, cantidad y responsable.")
     default = {"Actividad": "", "Cantidad": "", "Unidad":"", "Area":"", "Capitulo":"", "Codigo_Rubro":"", "Personal_A_Cargo": [], "Departamento": "", "Observaciones": "", "Fotos": []}
     for index, (rid, item) in enumerate(list(editor.rows("actividades", default).items()), 1):
         st.markdown(f'<div class="banner-item-header"><span>Actividad N° {index}</span></div>', unsafe_allow_html=True)
@@ -3747,8 +3747,8 @@ def render_maestro(editor, repo):
                              "Personal responsable", [], options=available_people)
             with right:
                 editor.remove("actividades", rid)
-            with st.expander("📷 Fotografía de esta actividad", expanded=not bool(item.get('Fotos'))):
-                editor.activity_photo(("actividades", rid, "Fotos"))
+            with st.expander("📷 Fotografías de esta actividad (ahora o más tarde)", expanded=False):
+                editor.photos(("actividades", rid, "Fotos"), "Fotografías de este rubro", limit=MAX_PHOTOS)
             with st.expander("Observaciones de la actividad", expanded=False):
                 editor.field("text_area", ("actividades", rid, "Observaciones"), "Observaciones", "")
     editor.add("actividades", default, "Agregar otra actividad")
@@ -3765,14 +3765,8 @@ def render_maestro(editor, repo):
                 acts.append(value)
             if not acts:
                 raise ValueError("Ingrese al menos una actividad.")
-            # En libros nuevos cada actividad debe contar con evidencia
-            # independiente. Los libros históricos sin fotos pueden editarse
-            # sin perder datos ni imponerles una obligación retroactiva.
-            if not d.get('_original'):
-                missing_photos = [i for i,act in enumerate(acts,1) if not act.get('Fotos')]
-                if missing_photos:
-                    raise ValueError('Adjunta una fotografía a cada actividad antes de guardar. Pendiente en actividad(es): '
-                                     + ', '.join(map(str,missing_photos)) + '.')
+            # Las evidencias son opcionales al guardar por primera vez: el Maestro
+            # puede incorporarlas por rubro más tarde, desde el libro ya guardado.
             payload = copy.deepcopy(d.get("_extra", {}))
             # Los requerimientos NO se crean ni actualizan desde los libros de obra.
             # Los registros antiguos permanecen intactos dentro de _extra en ediciones.
@@ -3789,6 +3783,83 @@ def render_maestro(editor, repo):
             notice_error(exc)
 
 
+
+
+def master_add_activity_evidence(record, activity_index, new_photos):
+    """Agrega fotografías a un único rubro sin reescribir las demás actividades.
+
+    Devuelve solo el JSON actualizado. La escritura se realiza con Repository.save,
+    que exige sesión vigente, permisos y revisión original (control de concurrencia).
+    """
+    if not is_master_book(record):
+        raise ValueError('El registro no es un Libro de Obra Maestro.')
+    original = obj(record.get('datos'), {})
+    if isinstance(original, list):
+        activities = copy.deepcopy(original)
+        payload = None
+    elif isinstance(original, dict):
+        payload = copy.deepcopy(original)
+        activities = copy.deepcopy(payload.get('Actividades_Maestro') or [])
+    else:
+        raise ValueError('El libro no tiene un formato de actividades válido.')
+    if not isinstance(activities, list) or not 0 <= activity_index < len(activities):
+        raise ValueError('La actividad seleccionada ya no está disponible.')
+    activity = activities[activity_index]
+    if not isinstance(activity, dict):
+        raise ValueError('La actividad guardada no tiene un formato válido.')
+    additions = [p for p in new_photos if isinstance(p, str) and p]
+    if not additions:
+        raise ValueError('Selecciona una o más fotografías para esta actividad.')
+    current = list_photos(activity)
+    merged = list(dict.fromkeys(current + additions))
+    if len(merged) > MAX_PHOTOS:
+        raise ValueError(f'Este rubro admite hasta {MAX_PHOTOS} fotografías. Actualmente tiene {len(current)}.')
+    activity['Fotos'] = merged
+    if payload is None:
+        return activities
+    payload['Actividades_Maestro'] = activities
+    return payload
+
+
+def master_late_photo_controls(record, repo):
+    """El Maestro agrega evidencia a un rubro ya guardado sin editar el libro entero."""
+    if (str(record.get('usuario_email') or '').casefold() != repo.email.casefold()
+            or repo.user.get('cargo') != 'Maestro Mayor'):
+        return
+    raw = obj(record.get('datos'), {})
+    activities = raw if isinstance(raw, list) else (raw.get('Actividades_Maestro') or [] if isinstance(raw, dict) else [])
+    indexed = [(index, act) for index,act in enumerate(activities)
+               if isinstance(act,dict) and str(act.get('Actividad') or act.get('actividad') or '').strip()]
+    if not indexed:
+        return
+    ident = str(record.get('id') or '')
+    with st.expander('📷 Añadir fotos a rubros ya guardados', expanded=False):
+        st.caption('Puedes incorporar fotos después de registrar el avance. Solo se actualizan las evidencias del rubro elegido.')
+        choices = [index for index,_ in indexed]
+        act = st.selectbox('Actividad o rubro', choices,
+            format_func=lambda i: (f"{i+1}. " + str(activities[i].get('Codigo_Rubro') or '') +
+                (' · ' if activities[i].get('Codigo_Rubro') else '') +
+                str(activities[i].get('Actividad') or activities[i].get('actividad') or 'Actividad')),
+            key='master_late_activity_'+ident)
+        st.caption(f"Fotografías actuales de esta actividad: {len(list_photos(activities[act]))} / {MAX_PHOTOS}")
+        uploads = st.file_uploader('Adjuntar fotografías de esta actividad',
+            type=['jpg','jpeg','png','webp'], accept_multiple_files=True,
+            key='master_late_upload_'+ident+'_'+str(record.get('revision') or 0)+'_'+str(act))
+        if st.button('💾 Guardar fotografías de este rubro',
+                     key='master_late_save_'+ident+'_'+str(act),
+                     disabled=not bool(uploads), type='primary'):
+            try:
+                if repo.user.get('cargo') != 'Maestro Mayor':
+                    raise PermissionError('Solo el Maestro Mayor responsable puede actualizar sus evidencias.')
+                if str(record.get('usuario_email') or '').casefold() != repo.email.casefold():
+                    raise PermissionError('Solo puedes modificar tus propios libros.')
+                images = [image_b64(upload) for upload in uploads]
+                new_payload = master_add_activity_evidence(record,act,images)
+                repo.save('inspecciones',{'datos':new_payload},record)
+                st.session_state['_flash']='Fotografías incorporadas a la actividad correctamente.'
+                st.rerun()
+            except Exception as exc:
+                notice_error(exc)
 
 
 def rend_data(record=None):
@@ -4121,9 +4192,9 @@ def rendimiento_excel_v193(records):
     ws.append(REND_PLANILLA_HEADERS)
     fill=PatternFill('solid',fgColor='18345F')
     for cell in ws[1]:cell.fill=fill;cell.font=Font(color='FFFFFF',bold=True)
-    widths=[23,19,21,17,48,35,23,10,12,12,16,14,16,20,18,18,18]
+    widths=[23,19,21,17,48,35,23,10,12,12,16,14,16,20,18,18,18,48]
     for col,width in enumerate(widths,1):ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width=width
-    ws.freeze_panes='E2';ws.auto_filter.ref=f'A1:Q{len(records)+1}'
+    ws.freeze_panes='E2';ws.auto_filter.ref=f'A1:R{len(records)+1}'
     for n,rec in enumerate(records,2):
         row=_rend_planilla_data(rec)
         for col,key in enumerate(('Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin',
@@ -4141,6 +4212,7 @@ def rendimiento_excel_v193(records):
                     else:ws.cell(n,col,'No disponible')
                 except Exception:ws.cell(n,col,'No disponible')
             else:ws.cell(n,col,'Sin foto')
+        excel_cell(ws.cell(n,18),row['Observaciones'])
         if n%2==0:
             for cell in ws[n]:
                 if cell.fill.patternType!='solid':cell.fill=PatternFill('solid',fgColor='F1F5FB')
@@ -4157,14 +4229,14 @@ def rendimiento_pdf_v193(records):
     body=ParagraphStyle('rb',parent=styles['Normal'],fontSize=6.5,leading=8.5)
     title=ParagraphStyle('rt',parent=styles['Heading1'],fontSize=15,leading=19)
     story=[Paragraph('ALPHA BUILDERS · PLANILLA DE RENDIMIENTOS',title),Spacer(1,10)]
-    heads=REND_PLANILLA_HEADERS[:14]
+    heads=REND_PLANILLA_HEADERS[:14]+['Observaciones']
     data=[[Paragraph(html_escape(h),head) for h in heads]]
     for rec in records:
         r=_rend_planilla_data(rec)
         data.append([Paragraph(html_escape(str(r[k])).replace('\n','<br/>'),body) for k in
-              ('Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento')])
+              ('Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento','Observaciones')])
     available=doc.width
-    factors=[.085,.075,.085,.075,.17,.135,.10,.055,.06,.06,.07,.055,.06,.10]
+    factors=[.075,.06,.07,.075,.14,.115,.08,.04,.045,.045,.055,.04,.045,.075,.12]
     scales=sum(factors)
     tbl=Table(data,colWidths=[available*x/scales for x in factors],repeatRows=1,hAlign='LEFT')
     tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#18345F')),
@@ -5930,6 +6002,8 @@ def history(table, records, repo, key, editable=True):
                     else:show_record(table,selected_record)
                 else:
                     show_record(table,selected_record)
+                if table=='inspecciones' and is_master_book(selected_record) and editable:
+                    master_late_photo_controls(selected_record,repo)
                 if table=='inspecciones' and is_master_book(selected_record):
                     try:
                         document=cached_master_planilla_pdf(json_text(selected_record))
@@ -7296,12 +7370,13 @@ def _rend_planilla_data(record):
             'Lunch':'Sí (15 min)' if pay.get('lunch') else 'No',
             'Almuerzo':'Sí (60 min)' if pay.get('almuerzo') else 'No',
             'Rendimiento':f"{value['productividad']:.3f} {unit}/h" if value['productividad'] is not None else 'Sin verificar',
-            'Mañana':photos['manana'],'Mediodía':photos['mediodia'],'Tarde':photos['tarde']}
+            'Mañana':photos['manana'],'Mediodía':photos['mediodia'],'Tarde':photos['tarde'],
+            'Observaciones':str(pay.get('comentarios') or pay.get('observaciones') or record.get('comentarios') or '')}
 
 
 REND_PLANILLA_HEADERS=['Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad',
      'Inicio','Fin','Tiempo muerto','Lunch','Almuerzo','Rendimiento',
-     'Foto mañana','Foto mediodía','Foto tarde']
+     'Foto mañana','Foto mediodía','Foto tarde','Observaciones']
 
 
 def _rend_photo_cell(images):
@@ -7322,10 +7397,54 @@ def rendimiento_planilla_preview(records):
             'Fecha','Edificio','Área','Rubro','Descripción','Encargado','Cargo','Unidad','Inicio','Fin',
             'Tiempo muerto','Lunch','Almuerzo','Rendimiento'))
         cells+=''.join('<td>'+_rend_photo_cell(row[k])+'</td>' for k in ('Mañana','Mediodía','Tarde'))
+        cells+='<td>'+html_escape(str(row['Observaciones'] or '—'))+'</td>'
         rows.append('<tr>'+cells+'</tr>')
     st.markdown('<div class="ab-rend-table-wrap"><table class="ab-rend-table">'
         '<thead><tr>'+headers+'</tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>',
         unsafe_allow_html=True)
+
+
+def _rend_selector_labels(records):
+    """Etiquetas descriptivas y distinguibles para abrir rendimientos históricos.
+
+    No modifica los registros ni muestra sus IDs de base de datos.
+    """
+    from collections import Counter
+
+    def clean(value):
+        return re.sub(r'\s+', ' ', str(value or '')).strip()
+
+    base=[]
+    for rec in records:
+        data=_rend_planilla_data(rec)
+        parts=[display_date(record_date('rendimientos',rec)),
+               clean(data.get('Rubro')),
+               clean(data.get('Descripción')),
+               clean(data.get('Edificio')),
+               clean(data.get('Área'))]
+        # Evita presentar un guion como descripción cuando no se registró rubro.
+        label=' · '.join(item for item in parts if item and item!='—')
+        base.append(label or 'Rendimiento sin descripción')
+
+    base_counts=Counter(base)
+    extended=[]
+    for rec,label in zip(records,base):
+        if base_counts[label]>1:
+            data=_rend_planilla_data(rec)
+            person=clean(data.get('Encargado'))
+            if person and person!='Sin registro':
+                label+=' · '+person
+        extended.append(label)
+
+    repeated=Counter(extended)
+    indices={}
+    labels={}
+    for rec,label in zip(records,extended):
+        if repeated[label]>1:
+            indices[label]=indices.get(label,0)+1
+            label+=f' · Registro {indices[label]} de {repeated[label]}'
+        labels[id(rec)]=label
+    return labels
 
 
 def history_rend_by_building(records,repo):
@@ -7357,17 +7476,19 @@ def history_rend_by_building(records,repo):
         if month!='Todos los meses' and not record_date('rendimientos',rec).startswith(month):continue
         if day!='Todos los días' and record_date('rendimientos',rec)!=day:continue
         data=_rend_planilla_data(rec)
-        search_parts=[data['Rubro'],data['Descripción'],data['Área'],data['Edificio'],data['Encargado'],data['Cargo']]
+        search_parts=[data['Rubro'],data['Descripción'],data['Área'],data['Edificio'],data['Encargado'],data['Cargo'],data['Observaciones']]
         if search.strip() and search.strip().casefold() not in ' '.join(str(p) for p in search_parts).casefold():continue
         filtered.append(rec)
     if not filtered:
         st.info('No hay registros para estos filtros.');return
     ordered=sorted(filtered,key=lambda r:(record_date('rendimientos',r),str(r.get('id') or '')),reverse=True)
-    # Selección inmediata debajo del buscador, sin tener que bajar al final de la tabla.
+    # Selección inmediata debajo del buscador, con código Y descripción del rubro.
+    # Diferencia rendimientos del mismo día/área por encargado y, si aún coinciden,
+    # con una numeración visible (sin revelar IDs internos de Supabase).
+    record_labels=_rend_selector_labels(ordered)
     selected=st.selectbox('Abrir registro para editar o consultar fotografías',
         [None]+ordered,index=0,
-        format_func=lambda r:'Seleccionar registro' if r is None else
-          f"{display_date(record_date('rendimientos',r))} · {_rend_planilla_data(r)['Rubro']} · {_rend_planilla_data(r)['Área']}",
+        format_func=lambda r:'Seleccionar registro' if r is None else record_labels[id(r)],
         key='rend_v194_selected')
     if selected is not None:
         data=_rend_planilla_data(selected)
@@ -7380,6 +7501,9 @@ def history_rend_by_building(records,repo):
             person_left,person_right=st.columns(2)
             with person_left:st.caption('Encargado');st.text(data['Encargado'])
             with person_right:st.caption('Cargo');st.text(data['Cargo'])
+            if data.get('Observaciones'):
+                st.markdown('**Observaciones:**')
+                st.write(data['Observaciones'])
             for period,label in [('Mañana','🌅 Mañana'),('Mediodía','☀️ Mediodía'),('Tarde','🌇 Tarde')]:
                 photos=data[period]
                 if photos:
