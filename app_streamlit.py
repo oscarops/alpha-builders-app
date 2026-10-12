@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.12-v20.4-generales-nomina-clima"
+APP_VERSION = "2026.10.12-v20.5-conteos-cero"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -1780,9 +1780,14 @@ class Editor:
                 kwargs.setdefault('format','%.2f')
             # Un widget del borrador puede conservar en session_state una cifra
             # con el tipo anterior. Sincronizarla antes de dibujarlo.
-            prior=st.session_state.get(key)
-            if prior is not None and (type(prior) is not type(normalized)):
-                st.session_state.pop(key,None)
+            # Al migrar desde versiones donde el contador permitía None, la
+            # clave del widget puede seguir conservando None aunque el borrador
+            # ahora solicite cero. Limpiarla ANTES de crear el widget permite
+            # mostrar 0 y reactivar sus controles +/- sin perder conteos reales.
+            if key in st.session_state:
+                prior=st.session_state[key]
+                if type(prior) is not type(normalized):
+                    st.session_state.pop(key,None)
             if normalized is None:
                 kwargs.setdefault('placeholder','Sin registrar')
             return st.number_input(label,value=normalized,**callback,**kwargs)
@@ -2327,8 +2332,8 @@ def official_data(record=None):
         'Barrio':sugerencia_general.get('Barrio',''),
         'Ciudad':sugerencia_general.get('Ciudad',''), 'Hoja':'00053',
         'Disciplina_Principal':'', 'Anexos_Fotos':[],
-        'Nomina_Conteo':{label:None for label in OFICIOS_NOMINA_FORMATO},
-        'Rotativo_Conteo':{label:None for label in RUROS_ROTATIVOS_FORMATO},
+        'Nomina_Conteo':{label:0 for label in OFICIOS_NOMINA_FORMATO},
+        'Rotativo_Conteo':{label:0 for label in RUROS_ROTATIVOS_FORMATO},
         'Clima_Condicion':record.get('clima') or '',
         'Clima_Obs':'', 'Maquinaria_Conteo':{label:None for label in MAQUINARIAS_FORMATO},
         'Seguridad_Check':{label:False for label in (
@@ -3374,7 +3379,7 @@ def render_official(editor,repo):
     if phase==phases[1]:
         st.markdown('#### 👷 Nómina fija y contratistas')
         workers=combined_workers(repo,d.get('proyecto')) if d.get('proyecto') else []
-        # Los conteos arrancan en cero cuando aún no hay libro previo.
+        # Los conteos inician en cero, son editables con +/- y nunca usan None.
         # Una nómina existente solo se importa si el usuario lo solicita mediante
         # el botón «Actualizar conteo desde mi nómina»; de otro modo podría
         # sobrescribir una planilla que está editando manualmente.
@@ -3392,8 +3397,8 @@ def render_official(editor,repo):
             with col:
                 st.markdown('**Personal de nómina**' if field=='Nomina_Conteo' else '**Subcontratos y personal rotativo**')
                 for label in labels:
-                    editor.field('number_input',('datos',field,label),label,None,
-                                 min_value=0,step=1,allow_empty=True)
+                    editor.field('number_input',('datos',field,label),label,0,
+                                 min_value=0,step=1)
         return
 
     if phase==phases[2]:
