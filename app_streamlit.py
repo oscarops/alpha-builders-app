@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "v20.13"
+APP_VERSION = "v20.14"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -4983,17 +4983,16 @@ def official_template_activity_zone(activity):
 def v2013_insertar_fotos_en_anexos_excel(original_xlsx, record):
     """Incluye las evidencias EN LA HOJA OFICIAL (A258:Y266), sin crear otra hoja.
 
-    La sección está combinada en Ejemplo2.xlsx. Armamos un mosaico en orden de
-    carga, aumentamos solamente su altura y lo anclamos a ese rango. Así el
-    contenido no invade la zona de firmas que comienza en la fila 267 y la
-    imagen original del logotipo permanece idéntica.
+    La sección está combinada en Ejemplo2.xlsx. Se muestran únicamente las
+    fotografías, ligeramente mayores y separadas por espacio blanco, en orden
+    de carga. El mosaico queda anclado a A258:Y266, respetando las firmas
+    de la fila 267 y el logotipo de la plantilla oficial.
     """
     raw_data = obj(record.get('datos'), {})
     photos = anexos_fotos_validas(raw_data)
     if not photos:
         return original_xlsx
 
-    from PIL import ImageDraw, ImageFont
     valid = []
     for encoded in photos[:MAX_PHOTOS]:
         try:
@@ -5010,20 +5009,18 @@ def v2013_insertar_fotos_en_anexos_excel(original_xlsx, record):
     if not valid:
         return original_xlsx
 
+    # Composición limpia: únicamente las fotografías, sin recuadros,
+    # rótulos ni numeración incrustada. Mantener el espacio blanco entre ellas.
+    # Al eliminar el título de cada tarjeta, la foto aprovecha más altura.
     width = 1650
     columns = min(3, len(valid))
-    panel_width = 510 if columns == 3 else (760 if columns == 2 else 980)
-    card_height = 274
+    panel_width = 525 if columns == 3 else (760 if columns == 2 else 980)
+    card_height = 295
     margin = 28
     gap = 18
     rows = (len(valid) + columns - 1) // columns
     height = margin * 2 + rows * card_height + (rows - 1) * gap
     collage = Image.new('RGB', (width, height), '#ffffff')
-    draw = ImageDraw.Draw(collage)
-    try:
-        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 22)
-    except (OSError, ValueError):
-        font = ImageFont.load_default()
     board_width = columns * panel_width + (columns - 1) * gap
     xorigin = (width - board_width) // 2
     for i, pic in enumerate(valid):
@@ -5031,18 +5028,12 @@ def v2013_insertar_fotos_en_anexos_excel(original_xlsx, record):
         row = i // columns
         x0 = xorigin + column * (panel_width + gap)
         y0 = margin + row * (card_height + gap)
-        x1 = x0 + panel_width
-        y1 = y0 + card_height
-        draw.rounded_rectangle((x0, y0, x1, y1), radius=12,
-                               fill='#ffffff', outline='#9ca3af', width=2)
-        draw.text((x0 + 16, y0 + 12), f'FOTOGRAFÍA {i + 1:02d}',
-                  fill='#132b50', font=font)
-        # Ajuste proporcional: nunca estirar ni recortar la fotografía.
-        target_w, target_h = panel_width - 24, card_height - 60
+        # Mantener proporciones originales: no deformar ni recortar.
+        target_w, target_h = panel_width - 22, card_height - 16
         image = pic.copy()
         image.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
         collage.paste(image, (x0 + (panel_width - image.width) // 2,
-                              y0 + 47 + (target_h - image.height) // 2))
+                              y0 + (card_height - image.height) // 2))
     out = io.BytesIO()
     collage.save(out, 'JPEG', quality=87, optimize=True)
     photo_bytes = out.getvalue()
