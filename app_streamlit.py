@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.12-v20.9-horarios-tablas-excel"
+APP_VERSION = "2026.10.12-v20.11-guardado-rendimientos"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -1398,13 +1398,72 @@ class Repository:
         invalidate()
 
 
+def _database_error_code(exc):
+    """Código seguro de PostgreSQL/PostgREST (nunca muestra valores del registro)."""
+    code = getattr(exc, 'code', None)
+    if code is not None and str(code).strip():
+        return str(code).strip()
+    # Algunas versiones de postgrest-py incluyen el código únicamente en el texto.
+    raw = str(exc)
+    match = re.search(r"['\"]code['\"]\s*:\s*['\"]([A-Z0-9]{3,12})['\"]", raw)
+    return match.group(1) if match else ''
+
+
+def _database_error_column(exc):
+    """Solo se usa el nombre de columna; nunca contenido ni datos personales."""
+    message = str(getattr(exc, 'message', '') or str(exc))
+    match = re.search(r'null value in column [\"]([a-z_][a-z_0-9]*)[\"]', message, re.I)
+    return match.group(1) if match else ''
+
+
+def guardar_rendimiento_compatible(editor, repo, values):
+    """Guardar rendimientos v6 incluso con restricciones NOT NULL de bases antiguas.
+
+    Intentar primero NULL para magnitudes legacy sin significado verificable.
+    Solo si PostgreSQL confirma 23502 en una columna numérica heredada,
+    usar el cero de compatibilidad en ESA columna y reintentar.
+    La producción real está en datos.horas_jornada y datos.avance_*.
+    No reintentar por timeouts/respuestas ambiguas (evita duplicaciones).
+    """
+    legacy_numeric = frozenset(('horas_hh', 'rend_real', 'rend_teorico', 'esperado'))
+    attempt = dict(values)
+    for _ in range(len(legacy_numeric) + 1):
+        try:
+            return save_editor(editor, repo, 'rendimientos', attempt)
+        except Exception as exc:
+            column = _database_error_column(exc)
+            if (_database_error_code(exc) != '23502' or column not in legacy_numeric
+                    or attempt.get(column) is not None):
+                raise
+            LOG.warning('Compatibilidad con restricción NOT NULL en rendimientos.%s', column)
+            attempt[column] = 0.0
+    raise RuntimeError('No se pudo conciliar la estructura histórica de rendimientos.')
+
+
 def notice_error(exc):
     if isinstance(exc, (ValueError, PermissionError, ConflictError)):
         st.error(str(exc))
-    else:
-        code = secrets.token_hex(4)
-        LOG.error("Operación fallida %s (%s)", code, type(exc).__name__)
-        st.error(f"La operación no pudo confirmarse. Sus campos permanecen disponibles. Revise conexión, migración y permisos. Referencia: {code}.")
+        return
+    reference = secrets.token_hex(4)
+    db_code = _database_error_code(exc)
+    # El detalle técnico queda en los logs del servidor, no en la interfaz pública.
+    LOG.error('Operación fallida %s (%s; SQL/PostgREST %s)', reference,
+              type(exc).__name__, db_code or 'sin código', exc_info=True)
+    messages = {
+        '23502': 'Supabase exige un campo obligatorio que falta. Se conservó el formulario.',
+        '23505': 'Supabase detectó un registro duplicado. Revisa el historial antes de volver a guardar.',
+        '23514': 'Un valor no cumple una restricción de la base de datos.',
+        '23503': 'Existe una referencia de la base de datos que no está disponible.',
+        '42501': 'Supabase rechazó el permiso para guardar (política de seguridad/RLS).',
+        'PGRST204': 'La base de datos no reconoce una columna del formulario; revisa su migración.',
+        '22P02': 'Supabase rechazó el formato de un valor recibido.',
+        '22001': 'Hay un texto o dato demasiado largo para una columna.',
+        '22003': 'Hay un número que supera el rango permitido en la base de datos.',
+        '413': 'El conjunto de fotografías o el registro supera el límite de tamaño permitido.',
+    }
+    message = messages.get(db_code, 'Supabase no confirmó el guardado. Revisa conexión y permisos.')
+    st.error(f'{message} Código: {db_code or "sin código"}. Referencia: {reference}. '
+             'No cierres el formulario: su borrador permanece disponible.')
 
 
 def auth_user(cookie):
@@ -3855,7 +3914,7 @@ def render_rend(editor,repo):
                 'datos':payload,'avance':progress,'horas_hh':None,'rend_real':None,
                 'rend_teorico':None,'esperado':None,
                 'estado':'CON AVANCE' if progress>0 else 'SIN AVANCE','intervalo':'Jornada'}
-            save_editor(editor,repo,'rendimientos',values)
+            guardar_rendimiento_compatible(editor,repo,values)
         except Exception as exc:
             notice_error(exc)
 
@@ -5062,8 +5121,11 @@ def official_book_excel_from_template(record):
         qty=max(0,int(number(raw_qty))) if raw_qty is not None else None
         replacements[f'Q{r}']=name
         replacements[f'V{r}']=qty if qty is not None else ''
-        replacements[f'X{r}']=as_clock(start) if qty else ''
-        replacements[f'Y{r}']=as_clock(end) if qty else ''
+        # Maquinaria / herramientas: conservar los horarios de todas las filas,
+        # también si la cantidad es 0 o está pendiente de registrar.
+        # Usa los horarios de entrada/salida de la jornada del libro.
+        replacements[f'X{r}']=as_clock(start)
+        replacements[f'Y{r}']=as_clock(end)
     # Cada condición se refleja con X únicamente en su período: B=MAÑANA, E=TARDE.
     # En archivos históricos con Clima_Condicion la lectura sigue marcando ambos.
     weather_am,weather_pm=clima_libro_periodos(data,record)
