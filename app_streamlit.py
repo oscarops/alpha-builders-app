@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "2026.10.12-v19.6-filtros-vista-excel"
+APP_VERSION = "2026.10.12-v19.7-anexos-evidencias"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -893,6 +893,18 @@ APP_CSS_V19_3 = """
 .ab-rend-table td:nth-child(7){min-width:130px;white-space:pre-line;line-height:1.55}
 .ab-rend-table td:nth-child(14){font-weight:800}
 .ab-rend-table .ab-photo-thumb{width:76px;height:55px;object-fit:cover;border-radius:7px}
+</style>
+"""
+
+APP_CSS_V19_7 = """
+<style>
+/* Compactar sin invadir el menú flotante de Streamlit (Share/Deploy). */
+.stApp .block-container { padding-top:1.95rem!important; padding-bottom:1rem!important; }
+.stApp [data-testid="stMainBlockContainer"] { padding-top:0!important; }
+.stApp [data-testid="stHeader"]{min-height:3rem!important;}
+@media (max-width:768px){
+ .stApp .block-container {padding-top:3.3rem!important;}
+}
 </style>
 """
 
@@ -1889,7 +1901,7 @@ def editor_picker(module, user, default_factory, allow_new=True):
         begin_editor(module, user, default_factory()); rerun_selected_module()
     drafts = cached_rows("alpha_drafts", (("usuario_email", user["correo"]), ("modulo", module)), columns="slot,revision,updated_at", order="updated_at")
     if drafts:
-        choices = {f"Borrador {i+1} · {r['updated_at'][:16]}": r for i,r in enumerate(reversed(drafts))}
+        choices = {f"Borrador {i+1} · {hora_borrador_ecuador(r['updated_at'])}": r for i,r in enumerate(reversed(drafts))}
         choice = st.selectbox("Continuar un borrador", list(choices), key=f"draft_choice_{module}")
         if st.button("Recuperar borrador", key=f"restore_{module}"):
             row = choices[choice]
@@ -2140,6 +2152,92 @@ def autocompletar_datos_obra(datos, edificio, proyecto_anterior=None):
     datos['_Ubicacion_Auto']=target
     return changed
 
+DISCIPLINAS_LIBRO_OFICIAL = [
+    'ALBAÑILERÍA - GYPSUM - PINTURA Y PORCELANATO',
+    'ESTRUCTURA', 'CARPINTERÍA', 'ALUMINIO Y VIDRIO',
+    'HIDROSANITARIO - CONTRAINCENDIOS', 'ELÉCTRICO - ELECTRÓNICO',
+    'OTROS PROYECTOS',
+]
+
+def hora_borrador_ecuador(value):
+    """Mostrar hora de Supabase en Guayaquil; timestamp sin zona se interpreta UTC."""
+    try:
+        raw = str(value or '').strip().replace('Z', '+00:00')
+        stamp = dt.datetime.fromisoformat(raw)
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=dt.timezone.utc)
+        return stamp.astimezone(ZoneInfo('America/Guayaquil')).strftime('%d/%m/%Y · %H:%M')
+    except (ValueError, TypeError, OverflowError):
+        return str(value or 'Sin fecha')
+
+
+def anexos_fotos_validas(datos):
+    raw = datos.get('Anexos_Fotos', []) if isinstance(datos,dict) else []
+    return [photo for photo in raw if isinstance(photo,str) and photo.strip()] if isinstance(raw,list) else []
+
+
+def obtener_fotos_maestro(repo, proyecto, fecha):
+    """Fotos consultables solo de un Maestro vinculado en la misma jornada y edificio."""
+    activities = v17_linked_master_activities(repo, proyecto, fecha)
+    found = []
+    for index, item in enumerate(activities, 1):
+        photo = item.get('Foto_B64')
+        if isinstance(photo,str) and photo:
+            label = f"{index}. {item.get('Actividad') or 'Actividad'} · {item.get('Maestro') or 'Maestro Mayor'}"
+            found.append({'label':label,'foto':photo,'actividad':str(item.get('Actividad') or '')})
+    return found
+
+
+def agregar_fotos_anexo(datos, nuevas, limite=MAX_PHOTOS):
+    """Deduplicar anexos; no modificar nunca el registro del Maestro."""
+    current = anexos_fotos_validas(datos)
+    merged = list(dict.fromkeys(current + [x for x in nuevas if isinstance(x,str) and x]))
+    if len(merged)>limite:
+        raise ValueError(f'El libro admite máximo {limite} fotografías en anexos.')
+    datos['Anexos_Fotos'] = merged
+    return len(merged)-len(current)
+
+
+def render_anexos_libro(editor, repo):
+    d=editor.data
+    datos=d['datos']
+    st.markdown('#### 📷 Anexos y fotografías')
+    st.caption('Arrastra fotografías desde tu dispositivo. También puedes incorporar las evidencias del Maestro Mayor vinculado para este mismo día y edificio.')
+    editor.photos(('datos','Anexos_Fotos'), 'Fotografías del Libro de Obra', limit=MAX_PHOTOS)
+    st.divider()
+    st.markdown('#### 👷 Evidencias del Maestro Mayor')
+    if not d.get('proyecto') or not d.get('fecha'):
+        st.info('Selecciona primero el edificio y la fecha para consultar al Maestro Mayor.')
+    else:
+        try:
+            disponible=obtener_fotos_maestro(repo, d['proyecto'], str(d['fecha'])[:10])
+        except Exception as exc:
+            notice_error(exc)
+            disponible=[]
+        if not disponible:
+            st.caption('No hay fotografías del Maestro Mayor vinculado para esta jornada.')
+        else:
+            labels={f'{ix} · {item["label"]}':item for ix,item in enumerate(disponible,1)}
+            choices=st.multiselect('Selecciona las evidencias para añadirlas al libro',list(labels),
+                key=editor.prefix+'anexos_fotos_maestro',placeholder='Selecciona fotografías…')
+            if choices:
+                gallery=st.columns(min(3,len(choices)))
+                for i,label in enumerate(choices):
+                    with gallery[i%len(gallery)]:
+                        image=image_stream(labels[label]['foto'])
+                        if image:st.image(image,caption=labels[label]['actividad'],use_container_width=True)
+                if st.button('📥 Incorporar fotografías seleccionadas',
+                             key=editor.prefix+'copiar_fotos_maestro',use_container_width=True):
+                    try:
+                        total=agregar_fotos_anexo(datos,[labels[key]['foto'] for key in choices])
+                        editor.persist()
+                        st.success(f'{total} fotografía(s) incorporada(s). El libro del Maestro no se modifica.')
+                        rerun_selected_module()
+                    except Exception as exc:
+                        notice_error(exc)
+    st.divider()
+    editor.field('text_area',('datos','Novedades'),'Novedades y recomendaciones','',height=130)
+
 def official_data(record=None):
     """Formulario idéntico en conceptos a Ejemplo.xlsx; edición sin datos ficticios.
 
@@ -2152,7 +2250,8 @@ def official_data(record=None):
     suggested={
         'Superintendente':'ING. PABLO ESPINOSA', 'Fiscalizador':'ING. DIEGO CHARVET',
         'Ubicacion':record.get('frente') or direccion_sugerida_edificio(record.get('proyecto')),
-        'Barrio':'BENALCAZAR', 'Ciudad':'QUITO', 'Hoja':'1',
+        'Barrio':'BENALCAZAR', 'Ciudad':'QUITO', 'Hoja':'00053',
+        'Disciplina_Principal':DISCIPLINAS_LIBRO_OFICIAL[0], 'Anexos_Fotos':[],
         'Nomina_Conteo':{label:0 for label in OFICIOS_NOMINA_FORMATO},
         'Rotativo_Conteo':{label:0 for label in RUROS_ROTATIVOS_FORMATO},
         'Clima_Condicion':record.get('clima') or 'SOL',
@@ -2164,6 +2263,7 @@ def official_data(record=None):
         'Novedades':'',
     }
     values={**suggested,**payload}
+    values['Hoja']='00053'
     for key, value in VALORES_PREDETERMINADOS_LIBRO.items():
         if str(values.get(key) or '').strip().upper() in ('', 'POR CONFIRMAR'):
             values[key]=value
@@ -2867,7 +2967,7 @@ def precargar_ultimo_libro_oficial(datos, anterior, proyecto, auto_anterior=None
     # La hoja cambia para la siguiente jornada, pero siempre es editable.
     value=str(values.get('Hoja') or '').strip()
     if value.isdigit():
-        suggestion=str(int(value)+1)
+        suggestion='00053'
         existing=str(current.get('Hoja') or '').strip()
         if existing in ('','1') or existing==str(old_auto.get('Hoja','')):
             if existing!=suggestion:
@@ -2885,7 +2985,7 @@ def v17_previous_book_values(repo, project):
     payload=record['datos']
     suggested={k:copy.deepcopy(payload[k]) for k in LIBRO_CAMPOS_REPETIBLES if k in payload}
     if str(payload.get('Hoja') or '').strip().isdigit():
-        suggested['Hoja']=str(int(payload['Hoja'])+1)
+        suggested['Hoja']='00053'
     return suggested
 
 
@@ -2961,6 +3061,7 @@ def render_official(editor,repo):
     """Formulario por pasos y referencia lateral por día del Maestro vinculado."""
     d=editor.data
     original=d.get('_original')
+    d['datos']['Hoja']='00053'
     st.markdown('#### 🗓️ Libro de obra — datos de la jornada')
     top1,top2=st.columns([1.35,1])
     with top1:
@@ -3027,7 +3128,7 @@ def render_official(editor,repo):
         d['datos']['Ubicacion']=expected_address
         editor.persist()
     phases=['📋 Datos generales','👷 Nómina y subcontratos','🌤️ Clima y seguridad',
-            '🏗️ Actividades y Maestro','✅ Revisar y guardar']
+            '🏗️ Actividades y Maestro','📷 Anexos','✅ Revisar y guardar']
     phase=st.segmented_control('Paso de llenado',phases,default=phases[0],
         key=editor.prefix+'v17_phase',label_visibility='collapsed') or phases[0]
     st.caption('Los campos se guardan como borrador. Solo aparece el paso que selecciones.')
@@ -3040,9 +3141,10 @@ def render_official(editor,repo):
         for i,(k,label) in enumerate(fields):
             with (a if i%2==0 else b):
                 if k=='Ubicacion':
-                    # Sin key de widget: siempre renderiza el valor actualizado y es solo lectura.
                     st.text_input(label,value=expected_address or 'SELECCIONA UN EDIFICIO',
                         disabled=True,help='Dirección fija según el edificio, no se puede editar.')
+                elif k=='Hoja':
+                    st.text_input(label,value='00053',disabled=True)
                 else:
                     editor.field('text_input',('datos',k),label,'')
         editor.field('text_input','residente','Residente de obra (obligatorio y manual)','')
@@ -3124,6 +3226,10 @@ def render_official(editor,repo):
         return
 
     if phase==phases[3]:
+        st.markdown('#### 🏷️ Disciplina del encabezado principal')
+        editor.field('selectbox',('datos','Disciplina_Principal'),
+            'Especialidad que aparecerá en la cabecera principal del Excel',
+            DISCIPLINAS_LIBRO_OFICIAL[0], options=DISCIPLINAS_LIBRO_OFICIAL)
         left=st.container()
         with left:
             st.markdown('#### 🏗️ Rubros añadidos y actividades manuales')
@@ -3176,7 +3282,11 @@ def render_official(editor,repo):
                 except Exception as exc:notice_error(exc)
         return
 
-    # Final step only: no giant form or repeated sections visible on every click.
+    if phase==phases[4]:
+        render_anexos_libro(editor,repo)
+        return
+
+    # Último paso: verificación y guardado. Las novedades se escriben en Anexos.
     st.markdown('#### ✅ Revisar y guardar libro de obra')
     summary=[('Edificio',d.get('proyecto') or 'Pendiente'),
              ('Fecha',display_date(d['fecha']) if d.get('fecha') else 'Pendiente'),
@@ -3184,7 +3294,7 @@ def render_official(editor,repo):
              ('Número de hoja',d['datos'].get('Hoja') or '—'),
              ('Rubros registrados',sum(bool(str(x.get('Descripcion') or '').strip()) for x in d.get('actividades',{}).values()))]
     st.dataframe(pd.DataFrame(summary,columns=['Campo','Valor']),hide_index=True,use_container_width=True)
-    editor.field('text_area',('datos','Novedades'),'Novedades y recomendaciones','')
+    st.caption('Las novedades, recomendaciones y fotografías se gestionan en la pestaña 📷 Anexos.')
     if st.button('💾 Guardar libro oficial',type='primary',key=editor.prefix+'save',use_container_width=True):
         try:
             if not d.get('proyecto'):raise ValueError('Selecciona el edificio antes de guardar.')
@@ -3196,6 +3306,8 @@ def render_official(editor,repo):
             activities=[x for x in d.get('actividades',{}).values() if str(x.get('Descripcion') or '').strip()]
             if not activities:raise ValueError('Registra al menos un rubro en Actividades y Maestro.')
             payload=copy.deepcopy(d['datos'])
+            payload['Hoja']='00053'
+            payload['Disciplina_Principal']=str(payload.get('Disciplina_Principal') or DISCIPLINAS_LIBRO_OFICIAL[0]).upper().strip()
             for field in ('Ubicacion','Barrio','Ciudad','Superintendente','Fiscalizador'):
                 payload[field]=str(payload.get(field) or '').strip().upper()
             # Esta marca es solamente una sugerencia de la interfaz, no un campo del Excel.
@@ -3625,6 +3737,7 @@ def sections_for(table,record):
             sections.append(("Seguridad, señalización y mitigación",["Control","Registrado"],[[k,"Sí" if v else "No"] for k,v in checks.items()] if isinstance(checks,dict) else []))
             acts=data.get("Actividades_Ejecutadas") or []
             sections.append(("Actividades realizadas",["Descripción","Área","Unidad","Cantidad"],[[a.get("Descripcion",a.get("actividad","")),a.get("Area",""),a.get("Unidad",""),a.get("Cantidad",0)] for a in acts if isinstance(a,dict)]))
+            photos.extend((f'Anexo fotográfico {i}',photo) for i,photo in enumerate(anexos_fotos_validas(data),1))
     elif table=="rendimientos":
         values=rendimiento_values(record)
         pay=values['payload']
@@ -4724,6 +4837,100 @@ def official_template_activity_zone(activity):
     return 'albanileria'
 
 
+def v197_append_excel_annexes(original_xlsx, record):
+    """Agrega una hoja Anexos y fotos sin resalvar la plantilla ni perder dibujos.
+
+    Opera a nivel de OOXML: las partes originales se copian byte por byte.
+    """
+    data=obj(record.get('datos'),{})
+    photos=anexos_fotos_validas(data)
+    if not photos:
+        return original_xlsx
+    ready=[]
+    for photo in photos:
+        stream=image_stream(photo)
+        if stream:
+            ready.append(stream.getvalue())
+    if not ready:
+        return original_xlsx
+    ns_main='http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+    ns_rel='http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+    pkg_rel='http://schemas.openxmlformats.org/package/2006/relationships'
+    pkg_ct='http://schemas.openxmlformats.org/package/2006/content-types'
+    ns_drawing='http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing'
+    ns_a='http://schemas.openxmlformats.org/drawingml/2006/main'
+    with zipfile.ZipFile(io.BytesIO(original_xlsx),'r') as source:
+        workbook=source.read('xl/workbook.xml').decode('utf-8')
+        relationships=source.read('xl/_rels/workbook.xml.rels').decode('utf-8')
+        types=source.read('[Content_Types].xml').decode('utf-8')
+        sheet_ids=[int(x) for x in re.findall(r'sheetId="(\d+)"',workbook)]
+        sheet_id=max(sheet_ids or [0])+1
+        relationship_ids=[int(x) for x in re.findall(r'Id="rId(\d+)"',relationships)]
+        rel_id='rId'+str(max(relationship_ids or [0])+1)
+        if '<sheet name="Anexos"' in workbook:
+            raise RuntimeError('El Excel ya contiene una hoja de Anexos; evite duplicarla.')
+        sheet_tag=(f'<sheet name="Anexos" sheetId="{sheet_id}" r:id="{rel_id}"/>')
+        if '</sheets>' not in workbook or '</Relationships>' not in relationships:
+            raise RuntimeError('La estructura OOXML de la plantilla ha cambiado.')
+        workbook=workbook.replace('</sheets>',sheet_tag+'</sheets>',1)
+        relationships=relationships.replace('</Relationships>',
+            '<Relationship Id="'+rel_id+'" Type="'+ns_rel+'/worksheet" Target="worksheets/sheet2.xml"/></Relationships>',1)
+        for part,contenttype in (
+            ('/xl/worksheets/sheet2.xml','application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml'),
+            ('/xl/drawings/drawing2.xml','application/vnd.openxmlformats-officedocument.drawing+xml')):
+            if 'PartName="'+part+'"' not in types:
+                types=types.replace('</Types>',f'<Override PartName="{part}" ContentType="{contenttype}"/></Types>',1)
+        if 'Extension="jpeg"' not in types:
+            types=types.replace('</Types>','<Default Extension="jpeg" ContentType="image/jpeg"/></Types>',1)
+
+        def cell(where,val):
+            escaped=xml_escape(str(val or ''))
+            return f'<c r="{where}" t="inlineStr"><is><t xml:space="preserve">{escaped}</t></is></c>'
+        building=str(record.get('proyecto') or '').upper()
+        day=str(record.get('fecha') or '')[:10]
+        rows=['<row r="1">'+cell('A1','ANEXOS FOTOGRÁFICOS · '+building)+'</row>',
+              '<row r="2">'+cell('A2','FECHA: '+day+'   HOJA: 00053')+'</row>']
+        anchors=[]
+        drawing_relationships=[]
+        for i,photo in enumerate(ready,1):
+            caption_row=4+(i-1)*13
+            image_row=caption_row+1
+            rows.append(f'<row r="{caption_row}">'+cell('A'+str(caption_row),'EVIDENCIA '+str(i))+'</row>')
+            rid=f'rId{i}'
+            drawing_relationships.append(f'<Relationship Id="{rid}" Type="{ns_rel}/image" Target="../media/annex_{i}.jpeg"/>')
+            anchors.append(f"""<xdr:twoCellAnchor editAs="oneCell">
+                <xdr:from><xdr:col>1</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{image_row-1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
+                <xdr:to><xdr:col>7</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{image_row+10}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
+                <xdr:pic><xdr:nvPicPr><xdr:cNvPr id="{i}" name="Anexo {i}"/><xdr:cNvPicPr/></xdr:nvPicPr>
+                <xdr:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
+                <xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/>
+                </xdr:twoCellAnchor>""")
+        sheet_xml=(f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="{ns_main}" xmlns:r="{ns_rel}">'
+            '<sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>'
+            '<cols><col min="1" max="8" width="14" customWidth="1"/></cols><sheetData>'+
+            ''.join(rows)+'</sheetData><drawing r:id="rId1"/></worksheet>')
+        drawings_xml=(f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            f'<xdr:wsDr xmlns:xdr="{ns_drawing}" xmlns:a="{ns_a}" xmlns:r="{ns_rel}">'+
+            ''.join(anchors)+'</xdr:wsDr>')
+        worksheet_relationships=(f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            f'<Relationships xmlns="{pkg_rel}"><Relationship Id="rId1" Type="{ns_rel}/drawing" Target="../drawings/drawing2.xml"/></Relationships>')
+        drawing_rels_xml=(f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            f'<Relationships xmlns="{pkg_rel}">'+''.join(drawing_relationships)+'</Relationships>')
+        changed={'xl/workbook.xml':workbook.encode(),'xl/_rels/workbook.xml.rels':relationships.encode(),
+                 '[Content_Types].xml':types.encode()}
+        result=io.BytesIO()
+        with zipfile.ZipFile(result,'w') as target:
+            for info in source.infolist():
+                target.writestr(info,changed.get(info.filename,source.read(info.filename)))
+            target.writestr('xl/worksheets/sheet2.xml',sheet_xml.encode())
+            target.writestr('xl/worksheets/_rels/sheet2.xml.rels',worksheet_relationships.encode())
+            target.writestr('xl/drawings/drawing2.xml',drawings_xml.encode())
+            target.writestr('xl/drawings/_rels/drawing2.xml.rels',drawing_rels_xml.encode())
+            for i,photo in enumerate(ready,1):
+                target.writestr(f'xl/media/annex_{i}.jpeg',photo)
+        return result.getvalue()
+
+
 def official_book_excel_from_template(record):
     """Completa Ejemplo.xlsx SIN reconstruir sus diseños, fórmulas ni dibujos.
 
@@ -4749,7 +4956,8 @@ def official_book_excel_from_template(record):
         'A2':building.upper(),
         'F3':'EDIFICIO '+building.upper(),
         'A10':'PERSONAL ASIGNADO - '+building.upper(),
-        'Y2':str(data.get('Hoja') or ''),
+        'Y2':'00053',
+        'A55':str(data.get('Disciplina_Principal') or DISCIPLINAS_LIBRO_OFICIAL[0]).strip().upper(),
         'H5':str(data.get('Ubicacion') or record.get('frente') or ''),
         'H6':str(data.get('Barrio') or ''),
         'H7':str(data.get('Ciudad') or 'QUITO').upper(),
@@ -4901,7 +5109,7 @@ def official_book_excel_from_template(record):
                     raise RuntimeError('La plantilla cambió y faltan celdas: '+', '.join(sorted(missing)[:15]))
                 raw=xml.encode('utf-8')
             dest.writestr(info,raw)
-    return output.getvalue()
+    return v197_append_excel_annexes(output.getvalue(),record)
 
 
 @st.cache_data(ttl=900,show_spinner=False,max_entries=45)
@@ -5013,6 +5221,12 @@ def v196_show_official_preview(record):
     st.caption('Se genera desde el mismo Excel oficial, respetando sus títulos, celdas combinadas y secciones.')
     html=v196_official_excel_preview(json_text(record))
     components.html(html,height=635,scrolling=False)
+    images=anexos_fotos_validas(obj(record.get('datos'),{}))
+    if images:
+        with st.expander(f'📷 Anexos fotográficos ({len(images)})',expanded=False):
+            for i,photo in enumerate(images,1):
+                file=image_stream(photo)
+                if file:st.image(file,caption=f'Anexo {i}',width=360)
 
 
 def official_books_package(records):
@@ -7025,7 +7239,7 @@ def module_original(label, repo):
                 columns='slot,revision,updated_at',order='updated_at')
             if drafts:
                 with st.expander(f'📁 Recuperar borradores ({len(drafts)})',expanded=False):
-                    choices={f"Borrador {i+1} · {r['updated_at'][:16]}":r for i,r in enumerate(reversed(drafts))}
+                    choices={f"Borrador {i+1} · {hora_borrador_ecuador(r['updated_at'])}":r for i,r in enumerate(reversed(drafts))}
                     selected_name=st.selectbox('Selecciona borrador',list(choices),key='restore_choice_'+module)
                     if st.button('Continuar borrador',key='restore_button_'+module):
                         draft=choices[selected_name]
@@ -7617,6 +7831,7 @@ def main():
     st.markdown(APP_CSS_V20,unsafe_allow_html=True)
     st.markdown(APP_CSS_V19_1,unsafe_allow_html=True)
     st.markdown(APP_CSS_V19_3,unsafe_allow_html=True)
+    st.markdown(APP_CSS_V19_7,unsafe_allow_html=True)
     try:
         actual_theme=st.context.theme.type
     except (AttributeError,RuntimeError,KeyError):
