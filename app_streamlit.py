@@ -48,7 +48,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from supabase import create_client
 
 LOG = logging.getLogger("alpha")
-APP_VERSION = "v20.19"
+APP_VERSION = "v20.20"
 COOKIE_NAME = "alpha_session_v5"
 COOKIE_SECONDS = 30 * 86400
 TABLES = {"checklists", "inspecciones", "incidencias", "rendimientos", "trabajadores"}
@@ -2779,6 +2779,20 @@ def catalogo_rubros_v18():
     return json.loads(zlib.decompress(base64.b85decode(CATALOGO_RUBROS_B85)).decode('utf-8'))
 
 
+def unidad_rubro_por_modulo(descripcion, unidad, modulo='rendimientos'):
+    """Aplica unidades propias de cada módulo SIN cambiar el catálogo compartido.
+
+    Estibajes y limpiezas: m³/m² en Rendimientos, h en Libro de Obra
+    oficial y Libro Maestro. Solo se altera al seleccionar nuevamente un rubro;
+    ningún dato histórico ni unidad de rubros distintos se reescribe.
+    """
+    if modulo in ('libro_oficial', 'libro_maestro'):
+        nombre = str(descripcion or '').strip().casefold()
+        if nombre.startswith('estibaj') or nombre.startswith('limpieza'):
+            return 'h'
+    return unidad
+
+
 def v18_chapter_code(value):
     text=str(value or '').strip().upper()
     hit=re.search(r'(?:CAP[-\s]*)?(\d{1,2})(?!\d)',text)
@@ -2816,7 +2830,7 @@ def codigo_rubro_orden_numerico(codigo):
     return (*((numeros+(0,0,0,0))[:4]),codigo)
 
 
-def v18_catalog_matches(chapter='', query='', limit=100):
+def v18_catalog_matches(chapter='', query='', limit=100, modulo='rendimientos'):
     """Capítulos del 01 al 28 y rubros numéricamente ascendentes EN CADA capítulo.
 
     El usuario pidió que la navegación empiece por 1, 2, 3… en todos los capítulos.
@@ -2834,17 +2848,19 @@ def v18_catalog_matches(chapter='', query='', limit=100):
             continue
         if q and q not in normalize_template_key(ident+' '+description+' '+unit):
             continue
-        matches.append((ident,description,unit))
+        matches.append((ident, description,
+                        unidad_rubro_por_modulo(description, unit, modulo)))
     matches.sort(key=lambda item:codigo_rubro_orden_numerico(item[0]))
     return matches[:limit] if limit is not None else matches
 
 
-def v18_catalog_record(code):
+def v18_catalog_record(code, modulo='rendimientos'):
     for ident,description,unit in catalogo_rubros_v18()['rubros']:
         if ident==code:
             chapter=v18_chapter_label(ident)
             return {'Capitulo':chapter,'Codigo_Rubro':ident,'Descripcion':description,
-                    'Area':'','Unidad':unit,'Cantidad':0.0}
+                    'Area':'','Unidad':unidad_rubro_por_modulo(description, unit, modulo),
+                    'Cantidad':0.0}
     return None
 
 
@@ -2925,7 +2941,7 @@ def v18_catalog_activity_picker(editor):
             key=editor.prefix+'v18_search_query')
         if route=='Por nombre o código' and len(query.strip())<2:
             st.info('Escribe al menos dos caracteres para buscar entre los rubros.');return
-        found=v18_catalog_matches(chapter,query,limit=125)
+        found=v18_catalog_matches(chapter,query,limit=125,modulo='libro_oficial')
         if not found:
             st.info('No se encontraron coincidencias. También puedes añadir un rubro manual debajo.');return
         if len(found)>=125:
@@ -2939,7 +2955,7 @@ def v18_catalog_activity_picker(editor):
         if st.button('➕ Agregar rubro seleccionado',type='primary',
                      disabled=not chosen,use_container_width=True,
                      key=editor.prefix+'v18_add_catalog'):
-            item=v18_catalog_record(chosen)
+            item=v18_catalog_record(chosen, modulo='libro_oficial')
             if item:
                 editor.data.setdefault('actividades',{})[row_id()]=item
                 editor.persist()
@@ -2949,7 +2965,7 @@ def v18_catalog_activity_picker(editor):
 
 def v19_aplicar_rubro_seleccionado(editor, rid, codigo, session_key=None):
     """Autorrelleno no destructivo de un rubro: conserva área y cantidad manuales."""
-    catalog=v18_catalog_record(codigo)
+    catalog=v18_catalog_record(codigo, modulo='libro_oficial')
     if not catalog:
         return
     current=editor.data.setdefault('actividades',{}).get(rid)
@@ -3040,7 +3056,7 @@ def v19_catalogo_en_rubro(editor, rid, item):
         st.caption('Selecciona primero un capítulo.')
         return
 
-    options=v18_catalog_matches(chapter,'',limit=None)
+    options=v18_catalog_matches(chapter,'',limit=None,modulo='libro_oficial')
     codes=[code for code,_,_ in options]
     lookup={code:(description,unit) for code,description,unit in options}
     # Una clave por capítulo evita selecciones persistentes de otro capítulo.
@@ -3063,8 +3079,9 @@ def v19_catalogo_en_rubro(editor, rid, item):
         st.text_input('Descripción',value=chosen[0] if chosen else '',
             disabled=True,key=editor.prefix+'v20_read_desc:'+str(rid)+':'+selected_code)
     with c:
-        st.text_input('Unidad',value=chosen[1] if chosen else '',
-            disabled=True,key=editor.prefix+'v20_read_unit:'+str(rid)+':'+selected_code)
+        st.text_input('Unidad',value=(str(item.get('Unidad') or '') or
+            (chosen[1] if chosen else '')),disabled=True,
+            key=editor.prefix+'v20_read_unit:'+str(rid)+':'+selected_code)
 
 
 @st.cache_data(ttl=60, show_spinner=False, max_entries=128)
@@ -3603,7 +3620,7 @@ def render_official(editor,repo):
 def _v20_12_elegir_rubro_maestro(editor, rid, selector_key):
     """Completa la actividad desde el catálogo, sin perder personal, cantidad ni fotos."""
     code=st.session_state.get(selector_key)
-    row=v18_catalog_record(code) if code else None
+    row=v18_catalog_record(code, modulo='libro_maestro') if code else None
     if not row:
         return
     item=editor.data.setdefault('actividades',{}).get(rid)
@@ -3641,7 +3658,7 @@ def v20_12_catalogo_en_actividad_maestro(editor, rid, item):
     """
     prefix=editor.prefix+'maestro_catalogo:'+str(rid)+':'
     original_code=str(item.get('Codigo_Rubro') or '').strip()
-    known=v18_catalog_record(original_code) if original_code else None
+    known=v18_catalog_record(original_code, modulo='libro_maestro') if original_code else None
     manual_key=prefix+'manual'
     manual_default=bool(item.get('Actividad') and not known)
     manual=st.checkbox('Actividad manual fuera del catálogo',value=manual_default,
@@ -3666,7 +3683,7 @@ def v20_12_catalogo_en_actividad_maestro(editor, rid, item):
         format_func=lambda ch:ch if ch=='Todos los capítulos' else v18_chapter_label(ch),
         key=filter_key)
     filtered=v18_catalog_matches('' if chapter=='Todos los capítulos' else chapter,
-                                 '',limit=None)
+                                 '',limit=None,modulo='libro_maestro')
     codes=[code for code,description,unit in filtered]
     lookup={code:(description,unit) for code,description,unit in filtered}
     chosen_key=prefix+'rubro:'+str(chapter)
@@ -3689,8 +3706,8 @@ def v20_12_catalogo_en_actividad_maestro(editor, rid, item):
                       else str(item.get('Actividad') or '')),disabled=True,
                       key=prefix+'descripcion_vista:'+original_code)
     with c:
-        st.text_input('Unidad automática',value=(resolved['Unidad'] if resolved
-                      else str(item.get('Unidad') or '')),disabled=True,
+        st.text_input('Unidad automática',value=(str(item.get('Unidad') or '') or
+                      (resolved['Unidad'] if resolved else '')),disabled=True,
                       key=prefix+'unidad_vista:'+original_code)
     if original_code and original_code not in lookup:
         st.caption('El rubro guardado se conserva. Selecciona otro código del filtro para sustituirlo.')
